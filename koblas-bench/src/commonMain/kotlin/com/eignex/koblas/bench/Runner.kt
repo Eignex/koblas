@@ -3,7 +3,6 @@ package com.eignex.koblas.bench
 import com.eignex.koblas.*
 import com.eignex.koblas.vendor.Vendor
 import com.eignex.koblas.vendor.hostPlatform
-import com.eignex.koblas.vendor.openBlas
 import kotlin.math.max
 import kotlin.time.TimeSource
 
@@ -16,11 +15,11 @@ internal expect fun engineProfilePath(): String?
 internal fun profileEngine(runtime: String): KoblasEngine? = engineProfilePath()?.let { path ->
     val profile = EngineProfile.parse(readTextFile(path))
     require(profile.appliesTo(runtime, hostPlatform())) { "Profile ${profile.name} does not apply to this target" }
-    val backends = listOfNotNull(EngineBackends.simd) + Vendor.entries.mapNotNull { vendor ->
-        if (profile.rules.none { it.backend == vendor.vendorName.lowercase() }) null
-        else EngineBackends.vendor(requireNotNull(openBlas(vendor)) { "Requested profile backend $vendor is unavailable" })
+    val backends = listOfNotNull(BuiltinEngines.simd) + Vendor.entries.mapNotNull { vendor ->
+        if (profile.rules.none { it.source == vendor.vendorName.lowercase() }) null
+        else (requireNotNull(BuiltinEngines.vendor(vendor)) { "Requested profile backend $vendor is unavailable" })
     }
-    val owned = if (runtime == "jvm" && profile.rules.none { it.backend == "jvm-simd" })
+    val owned = if (runtime == "jvm" && profile.rules.none { it.source == "jvm-simd" })
         StandardEngineProfiles.jvmSimd?.rules.orEmpty() else emptyList()
     KoblasEngine.combine(EngineProfile(profile.name, profile.rules + owned), *backends.toTypedArray())
 }
@@ -235,13 +234,15 @@ private const val MAX_OPERATIONS = 1_000_000
 
 /** The same engine and host evidence on either runtime. */
 internal fun engineIdentity(mode: String, engine: KoblasEngine): String {
-    val host = engine.vendor?.let {
-        "/${it.vendor.vendorName}/${it.libraryPath}/${it.version}/threads=${it.threadEvidence.label}" +
-            EngineBackends.vendor(it).capabilities()
+    val host = engine.takeIf { it.vendor != null }?.let {
+        "/${it.vendor!!.vendorName}/${it.libraryPath}/${it.version}/threads=${it.threadEvidence.label}" +
+            (it).capabilities()
     } ?: ""
-    val owned = if (mode in setOf("jvm-simd", "jvm-default")) EngineBackends.simd?.capabilities().orEmpty() else ""
+    val owned = engine.capabilities.entries.joinToString("") { (id, operations) ->
+        "/caps[$id:${operations.joinToString(",") { it.name }}]"
+    }
     return "$mode/${engine.name}$host$owned"
 }
 
-internal fun EngineBackend.capabilities(): String =
-    "/caps[$name:${implementations.joinToString(",") { it.name }}]"
+internal fun KoblasEngine.capabilities(): String =
+    "/caps[$id:${implementations.joinToString(",") { it.name }}]"

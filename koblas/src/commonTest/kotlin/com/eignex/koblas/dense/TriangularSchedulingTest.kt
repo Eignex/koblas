@@ -2,19 +2,17 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.MAX_IDLE_LENGTHS
+import com.eignex.koblas.PortableEngine
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.copyOf
-import com.eignex.koblas.internal.dense.DensePanelKernels
-import com.eignex.koblas.internal.dense.DenseProductKernels
-import com.eignex.koblas.internal.dense.DenseTriangularKernels
-import com.eignex.koblas.internal.dense.PortableDenseBlas
+import com.eignex.koblas.engineWithKernels
 import com.eignex.koblas.internal.dense.PortablePanelKernels
 import com.eignex.koblas.internal.dense.PortableProductKernels
 import com.eignex.koblas.internal.dense.PortableTriangularKernels
 import com.eignex.koblas.internal.dense.SYMMETRIC_BLOCK
-import com.eignex.koblas.internal.dense.ScalarVectorKernels
 import com.eignex.koblas.internal.dense.TRIANGULAR_DIAGONAL_BLOCK
 import com.eignex.koblas.poisonedTriangle
 import com.eignex.koblas.randomMatrix
@@ -106,7 +104,7 @@ class TriangularSchedulingTest {
     private fun threeBlockShapes(): List<Pair<Int, Int>> = listOf(2 * TRIANGULAR_DIAGONAL_BLOCK + 5 to VECTOR_SIDES + 3)
 
     private fun assertSolves(
-        blas: DenseBlas,
+        blas: KoblasEngine,
         right: Boolean,
         lower: Boolean,
         shapes: List<Pair<Int, Int>> = triangularShapes(),
@@ -138,7 +136,7 @@ class TriangularSchedulingTest {
     }
 
     private fun assertMultiplies(
-        blas: DenseBlas,
+        blas: KoblasEngine,
         right: Boolean,
         lowerModes: BooleanArray = booleanArrayOf(false, true),
         shapes: List<Pair<Int, Int>> = triangularShapes(),
@@ -231,7 +229,7 @@ class TriangularSchedulingTest {
         longThinScratch(blas, 24 * TRIANGULAR_DIAGONAL_BLOCK, solve = true)
     }
 
-    private fun longThinScratch(blas: DenseBlas, order: Int, solve: Boolean) {
+    private fun longThinScratch(blas: KoblasEngine, order: Int, solve: Boolean) {
         val workspace = Workspace()
         val triangle = dominantDiagonal(order)
         val b = randomMatrix(order, 1, rng)
@@ -274,7 +272,7 @@ class TriangularSchedulingTest {
         assertSymmetricScratchIsBounded(blas)
     }
 
-    private fun assertSymmetricScratchIsBounded(blas: DenseBlas) {
+    private fun assertSymmetricScratchIsBounded(blas: KoblasEngine) {
         val order = 16 * SYMMETRIC_BLOCK
         val workspace = Workspace()
         val a = dominantDiagonal(order)
@@ -342,9 +340,9 @@ class TriangularSchedulingTest {
 
     @Suppress("LongParameterList") // the backends under test plus the three flags the schedule depends on
     private fun assertTriangularBlocksAt(
-        panels: DensePanelKernels,
-        products: DenseProductKernels,
-        triangles: DenseTriangularKernels,
+        panels: KoblasEngine,
+        products: KoblasEngine,
+        triangles: KoblasEngine,
         lower: Boolean,
         transpose: Boolean,
         right: Boolean,
@@ -354,7 +352,7 @@ class TriangularSchedulingTest {
         val sides = 2 * VECTOR_SIDES + 1
         val recordedTriangles = RecordingTriangles(triangles)
         val recordedProducts = RecordingProducts(products)
-        val blas = PortableDenseBlas(ScalarVectorKernels, panels, recordedProducts, recordedTriangles)
+        val blas = engineWithKernels(PortableEngine, panels, recordedProducts, recordedTriangles)
         val (triangle, _) = poisonedTriangle(rng, order, lower, unitDiag = false)
         val b = randomMatrix(if (right) sides else order, if (right) order else sides, rng)
         val context = "${if (solve) "trsm" else "trmm"} " +
@@ -450,7 +448,6 @@ class TriangularSchedulingTest {
  * because a count that fills one machine's lane block leaves another's empty.
  */
 internal val VECTOR_SIDES: Int = BuiltinEngines.simd
-    ?.triangularKernels
     ?.rightHandSideGroup(TRIANGULAR_DIAGONAL_BLOCK, UNGROUPED_SIDES)
     ?: 4
 
@@ -458,7 +455,7 @@ internal val VECTOR_SIDES: Int = BuiltinEngines.simd
 private const val UNGROUPED_SIDES = 1024
 
 /** Runs [body] against every composition of panel, product and substitution backends this platform has. */
-internal fun withBackends(body: (DensePanelKernels, DenseProductKernels, DenseTriangularKernels) -> Unit) {
+internal fun withBackends(body: (KoblasEngine, KoblasEngine, KoblasEngine) -> Unit) {
     body(PortablePanelKernels, PortableProductKernels, PortableTriangularKernels)
-    BuiltinEngines.simd?.let { body(it.panelKernels, it.productKernels, it.triangularKernels) }
+    BuiltinEngines.simd?.let { body(it, it, it) }
 }

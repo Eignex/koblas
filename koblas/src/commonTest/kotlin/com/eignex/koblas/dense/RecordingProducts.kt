@@ -3,11 +3,11 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.internal.dense.DensePanelKernels
-import com.eignex.koblas.internal.dense.DenseProductKernels
+import com.eignex.koblas.EngineImplementation
+import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.PortableEngine
+import com.eignex.koblas.engineWithKernels
 import com.eignex.koblas.internal.dense.OutputTriangle
-import com.eignex.koblas.internal.dense.PortableDenseBlas
-import com.eignex.koblas.internal.dense.ScalarVectorKernels
 import com.eignex.koblas.internal.dense.insideTriangle
 import com.eignex.koblas.randomMatrix
 import kotlin.random.Random
@@ -31,7 +31,24 @@ internal class ProductBlockCall(
 )
 
 /** A product backend that records every block it is handed and delegates the arithmetic. */
-internal class RecordingProducts(private val delegate: DenseProductKernels) : DenseProductKernels by delegate {
+internal class RecordingProducts(private val delegate: KoblasEngine) : KoblasEngine() {
+    override val implementations = setOf(EngineImplementation.Products)
+
+    override fun implementationsFor(rows: Int, columns: Int, depth: Int): List<String> = delegate.implementationsFor(
+        rows,
+        columns,
+        depth,
+    )
+
+    override fun packsProduct(rows: Int, columns: Int, depth: Int): Boolean = delegate.packsProduct(
+        rows,
+        columns,
+        depth,
+    )
+
+    override val tileRows get() = delegate.tileRows
+    override val tileColumns get() = delegate.tileColumns
+
     /** Every block, in call order. */
     val blocks: MutableList<ProductBlockCall> = ArrayList()
 
@@ -70,8 +87,8 @@ internal class RecordingProducts(private val delegate: DenseProductKernels) : De
  * and one wholly outside, which is never scheduled. Only running the product shows which each block was.
  */
 internal fun assertTriangleProductStaysInTriangle(
-    products: DenseProductKernels,
-    panels: DensePanelKernels,
+    products: KoblasEngine,
+    panels: KoblasEngine,
     n: Int,
     k: Int,
     lower: Boolean,
@@ -80,7 +97,7 @@ internal fun assertTriangleProductStaysInTriangle(
 ) {
     val rng = Random(20261101)
     val recorder = RecordingProducts(products)
-    val blas = PortableDenseBlas(ScalarVectorKernels, panels, recorder)
+    val blas = engineWithKernels(PortableEngine, panels, recorder)
     val a = randomMatrix(if (transposeA) k else n, if (transposeA) n else k, rng)
     val b = randomMatrix(if (transposeB) n else k, if (transposeB) k else n, rng)
     val c = DenseMatrix(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })

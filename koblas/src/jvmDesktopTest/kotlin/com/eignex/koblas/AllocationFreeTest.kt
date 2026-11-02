@@ -1,6 +1,5 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.internal.sparse.axpy
 import com.eignex.koblas.testutil.allocation.bytesPerIteration
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -432,7 +431,7 @@ class AllocationFreeTest(private val name: String, private val iterations: Int, 
         val n = 512
         val a = DoubleArray(n) { it * 0.01 }
         val b = DoubleArray(n) { 1.0 / (it + 1) }
-        val kernels = engine.vectorKernels
+        val kernels = engine
     }
 
     private class DenseLevelTwoFixture {

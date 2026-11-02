@@ -1,12 +1,12 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.PortableEngine
 import com.eignex.koblas.internal.numeric.euclideanNorm
-import com.eignex.koblas.internal.sparse.ScalarIndexedSparseKernels
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
-class ScalarIndexedSparseKernelsTest {
+class PortableEngineTest {
     @Test
     fun `indexed norm agrees with reference across scaling and tails`() {
         for (count in COUNTS) {
@@ -17,7 +17,7 @@ class ScalarIndexedSparseKernelsTest {
                 val gathered = DoubleArray(count) { values[indices[it + 2]] }
                 val expected = euclideanNorm(gathered, 0, 1, count)
 
-                val actual = ScalarIndexedSparseKernels.nrm2(indices, 2, count, values)
+                val actual = PortableEngine.nrm2(indices, 2, count, values)
 
                 assertNormAgreesWithReference(expected, actual, "count=$count scale=$scale")
             }

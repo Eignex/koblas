@@ -41,7 +41,7 @@ public fun DenseMatrix.maskTo(structure: MatrixStructure) {
             values.fill(0.0, base + minOf(j + 1, rows), base + rows)
         }
     }
-    if (structure == MatrixStructure.UnitLower || structure == MatrixStructure.UnitUpper) {
+    if (structure.isUnitDiagonal) {
         for (d in 0 until minOf(rows, cols)) values[d + d * rows] = 1.0
     }
 }

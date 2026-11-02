@@ -2,7 +2,8 @@
 
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.internal.dense.DenseTriangularKernels
+import com.eignex.koblas.EngineImplementation
+import com.eignex.koblas.KoblasEngine
 
 // Recording diagonal substitutions checks routes against executed blocks while retaining their arithmetic.
 
@@ -20,7 +21,25 @@ internal class DiagonalCall(
 )
 
 /** A substitution backend that records every diagonal block it is handed and delegates the arithmetic. */
-internal class RecordingTriangles(private val delegate: DenseTriangularKernels) : DenseTriangularKernels by delegate {
+internal class RecordingTriangles(private val delegate: KoblasEngine) : KoblasEngine() {
+    override val implementations = setOf(EngineImplementation.Triangular)
+
+    override fun rightHandSideGroup(order: Int, sides: Int): Int = delegate.rightHandSideGroup(order, sides)
+
+    override fun gathersRightHandSides(rhsStride: Int, order: Int, sides: Int): Boolean =
+        delegate.gathersRightHandSides(
+            rhsStride,
+            order,
+            sides,
+        )
+
+    override fun implementationsFor(order: Int, sides: Int, contiguous: Boolean): List<String> =
+        delegate.implementationsFor(
+            order,
+            sides,
+            contiguous,
+        )
+
     /** Every diagonal block, in call order. */
     val blocks: MutableList<DiagonalCall> = ArrayList()
 

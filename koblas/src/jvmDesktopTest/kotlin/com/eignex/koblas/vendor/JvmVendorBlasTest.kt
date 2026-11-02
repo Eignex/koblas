@@ -1,13 +1,13 @@
 package com.eignex.koblas.vendor
 
+import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
+import com.eignex.koblas.EngineImplementation
+import com.eignex.koblas.PortableEngine
 import com.eignex.koblas.StridedVector
 import com.eignex.koblas.copyOf
-import com.eignex.koblas.dense.MatrixStructure
 import com.eignex.koblas.dense.ReferenceBlas
-import com.eignex.koblas.internal.dense.ScalarVectorKernels
-import com.eignex.koblas.internal.sparse.axpy
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -71,7 +71,7 @@ class JvmVendorBlasTest {
             val expected = y.values.copyOf()
             ReferenceBlas.gemv(0.5, a, x.values, 2.0, expected, transpose)
 
-            blas.gemv(0.5, a, transpose, x, 2.0, y)
+            blas.gemv(0.5, a, x, 2.0, y, transpose)
 
             assertAgreesWithReference(expected, y.values, "gemv transA=$transpose")
         }
@@ -90,7 +90,7 @@ class JvmVendorBlasTest {
         val expected = DoubleArray(order)
         ReferenceBlas.symv(1.0, a, x.values, 0.0, expected)
 
-        blas.symv(1.0, a, MatrixStructure.SymmetricLower, x, 0.0, y)
+        blas.symv(1.0, a, x, 0.0, y, true)
 
         assertAgreesWithReference(expected, y.values, "symv")
     }
@@ -106,7 +106,7 @@ class JvmVendorBlasTest {
         ReferenceBlas.trsv(a, expected, lower = true, unitDiag = true)
         val x = DenseVector.wrap(rightHandSide.copyOf())
 
-        blas.trsv(a, MatrixStructure.UnitLower, false, x)
+        blas.trsv(a, x, true, false, true)
 
         assertAgreesWithReference(expected, x.values, "trsv unit diagonal")
     }
@@ -120,8 +120,8 @@ class JvmVendorBlasTest {
         val original = vendorValues(order, 22)
         val x = DenseVector.wrap(original.copyOf())
 
-        blas.trsv(triangular, MatrixStructure.TriangularLower, false, x)
-        blas.trmv(triangular, MatrixStructure.TriangularLower, false, x)
+        blas.trsv(triangular, x, true, false, false)
+        blas.trmv(triangular, x, true, false, false)
 
         assertAgreesWithReference(original, x.values, "trsv then trmv")
     }
@@ -135,7 +135,7 @@ class JvmVendorBlasTest {
         val expected = c.copyOf()
         ReferenceBlas.syrk(1.0, a, false, 0.0, expected)
 
-        blas.syrk(1.0, a, false, 0.0, c, MatrixStructure.SymmetricLower)
+        blas.syrk(1.0, a, false, 0.0, c, true)
 
         assertAgreesWithReference(expected.values, c.values, "syrk")
     }
@@ -146,7 +146,7 @@ class JvmVendorBlasTest {
             val other = vendorValues(storage.size, 25)
             val x = StridedVector(storage, offset, size, stride)
             val y = StridedVector(other, offset, size, stride)
-            val expected = ScalarVectorKernels.dot(storage, offset, other, offset, size, stride, stride)
+            val expected = PortableEngine.dot(storage, offset, other, offset, size, stride, stride)
 
             val actual = blas.dot(x, y)
 
@@ -165,7 +165,7 @@ class JvmVendorBlasTest {
                 val yOffset = if (yStride > 0) 3 else 3 + 3 * -yStride
                 val x = StridedVector(xStorage, xOffset, size, xStride)
                 val y = StridedVector(yStorage, yOffset, size, yStride)
-                val expected = ScalarVectorKernels.dot(xStorage, xOffset, yStorage, yOffset, size, xStride, yStride)
+                val expected = PortableEngine.dot(xStorage, xOffset, yStorage, yOffset, size, xStride, yStride)
 
                 val actual = blas.dot(x, y)
 
@@ -178,7 +178,7 @@ class JvmVendorBlasTest {
     fun `norm agrees with the scalar oracle under positive and negative strides`() = withVendor { blas ->
         forEachStride { storage, offset, size, stride ->
             val x = StridedVector(storage, offset, size, stride)
-            val expected = ScalarVectorKernels.nrm2(storage, offset, size, stride)
+            val expected = PortableEngine.nrm2(storage, offset, size, stride)
 
             val actual = blas.nrm2(x)
 
@@ -190,7 +190,7 @@ class JvmVendorBlasTest {
     fun `absolute sum agrees with the scalar oracle under positive and negative strides`() = withVendor { blas ->
         forEachStride { storage, offset, size, stride ->
             val x = StridedVector(storage, offset, size, stride)
-            val expected = ScalarVectorKernels.asum(storage, offset, size, stride)
+            val expected = PortableEngine.asum(storage, offset, size, stride)
 
             val actual = blas.asum(x)
 
@@ -202,7 +202,7 @@ class JvmVendorBlasTest {
     fun `maximum index selects a largest magnitude under positive and negative strides`() = withVendor { blas ->
         forEachStride { storage, offset, size, stride ->
             val x = StridedVector(storage, offset, size, stride)
-            val expected = ScalarVectorKernels.iamax(storage, offset, size, stride)
+            val expected = PortableEngine.iamax(storage, offset, size, stride)
 
             val actual = blas.iamax(x)
 
@@ -242,7 +242,7 @@ class JvmVendorBlasTest {
         val expected = storage.copyOf()
         val x = vector(size, 27)
         val y = StridedVector(storage, 3, size, 4)
-        ScalarVectorKernels.axpy(expected, 3, 0.5, x.values, 0, size, yStride = 4)
+        PortableEngine.axpy(expected, 3, 0.5, x.values, 0, size, yStride = 4)
 
         blas.axpy(0.5, x, y)
 
@@ -261,7 +261,7 @@ class JvmVendorBlasTest {
                 val yOffset = if (yStride > 0) 3 else 3 + 3 * -yStride
                 val x = StridedVector(xStorage, xOffset, size, xStride)
                 val y = StridedVector(yStorage, yOffset, size, yStride)
-                ScalarVectorKernels.axpy(
+                PortableEngine.axpy(
                     expected,
                     yOffset,
                     0.5,
@@ -298,7 +298,7 @@ class JvmVendorBlasTest {
         val expected = c.copyOf()
         ReferenceBlas.gemmt(1.0, a, false, b, false, 0.0, expected)
 
-        blas.gemmt(1.0, a, false, b, false, 0.0, c, MatrixStructure.SymmetricLower)
+        blas.gemmt(1.0, a, false, b, false, 0.0, c, true)
 
         assertAgreesWithReference(expected.values, c.values, "gemmt")
     }
@@ -314,7 +314,7 @@ class JvmVendorBlasTest {
             val expected = c.copyOf()
             ReferenceBlas.syr2k(1.25, a, b, transpose, 0.5, expected)
 
-            blas.syr2k(1.25, a, b, transpose, 0.5, c, MatrixStructure.SymmetricLower)
+            blas.syr2k(1.25, a, b, transpose, 0.5, c, true)
 
             assertAgreesWithReference(expected.values, c.values, "syr2k transA=$transpose")
         }
@@ -327,9 +327,9 @@ class JvmVendorBlasTest {
         val storage = vendorValues(size, 30)
         val expected = storage.copyOf()
         val x = StridedVector(storage, size - 1, size, -1)
-        ScalarVectorKernels.scale(expected, size - 1, 2.0, size, -1)
+        PortableEngine.scale(expected, size - 1, 2.0, size, -1)
 
-        blas.scal(2.0, x)
+        blas.scale(2.0, x)
 
         assertAgreesWithReference(expected, storage, "scal negative stride")
     }
@@ -343,7 +343,7 @@ class JvmVendorBlasTest {
         val expected = storage.copyOf()
         val first = StridedVector(storage, 0, size, lda)
         val second = StridedVector(storage, 1, size, lda)
-        ScalarVectorKernels.swap(expected, 0, expected, 1, size, lda, lda)
+        PortableEngine.swap(expected, 0, expected, 1, size, lda, lda)
 
         blas.swap(first, second)
 
@@ -358,7 +358,7 @@ class JvmVendorBlasTest {
         val expected = a.copyOf()
         ReferenceBlas.syr(1.5, x, expected)
 
-        blas.syr(1.5, x, a, MatrixStructure.SymmetricLower)
+        blas.syr(1.5, x, a, true)
 
         assertAgreesWithReference(expected.values, a.values, "syr")
     }
@@ -366,13 +366,13 @@ class JvmVendorBlasTest {
     @Test
     fun `the resolved library and version identify what actually ran`() = withVendor { blas ->
         assertTrue(blas.version.isNotEmpty(), "no version string")
-        assertTrue(BlasOperation.Gemm in blas.directlyImplemented, "gemm should be directly implemented")
+        assertTrue(EngineImplementation.Gemm in blas.implementations, "gemm should be directly implemented")
     }
 
     @Test
     fun `the reported library is the file the symbol came from not the name that was asked for`() {
         for (vendor in Vendor.entries) {
-            val blas = openBlas(vendor) ?: continue
+            val blas = BuiltinEngines.vendor(vendor) ?: continue
 
             assertTrue(
                 blas.libraryPath.startsWith("/"),

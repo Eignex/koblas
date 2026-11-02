@@ -57,10 +57,7 @@ internal fun uploFor(structure: MatrixStructure): Int = when (structure) {
 }
 
 /** Whether [structure] carries an implicit unit diagonal that the vendor must not read. */
-internal fun diagFor(structure: MatrixStructure): Int = when (structure) {
-    MatrixStructure.UnitLower, MatrixStructure.UnitUpper -> Cblas.UNIT
-    else -> Cblas.NON_UNIT
-}
+internal fun diagFor(structure: MatrixStructure): Int = if (structure.isUnitDiagonal) Cblas.UNIT else Cblas.NON_UNIT
 
 /** The side flag for a two-sided Level 3 call. */
 internal fun sideFor(rightSide: Boolean): Int = if (rightSide) Cblas.RIGHT else Cblas.LEFT

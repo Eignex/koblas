@@ -4,7 +4,6 @@ package com.eignex.koblas.internal.jvm25.simd
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.internal.dense.DenseTriangularKernels
 import com.eignex.koblas.internal.dense.PortableTriangularKernels
 import com.eignex.koblas.internal.dense.triangleEntry
 import com.eignex.koblas.sparse.*
@@ -24,9 +23,12 @@ import jdk.incubator.vector.VectorOperators
  * Strided sides and incomplete lane blocks use [PortableTriangularKernels];
  * [implementationsFor] reports those bodies. [gathersRightHandSides] requests a copy when it can
  * amortize vector loads. Species initialization requires the Vector API module, checked by
- * [com.eignex.koblas.BuiltinEngines] before using this backend.
+ * [BuiltinEngines] before using this backend.
  */
-internal object SimdTriangularKernels : DenseTriangularKernels {
+internal object SimdTriangularKernels : KoblasEngine() {
+    override val id: String = "jvm-simd"
+    override val implementations get() = setOf(EngineImplementation.Triangular)
+
     private val SPECIES = SIMD_SPECIES
     private val LANE = SPECIES.length()
 

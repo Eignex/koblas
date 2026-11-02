@@ -1,6 +1,7 @@
 package com.eignex.koblas.internal.jvm25.simd
 
-import com.eignex.koblas.internal.sparse.IndexedSparseKernels
+import com.eignex.koblas.EngineImplementation
+import com.eignex.koblas.KoblasEngine
 import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
 
@@ -15,7 +16,17 @@ import jdk.incubator.vector.VectorOperators
  *
  * Its own object so the initializer, which touches DoubleVector, runs only once the module is present.
  */
-internal object SparseSimd : IndexedSparseKernels {
+internal object SparseSimd : KoblasEngine() {
+    override val id: String = "jvm-simd"
+    override val implementations get() = if (vectorDot) {
+        setOf(
+            EngineImplementation.IndexedDot,
+        )
+    } else {
+        emptySet()
+    }
+    override val minimumIndexedLength: Int get() = 2
+
     override val name: String = "simd-indexed"
     private val SPECIES = SIMD_SPECIES
     private val LANE = SPECIES.length()

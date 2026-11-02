@@ -118,7 +118,7 @@ class SymmetricBlasTest {
 
     @Suppress("CyclomaticComplexMethod", "LongParameterList") // one loop variable per flag the routine carries
     private fun checkSyrk(
-        blas: DenseBlas,
+        blas: KoblasEngine,
         rng: Random,
         lower: Boolean,
         transpose: Boolean,

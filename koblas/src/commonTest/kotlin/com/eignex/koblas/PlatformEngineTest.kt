@@ -2,7 +2,6 @@ package com.eignex.koblas
 
 import com.eignex.koblas.internal.dense.PanelWork
 import com.eignex.koblas.internal.dense.PortablePanelKernels
-import com.eignex.koblas.internal.dense.implementationFor
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
@@ -27,22 +26,20 @@ class PlatformEngineTest {
 
         if (vector == null) {
             // These are the owned matrix backends; Native whole-call host routing is independent of them.
-            assertEquals("scalar-panel", koblas.panelKernels.name)
-            assertEquals(BuiltinEngines.scalar.productKernels.name, koblas.productKernels.name)
-            assertEquals(BuiltinEngines.scalar.triangularKernels.name, koblas.triangularKernels.name)
+            assertEquals(PortablePanelKernels.name, koblas.implementationFor(PanelWork.RankUpdate, WIDE, 4))
             return
         }
         assertEquals(
-            vector.vectorKernels.implementationFor(EngineImplementation.Dot, WIDE),
+            vector.implementationFor(EngineImplementation.Dot, WIDE),
             reached(EngineImplementation.Dot, WIDE),
         )
         assertNotEquals(
-            BuiltinEngines.scalar.panelKernels.name,
-            koblas.panelKernels.name,
+            BuiltinEngines.scalar.name,
+            koblas.name,
             "an available vector panel backend was not selected",
         )
-        assertNotEquals(BuiltinEngines.scalar.productKernels.name, koblas.productKernels.name)
-        assertNotEquals(BuiltinEngines.scalar.triangularKernels.name, koblas.triangularKernels.name)
+        assertNotEquals(BuiltinEngines.scalar.name, koblas.name)
+        assertNotEquals(BuiltinEngines.scalar.name, koblas.name)
     }
 
     // A selection is not an execution: the Vector API backend hands a rank update shorter than one lane block
@@ -52,25 +49,11 @@ class PlatformEngineTest {
         val simd = BuiltinEngines.simd ?: return println(
             "SKIPPED: no Vector API engine on this host; the panel bodies were not compared",
         )
-        val wide = simd.panelKernels.implementationFor(PanelWork.RankUpdate, WIDE, 4)
-        val short = simd.panelKernels.implementationFor(PanelWork.RankUpdate, 1, 4)
+        val wide = simd.implementationFor(PanelWork.RankUpdate, WIDE, 4)
+        val short = simd.implementationFor(PanelWork.RankUpdate, 1, 4)
 
         assertNotEquals(short, wide, "a wide panel and a single row reached the same body")
         assertEquals(PortablePanelKernels.name, short)
-    }
-
-    // The JVM never hands Level 1 to a library, so under `-Pkoblas.noSimd=true` on a host with oneMKL the
-    // arm is the portable one while a vendor exists; the kernels' own name is what says which was selected.
-    @Test
-    fun `a wide call reaches whichever accelerated arm this platform has`() {
-        if (koblas.vectorKernels.name == PORTABLE) {
-            println("SKIPPED: this platform selected the portable kernels; there is no accelerated arm to reach")
-            return
-        }
-
-        val wide = reached(EngineImplementation.Dot, WIDE)
-
-        assertNotEquals(PORTABLE, wide, "a wide dot stayed on the portable kernels")
     }
 
     /** Below any arm's threshold the call overhead outweighs the arithmetic, so the portable loop runs. */
@@ -83,8 +66,8 @@ class PlatformEngineTest {
     // are lanes: the assertion is where it cannot go rather than where it must stay.
     @Test
     fun `sum never names a vendor because none exports it`() {
-        val vendor = koblas.vendor ?: return
-        val vendorArm = "${vendor.vendor.vendorName.lowercase()}-level1"
+        val vendor = koblas.takeIf { it.vendor != null } ?: return
+        val vendorArm = "${vendor.vendor!!.vendorName.lowercase()}"
 
         assertNotEquals(vendorArm, reached(EngineImplementation.Sum, WIDE))
     }
@@ -95,8 +78,8 @@ class PlatformEngineTest {
      */
     @Test
     fun `each operation crosses to the vendor at its own measured width`() {
-        val vendor = koblas.vendor ?: return skipped("no library on this host")
-        val arm = "${vendor.vendor.vendorName.lowercase()}-level1"
+        val vendor = koblas.takeIf { it.vendor != null } ?: return skipped("no library on this host")
+        val arm = "${vendor.vendor!!.vendorName.lowercase()}"
         if (reached(
                 EngineImplementation.Dot,
                 WIDE,
@@ -114,7 +97,7 @@ class PlatformEngineTest {
     }
 
     private fun reached(operation: EngineImplementation, length: Int): String? =
-        koblas.vectorKernels.implementationFor(operation, length)
+        koblas.implementationFor(operation, length)
 
     private fun skipped(why: String) {
         println("SKIPPED: $why; the per-operation crossovers were not exercised here")

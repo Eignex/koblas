@@ -1,9 +1,10 @@
 package com.eignex.koblas.internal.dense
 
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.dense.*
 
 /** `v = beta * v` over the [len] entries from [off], honoring the `beta == 0` overwrite convention. */
-internal fun applyBeta(k: DenseVectorKernels, v: DoubleArray, off: Int, len: Int, beta: Double, stride: Int = 1) {
+internal fun applyBeta(k: KoblasEngine, v: DoubleArray, off: Int, len: Int, beta: Double, stride: Int = 1) {
     when {
         beta == 0.0 -> if (stride == 1) {
             v.fill(
@@ -17,9 +18,4 @@ internal fun applyBeta(k: DenseVectorKernels, v: DoubleArray, off: Int, len: Int
 
         beta != 1.0 -> k.scale(v, off, beta, len, stride)
     }
-}
-
-/** Named portable kernels; [DenseVectorKernels] owns their scalar arithmetic defaults. */
-internal object ScalarVectorKernels : DenseVectorKernels {
-    override val name: String get() = "scalar"
 }

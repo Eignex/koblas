@@ -27,7 +27,7 @@ bash tests/verify-test-results.sh \
 Device tests use Java method names so their test APK remains compatible with API 24 DEX. Run them on an
 API 24 emulator as well as a current Android runtime. The shared check exercises repeated `J * x`, `J^T * r`,
 and `J^T * J` products against a straightforward scalar reference, reused workspaces, and an aliased destination.
-It exercises both the platform default and the production `KoblasEngine.portable()` factory, checking
+It exercises both the platform default and the exact `BuiltinEngines.scalar` engine, checking
 repeated finite-data results against the reference with rounding tolerance. Engine selection and metadata
 inspection are directly callable.
 

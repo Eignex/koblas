@@ -78,12 +78,7 @@ internal inline fun <T> stagedRegion(
 }
 
 /** Scales selected entries, never reading a zero-scaled destination or visiting its padding. */
-internal fun scaleRegion(
-    a: DenseMatrixRegion,
-    beta: Double,
-    lower: Boolean? = null,
-    vectors: DenseVectorKernels? = null,
-) {
+internal fun scaleRegion(a: DenseMatrixRegion, beta: Double, lower: Boolean? = null, vectors: KoblasEngine? = null) {
     if (beta == 1.0 || a.rows == 0 || a.cols == 0) return
     if (lower == null && vectors != null) {
         val length = scalingLength(a.rows, a.cols, a.leadingDimension)

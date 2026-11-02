@@ -1,12 +1,11 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.BuiltinEngines
+import com.eignex.koblas.EngineImplementation
+import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.PortableEngine
 import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.SparseVector
-import com.eignex.koblas.internal.sparse.axpy
-import com.eignex.koblas.internal.sparse.gather
-import com.eignex.koblas.internal.sparse.gatherZero
-import com.eignex.koblas.internal.sparse.scatter
+import com.eignex.koblas.engineWithKernels
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -16,8 +15,8 @@ import kotlin.test.assertTrue
 
 class SparseKernelsTest {
     private val kernels
-        get() = listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd).distinct().map { it.sparseKernels } +
-            CustomSparseKernels()
+        get() = listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd).distinct().map { it } +
+            engineWithKernels(indexed = CustomIndexedDot())
 
     @Test
     fun `column dots agree with the scalar oracle across support lengths and offsets`() {
@@ -36,7 +35,7 @@ class SparseKernelsTest {
             for (column in 0 until matrix.cols) {
                 val start = matrix.colPointers[column]
                 val length = matrix.colPointers[column + 1] - start
-                val expected = BuiltinEngines.scalar.sparseKernels.dot(indices, start, values, start, length, dense)
+                val expected = BuiltinEngines.scalar.dot(indices, start, values, start, length, dense)
 
                 for (selected in kernels) {
                     val actual = selected.dotColumn(matrix, column, dense)
@@ -59,7 +58,7 @@ class SparseKernelsTest {
             )
             for (rhs in listOf(3.0, Double.POSITIVE_INFINITY, Double.NaN)) {
                 val dense = doubleArrayOf(Double.NaN, Double.NEGATIVE_INFINITY, rhs, Double.NaN)
-                val expected = BuiltinEngines.scalar.sparseKernels.dot(
+                val expected = BuiltinEngines.scalar.dot(
                     matrix.rowIndices,
                     1,
                     matrix.values,
@@ -90,7 +89,7 @@ class SparseKernelsTest {
         for (selected in kernels) {
             for (coefficient in listOf(2.0, 5.0, -0.0)) {
                 matrix.values[1] = coefficient
-                val expected = BuiltinEngines.scalar.sparseKernels.dot(matrix.rowIndices, 1, matrix.values, 1, 2, dense)
+                val expected = BuiltinEngines.scalar.dot(matrix.rowIndices, 1, matrix.values, 1, 2, dense)
 
                 val actual = selected.dotColumn(matrix, 1, dense)
 
@@ -109,7 +108,7 @@ class SparseKernelsTest {
             doubleArrayOf(8.0, 2.0, -3.0, 9.0),
         )
         val before = matrix.values.copyOf()
-        val expected = BuiltinEngines.scalar.sparseKernels.dot(matrix.rowIndices, 1, before, 1, 2, before)
+        val expected = BuiltinEngines.scalar.dot(matrix.rowIndices, 1, before, 1, 2, before)
 
         for (selected in kernels) {
             val actual = selected.dotColumn(matrix, 1, matrix.values)
@@ -123,7 +122,7 @@ class SparseKernelsTest {
     fun `column dots accept empty columns with no rows`() {
         val matrix = SparseMatrix.wrap(0, 2, intArrayOf(0, 0, 0), IntArray(0), DoubleArray(0))
         val dense = DoubleArray(0)
-        val expected = BuiltinEngines.scalar.sparseKernels.dot(IntArray(0), 0, DoubleArray(0), 0, 0, dense)
+        val expected = BuiltinEngines.scalar.dot(IntArray(0), 0, DoubleArray(0), 0, 0, dense)
 
         for (selected in kernels) {
             for (column in 0 until matrix.cols) {
@@ -160,7 +159,8 @@ class SparseKernelsTest {
 
     @Test
     fun `custom column dot defaults dispatch to the raw overload`() {
-        val selected = CustomSparseKernels()
+        val backend = CustomIndexedDot()
+        val selected = engineWithKernels(indexed = backend)
         val matrix = SparseMatrix.wrap(
             5,
             3,
@@ -173,7 +173,7 @@ class SparseKernelsTest {
         selected.dotColumn(matrix, 1, dense)
         selected.dotColumn(matrix, 2, dense)
 
-        assertEquals(listOf(1 to 2, 3 to 0), selected.rawCalls)
+        assertEquals(listOf(1 to 2, 3 to 0), backend.rawCalls)
     }
 
     private fun assertDotAgreesWithReference(expected: Double, actual: Double, context: String) {
@@ -184,14 +184,11 @@ class SparseKernelsTest {
         }
     }
 
-    // Implement the original surface explicitly so dotColumn exercises the interface default.
-    private class CustomSparseKernels : SparseKernels {
-        private val delegate = BuiltinEngines.scalar.sparseKernels
+    private class CustomIndexedDot : KoblasEngine() {
+        override val name = "custom-indexed"
+        override val implementations = setOf(EngineImplementation.IndexedDot)
         val rawCalls = mutableListOf<Pair<Int, Int>>()
-        override val name: String = "custom"
-        override fun dot(x: SparseVector, y: DoubleArray) = delegate.dot(x, y)
-        override fun dot(x: SparseVector, y: SparseVector) = delegate.dot(x, y)
-        override fun dot(
+        override fun dotDense(
             indices: IntArray,
             indexOffset: Int,
             values: DoubleArray,
@@ -200,32 +197,7 @@ class SparseKernelsTest {
             dense: DoubleArray,
         ): Double {
             rawCalls += indexOffset to count
-            return delegate.dot(indices, indexOffset, values, valueOffset, count, dense)
+            return PortableEngine.dotDense(indices, indexOffset, values, valueOffset, count, dense)
         }
-        override fun axpy(y: DoubleArray, alpha: Double, x: SparseVector) = delegate.axpy(y, alpha, x)
-        override fun axpy(
-            destination: DoubleArray,
-            alpha: Double,
-            indices: IntArray,
-            indexOffset: Int,
-            values: DoubleArray,
-            valueOffset: Int,
-            count: Int,
-        ) = delegate.axpy(destination, alpha, indices, indexOffset, values, valueOffset, count)
-        override fun scatter(x: SparseVector, out: DoubleArray) = delegate.scatter(x, out)
-        override fun scatter(
-            indices: IntArray,
-            indexOffset: Int,
-            values: DoubleArray,
-            valueOffset: Int,
-            count: Int,
-            destination: DoubleArray,
-        ) = delegate.scatter(indices, indexOffset, values, valueOffset, count, destination)
-        override fun gather(x: SparseVector, from: DoubleArray) = delegate.gather(x, from)
-        override fun gatherZero(x: SparseVector, from: DoubleArray) = delegate.gatherZero(x, from)
-        override fun nrm2(x: SparseVector) = delegate.nrm2(x)
-        override fun nrm2(indices: IntArray, indexOffset: Int, count: Int, values: DoubleArray) =
-            delegate.nrm2(indices, indexOffset, count, values)
-        override fun asum(x: SparseVector) = delegate.asum(x)
     }
 }

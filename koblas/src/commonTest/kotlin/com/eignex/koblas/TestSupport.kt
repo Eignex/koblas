@@ -137,7 +137,7 @@ internal fun poisonedTriangle(rng: Random, n: Int, lower: Boolean, unitDiag: Boo
  * are and a test that asked for its own width back would learn nothing.
  */
 internal fun partialPanelWidth(work: PanelWork): Int =
-    koblas.panelKernels.executionGroup(work, UNGROUPED_EXTENT, UNGROUPED_EXTENT) + 1
+    koblas.executionGroup(work, UNGROUPED_EXTENT, UNGROUPED_EXTENT) + 1
 
 /** Wider than any grouping a backend recommends, so asking with it returns the recommendation itself. */
 private const val UNGROUPED_EXTENT = 1024

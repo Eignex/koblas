@@ -1,10 +1,7 @@
 package com.eignex.koblas.internal.jvm25.simd
 
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.EngineBackend
 import com.eignex.koblas.EngineImplementation.*
-import com.eignex.koblas.dense.DenseVectorKernels
-import com.eignex.koblas.internal.dense.ScalarVectorKernels
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.internal.numeric.MIN_NORMAL
 import com.eignex.koblas.internal.numeric.rescaledEuclideanNorm
 import kotlin.math.sqrt
@@ -18,7 +15,13 @@ internal val simdAvailable: Boolean = try {
 }
 
 /** Only supplied operations are capabilities; the shared interface owns the portable defaults. */
-private object SimdVectorLeaves : DenseVectorKernels {
+private object SimdVectorLeaves : KoblasEngine() {
+    override val id: String = "jvm-simd"
+    override val implementations = setOf(Dot, Sum, Nrm2, Iamax, Asum, Axpy)
+    override val dynamicNorm: Boolean get() = true
+    override val contiguousVectors: Boolean get() = true
+    override val minimumVectorLength: Int get() = SimdOps.lanes()
+
     override val name: String = "simd(${SimdOps.lanes()} lanes)"
     override fun dot(
         a: DoubleArray,
@@ -54,15 +57,6 @@ private object SimdVectorLeaves : DenseVectorKernels {
     ) = SimdOps.axpy(y, yOff, alpha, x, xOff, len)
 }
 
-internal val simdContributions: EngineBackend by lazy {
-    EngineBackend(
-        "jvm-simd", SimdVectorLeaves, setOf(Dot, Sum, Nrm2, Iamax, Asum, Axpy),
-        indexedDot = if (SparseSimd.vectorDot) SparseSimd else null,
-        panels = SimdPanelKernels, products = SimdProductKernels, triangular = SimdTriangularKernels,
-        vectorName = SimdVectorLeaves.name, dynamicNorm = true,
-        contiguousVectors = true, minimumVectorLength = SimdOps.lanes(), minimumIndexedLength = 2,
-    )
+internal val simdContributions: List<KoblasEngine> by lazy {
+    listOf(SimdVectorLeaves, SparseSimd, SimdPanelKernels, SimdProductKernels, SimdTriangularKernels)
 }
-
-/** Exact owned composition retained for kernel conformance and allocation checks. */
-internal val SimdVectorKernels: DenseVectorKernels get() = BuiltinEngines.simd?.vectorKernels ?: ScalarVectorKernels

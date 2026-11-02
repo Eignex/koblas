@@ -4,7 +4,6 @@ package com.eignex.koblas.internal.jvm25.simd
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.internal.dense.DenseProductKernels
 import com.eignex.koblas.internal.dense.packsProductByWork
 import com.eignex.koblas.internal.dense.scaleProductWindow
 import com.eignex.koblas.sparse.*
@@ -22,10 +21,13 @@ import jdk.incubator.vector.DoubleVector
  * fewer stores. Partial rows use the scalar edge because masked stores allocate on this
  * implementation. [implementationsFor] reports both bodies when needed.
  *
- * Species initialization requires the Vector API module. [com.eignex.koblas.BuiltinEngines] checks
+ * Species initialization requires the Vector API module. [BuiltinEngines] checks
  * availability before constructing an engine with this backend.
  */
-internal object SimdProductKernels : DenseProductKernels {
+internal object SimdProductKernels : KoblasEngine() {
+    override val id: String = "jvm-simd"
+    override val implementations get() = setOf(EngineImplementation.Products)
+
     private val SPECIES = SIMD_SPECIES
     private val LANE = SPECIES.length()
 

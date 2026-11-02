@@ -11,8 +11,8 @@ private const val USER_HOME: String = "{home}"
 /**
  * The closed set of BLAS libraries Koblas can bind.
  *
- * The set is fixed at compile time. There is no provider registration and no way to add an implementation at
- * runtime, so [select] is the whole of the selection policy and can be read in one sitting.
+ * The supported library bindings are fixed at compile time. Measured engine profiles choose among
+ * available bindings; explicit selection opens one named vendor.
  */
 public enum class Vendor(
     /** Name used in reports and route descriptions. */
@@ -143,32 +143,6 @@ public enum class Vendor(
 
         else -> candidates
     }
-
-    /** The preference order for a host, and the reasoning behind it. */
-    public companion object {
-        /**
-         * The supported vendors to try on [host], in preference order. An empty list leaves default engines
-         * on portable Kotlin. Linux and Windows fall back to [OpenBlas]; macOS uses system [Accelerate].
-         * Windows shares Linux's architecture and manufacturer order, with DLLs from absolute directories
-         * on `PATH`. Performance eligibility belongs to the platform engine policy, separately from
-         * library availability.
-         */
-        public fun select(host: HostPlatform): List<Vendor> = when {
-            host.operatingSystem == OperatingSystem.MacOs -> listOf(Accelerate)
-
-            host.operatingSystem != OperatingSystem.Linux &&
-                host.operatingSystem != OperatingSystem.Windows -> emptyList()
-
-            host.architecture == Architecture.Arm64 -> listOf(ArmPl, OpenBlas)
-
-            host.architecture == Architecture.X86_64 && host.cpuVendor == CpuVendor.Amd ->
-                listOf(Aocl, OneMkl, OpenBlas)
-
-            host.architecture == Architecture.X86_64 -> listOf(OneMkl, Aocl, OpenBlas)
-
-            else -> emptyList()
-        }
-    }
 }
 
 /** Operating systems the binding layer distinguishes. */
@@ -198,7 +172,7 @@ public enum class Architecture {
     Other,
 }
 
-/** CPU manufacturers that change the preference order within one architecture. */
+/** CPU manufacturers used when matching measured profiles. */
 public enum class CpuVendor {
     /** An Intel part. */
     Intel,
@@ -206,7 +180,7 @@ public enum class CpuVendor {
     /** An AMD part. */
     Amd,
 
-    /** A part whose manufacturer was not identified, which takes the architecture's default order. */
+    /** A part whose manufacturer was not identified. */
     Unknown,
 }
 
@@ -221,7 +195,7 @@ internal fun cpuVendorFromIdentifier(identifier: String?): CpuVendor {
 }
 
 /**
- * The host facts [Vendor.select] reads. Resolved once per process; none of these change while it runs.
+ * The host facts measured profiles match. Resolved once per process; none of these change while it runs.
  */
 public class HostPlatform(
     /** The operating system. */

@@ -4,8 +4,6 @@
 
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.DenseBlas
-
 /** Column `j` as a fresh vector, copied rather than viewed. */
 public fun DenseMatrix.column(j: Int): DenseVector {
     requireIndex(j in 0 until cols) { "column $j outside [0,$cols)" }
@@ -64,7 +62,7 @@ public fun SparseMatrix.row(i: Int): SparseVector {
 
 /**
  * Fresh transposed matrix, with the active backend ([koblas]). For products, prefer the transpose flags on
- * gemv and gemm, which read the original storage without copying. See [DenseBlas.transpose].
+ * gemv and gemm, which read the original storage without copying. See [KoblasEngine.transpose].
  */
 public fun DenseMatrix.transpose(): DenseMatrix = koblas.transpose(this)
 

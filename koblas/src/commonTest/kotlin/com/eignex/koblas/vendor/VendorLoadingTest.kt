@@ -1,9 +1,9 @@
 package com.eignex.koblas.vendor
 
+import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
-import com.eignex.koblas.RouteKind
-import com.eignex.koblas.StridedVector
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.internal.configuration.environmentVariableOrNull
 import kotlin.math.abs
 import kotlin.test.Test
@@ -18,7 +18,11 @@ import kotlin.test.assertTrue
  * missing exactly the right symbol is not something a test can rely on.
  */
 class VendorLoadingTest {
-    private fun installed(): Blas? = openBlas()
+    private fun installed(): KoblasEngine? = Vendor.entries.firstNotNullOfOrNull {
+        BuiltinEngines.vendor(
+            it,
+        )
+    }
 
     @Test
     fun `a parallel armpl build with hidden controls is never accepted as serial`() {
@@ -43,7 +47,7 @@ class VendorLoadingTest {
             )
 
             assertNotNull(
-                openBlas(vendor),
+                BuiltinEngines.vendor(vendor),
                 "Required ${vendor.vendorName} failed to load or pass ABI and thread checks",
             )
         }
@@ -88,48 +92,17 @@ class VendorLoadingTest {
     }
 
     @Test
-    fun `a call that reaches no vendor work is not described as reaching it`() {
-        val blas = installed() ?: return skipped("no-work routing")
-        val empty = DenseVector.wrap(DoubleArray(0))
-        val present = DenseVector.wrap(doubleArrayOf(1.0, 2.0))
-        val emptyMatrix = DenseMatrix.wrap(0, 0, DoubleArray(0))
-        val matrix = DenseMatrix.wrap(2, 2, DoubleArray(4) { it + 1.0 })
-
-        val emptyDot = blas.routeOf(BlasOperation.Dot, emptyList(), listOf(empty, empty))
-        val realDot = blas.routeOf(BlasOperation.Dot, emptyList(), listOf(present, present))
-        val emptyGemm = blas.routeOf(BlasOperation.Gemm, listOf(matrix, matrix, emptyMatrix))
-
-        assertEquals(RouteKind.NoWork, emptyDot.kind, "an empty dot performs no vendor work")
-        assertEquals(null, emptyDot.entryPoint, "a call that never reached BLAS resolved no entry point")
-        assertTrue(!emptyDot.exactlyMeasurable, "an empty call is not a measurement of the vendor")
-        assertEquals(RouteKind.NoWork, emptyGemm.kind, "an empty destination performs no vendor work")
-        assertEquals(RouteKind.Direct, realDot.kind, "a dot with entries does reach the vendor")
-    }
-
-    @Test
-    fun `the no work rule the route reports is the one the call acts on`() {
-        val blas = installed() ?: return skipped("no-work agreement")
-        val untouched = doubleArrayOf(7.0, 8.0, 9.0)
-        val destination = StridedVector(untouched, 0, 0)
-        val source = DenseVector.wrap(DoubleArray(0))
-
-        val route = blas.routeOf(BlasOperation.Axpy, emptyList(), listOf(source, destination))
-        blas.axpy(2.0, source, destination)
-
-        // The description said nothing ran; the call must agree by leaving the storage alone.
-        assertEquals(RouteKind.NoWork, route.kind)
-        assertEquals(listOf(7.0, 8.0, 9.0), untouched.toList())
-    }
-
-    @Test
     fun `two instances of one vendor are independent of each other`() {
         val first = installed() ?: return skipped("independent instances")
-        val second = assertNotNull(openBlas(first.vendor), "the same vendor failed to open twice")
+        val second = assertNotNull(
+            BuiltinEngines.vendor(requireNotNull(first.vendor)),
+            "the same vendor failed to open twice",
+        )
 
         assertTrue(first !== second, "opening a vendor twice returned one shared instance")
         assertEquals(first.vendor, second.vendor)
         assertEquals(first.libraryPath, second.libraryPath)
-        assertEquals(first.directlyImplemented, second.directlyImplemented)
+        assertEquals(first.implementations, second.implementations)
 
         // Using one must not disturb the other: both compute the same answer from the same operands.
         val x = DenseVector.wrap(doubleArrayOf(1.0, 2.0, 3.0, 4.0))

@@ -1,5 +1,7 @@
 package com.eignex.koblas.vendor
 
+import com.eignex.koblas.EngineImplementation
+
 /**
  * Whether the single compute thread the binding requires was confirmed against the library itself.
  *
@@ -92,7 +94,7 @@ internal const val ACCELERATE_THREAD_LIMIT: String = "VECLIB_MAXIMUM_THREADS"
  * the right way. Both platforms ask this question the same way and reject on the same answer.
  */
 internal fun missingRequiredSymbols(exports: (String) -> Boolean): List<String> =
-    BlasOperation.entries.filter { it.required && !exports(it.entryPoint) }.map { it.entryPoint }
+    EngineImplementation.entries.filter { it.required && !exports(it.entryPoint) }.map { it.entryPoint }
 
 /**
  * Whether a library's own configuration string says it was built with 64-bit BLAS integers.

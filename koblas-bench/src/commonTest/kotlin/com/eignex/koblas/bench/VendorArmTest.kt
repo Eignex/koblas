@@ -1,9 +1,9 @@
 package com.eignex.koblas.bench
 
+import com.eignex.koblas.KoblasEngine
+
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.vendor.Vendor
-import com.eignex.koblas.vendor.Blas
-import com.eignex.koblas.vendor.openBlas
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -17,7 +17,7 @@ import kotlin.test.assertTrue
  * scalar arm on the same case means the two arms computed the same thing from the same fixtures.
  */
 class VendorArmTest {
-    private fun vendor(): Blas? = openBlas()
+    private fun vendor(): KoblasEngine? = Vendor.entries.firstNotNullOfOrNull { BuiltinEngines.vendor(it) }
 
     private val dense = listOf(
         "dot+512+uniform",
@@ -109,7 +109,7 @@ class VendorArmTest {
 
         assertEquals("direct", work.comparisonKind)
         assertEquals(
-            "${blas.vendor.vendorName}/cblas_dgemm",
+            "${blas.vendor!!.vendorName}/cblas_dgemm",
             work.kernel,
             "a vendor arm must carry the entry point of the call it makes",
         )

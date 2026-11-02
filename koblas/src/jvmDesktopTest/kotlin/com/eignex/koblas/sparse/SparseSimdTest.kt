@@ -1,10 +1,9 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.PortableEngine
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.internal.jvm25.simd.SparseSimd
 import com.eignex.koblas.internal.jvm25.simd.simdAvailable
-import com.eignex.koblas.internal.sparse.ScalarIndexedSparseKernels
-import com.eignex.koblas.internal.sparse.dotDense
 import org.junit.Assume
 import kotlin.random.Random
 import kotlin.test.Test
@@ -16,7 +15,7 @@ class SparseSimdTest {
     }
 
     private fun assertDotDenseAgreesWithReference(x: Pattern) {
-        val expected = ScalarIndexedSparseKernels.dotDense(
+        val expected = PortableEngine.dotDense(
             x.indices,
             x.indexOffset,
             x.values,

@@ -67,29 +67,35 @@ indices (LP64) and make it discoverable by the system loader. Koblas also search
 
 Explicit bindings support Accelerate, OpenBLAS, AOCL, ArmPL and oneMKL on their supported hosts.
 On Windows, place matching LP64 DLLs and their dependencies in an absolute directory on PATH. The manual
-loader `openBlas(vendor)` returns a binding without changing the default. To select portable Kotlin
-explicitly, retain a `KoblasEngine.portable()` and call it directly.
+factory `BuiltinEngines.vendor(vendor)` returns an engine without changing the default.
+Use `BuiltinEngines.scalar` to select portable Kotlin explicitly.
 
 ## Explicit composition and recalculation
 
-`EngineBackend` is the shared arithmetic contract. `EngineBackends.portable`, `EngineBackends.simd` and
-`EngineBackends.vendor(binding)` expose positive capability sets; binding capabilities follow exported symbols.
+`KoblasEngine` is the single contract for portable, SIMD, vendor and combined engines. Implementations
+override the parts they supply and declare positive `EngineImplementation` sets; common defaults provide
+portable arithmetic. `BuiltinEngines` selects exact portable, SIMD or named vendor engines. Vendor
+capabilities follow exported symbols, and the composer binds capabilities to their actual implementations.
 The combined engine fills unselected operations with portable Kotlin. Shared schedules still own dense
 traversal, CSC traversal, validation and alias staging; packed product geometry is selected before packing.
 
 ```kotlin
-val binding = requireNotNull(openBlas(Vendor.OneMkl))
+val vendor = requireNotNull(BuiltinEngines.vendor(Vendor.OneMkl))
 val profile = StandardEngineProfiles.nativeLinuxOneMkl
-val engine = KoblasEngine.combine(profile, EngineBackends.vendor(binding))
+val engine = KoblasEngine.combine(profile, vendor)
 ```
 
 Profiles contain ordered `EngineRule` preferences: unconditional selection, length/work thresholds, and
 bounded shape/layout regions. For an explicit profile, check `profile.appliesTo(runtime, hostPlatform())`.
 To load a recalculated profile, pass its text to `EngineProfile.parse`; the library performs no file I/O.
 On the JVM, append `StandardEngineProfiles.jvmSimd?.rules.orEmpty()` to retain owned SIMD preferences
-beneath custom vendor rules. Panel, product and triangular families require unconditional rules so the
+beneath custom vendor rules, and pass `BuiltinEngines.simd` to the composer when available.
+Panel, product and triangular families require unconditional rules so the
 schedule and its packed arithmetic agree on geometry. Intrinsic scalar edges and safe norm retries remain
-inside their kernels and are reflected by internal implementation attribution.
+inside their implementations and are reflected by internal implementation attribution. The application engine
+owns dense and sparse operations directly; separate backend and BLAS interfaces, vendor adapters, vendor preference selection and route objects are
+removed. Explicit composition flattens the supplied engines into arithmetic sources once, with intrinsic
+portable coverage. The composer binds each arithmetic family once, and its inherited methods use that bound source.
 
 Recalculate a profile explicitly on the intended host:
 

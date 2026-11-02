@@ -113,7 +113,7 @@ class NativeHostConcurrencyTest {
     /** The library the cases above reached reports one compute thread, or exports no way to be asked. */
     @Test
     fun `the composed default runs on a library held to one compute thread`() {
-        val vendor = koblas.vendor ?: return println(
+        val vendor = koblas.takeIf { it.vendor != null } ?: return println(
             "SKIPPED: no measured host profile or binding; host thread configuration was not verified",
         )
 

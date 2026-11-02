@@ -3,6 +3,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DimensionMismatch
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.koblas
@@ -114,7 +115,7 @@ class DenseBlasTest {
         checkGemmShape(blas, Random(20261103), m = 1, k = 7, n = 1)
     }
 
-    private fun checkGemmShape(blas: DenseBlas, rng: Random, m: Int, k: Int, n: Int) {
+    private fun checkGemmShape(blas: KoblasEngine, rng: Random, m: Int, k: Int, n: Int) {
         for (tA in booleanArrayOf(false, true)) {
             for (tB in booleanArrayOf(false, true)) {
                 val a = if (tA) DenseMatrix(k, m) else DenseMatrix(m, k)

@@ -5,7 +5,6 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.dense.ReferenceBlas
-import com.eignex.koblas.internal.dense.implementationFor
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -21,9 +20,11 @@ class NativeDefaultEngineTest {
      */
     @Test
     fun `a wide rotation is decided by its operands rather than its width`() {
-        val vendor = koblas.vendor ?: return skipped("the rotation's alias-dependent dispatch")
-        val arm = "${vendor.vendor.vendorName.lowercase()}-level1"
-        if (koblas.vectorKernels.implementationFor(
+        val vendor = koblas.takeIf { it.vendor != null } ?: return skipped(
+            "the rotation's alias-dependent dispatch",
+        )
+        val arm = "${vendor.vendor!!.vendorName.lowercase()}-level1"
+        if (koblas.implementationFor(
                 EngineImplementation.Dot,
                 LONG_COLUMN,
             ) != arm
@@ -31,7 +32,7 @@ class NativeDefaultEngineTest {
             return skipped("this platform keeps Level 1 off the library")
         }
 
-        assertEquals(null, koblas.vectorKernels.implementationFor(EngineImplementation.Rot, LONG_COLUMN))
+        assertEquals(null, koblas.implementationFor(EngineImplementation.Rot, LONG_COLUMN))
     }
 
     /** The exact portable engine resolves no host binding and provides the availability floor. */

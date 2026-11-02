@@ -69,7 +69,7 @@ private fun level23(
 @Suppress("LongMethod", "CyclomaticComplexMethod") // one branch per benchmarked operation
 internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
     val d = case.dimensions
-    val vectors = engine.vectorKernels
+    val vectors = engine
     val alpha = 0.875
     val beta = -0.25
     return when (case.operation) {
@@ -121,7 +121,10 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
         "sum" -> vectorReduction(engine, case.operation, d[0]) { x -> vectors.sum(x, 0, x.size) }
         "iamax" -> vectorReduction(engine, case.operation, d[0]) { x -> vectors.iamax(x, 0, x.size).toDouble() }
         "swap" -> {
-            val x0 = Fixtures.vector(d[0], 1); val y0 = Fixtures.vector(d[0], 2); val x = x0.copyOf(); val y = y0.copyOf()
+            val x0 = Fixtures.vector(d[0], 1); val y0 = Fixtures.vector(
+                d[0],
+                2,
+            ); val x = x0.copyOf(); val y = y0.copyOf()
             if (case.option("timing", "reset-and-arithmetic") == "arithmetic") {
                 // A swap is its own inverse, so the operands only ever trade places.
                 level1(engine, case.operation, d[0], "arithmetic", result = y) {
@@ -134,7 +137,10 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
             }
         }
         "rot" -> {
-            val x0 = Fixtures.vector(d[0], 1); val y0 = Fixtures.vector(d[0], 2); val x = x0.copyOf(); val y = y0.copyOf()
+            val x0 = Fixtures.vector(d[0], 1); val y0 = Fixtures.vector(
+                d[0],
+                2,
+            ); val x = x0.copyOf(); val y = y0.copyOf()
             if (case.option("timing", "reset-and-arithmetic") == "arithmetic") {
                 // A rotation preserves each pair's norm, so repeating it keeps the magnitudes normal.
                 level1(engine, case.operation, d[0], "arithmetic", result = y) {
@@ -178,7 +184,10 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
         "trsv", "trmv" -> triangularVectorWork(case, engine)
         "gemm" -> gemmWork(case, engine)
         "symm" -> {
-            val m = d[0]; val n = d[1]; val right = case.option("side", "L") == "R"; val lower = case.option("uplo", "L") == "L"
+            val m = d[0]; val n = d[1]; val right = case.option("side", "L") == "R"; val lower = case.option(
+                "uplo",
+                "L",
+            ) == "L"
             val a = Fixtures.matrix(if (right) n else m, if (right) n else m, 1); val b = Fixtures.matrix(m, n, 2)
             val c0 = Fixtures.matrix(m, n, 3); val c = Fixtures.matrix(m, n, 3)
             level23(
@@ -191,7 +200,10 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
             ) { c0.values.copyInto(c.values); engine.symm(alpha, a, b, beta, c, lower, right); c.values[0] }
         }
         "gemmt" -> {
-            val n = d[0]; val k = d[1]; val ta = case.flag("transA"); val tb = case.flag("transB"); val lower = case.option("uplo", "L") == "L"
+            val n = d[0]; val k = d[1]; val ta = case.flag("transA"); val tb = case.flag("transB"); val lower = case.option(
+                "uplo",
+                "L",
+            ) == "L"
             val a = Fixtures.matrix(if (ta) k else n, if (ta) n else k, 1); val b = Fixtures.matrix(if (tb) n else k, if (tb) k else n, 2)
             val c0 = Fixtures.matrix(n, n, 3); val c = Fixtures.matrix(n, n, 3)
             level23(
@@ -205,7 +217,11 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
         }
         "syrk", "syr2k" -> {
             val n = d[0]; val k = d[1]; val trans = case.flag("transA"); val lower = case.option("uplo", "L") == "L"
-            val a = Fixtures.matrix(if (trans) k else n, if (trans) n else k, 1); val b = Fixtures.matrix(a.rows, a.cols, 2)
+            val a = Fixtures.matrix(if (trans) k else n, if (trans) n else k, 1); val b = Fixtures.matrix(
+                a.rows,
+                a.cols,
+                2,
+            )
             val c0 = Fixtures.matrix(n, n, 3); val c = Fixtures.matrix(n, n, 3)
             val single = case.operation == "syrk"
             level23(
@@ -350,10 +366,17 @@ private fun gemmWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
 }
 
 private fun triangularMatrixWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
-    val (m, n) = case.dimensions; val right = case.option("side", "L") == "R"; val lower = case.option("uplo", "L") == "L"
+    val (m, n) = case.dimensions; val right = case.option("side", "L") == "R"; val lower = case.option(
+        "uplo",
+        "L",
+    ) == "L"
     val trans = case.flag("transA"); val unit = case.option("diag", "N") == "U"; val order = if (right) n else m
     val alpha = 0.875
-    val triangle = Fixtures.triangular(order, 1, lower); val original = Fixtures.matrix(m, n, 2); val b = Fixtures.matrix(m, n, 2)
+    val triangle = Fixtures.triangular(order, 1, lower); val original = Fixtures.matrix(m, n, 2); val b = Fixtures.matrix(
+        m,
+        n,
+        2,
+    )
     val solve = case.operation == "trsm"
     fun apply() = if (solve) {
         engine.trsm(triangle, b, lower, trans, unit, right, alpha)

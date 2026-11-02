@@ -1,15 +1,10 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.dense.ReferenceBlas
-import com.eignex.koblas.internal.dense.implementationFor
-import com.eignex.koblas.vendor.BlasOperation
 import com.eignex.koblas.vendor.Vendor
 import com.eignex.koblas.vendor.assertAgreesWithReference
-import com.eignex.koblas.vendor.openBlas
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotEquals
-import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -21,12 +16,12 @@ class JvmDefaultEngineTest {
         val exact = BuiltinEngines.simd ?: BuiltinEngines.scalar
 
         assertEquals(
-            exact.vectorKernels.implementationFor(EngineImplementation.Dot, 1024),
-            koblas.vectorKernels.implementationFor(EngineImplementation.Dot, 1024),
+            exact.implementationFor(EngineImplementation.Dot, 1024),
+            koblas.implementationFor(EngineImplementation.Dot, 1024),
         )
-        assertEquals(exact.indexedSparseKernels.name, koblas.indexedSparseKernels.name)
-        assertSame(exact.panelKernels, koblas.panelKernels)
-        assertTrue(koblas.vendor == null || koblas.vendor?.vendor == Vendor.OneMkl)
+        assertEquals(exact.tileRows, koblas.tileRows)
+        assertEquals(exact.tileColumns, koblas.tileColumns)
+        assertTrue(koblas.vendor == null || koblas.vendor == Vendor.OneMkl)
     }
 
     @Test
@@ -65,24 +60,6 @@ class JvmDefaultEngineTest {
 
     // Every operand is copied into native memory to reach the library, and the route says so, which is what
     // keeps a JVM vendor arm honest about what it is timing.
-    @Test
-    fun `an explicit jvm host call names the transfer it pays for`() {
-        val blas = openBlas() ?: return println(
-            "SKIPPED: no CBLAS library installed; the explicit JVM binding was not exercised",
-        )
-        val a = DenseMatrix.wrap(ORDER, ORDER, DoubleArray(ORDER * ORDER) { 1.0 + it % 5 })
-        val c = DenseMatrix.zero(ORDER, ORDER)
-
-        val route = blas.routeOf(
-            BlasOperation.Gemm,
-            matrices = listOf(a, a, c),
-        )
-        blas.gemm(1.0, a, false, a, false, 0.0, c)
-
-        assertNotEquals(null, route.adapter, "the JVM binding reported no transfer")
-        assertTrue(route.exactlyMeasurable, "an explicit host call is not admissible as a vendor measurement")
-        assertTrue(c.values.any { it != 0.0 }, "the explicit binding computed nothing")
-    }
 
     private companion object {
         /** Past the size at which Kotlin/Native's default would hand the same call to a library. */

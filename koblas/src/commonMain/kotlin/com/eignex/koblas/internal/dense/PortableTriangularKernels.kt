@@ -18,7 +18,9 @@ import com.eignex.koblas.vendor.*
  * nothing here is helped by adjacency, so [gathersRightHandSides] declines every copy: the strided loads a
  * right-side call makes are what this backend would make anyway.
  */
-internal object PortableTriangularKernels : DenseTriangularKernels {
+internal object PortableTriangularKernels : KoblasEngine() {
+    override val implementations = setOf(EngineImplementation.Triangular)
+
     override val name: String get() = NAME
 
     override fun rightHandSideGroup(order: Int, sides: Int): Int = if (sides > 0) sides else 1

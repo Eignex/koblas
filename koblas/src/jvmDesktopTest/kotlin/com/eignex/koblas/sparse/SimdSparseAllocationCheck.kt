@@ -4,18 +4,15 @@ import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.Matrix
+import com.eignex.koblas.PortableEngine
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.internal.dense.PanelWork
-import com.eignex.koblas.internal.jvm25.simd.SimdIndexedSparseKernels
-import com.eignex.koblas.internal.sparse.SparseTuning
-import com.eignex.koblas.internal.sparse.axpy
-import com.eignex.koblas.internal.sparse.dotDense
-import com.eignex.koblas.internal.sparse.gather
-import com.eignex.koblas.internal.sparse.scatter
 import com.eignex.koblas.koblas
 import com.eignex.koblas.testutil.allocation.AllocationProbe
 import com.eignex.koblas.testutil.allocation.bytesPerCall
+
+private val selectedBackend = BuiltinEngines.simd ?: PortableEngine
 
 /**
  * Runs indexed Level 1, panel and whole-operation allocation checks in an uninstrumented JVM.
@@ -53,12 +50,18 @@ internal object SimdSparseAllocationCheck {
         val engine = requireNotNull(BuiltinEngines.simd) {
             "SIMD sparse allocation check requires the Vector API module"
         }
-        require(crossesSimdCrossover(SparseTuning.simdIndexedCrossover)) {
+        require(crossesSimdCrossover(16)) {
             "SIMD sparse allocation check uses $ENTRY_COUNT entries below " +
-                "the ${SparseTuning.simdIndexedCrossover}-entry crossover"
+                "the 16-entry crossover"
         }
-        val panels = engine.panelKernels
-        require(panels.implementationFor(PanelWork.SparseRightHandSides, PANEL_SIDES, PANEL_ENTRIES) == panels.name) {
+        val panels = engine
+        require(
+            panels.implementationFor(
+                PanelWork.SparseRightHandSides,
+                PANEL_SIDES,
+                PANEL_ENTRIES,
+            ) == panels.panelImplementation.name,
+        ) {
             "the panel probes use $PANEL_SIDES right-hand sides, which do not reach the vector body"
         }
 
@@ -67,14 +70,14 @@ internal object SimdSparseAllocationCheck {
         val dense = DoubleArray(DIMENSION) { 1.0 + (it % 17) * 0.03125 }
 
         assertAllocationFree("dispatched indexed dot") {
-            SimdIndexedSparseKernels.dotDense(indices, values, dense)
+            selectedBackend.dotDense(indices, 0, values, 0, values.size, dense)
         }
         assertAllocationFree("dispatched indexed gather") {
-            SimdIndexedSparseKernels.gather(indices, values, dense)
+            selectedBackend.gather(indices, 0, values, 0, values.size, dense)
             values[ENTRY_COUNT / 2]
         }
         assertAllocationFree("dispatched indexed norm") {
-            SimdIndexedSparseKernels.nrm2(indices, 0, ENTRY_COUNT, dense)
+            selectedBackend.nrm2(indices, 0, ENTRY_COUNT, dense)
         }
         checkPublicSlices(engine)
         checkPanels(engine)
@@ -101,7 +104,7 @@ internal object SimdSparseAllocationCheck {
         }
         val dense = DoubleArray(DIMENSION) { 1.0 + (it % 17) * 0.03125 }
         val large = DoubleArray(DIMENSION) { 1e200 }
-        val kernels = engine.sparseKernels
+        val kernels = engine
         val matrix = SparseMatrix.wrap(
             DIMENSION,
             2,
@@ -134,7 +137,7 @@ internal object SimdSparseAllocationCheck {
 
     /** The two indexed panel leaves, over an adjacent group of right-hand sides and over a strided one. */
     private fun checkPanels(engine: KoblasEngine) {
-        val panels = engine.panelKernels
+        val panels = engine
         val entries = PANEL_ENTRIES
         val positions = 4 * entries
         val indices = IntArray(entries) { it * 4 }

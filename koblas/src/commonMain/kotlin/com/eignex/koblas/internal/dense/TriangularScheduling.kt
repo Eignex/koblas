@@ -21,7 +21,7 @@ import com.eignex.koblas.vendor.*
  *
  * The blocks are two and they are independent of each other and of everything under them: the diagonal block
  * is how much of the dependency chain one substitution covers, which is this file's own number, and the
- * right-hand sides handed over together are [DenseTriangularKernels.rightHandSideGroup]'s answer. Neither is
+ * right-hand sides handed over together are [KoblasEngine.rightHandSideGroup]'s answer. Neither is
  * a lane count, a register tile or a cache block: the product between the blocks is an ordinary window of
  * shared product scheduling and picks its own geometry, and the substitution inside a diagonal block picks
  * its own grouping.
@@ -98,10 +98,7 @@ internal inline fun forEachTriangularBlock(
  * round differently within the routine's numerical contract.
  */
 internal fun triangularMatrix(
-    triangles: DenseTriangularKernels,
-    products: DenseProductKernels,
-    panels: DensePanelKernels,
-    vectors: DenseVectorKernels,
+    engine: KoblasEngine,
     t: DoubleArray,
     order: Int,
     b: DoubleArray,
@@ -123,9 +120,9 @@ internal fun triangularMatrix(
         val rows = if (right) sides else order
         val cols = if (right) order else sides
         if (ldb == rows) {
-            vectors.scale(b, bOffset, alpha, rows * cols)
+            engine.scale(b, bOffset, alpha, rows * cols)
         } else {
-            for (j in 0 until cols) vectors.scale(b, bOffset + j * ldb, alpha, rows)
+            for (j in 0 until cols) engine.scale(b, bOffset + j * ldb, alpha, rows)
         }
     }
     val flip = transpose != right
@@ -133,8 +130,8 @@ internal fun triangularMatrix(
     val orderStride = if (right) ldb else 1
     val rhsStride = if (right) 1 else ldb
     val block = if (TRIANGULAR_DIAGONAL_BLOCK < order) TRIANGULAR_DIAGONAL_BLOCK else order
-    val group = triangularGroup(triangles, block, sides)
-    val gathers = triangles.gathersRightHandSides(rhsStride, block, sides)
+    val group = triangularGroup(engine, block, sides)
+    val gathers = engine.gathersRightHandSides(rhsStride, block, sides)
     workspace.borrowOptional(if (gathers) block * group else 0) { gathered ->
         forEachTriangularBlock(order, block, mLower, solve) {
                 start,
@@ -145,13 +142,13 @@ internal fun triangularMatrix(
                 sourceCount,
             ->
             diagonalStep(
-                triangles, t, ldt, tOffset, start, size, flip, mLower, unitDiag, solve,
+                engine, t, ldt, tOffset, start, size, flip, mLower, unitDiag, solve,
                 b, bOffset, orderStride, rhsStride, sides, group, gathers, gathered,
             )
             if (targetCount > 0 && sourceCount > 0) {
                 triangularUpdate(
-                    products, panels, if (solve) -1.0 else 1.0, t, ldt, tOffset, flip,
-                    b, bOffset, ldb, sides, right, targetStart, targetCount, sourceStart, sourceCount, workspace,
+                    engine, if (solve) -1.0 else 1.0, t, ldt, tOffset, flip, b, bOffset, ldb,
+                    sides, right, targetStart, targetCount, sourceStart, sourceCount, workspace,
                 )
             }
         }
@@ -166,7 +163,7 @@ internal fun triangularMatrix(
  * resident whether the sides were copied or were already adjacent. A backend that wants every side at once
  * says so, which is what the portable one answers, and then the substitution is a single group.
  */
-internal fun triangularGroup(triangles: DenseTriangularKernels, block: Int, sides: Int): Int {
+internal fun triangularGroup(triangles: KoblasEngine, block: Int, sides: Int): Int {
     val recommended = triangles.rightHandSideGroup(block, sides)
     val bounded = if (recommended > sides) sides else recommended
     return if (bounded < 1) 1 else bounded
@@ -180,7 +177,7 @@ internal fun triangularGroup(triangles: DenseTriangularKernels, block: Int, side
  * hundred, as many times.
  */
 private fun diagonalStep(
-    triangles: DenseTriangularKernels,
+    triangles: KoblasEngine,
     t: DoubleArray,
     order: Int,
     tOffset: Int,
@@ -227,7 +224,7 @@ private fun diagonalStep(
 
 /** Whichever of the two substitutions this call is, with the arguments they share. */
 private fun substitute(
-    triangles: DenseTriangularKernels,
+    triangles: KoblasEngine,
     solve: Boolean,
     t: DoubleArray,
     order: Int,
@@ -264,8 +261,7 @@ private fun substitute(
  * transpose is read off.
  */
 private fun triangularUpdate(
-    products: DenseProductKernels,
-    panels: DensePanelKernels,
+    engine: KoblasEngine,
     coefficient: Double,
     t: DoubleArray,
     order: Int,
@@ -296,10 +292,11 @@ private fun triangularUpdate(
             transposeB,
         ->
         productWindow(
-            products, panels, coefficient,
-            if (right) b else t, (if (right) bOffset else tOffset) + leftOffset, if (right) ldb else order, transposeA,
-            if (right) t else b, (if (right) tOffset else bOffset) + rightOffset, if (right) order else ldb, transposeB,
-            1.0, b, bOffset + targetOffset, ldb, m, n, k, OutputTriangle.Full, workspace,
+            engine, coefficient, if (right) b else t,
+            (if (right) bOffset else tOffset) + leftOffset, if (right) ldb else order, transposeA,
+            if (right) t else b,
+            (if (right) tOffset else bOffset) + rightOffset, if (right) order else ldb, transposeB, 1.0, b,
+            bOffset + targetOffset, ldb, m, n, k, OutputTriangle.Full, workspace,
         )
     }
 }

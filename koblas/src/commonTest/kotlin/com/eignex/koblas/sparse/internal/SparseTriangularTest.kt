@@ -95,7 +95,7 @@ class SparseTriangularTest {
             for (lower in booleanArrayOf(true, false)) {
                 for (transpose in booleanArrayOf(false, true)) {
                     val work = if (transpose) PanelWork.SparseRightHandSideReduction else PanelWork.SparseRightHandSides
-                    val group = engine.panelKernels.executionGroup(
+                    val group = engine.executionGroup(
                         work,
                         order,
                         1024,

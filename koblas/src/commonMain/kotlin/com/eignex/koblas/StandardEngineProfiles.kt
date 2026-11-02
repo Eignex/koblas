@@ -1,7 +1,6 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.EngineImplementation.*
-import com.eignex.koblas.internal.sparse.SparseTuning
 import com.eignex.koblas.vendor.*
 
 /** Standard configurations; host acceleration applies only to the declared measurement targets. */
@@ -14,7 +13,7 @@ public object StandardEngineProfiles {
     /** Owned JVM preferences for the current vector width, or null when the module is unavailable. */
     public val jvmSimd: EngineProfile? by lazy {
         simdBackend()?.let { backend ->
-            val lanes = backend.minimumVectorLength
+            val lanes = backend.first().minimumVectorLength
             EngineProfile(
                 "jvm-simd-v1",
                 listOf(
@@ -28,7 +27,7 @@ public object StandardEngineProfiles {
                     EngineRule(
                         "jvm-simd",
                         setOf(IndexedDot),
-                        rows = maxOf(lanes, SparseTuning.simdIndexedCrossover)..Int.MAX_VALUE,
+                        rows = maxOf(lanes, 16)..Int.MAX_VALUE,
                     ),
                     EngineRule("jvm-simd", setOf(Panels, Products, Triangular)),
                 ),
@@ -104,18 +103,18 @@ public object StandardEngineProfiles {
 @Suppress("SpreadOperator") // Backend arrays are copied only during immutable engine construction.
 internal fun standardEngine(runtime: String, nativeAccess: Boolean = true): KoblasEngine {
     val profiles = StandardEngineProfiles.forTarget(runtime, hostPlatform())
-    val rules = profiles.flatMap { it.rules }.filter { nativeAccess || it.backend == "jvm-simd" }
+    val rules = profiles.flatMap { it.rules }.filter { nativeAccess || it.source == "jvm-simd" }
     val vendors = Vendor.entries.mapNotNull { vendor ->
-        if (rules.none { it.backend == vendor.vendorName.lowercase() }) {
+        if (rules.none { it.source == vendor.vendorName.lowercase() }) {
             null
         } else {
-            openBlas(vendor)?.let(EngineBackends::vendor)
+            BuiltinEngines.vendor(vendor)
         }
     }
     val owned = BuiltinEngines.simd ?: BuiltinEngines.scalar
     if (vendors.isEmpty()) return owned
     return KoblasEngine.combine(
         EngineProfile(profiles.joinToString("+") { it.name }, rules),
-        *(vendors + listOfNotNull(EngineBackends.simd)).toTypedArray(),
+        *(vendors + listOfNotNull(BuiltinEngines.simd)).toTypedArray(),
     )
 }

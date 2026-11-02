@@ -2,10 +2,10 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.EngineImplementation
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.internal.dense.DenseProductKernels
 import com.eignex.koblas.internal.dense.PRODUCT_BLOCK_COLUMNS
 import com.eignex.koblas.internal.dense.PRODUCT_BLOCK_DEPTH
 import com.eignex.koblas.internal.dense.PRODUCT_BLOCK_ROWS
@@ -31,7 +31,7 @@ class ProductSchedulingTest {
      * Shapes cross each block boundary while keeping the other axes small for the oracle.
      * Tile-derived extents ensure packing on wide species and leave remainder tiles.
      */
-    private fun blockedShapes(tile: DenseProductKernels): List<Triple<Int, Int, Int>> {
+    private fun blockedShapes(tile: KoblasEngine): List<Triple<Int, Int, Int>> {
         val rows = packedExtent(tile.tileRows)
         val columns = packedExtent(tile.tileColumns)
         return listOf(
@@ -61,7 +61,9 @@ class ProductSchedulingTest {
     }
 
     /** A tile of a stated shape that answers the shipped packing rule and nothing else. */
-    private class TileGeometry(override val tileRows: Int, override val tileColumns: Int) : DenseProductKernels {
+    private class TileGeometry(override val tileRows: Int, override val tileColumns: Int) : KoblasEngine() {
+        override val implementations = setOf(EngineImplementation.Products)
+
         override val name: String get() = "geometry(${tileRows}x$tileColumns)"
 
         override fun implementationsFor(rows: Int, columns: Int, depth: Int): List<String> = listOf(name)
@@ -111,7 +113,7 @@ class ProductSchedulingTest {
     private fun assertBlockedProductsAgreeWithReference(transposeA: Boolean, transposeB: Boolean) {
         val rng = Random(20261014)
         for (engine in engines) {
-            for ((m, n, k) in blockedShapes(engine.productKernels)) {
+            for ((m, n, k) in blockedShapes(engine)) {
                 checkProduct(engine, m, n, k, transposeA, transposeB, 0.875, -0.25, rng)
             }
         }
@@ -121,10 +123,10 @@ class ProductSchedulingTest {
     @Test
     fun `the blocked shapes pack into product tiles and a small one does not`() {
         for (engine in engines) {
-            for ((m, n, k) in blockedShapes(engine.productKernels)) {
-                assertTrue(engine.productKernels.packsProduct(m, n, k), "${engine.name} ${m}x${n}x$k")
+            for ((m, n, k) in blockedShapes(engine)) {
+                assertTrue(engine.packsProduct(m, n, k), "${engine.name} ${m}x${n}x$k")
             }
-            assertFalse(engine.productKernels.packsProduct(5, 4, 6), "${engine.name} packed a 5x4x6 product")
+            assertFalse(engine.packsProduct(5, 4, 6), "${engine.name} packed a 5x4x6 product")
         }
     }
 
@@ -135,8 +137,8 @@ class ProductSchedulingTest {
         val rng = Random(20261015)
         val k = PRODUCT_BLOCK_DEPTH * 2 + 9
         for (engine in engines) {
-            val m = packedExtent(engine.productKernels.tileRows)
-            val n = packedExtent(engine.productKernels.tileColumns)
+            val m = packedExtent(engine.tileRows)
+            val n = packedExtent(engine.tileColumns)
             val a = randomMatrix(m, k, rng)
             val b = randomMatrix(k, n, rng)
             val expected = DenseMatrix(m, n, DoubleArray(m * n) { Double.NaN })
@@ -154,8 +156,8 @@ class ProductSchedulingTest {
     fun `beta reaches the destination once whatever the depth was cut into`() {
         val rng = Random(20261016)
         for (engine in engines) {
-            val m = packedExtent(engine.productKernels.tileRows)
-            val n = packedExtent(engine.productKernels.tileColumns)
+            val m = packedExtent(engine.tileRows)
+            val n = packedExtent(engine.tileColumns)
             for (k in intArrayOf(PRODUCT_BLOCK_DEPTH - 1, PRODUCT_BLOCK_DEPTH, PRODUCT_BLOCK_DEPTH + 1)) {
                 checkProduct(engine, m, n, k, transposeA = false, transposeB = false, 0.5, 2.0, rng)
             }
@@ -168,7 +170,7 @@ class ProductSchedulingTest {
     fun `a blocked product stages an operand that shares its destination`() {
         val rng = Random(20261017)
         for (engine in engines) {
-            val tile = engine.productKernels
+            val tile = engine
             // A square order that is a whole number of tiles on both axes and large enough to be packed.
             val order = lowestCommonTileMultiple(tile.tileRows, tile.tileColumns, atLeast = 40)
             val workspace = Workspace()
@@ -216,7 +218,7 @@ class ProductSchedulingTest {
     @Test
     fun `a zero alpha scales the destination without reading an operand`() {
         for (engine in engines) {
-            val tile = engine.productKernels
+            val tile = engine
             val m = 4 * tile.tileRows
             val n = 4 * tile.tileColumns
             val k = PRODUCT_BLOCK_DEPTH
@@ -315,7 +317,7 @@ class ProductSchedulingTest {
         val rng = Random(20261019)
         val workspace = Workspace()
         val engine = koblasEngineUnderTest()
-        val tile = engine.productKernels
+        val tile = engine
         val a = randomMatrix(37, 41, rng)
         val b = randomMatrix(41, 29, rng)
         val c = randomMatrix(37, 29, rng)

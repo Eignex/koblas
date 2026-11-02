@@ -13,14 +13,14 @@ internal fun sparseColumnDotArm(case: BenchCase, engine: KoblasEngine): ArmChoic
     val values = doubleArrayOf(Double.NaN, Double.NaN, Double.NaN) + column.values + doubleArrayOf(Double.NaN)
     val matrix = SparseMatrix.wrap(rows, 5, intArrayOf(0, 1, 2, 3, count + 3, count + 4), indices, values)
     val dense = Fixtures.vector(rows, 2)
-    val kernels = engine.sparseKernels
+    val kernels = engine
     val raw = case.operation == "spdot-column-raw"
     val run = if (raw) {
         { kernels.dot(indices, 3, values, 3, count, dense) }
     } else {
         { kernels.dotColumn(matrix, 3, dense) }
     }
-    val expected = BuiltinEngines.scalar.sparseKernels.dot(indices, 3, values, 3, count, dense)
+    val expected = BuiltinEngines.scalar.dot(indices, 3, values, 3, count, dense)
     DenseReference.check(doubleArrayOf(expected), doubleArrayOf(run()), case.id)
     return ArmChoice(engineWork(engine, case.operation, "arithmetic", run), null)
 }

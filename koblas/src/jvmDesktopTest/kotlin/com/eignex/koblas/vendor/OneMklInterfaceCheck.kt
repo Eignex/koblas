@@ -2,9 +2,9 @@ package com.eignex.koblas.vendor
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
+import com.eignex.koblas.PortableEngine
 import com.eignex.koblas.copyOf
 import com.eignex.koblas.dense.ReferenceBlas
-import com.eignex.koblas.internal.dense.ScalarVectorKernels
 import com.eignex.koblas.internal.jvm25.host.JvmVendorBlas
 import com.eignex.koblas.internal.jvm25.host.JvmVendorLibrary
 import com.eignex.koblas.internal.jvm25.host.windowsLibraryLookup
@@ -56,7 +56,7 @@ internal object OneMklInterfaceCheck {
         val blas = JvmVendorBlas(library)
         val x = DenseVector.wrap(vendorValues(7, 31))
         val y = DenseVector.wrap(vendorValues(7, 32))
-        val expectedDot = ScalarVectorKernels.dot(x.values, 0, y.values, 0, x.size)
+        val expectedDot = PortableEngine.dot(x.values, 0, y.values, 0, x.size)
         val a = DenseMatrix.wrap(3, 4, vendorValues(12, 33))
         val b = DenseMatrix.wrap(4, 2, vendorValues(8, 34))
         val c = DenseMatrix.wrap(3, 2, vendorValues(6, 35))

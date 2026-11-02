@@ -3,8 +3,6 @@
 
 package com.eignex.koblas
 
-import com.eignex.koblas.internal.sparse.axpy
-
 /** `A * B` (BLAS `dgemm`), allocating. gemm accumulates into an existing C instead. */
 @kotlin.jvm.JvmName("multiply")
 public operator fun DenseMatrix.times(other: DenseMatrix): DenseMatrix = koblas.gemm(this, other)
@@ -80,7 +78,7 @@ public operator fun DenseVector.minus(other: DenseVector): DenseVector = combine
 @kotlin.jvm.JvmName("multiply")
 public operator fun DenseVector.times(alpha: Double): DenseVector {
     val out = toDoubleArray()
-    koblas.vectorKernels.scale(out, 0, alpha, size)
+    koblas.scale(out, 0, alpha, size)
     return DenseVector.wrap(out)
 }
 
@@ -102,20 +100,20 @@ private fun DenseMatrix.combine(other: DenseMatrix, alpha: Double, op: String): 
 private fun DenseVector.combine(other: DenseVector, alpha: Double, op: String): DenseVector {
     requireSameSize(size, other.size, op)
     val out = toDoubleArray()
-    koblas.vectorKernels.axpy(out, 0, alpha, other.values, other.offset, size, xStride = other.stride)
+    koblas.axpy(out, 0, alpha, other.values, other.offset, size, xStride = other.stride)
     return DenseVector.wrap(out)
 }
 
 /** A fresh copy of [values] scaled by [alpha], which is what the allocating scalar products all return. */
 private fun scaledCopy(values: DoubleArray, alpha: Double): DoubleArray {
     val out = values.copyOf()
-    koblas.vectorKernels.scale(out, 0, alpha, out.size)
+    koblas.scale(out, 0, alpha, out.size)
     return out
 }
 
 /** A fresh copy of [a] with `alpha * b` added, which is what the allocating sums and differences return. */
 private fun axpyCopy(a: DoubleArray, alpha: Double, b: DoubleArray): DoubleArray {
     val out = a.copyOf()
-    koblas.vectorKernels.axpy(out, 0, alpha, b, 0, out.size)
+    koblas.axpy(out, 0, alpha, b, 0, out.size)
     return out
 }

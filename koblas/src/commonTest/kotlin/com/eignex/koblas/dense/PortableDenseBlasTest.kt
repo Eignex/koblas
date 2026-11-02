@@ -6,14 +6,15 @@ import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.DimensionMismatch
+import com.eignex.koblas.EngineImplementation
+import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.PortableEngine
 import com.eignex.koblas.StridedVector
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.copyOf
-import com.eignex.koblas.internal.dense.DensePanelKernels
+import com.eignex.koblas.engineWithKernels
 import com.eignex.koblas.internal.dense.PanelWork
-import com.eignex.koblas.internal.dense.PortableDenseBlas
 import com.eignex.koblas.internal.dense.PortablePanelKernels
-import com.eignex.koblas.internal.dense.ScalarVectorKernels
 import com.eignex.koblas.koblas
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.randomVector
@@ -27,7 +28,9 @@ import kotlin.test.assertFailsWith
  * A backend that recommends a grouping of its own, so the shared traversal runs at widths no production
  * backend chooses. The arithmetic stays the portable backend's, since the scheduling is what is under test.
  */
-private class RegroupedPanels(private val group: Int) : DensePanelKernels by PortablePanelKernels {
+private class RegroupedPanels(private val group: Int) : KoblasEngine() {
+    override val implementations = setOf(EngineImplementation.Panels)
+
     override val name: String get() = "regrouped($group)"
 
     override fun executionGroup(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean): Int = group
@@ -57,13 +60,13 @@ class PortableDenseBlasTest {
 
     private val groups = intArrayOf(1, 2, 3, 5, 7, 64)
 
-    private fun blasFor(group: Int): DenseBlas = PortableDenseBlas(ScalarVectorKernels, RegroupedPanels(group))
+    private fun blasFor(group: Int): KoblasEngine = engineWithKernels(PortableEngine, RegroupedPanels(group))
 
     private fun orders() = intArrayOf(0, 1, 2, 3, 5, 8, 9, 17)
 
     @Test
     fun `no work products agree with the reference for dense operands`() = withProducts { products ->
-        val blas = PortableDenseBlas(ScalarVectorKernels, PortablePanelKernels, products)
+        val blas = engineWithKernels(PortableEngine, PortablePanelKernels, products)
         val rng = Random(20261014)
         for ((alpha, depth) in listOf(0.0 to 3, 0.875 to 0)) {
             for (transposeA in booleanArrayOf(false, true)) {

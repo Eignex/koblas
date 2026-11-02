@@ -4,17 +4,11 @@
 package com.eignex.koblas.internal.host
 
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.DenseVectorKernels
 import com.eignex.koblas.dense.MatrixStructure
-import com.eignex.koblas.dense.requireStructured
-import com.eignex.koblas.dense.requireTriangular
-import com.eignex.koblas.internal.dense.ScalarVectorKernels
 import com.eignex.koblas.internal.dense.triangularMatrix
 import com.eignex.koblas.internal.host.Cblas
 import com.eignex.koblas.internal.host.diagFor
-import com.eignex.koblas.internal.host.noWork
 import com.eignex.koblas.internal.host.positiveIncrement
-import com.eignex.koblas.internal.host.routeFor
 import com.eignex.koblas.internal.host.sideFor
 import com.eignex.koblas.internal.host.transposeFor
 import com.eignex.koblas.internal.host.uploFor
@@ -76,9 +70,8 @@ internal class NativeVendorBlas private constructor(
     override val vendor: Vendor,
     private val candidate: String,
     private val library: NativeLibrary,
-) : Blas,
-    DenseVectorKernels {
-    override val name: String get() = "${vendor.vendorName.lowercase()}-level1"
+) : KoblasEngine() {
+    override val name: String get() = "${vendor.vendorName.lowercase()}"
 
     /**
      * File reported by the dynamic loader for the key symbol. A bare soname can resolve to an
@@ -176,7 +169,7 @@ internal class NativeVendorBlas private constructor(
     }
 
     private fun probeDot(): Boolean {
-        val fn = library.symbol(BlasOperation.Dot.entryPoint)?.reinterpret<DotFn>() ?: return false
+        val fn = library.symbol(EngineImplementation.Dot.entryPoint)?.reinterpret<DotFn>() ?: return false
         return withPins { pins ->
             val x = AbiProbe.x
             val y = AbiProbe.y
@@ -185,7 +178,7 @@ internal class NativeVendorBlas private constructor(
     }
 
     private fun probeGemm(): Boolean {
-        val fn = library.symbol(BlasOperation.Gemm.entryPoint)?.reinterpret<GemmFn>() ?: return false
+        val fn = library.symbol(EngineImplementation.Gemm.entryPoint)?.reinterpret<GemmFn>() ?: return false
         return withPins { pins ->
             val a = AbiProbe.identity
             val b = AbiProbe.operand
@@ -203,42 +196,21 @@ internal class NativeVendorBlas private constructor(
      * calls. The library handle remains alive for the process.
      */
     private val entryPoints: Array<COpaquePointer?> =
-        Array(BlasOperation.entries.size) { library.symbol(BlasOperation.entries[it].entryPoint) }
+        Array(
+            EngineImplementation.entries.size,
+        ) { EngineImplementation.entries[it].entryPoint.takeIf { it.isNotEmpty() }?.let(library::symbol) }
 
-    override val directlyImplemented: Set<BlasOperation> =
-        BlasOperation.entries.filterTo(LinkedHashSet()) { entryPoints[it.ordinal] != null }
+    override val implementations: Set<EngineImplementation> =
+        EngineImplementation.entries.filterTo(LinkedHashSet()) { entryPoints[it.ordinal] != null }
 
-    override fun routeOf(
-        operation: BlasOperation,
-        matrices: List<DenseMatrixRegion>,
-        vectors: List<DenseVector>,
-    ): CallRoute = routeFor(
-        operation = operation,
-        vendor = vendor,
-        exported = operation in directlyImplemented,
-        matrices = matrices,
-        vectors = vectors,
-        transfer = null,
-    )
-
-    private fun symbol(operation: BlasOperation): COpaquePointer = checkNotNull(entryPoints[operation.ordinal]) {
+    private fun symbol(operation: EngineImplementation): COpaquePointer = checkNotNull(entryPoints[operation.ordinal]) {
         "${vendor.vendorName} at $libraryPath does not export ${operation.entryPoint}"
     }
 
     // Level 1. A vector window is always expressible, so these never stage and never compose.
 
-    override fun dot(x: DenseVector, y: DenseVector): Double {
-        requireSameSize(x.size, y.size, "dot")
-        return dot(x.values, x.offset, y.values, y.offset, x.size, x.stride, y.stride)
-    }
-
-    override fun nrm2(x: DenseVector): Double = nrm2(x.values, x.offset, x.size, x.stride)
-
-    override fun asum(x: DenseVector): Double = asum(x.values, x.offset, x.size, x.stride)
-
     /*
-     * Raw Level 1 runs avoid allocating operand wrappers for short calls. [DenseVector] methods
-     * above delegate to the same implementation.
+     * Primitive Level 1 windows reach pinned storage directly, avoiding operand wrappers for short calls.
      *
      * Inlined `usePinned` releases each pin even when a call throws.
      */
@@ -252,7 +224,7 @@ internal class NativeVendorBlas private constructor(
         bStride: Int,
     ): Double {
         if (len == 0) return 0.0
-        val fn = symbol(BlasOperation.Dot).reinterpret<DotFn>()
+        val fn = symbol(EngineImplementation.Dot).reinterpret<DotFn>()
         a.usePinned { pa ->
             b.usePinned { pb ->
                 return fn(
@@ -267,12 +239,12 @@ internal class NativeVendorBlas private constructor(
     }
 
     override fun nrm2(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double =
-        rawReduce(v, vOff, vStride, len, BlasOperation.Nrm2)
+        rawReduce(v, vOff, vStride, len, EngineImplementation.Nrm2)
 
     override fun asum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double =
-        rawReduce(v, vOff, vStride, len, BlasOperation.Asum)
+        rawReduce(v, vOff, vStride, len, EngineImplementation.Asum)
 
-    private fun rawReduce(a: DoubleArray, offset: Int, stride: Int, n: Int, operation: BlasOperation): Double {
+    private fun rawReduce(a: DoubleArray, offset: Int, stride: Int, n: Int, operation: EngineImplementation): Double {
         if (n == 0) return 0.0
         val fn = symbol(operation).reinterpret<ReduceFn>()
         a.usePinned { pinned ->
@@ -283,7 +255,7 @@ internal class NativeVendorBlas private constructor(
     /** The index the library returns, restored to the caller's order when the stride runs backwards. */
     override fun iamax(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Int {
         if (len == 0) return -1
-        val fn = symbol(BlasOperation.Iamax).reinterpret<IndexFn>()
+        val fn = symbol(EngineImplementation.Iamax).reinterpret<IndexFn>()
         v.usePinned { pinned ->
             val found = fn(len, pinned.addressOf(baseIndex(vOff, vStride, len)), positiveIncrement(vStride, len))
             return if (vStride >= 0) found else len - 1 - found
@@ -301,7 +273,7 @@ internal class NativeVendorBlas private constructor(
         xStride: Int,
     ) {
         if (len == 0) return
-        val fn = symbol(BlasOperation.Axpy).reinterpret<AxpyFn>()
+        val fn = symbol(EngineImplementation.Axpy).reinterpret<AxpyFn>()
         x.usePinned { px ->
             y.usePinned { py ->
                 fn(
@@ -318,15 +290,15 @@ internal class NativeVendorBlas private constructor(
 
     override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int, vStride: Int) {
         if (len == 0) return
-        val fn = symbol(BlasOperation.Scal).reinterpret<ScalFn>()
+        val fn = symbol(EngineImplementation.Scale).reinterpret<ScalFn>()
         v.usePinned { pinned ->
             fn(len, alpha, pinned.addressOf(baseIndex(vOff, vStride, len)), positiveIncrement(vStride, len))
         }
     }
 
-    override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) {
+    override fun copy(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) {
         if (len == 0) return
-        val fn = symbol(BlasOperation.Swap).reinterpret<CopyFn>()
+        val fn = symbol(EngineImplementation.Copy).reinterpret<CopyFn>()
         a.usePinned { px ->
             b.usePinned { py ->
                 fn(
@@ -340,77 +312,57 @@ internal class NativeVendorBlas private constructor(
         }
     }
 
-    internal fun rawRot(
-        x: DoubleArray,
-        xOffset: Int,
-        xStride: Int,
-        y: DoubleArray,
-        yOffset: Int,
-        yStride: Int,
-        n: Int,
-        c: Double,
-        s: Double,
-    ) {
-        if (n == 0) return
-        val fn = symbol(BlasOperation.Rot).reinterpret<RotFn>()
-        x.usePinned { px ->
-            y.usePinned { py ->
+    override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) {
+        if (len == 0) return
+        val fn = symbol(EngineImplementation.Swap).reinterpret<CopyFn>()
+        a.usePinned { px ->
+            b.usePinned { py ->
                 fn(
-                    n,
-                    px.addressOf(baseIndex(xOffset, xStride, n)),
-                    xStride,
-                    py.addressOf(baseIndex(yOffset, yStride, n)),
-                    yStride,
-                    c,
-                    s,
+                    len,
+                    px.addressOf(baseIndex(aOff, aStride, len)),
+                    aStride,
+                    py.addressOf(baseIndex(bOff, bStride, len)),
+                    bStride,
                 )
             }
         }
     }
 
-    override fun iamax(x: DenseVector): Int = if (x.size == 0) 0 else iamax(x.values, x.offset, x.size, x.stride)
-
-    override fun axpy(alpha: Double, x: DenseVector, y: DenseVector) {
-        requireSameSize(x.size, y.size, "axpy")
-        axpy(y.values, y.offset, alpha, x.values, x.offset, x.size, y.stride, x.stride)
-    }
-
-    override fun scal(alpha: Double, x: DenseVector) = scale(x.values, x.offset, alpha, x.size, x.stride)
-
-    override fun copy(x: DenseVector, y: DenseVector) = twoVector(x, y, BlasOperation.Copy, "copy")
-
-    override fun swap(x: DenseVector, y: DenseVector) {
-        requireSameSize(x.size, y.size, "swap")
-        swap(x.values, x.offset, y.values, y.offset, x.size, x.stride, y.stride)
-    }
-
-    private fun twoVector(x: DenseVector, y: DenseVector, operation: BlasOperation, what: String) {
-        requireSameSize(x.size, y.size, what)
-        if (noWork(x)) return
-        withPins { pins ->
-            val px = pins.stage(x)
-            val py = pins.stage(y)
-            val fn = symbol(operation).reinterpret<CopyFn>()
-            fn(x.size, px.pointer, px.increment, py.pointer, py.increment)
-        }
-    }
-
-    override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) {
-        if (x === y && xOff == yOff) {
-            ScalarVectorKernels.rot(x, xOff, y, yOff, len, c, s)
+    override fun rot(
+        x: DoubleArray,
+        xOff: Int,
+        y: DoubleArray,
+        yOff: Int,
+        len: Int,
+        c: Double,
+        s: Double,
+        xStride: Int,
+        yStride: Int,
+    ) {
+        if (x === y && xOff == yOff && xStride == yStride) {
+            PortableEngine.rot(x, xOff, y, yOff, len, c, s, xStride, yStride)
         } else {
-            rawRot(x, xOff, 1, y, yOff, 1, len, c, s)
+            if (len == 0) return
+            val fn = symbol(EngineImplementation.Rot).reinterpret<RotFn>()
+            x.usePinned { px ->
+                y.usePinned { py ->
+                    fn(
+                        len,
+                        px.addressOf(baseIndex(xOff, xStride, len)),
+                        xStride,
+                        py.addressOf(baseIndex(yOff, yStride, len)),
+                        yStride,
+                        c,
+                        s,
+                    )
+                }
+            }
         }
-    }
-
-    override fun rot(x: DenseVector, y: DenseVector, c: Double, s: Double) {
-        requireSameSize(x.size, y.size, "rot")
-        rawRot(x.values, x.offset, x.stride, y.values, y.offset, y.stride, x.size, c, s)
     }
 
     // Level 2. One matrix operand, passed in place with its own row count as the leading dimension.
 
-    override fun gemv(
+    override fun computeGemv(
         alpha: Double,
         a: DenseMatrixRegion,
         transposeA: Boolean,
@@ -418,13 +370,11 @@ internal class NativeVendorBlas private constructor(
         beta: Double,
         y: DenseVector,
     ) {
-        requireGemvOperands(a, transposeA, x.size, y.size)
-        if (noWork(a)) return
         withPins { pins ->
             val pa = pins.stage(a)
             val px = pins.stage(x)
             val py = pins.stage(y)
-            val fn = symbol(BlasOperation.Gemv).reinterpret<GemvFn>()
+            val fn = symbol(EngineImplementation.Gemv).reinterpret<GemvFn>()
             fn(
                 Cblas.COL_MAJOR, transposeFor(transposeA), a.rows, a.cols, alpha,
                 pa.pointer, pa.leadingDimension, px.pointer, px.increment, beta, py.pointer, py.increment,
@@ -432,7 +382,7 @@ internal class NativeVendorBlas private constructor(
         }
     }
 
-    override fun symv(
+    override fun computeSymv(
         alpha: Double,
         a: DenseMatrixRegion,
         structure: MatrixStructure,
@@ -440,14 +390,11 @@ internal class NativeVendorBlas private constructor(
         beta: Double,
         y: DenseVector,
     ) {
-        requireStructured(structure, "symv")
-        requireSymvOperands(a, x.size, y.size)
-        if (noWork(a)) return
         withPins { pins ->
             val pa = pins.stage(a)
             val px = pins.stage(x)
             val py = pins.stage(y)
-            val fn = symbol(BlasOperation.Symv).reinterpret<SymvFn>()
+            val fn = symbol(EngineImplementation.Symv).reinterpret<SymvFn>()
             fn(
                 Cblas.COL_MAJOR, uploFor(structure), a.rows, alpha,
                 pa.pointer, pa.leadingDimension, px.pointer, px.increment, beta, py.pointer, py.increment,
@@ -455,14 +402,12 @@ internal class NativeVendorBlas private constructor(
         }
     }
 
-    override fun ger(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrixRegion) {
-        requireGerOperands(x.size, y.size, a)
-        if (noWork(a)) return
+    override fun computeGer(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrixRegion) {
         withPins { pins ->
             val pa = pins.stage(a)
             val px = pins.stage(x)
             val py = pins.stage(y)
-            val fn = symbol(BlasOperation.Ger).reinterpret<GerFn>()
+            val fn = symbol(EngineImplementation.Ger).reinterpret<GerFn>()
             fn(
                 Cblas.COL_MAJOR, a.rows, a.cols, alpha,
                 px.pointer, px.increment, py.pointer, py.increment, pa.pointer, pa.leadingDimension,
@@ -470,14 +415,11 @@ internal class NativeVendorBlas private constructor(
         }
     }
 
-    override fun syr(alpha: Double, x: DenseVector, a: DenseMatrixRegion, structure: MatrixStructure) {
-        requireStructured(structure, "syr")
-        requireSyrOperands(a, x.size, "syr")
-        if (noWork(a)) return
+    override fun computeSyr(alpha: Double, x: DenseVector, a: DenseMatrixRegion, structure: MatrixStructure) {
         withPins { pins ->
             val pa = pins.stage(a)
             val px = pins.stage(x)
-            val fn = symbol(BlasOperation.Syr).reinterpret<SyrFn>()
+            val fn = symbol(EngineImplementation.Syr).reinterpret<SyrFn>()
             fn(
                 Cblas.COL_MAJOR,
                 uploFor(structure),
@@ -491,15 +433,18 @@ internal class NativeVendorBlas private constructor(
         }
     }
 
-    override fun syr2(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrixRegion, structure: MatrixStructure) {
-        requireStructured(structure, "syr2")
-        requireSyr2Operands(a, x.size, y.size, "syr2")
-        if (noWork(a)) return
+    override fun computeSyr2(
+        alpha: Double,
+        x: DenseVector,
+        y: DenseVector,
+        a: DenseMatrixRegion,
+        structure: MatrixStructure,
+    ) {
         withPins { pins ->
             val pa = pins.stage(a)
             val px = pins.stage(x)
             val py = pins.stage(y)
-            val fn = symbol(BlasOperation.Syr2).reinterpret<Syr2Fn>()
+            val fn = symbol(EngineImplementation.Syr2).reinterpret<Syr2Fn>()
             fn(
                 Cblas.COL_MAJOR, uploFor(structure), a.rows, alpha,
                 px.pointer, px.increment, py.pointer, py.increment, pa.pointer, pa.leadingDimension,
@@ -507,11 +452,11 @@ internal class NativeVendorBlas private constructor(
         }
     }
 
-    override fun trsv(a: DenseMatrixRegion, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) =
-        triangularVector(a, structure, transposeA, x, BlasOperation.Trsv, "trsv")
+    override fun computeTrsv(a: DenseMatrixRegion, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) =
+        triangularVector(a, structure, transposeA, x, EngineImplementation.Trsv)
 
-    override fun trmv(a: DenseMatrixRegion, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) =
-        triangularVector(a, structure, transposeA, x, BlasOperation.Trmv, "trmv")
+    override fun computeTrmv(a: DenseMatrixRegion, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) =
+        triangularVector(a, structure, transposeA, x, EngineImplementation.Trmv)
 
     @Suppress("LongParameterList") // the shared triangular vector signature plus its entry point
     private fun triangularVector(
@@ -519,12 +464,8 @@ internal class NativeVendorBlas private constructor(
         structure: MatrixStructure,
         transposeA: Boolean,
         x: DenseVector,
-        operation: BlasOperation,
-        what: String,
+        operation: EngineImplementation,
     ) {
-        requireTriangular(structure, what)
-        requireTriangularVectorOperands(a, x.size, what)
-        if (noWork(a)) return
         withPins { pins ->
             val pa = pins.stage(a)
             val px = pins.stage(x)
@@ -539,7 +480,7 @@ internal class NativeVendorBlas private constructor(
     // Level 3. Every operand is column-major with unit row stride, so the layout is fixed and a transpose is a flag.
 
     @Suppress("LongParameterList") // the BLAS dgemm signature
-    override fun gemm(
+    override fun computeGemm(
         alpha: Double,
         a: DenseMatrixRegion,
         transposeA: Boolean,
@@ -549,13 +490,11 @@ internal class NativeVendorBlas private constructor(
         c: DenseMatrixRegion,
     ) {
         val depth = if (transposeA) a.rows else a.cols
-        requireGemmOperands(a, transposeA, b, transposeB, c)
-        if (noWork(c)) return
         withPins { pins ->
             val pa = pins.stage(a)
             val pb = pins.stage(b)
             val pc = pins.stage(c)
-            val fn = symbol(BlasOperation.Gemm).reinterpret<GemmFn>()
+            val fn = symbol(EngineImplementation.Gemm).reinterpret<GemmFn>()
             fn(
                 Cblas.COL_MAJOR, transposeFor(transposeA), transposeFor(transposeB),
                 c.rows, c.cols, depth, alpha,
@@ -566,7 +505,7 @@ internal class NativeVendorBlas private constructor(
     }
 
     @Suppress("LongParameterList") // the BLAS dsymm signature
-    override fun symm(
+    override fun computeSymm(
         alpha: Double,
         a: DenseMatrixRegion,
         structure: MatrixStructure,
@@ -575,14 +514,11 @@ internal class NativeVendorBlas private constructor(
         c: DenseMatrixRegion,
         rightSide: Boolean,
     ) {
-        requireStructured(structure, "symm")
-        requireSymmOperands(a, b, c, rightSide)
-        if (noWork(c)) return
         withPins { pins ->
             val pa = pins.stage(a)
             val pb = pins.stage(b)
             val pc = pins.stage(c)
-            val fn = symbol(BlasOperation.Symm).reinterpret<SymmFn>()
+            val fn = symbol(EngineImplementation.Symm).reinterpret<SymmFn>()
             fn(
                 Cblas.COL_MAJOR, sideFor(rightSide), uploFor(structure), c.rows, c.cols, alpha,
                 pa.pointer, pa.leadingDimension, pb.pointer, pb.leadingDimension, beta,
@@ -592,7 +528,7 @@ internal class NativeVendorBlas private constructor(
     }
 
     @Suppress("LongParameterList") // the BLAS dsyrk signature
-    override fun syrk(
+    override fun computeSyrk(
         alpha: Double,
         a: DenseMatrixRegion,
         transposeA: Boolean,
@@ -600,14 +536,11 @@ internal class NativeVendorBlas private constructor(
         c: DenseMatrixRegion,
         structure: MatrixStructure,
     ) {
-        requireStructured(structure, "syrk")
-        requireSyrkOperands(a, transposeA, c)
         val depth = if (transposeA) a.rows else a.cols
-        if (noWork(c)) return
         withPins { pins ->
             val pa = pins.stage(a)
             val pc = pins.stage(c)
-            val fn = symbol(BlasOperation.Syrk).reinterpret<SyrkFn>()
+            val fn = symbol(EngineImplementation.Syrk).reinterpret<SyrkFn>()
             fn(
                 Cblas.COL_MAJOR, uploFor(structure), transposeFor(transposeA),
                 c.rows, depth, alpha, pa.pointer, pa.leadingDimension, beta,
@@ -617,7 +550,7 @@ internal class NativeVendorBlas private constructor(
     }
 
     @Suppress("LongParameterList") // the BLAS dsyr2k signature
-    override fun syr2k(
+    override fun computeSyr2k(
         alpha: Double,
         a: DenseMatrixRegion,
         b: DenseMatrixRegion,
@@ -626,15 +559,12 @@ internal class NativeVendorBlas private constructor(
         c: DenseMatrixRegion,
         structure: MatrixStructure,
     ) {
-        requireStructured(structure, "syr2k")
-        requireSyr2kOperands(a, b, transposeA, c)
         val depth = if (transposeA) a.rows else a.cols
-        if (noWork(c)) return
         withPins { pins ->
             val pa = pins.stage(a)
             val pb = pins.stage(b)
             val pc = pins.stage(c)
-            val fn = symbol(BlasOperation.Syr2k).reinterpret<Syr2kFn>()
+            val fn = symbol(EngineImplementation.Syr2k).reinterpret<Syr2kFn>()
             fn(
                 Cblas.COL_MAJOR, uploFor(structure), transposeFor(transposeA),
                 c.rows, depth, alpha, pa.pointer, pa.leadingDimension,
@@ -644,24 +574,24 @@ internal class NativeVendorBlas private constructor(
     }
 
     @Suppress("LongParameterList") // the BLAS dtrmm signature
-    override fun trmm(
+    override fun computeTrmm(
         alpha: Double,
         a: DenseMatrixRegion,
         structure: MatrixStructure,
         transposeA: Boolean,
         b: DenseMatrixRegion,
         rightSide: Boolean,
-    ) = triangularMatrix(alpha, a, structure, transposeA, b, rightSide, BlasOperation.Trmm, "trmm")
+    ) = triangularMatrix(alpha, a, structure, transposeA, b, rightSide, EngineImplementation.Trmm)
 
     @Suppress("LongParameterList") // the BLAS dtrsm signature
-    override fun trsm(
+    override fun computeTrsm(
         alpha: Double,
         a: DenseMatrixRegion,
         structure: MatrixStructure,
         transposeA: Boolean,
         b: DenseMatrixRegion,
         rightSide: Boolean,
-    ) = triangularMatrix(alpha, a, structure, transposeA, b, rightSide, BlasOperation.Trsm, "trsm")
+    ) = triangularMatrix(alpha, a, structure, transposeA, b, rightSide, EngineImplementation.Trsm)
 
     @Suppress("LongParameterList") // the shared triangular matrix signature plus its entry point
     private fun triangularMatrix(
@@ -671,12 +601,8 @@ internal class NativeVendorBlas private constructor(
         transposeA: Boolean,
         b: DenseMatrixRegion,
         rightSide: Boolean,
-        operation: BlasOperation,
-        what: String,
+        operation: EngineImplementation,
     ) {
-        requireTriangular(structure, what)
-        requireTriangularMatrixOperands(a, b, rightSide, what)
-        if (noWork(b)) return
         withPins { pins ->
             val pa = pins.stage(a)
             val pb = pins.stage(b)
@@ -691,7 +617,7 @@ internal class NativeVendorBlas private constructor(
 
     /** Direct where the vendor exports `cblas_dgemmt`, and otherwise the shared composition. */
     @Suppress("LongParameterList") // the BLAS gemmt signature
-    override fun gemmt(
+    override fun computeGemmt(
         alpha: Double,
         a: DenseMatrixRegion,
         transposeA: Boolean,
@@ -701,18 +627,15 @@ internal class NativeVendorBlas private constructor(
         c: DenseMatrixRegion,
         structure: MatrixStructure,
     ) {
-        requireStructured(structure, "gemmt")
-        requireGemmtOperands(a, transposeA, b, transposeB, c)
         val depth = if (transposeA) a.rows else a.cols
-        if (noWork(c)) return
-        if (BlasOperation.Gemmt !in directlyImplemented) {
-            return composeGemmt(alpha, a, transposeA, b, transposeB, beta, c, structure)
+        if (EngineImplementation.Gemmt !in implementations) {
+            error("Backend does not supply Gemmt")
         }
         withPins { pins ->
             val pa = pins.stage(a)
             val pb = pins.stage(b)
             val pc = pins.stage(c)
-            val fn = symbol(BlasOperation.Gemmt).reinterpret<GemmFn>()
+            val fn = symbol(EngineImplementation.Gemmt).reinterpret<GemmFn>()
             fn(
                 Cblas.COL_MAJOR, uploFor(structure), transposeFor(transposeA),
                 transposeFor(transposeB), c.rows, depth, alpha,

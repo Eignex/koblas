@@ -1,9 +1,9 @@
 package com.eignex.koblas.vendor
 
 import com.eignex.koblas.BuiltinEngines
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.StridedVector
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.internal.sparse.axpy
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -11,7 +11,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class BlasTest {
-    private val scalar = BuiltinEngines.scalar.vectorKernels
+    private val scalar = BuiltinEngines.scalar
 
     @Test
     fun `singleton norm accepts extreme strides`() {
@@ -50,7 +50,7 @@ class BlasTest {
             val vector = StridedVector(values, 1, 1, stride)
             scalar.scale(expected, 1, -0.75, 1, stride)
 
-            vendor.scal(-0.75, vector)
+            vendor.scale(-0.75, vector)
 
             assertScalAgreesWithReference(expected, values, "${vendor.vendor}, stride=$stride")
         }
@@ -135,7 +135,7 @@ class BlasTest {
             val expected = x.values.copyOf()
             scalar.scale(expected, x.offset, -0.75, x.size, x.stride)
 
-            vendor.scal(-0.75, x)
+            vendor.scale(-0.75, x)
 
             assertAgreesWithReference(expected, x.values, context(vendor, "scal", x))
         }
@@ -225,7 +225,7 @@ class BlasTest {
         return StridedVector(vendorValues(32, seed), offset, size, stride)
     }
 
-    private fun context(vendor: Blas, operation: String, x: StridedVector, y: StridedVector? = null): String =
+    private fun context(vendor: KoblasEngine, operation: String, x: StridedVector, y: StridedVector? = null): String =
         "${vendor.vendor} $operation x offset=${x.offset} stride=${x.stride}" +
             y?.let { " y offset=${it.offset} stride=${it.stride}" }.orEmpty()
 
@@ -255,9 +255,15 @@ class BlasTest {
 
     private companion object {
         // Some vendors special-case singletons and hide a negative increment; prefer the affected binding.
-        val vendor = openBlas(Vendor.OpenBlas) ?: openBlas()
+        val vendor = BuiltinEngines.vendor(
+            Vendor.OpenBlas,
+        ) ?: Vendor.entries.firstNotNullOfOrNull {
+            BuiltinEngines.vendor(
+                it,
+            )
+        }
 
-        // Direct Blas calls bypass the native engine crossover even for these six-entry windows.
+        // Direct KoblasEngine calls bypass the native engine crossover even for these six-entry windows.
         val MULTI_ENTRY_STRIDES = intArrayOf(1, 2, -1, -2)
         val STRIDES = intArrayOf(Int.MIN_VALUE, -3, -1, 1, 3, Int.MAX_VALUE)
     }

@@ -1,17 +1,17 @@
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.BuiltinEngines
 import com.eignex.koblas.EngineImplementation
-import com.eignex.koblas.internal.dense.ScalarVectorKernels
-import com.eignex.koblas.internal.dense.implementationFor
+import com.eignex.koblas.PortableEngine
 import com.eignex.koblas.internal.jvm25.simd.SimdOps
-import com.eignex.koblas.internal.jvm25.simd.SimdVectorKernels
 import com.eignex.koblas.internal.jvm25.simd.simdAvailable
 import com.eignex.koblas.internal.jvm25.simd.simdContributions
-import com.eignex.koblas.internal.sparse.axpy
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+
+private val selectedBackend = BuiltinEngines.simd ?: PortableEngine
 
 /**
  * Checks per-operation routing on the Vector API arm. Reductions and AXPY use explicit vector kernels;
@@ -19,7 +19,7 @@ import kotlin.test.assertTrue
  * even when their numerical results agree.
  */
 class SimdVectorKernelsTest {
-    private val kernels = SimdVectorKernels
+    private val kernels = selectedBackend
 
     private fun reached(operation: EngineImplementation, length: Int): String? =
         kernels.implementationFor(operation, length, contiguous = true)
@@ -30,7 +30,7 @@ class SimdVectorKernelsTest {
 
         for (operation in listOf(EngineImplementation.Dot, EngineImplementation.Sum, EngineImplementation.Asum)) {
             assertEquals(
-                simdContributions.vectorName,
+                simdContributions.first().name,
                 reached(operation, WIDE),
                 "$operation stayed scalar at $WIDE",
             )
@@ -46,7 +46,7 @@ class SimdVectorKernelsTest {
             EngineImplementation.Swap,
             EngineImplementation.Rot,
         )) {
-            assertEquals(ScalarVectorKernels.name, reached(operation, WIDE), "$operation named a vector kernel")
+            assertEquals(PortableEngine.name, reached(operation, WIDE), "$operation named a vector kernel")
         }
     }
 
@@ -55,7 +55,7 @@ class SimdVectorKernelsTest {
         if (!simdAvailable) return skipped()
 
         assertEquals(
-            simdContributions.vectorName,
+            simdContributions.first().name,
             reached(EngineImplementation.Axpy, WIDE),
         )
         assertLevel1KernelsAgreeWithReference(kernels)
@@ -81,7 +81,7 @@ class SimdVectorKernelsTest {
                 for (sourceOffset in listOf(3, length + 6)) {
                     val expected = DoubleArray(2 * length + 9) { values[it % values.size] }
                     val actual = expected.copyOf()
-                    ScalarVectorKernels.axpy(expected, 3, alpha, expected, sourceOffset, length)
+                    PortableEngine.axpy(expected, 3, alpha, expected, sourceOffset, length)
 
                     kernels.axpy(actual, 3, alpha, actual, sourceOffset, length)
 
@@ -108,7 +108,7 @@ class SimdVectorKernelsTest {
                 val actual = expected.copyOf()
                 val source = DoubleArray(expected.size) { values[(it + 3) % values.size] }
                 for (sourceOffset in listOf(3, length + 6)) {
-                    ScalarVectorKernels.axpy(expected, 3, 1.0, if (shared) expected else source, sourceOffset, length)
+                    PortableEngine.axpy(expected, 3, 1.0, if (shared) expected else source, sourceOffset, length)
 
                     kernels.axpy(actual, 3, 1.0, if (shared) actual else source, sourceOffset, length)
 
@@ -124,9 +124,9 @@ class SimdVectorKernelsTest {
 
         // Below its crossover the vectorised search is inside the noise and loses at one width; see the
         // constant's own documentation for the measurement.
-        assertEquals(ScalarVectorKernels.name, reached(EngineImplementation.Iamax, 128))
+        assertEquals(PortableEngine.name, reached(EngineImplementation.Iamax, 128))
         assertEquals(
-            simdContributions.vectorName,
+            simdContributions.first().name,
             reached(EngineImplementation.Iamax, WIDE),
         )
     }
@@ -137,7 +137,7 @@ class SimdVectorKernelsTest {
 
         for (operation in EngineImplementation.entries.takeWhile { it != EngineImplementation.IndexedDot }) {
             assertEquals(
-                ScalarVectorKernels.name,
+                PortableEngine.name,
                 kernels.implementationFor(operation, WIDE, contiguous = false),
                 "$operation named a vector kernel for a strided run",
             )
