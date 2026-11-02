@@ -12,18 +12,22 @@ The first use of `koblas` selects the engine once, using what is available on yo
 
 | Platform | What the default engine uses |
 |---|---|
-| JDK 25+ | Measured owned JVM SIMD configuration when enabled; eligible oneMKL calls on measured Xeon Platinum 8375C Linux x64 hosts with native access. |
-| Kotlin/Native, i9-12900H Linux x64 | Measured portable + oneMKL configuration when the library is available. |
-| Other Kotlin/Native targets | Portable Kotlin until a measured host profile applies. Explicit vendor bindings remain available. |
-| JDK 17–24, Android and iOS | Portable Kotlin; no native library lookup |
+| JDK 25+ | Owned JVM SIMD when enabled, plus available host libraries through the platform profile. |
+| Kotlin/Native, macOS | Accelerate + portable Kotlin. |
+| Kotlin/Native, Linux and Windows | oneMKL on x64, OpenBLAS, and portable Kotlin. |
+| Other Kotlin/Native targets | Portable Kotlin. |
+| JDK 17–24, Android and iOS | Portable Kotlin; no native library lookup. |
 
-The default composes available backend implementations with an applicable standard routing profile once.
-A capability says which arithmetic exists; the profile says when to select it. Missing exports, optional
-modules or libraries leave portable coverage. An accelerated host profile applies to its declared runtime,
-OS, architecture and exact reported CPU model; availability alone does not select it. Unknown and other
-CPU models retain portable or owned JVM SIMD coverage. Vendor applicability stays conservative until
-measurements justify a wider CPU class; owned SIMD instead detects the available Vector API width. The initial vendor profiles cover the i9-12900H
-on Native and Xeon Platinum 8375C on the JVM; recalculate an explicit profile for another host.
+The default selects one complete prebuilt profile for its runtime, OS and architecture. macOS uses
+Accelerate; Linux and Windows use oneMKL on x64 and OpenBLAS. JVM profiles also include owned SIMD and
+check AOCL on Linux/Windows x64 or ArmPL on Arm64. Each vendor has its own routing rules; unavailable
+libraries, exports and optional modules fall through to the remaining providers and portable coverage.
+Without native-access permission the JVM selects its owned SIMD or portable profile.
+
+Vendor cutoffs are provisional estimates pending measurement before this PR merges. Existing oneMKL
+numbers supply its starting policy; OpenBLAS, Accelerate, AOCL and ArmPL have separate estimates.
+These profiles do not claim measured applicability across CPU models. Owned SIMD detects the available
+Vector API width. Explicit locally calibrated profiles can restrict applicability to an exact CPU model.
 
 On JDK 25+, enable SIMD with this JVM argument:
 
@@ -52,9 +56,10 @@ Matrix-vector products and rank updates use SIMD where applicable. Sparse operat
 traversal and can use SIMD for the arithmetic within it.
 
 Automatic JVM native calls are limited to larger matrix-matrix operations: GEMM, GEMMT, SYMM, SYRK,
-SYR2K, TRMM and TRSM. Their output dimensions and shared dimension or structured order must each be
-at least 64, or at least 128 for GEMMT and for borrowed views. Whole-matrix GEMM also qualifies with at
-least 16 output rows and columns and a shared dimension of 1,024–4,096. These thresholds are built in.
+SYR2K, TRMM and TRSM. The provisional minimum output and shared dimensions start at 64 for oneMKL
+and Accelerate, or 128 for OpenBLAS, AOCL and ArmPL; GEMMT and borrowed views require twice those
+extents. oneMKL GEMM also qualifies with at least 16 output rows and columns and a shared dimension
+of 1,024–4,096. Kotlin/Native has separate vector and work cutoffs for each vendor.
 
 JVM native calls copy arrays to and from native memory. An Intel comparison that includes this
 cost measured oneMKL at 1.45–4.66x JVM SIMD throughput for matrix-matrix cases at orders 128, 256
@@ -84,7 +89,7 @@ The combined engine explicitly calls a separate portable provider for unselected
 traversal, CSC traversal, validation and alias staging; packed product geometry is selected before packing.
 
 ```kotlin
-val profile = StandardEngineProfiles.nativeLinuxOneMkl
+val profile = StandardEngineProfiles.forTarget(EngineRuntime.Native, hostPlatform())
 val engine = BuiltinEngines.configured(profile)
 ```
 

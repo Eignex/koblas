@@ -1,11 +1,9 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.dense.ReferenceBlas
-import com.eignex.koblas.vendor.Vendor
 import com.eignex.koblas.vendor.assertAgreesWithReference
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 /**
  * Checks the default's separation of JVM Level 1 kernels from eligible whole-call host products.
@@ -21,7 +19,6 @@ class JvmDefaultEngineTest {
         )
         assertEquals(exact.tileRows, koblas.tileRows)
         assertEquals(exact.tileColumns, koblas.tileColumns)
-        assertTrue(koblas.vendor == null || koblas.vendor == Vendor.OneMkl)
     }
 
     @Test
@@ -58,11 +55,7 @@ class JvmDefaultEngineTest {
         }
     }
 
-    // Every operand is copied into native memory to reach the library, and the route says so, which is what
-    // keeps a JVM vendor arm honest about what it is timing.
-
     private companion object {
-        /** Past the size at which Kotlin/Native's default would hand the same call to a library. */
         const val ORDER = 64
     }
 }

@@ -29,15 +29,11 @@ class NativeHostConcurrencyTest {
     private fun assertHostEligible(rows: Int, columns: Int, depth: Int, what: String) {
         if (koblas.vendor == null) {
             println(
-                "SKIPPED: no measured host profile or binding; $what exercised portable scheduling",
+                "SKIPPED: no host binding; $what exercised portable scheduling",
             )
+        } else {
+            assertTrue(koblas.wholeCallFor(EngineImplementation.Gemm, rows, columns, depth)?.vendor != null, what)
         }
-        assertTrue(
-            StandardEngineProfiles.nativeLinuxOneMkl.rules.any {
-                EngineImplementation.Gemm in it.implementations && it.matches(rows, columns, depth, true, false)
-            },
-            "$what stays portable",
-        )
     }
 
     /** Eight workers, one shared pair of operands, and a destination and a workspace each. */
@@ -114,7 +110,7 @@ class NativeHostConcurrencyTest {
     @Test
     fun `the composed default runs on a library held to one compute thread`() {
         val vendor = koblas.takeIf { it.vendor != null } ?: return println(
-            "SKIPPED: no measured host profile or binding; host thread configuration was not verified",
+            "SKIPPED: no host binding; host thread configuration was not verified",
         )
 
         assertTrue(

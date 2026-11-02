@@ -15,7 +15,7 @@ internal object JvmBackend {
         if (simdAvailable) simdContributions else null
 
     val default: KoblasEngine by lazy {
-        standardEngine("jvm", JvmBackend::class.java.module.isNativeAccessEnabled)
+        standardEngine(EngineRuntime.Jvm, JvmBackend::class.java.module.isNativeAccessEnabled)
     }
 
     fun open(vendor: Vendor): KoblasEngine? = JvmVendorLibrary.open(vendor)?.let(::JvmVendorBlas)

@@ -14,7 +14,7 @@ import com.eignex.koblas.vendor.*
  *
  * Providers implement only the parts they supply and declare [implementations]. Unsupported methods
  * fail without calling another provider; [combine] explicitly composes complete coverage. [BuiltinEngines] selects exact
- * engines, while [koblas] selects an applicable measured configuration once.
+ * engines, while [koblas] selects its standard platform configuration once.
  *
  * Matrix and container operations validate shapes, preserve BLAS no-read rules and stage supported aliases.
  * Primitive array windows require valid offsets, lengths and strides; callers stage destructive overlaps.

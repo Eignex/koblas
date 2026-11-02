@@ -15,10 +15,8 @@ internal expect fun platformEngine(): KoblasEngine
 /**
  * Exact portable and JVM SIMD engines for tests and benchmarks, without changing the default [koblas].
  *
- * The JVM default retains [simd] when available and [scalar] otherwise as its owned kernels, and may
- * compose eligible oneMKL matrix calls when native access is enabled. Native has no SIMD
- * engine and uses an applicable measured host profile, or [scalar] when none applies.
- * Android and desktop JDKs below 25 use [scalar] without resolving a host library.
+ * The default uses one platform profile with optional host libraries and portable coverage. JVM profiles
+ * also retain [simd] when available. Android and desktop JDKs below 25 use [scalar] without host lookup.
  */
 public object BuiltinEngines {
     /** Opens exactly [vendor] when available. Unsupported operations remain unsupported. */

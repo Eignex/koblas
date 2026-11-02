@@ -126,6 +126,17 @@ final enum class com.eignex.koblas/EngineImplementation : kotlin/Enum<com.eignex
     final fun values(): kotlin/Array<com.eignex.koblas/EngineImplementation> // com.eignex.koblas/EngineImplementation.values|values#static(){}[0]
 }
 
+final enum class com.eignex.koblas/EngineRuntime : kotlin/Enum<com.eignex.koblas/EngineRuntime> { // com.eignex.koblas/EngineRuntime|null[0]
+    enum entry Jvm // com.eignex.koblas/EngineRuntime.Jvm|null[0]
+    enum entry Native // com.eignex.koblas/EngineRuntime.Native|null[0]
+
+    final val entries // com.eignex.koblas/EngineRuntime.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas/EngineRuntime> // com.eignex.koblas/EngineRuntime.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): com.eignex.koblas/EngineRuntime // com.eignex.koblas/EngineRuntime.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<com.eignex.koblas/EngineRuntime> // com.eignex.koblas/EngineRuntime.values|values#static(){}[0]
+}
+
 final enum class com.eignex.koblas/PanelWork : kotlin/Enum<com.eignex.koblas/PanelWork> { // com.eignex.koblas/PanelWork|null[0]
     enum entry ColumnUpdate // com.eignex.koblas/PanelWork.ColumnUpdate|null[0]
     enum entry CoupledDotUpdate // com.eignex.koblas/PanelWork.CoupledDotUpdate|null[0]
@@ -387,7 +398,7 @@ final class com.eignex.koblas/DimensionMismatch : kotlin/IllegalArgumentExceptio
 }
 
 final class com.eignex.koblas/EngineProfile { // com.eignex.koblas/EngineProfile|null[0]
-    constructor <init>(kotlin/String, kotlin.collections/List<com.eignex.koblas/EngineRule>, kotlin/String? = ..., com.eignex.koblas.vendor/HostPlatform? = ..., kotlin/String = ...) // com.eignex.koblas/EngineProfile.<init>|<init>(kotlin.String;kotlin.collections.List<com.eignex.koblas.EngineRule>;kotlin.String?;com.eignex.koblas.vendor.HostPlatform?;kotlin.String){}[0]
+    constructor <init>(kotlin/String, kotlin.collections/List<com.eignex.koblas/EngineRule>, com.eignex.koblas/EngineRuntime? = ..., com.eignex.koblas.vendor/HostPlatform? = ..., kotlin/String = ...) // com.eignex.koblas/EngineProfile.<init>|<init>(kotlin.String;kotlin.collections.List<com.eignex.koblas.EngineRule>;com.eignex.koblas.EngineRuntime?;com.eignex.koblas.vendor.HostPlatform?;kotlin.String){}[0]
 
     final val evidence // com.eignex.koblas/EngineProfile.evidence|{}evidence[0]
         final fun <get-evidence>(): kotlin/String // com.eignex.koblas/EngineProfile.evidence.<get-evidence>|<get-evidence>(){}[0]
@@ -396,11 +407,11 @@ final class com.eignex.koblas/EngineProfile { // com.eignex.koblas/EngineProfile
     final val rules // com.eignex.koblas/EngineProfile.rules|{}rules[0]
         final fun <get-rules>(): kotlin.collections/List<com.eignex.koblas/EngineRule> // com.eignex.koblas/EngineProfile.rules.<get-rules>|<get-rules>(){}[0]
     final val runtime // com.eignex.koblas/EngineProfile.runtime|{}runtime[0]
-        final fun <get-runtime>(): kotlin/String? // com.eignex.koblas/EngineProfile.runtime.<get-runtime>|<get-runtime>(){}[0]
+        final fun <get-runtime>(): com.eignex.koblas/EngineRuntime? // com.eignex.koblas/EngineProfile.runtime.<get-runtime>|<get-runtime>(){}[0]
     final val target // com.eignex.koblas/EngineProfile.target|{}target[0]
         final fun <get-target>(): com.eignex.koblas.vendor/HostPlatform? // com.eignex.koblas/EngineProfile.target.<get-target>|<get-target>(){}[0]
 
-    final fun appliesTo(kotlin/String, com.eignex.koblas.vendor/HostPlatform): kotlin/Boolean // com.eignex.koblas/EngineProfile.appliesTo|appliesTo(kotlin.String;com.eignex.koblas.vendor.HostPlatform){}[0]
+    final fun appliesTo(com.eignex.koblas/EngineRuntime, com.eignex.koblas.vendor/HostPlatform): kotlin/Boolean // com.eignex.koblas/EngineProfile.appliesTo|appliesTo(com.eignex.koblas.EngineRuntime;com.eignex.koblas.vendor.HostPlatform){}[0]
 
     final object Companion { // com.eignex.koblas/EngineProfile.Companion|null[0]
         final fun parse(kotlin/String): com.eignex.koblas/EngineProfile // com.eignex.koblas/EngineProfile.Companion.parse|parse(kotlin.String){}[0]
@@ -548,14 +559,7 @@ final object com.eignex.koblas/BuiltinEngines { // com.eignex.koblas/BuiltinEngi
 }
 
 final object com.eignex.koblas/StandardEngineProfiles { // com.eignex.koblas/StandardEngineProfiles|null[0]
-    final val jvmLinuxOneMkl // com.eignex.koblas/StandardEngineProfiles.jvmLinuxOneMkl|{}jvmLinuxOneMkl[0]
-        final fun <get-jvmLinuxOneMkl>(): com.eignex.koblas/EngineProfile // com.eignex.koblas/StandardEngineProfiles.jvmLinuxOneMkl.<get-jvmLinuxOneMkl>|<get-jvmLinuxOneMkl>(){}[0]
-    final val jvmSimd // com.eignex.koblas/StandardEngineProfiles.jvmSimd|{}jvmSimd[0]
-        final fun <get-jvmSimd>(): com.eignex.koblas/EngineProfile? // com.eignex.koblas/StandardEngineProfiles.jvmSimd.<get-jvmSimd>|<get-jvmSimd>(){}[0]
-    final val nativeLinuxOneMkl // com.eignex.koblas/StandardEngineProfiles.nativeLinuxOneMkl|{}nativeLinuxOneMkl[0]
-        final fun <get-nativeLinuxOneMkl>(): com.eignex.koblas/EngineProfile // com.eignex.koblas/StandardEngineProfiles.nativeLinuxOneMkl.<get-nativeLinuxOneMkl>|<get-nativeLinuxOneMkl>(){}[0]
-
-    final fun forTarget(kotlin/String, com.eignex.koblas.vendor/HostPlatform): kotlin.collections/List<com.eignex.koblas/EngineProfile> // com.eignex.koblas/StandardEngineProfiles.forTarget|forTarget(kotlin.String;com.eignex.koblas.vendor.HostPlatform){}[0]
+    final fun forTarget(com.eignex.koblas/EngineRuntime, com.eignex.koblas.vendor/HostPlatform, kotlin/Boolean = ...): com.eignex.koblas/EngineProfile // com.eignex.koblas/StandardEngineProfiles.forTarget|forTarget(com.eignex.koblas.EngineRuntime;com.eignex.koblas.vendor.HostPlatform;kotlin.Boolean){}[0]
 }
 
 final val com.eignex.koblas/capabilities // com.eignex.koblas/capabilities|@com.eignex.koblas.KoblasEngine{}capabilities[0]

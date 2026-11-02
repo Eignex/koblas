@@ -3,14 +3,14 @@ package com.eignex.koblas
 import com.eignex.koblas.EngineImplementation.*
 import com.eignex.koblas.vendor.*
 
-/** Standard configurations; host acceleration applies only to the declared measurement targets. */
+/** Complete platform compositions with provisional vendor cutoffs awaiting pre-merge calibration. */
 public object StandardEngineProfiles {
     private val levelThree = setOf(Gemm, Gemmt, Symm, Syrk, Syr2k, Trmm, Trsm)
     private val halfWork = setOf(Syr, Trmv, TrmvTransposed, Trsv, TrsvTransposed, Gemmt, Syrk, Trmm, Trsm)
     private val wholeMatrices = EngineImplementation.entries.filter { it.matrix }.toSet()
 
     /** Owned JVM preferences for the current vector width, or null when the module is unavailable. */
-    public val jvmSimd: EngineProfile? by lazy {
+    internal val jvmSimd: EngineProfile? by lazy {
         simdBackend()?.let { backend ->
             val lanes = backend.first().minimumLength(Dot)
             EngineProfile(
@@ -30,80 +30,90 @@ public object StandardEngineProfiles {
                     ),
                     EngineRule("jvm-simd", setOf(Panels, Products, Triangular)),
                 ),
-                runtime = "jvm",
+                runtime = EngineRuntime.Jvm,
                 evidence = "koblas-bench sweep and indexed suites; see BACKENDS.md",
             )
         }
     }
 
-    /** Standard profiles applicable to a target; composition also checks backend availability. */
-    public fun forTarget(runtime: String, host: HostPlatform): List<EngineProfile> = listOfNotNull(
-        nativeLinuxOneMkl,
-        jvmLinuxOneMkl,
-        if (runtime == "jvm") jvmSimd else null,
-    ).filter { it.appliesTo(runtime, host) }
+    private val portable = EngineProfile("portable", emptyList())
+    private val profiles by lazy {
+        EngineRuntime.entries.flatMap { runtime ->
+            listOf(OperatingSystem.Linux, OperatingSystem.MacOs, OperatingSystem.Windows).flatMap { os ->
+                listOf(Architecture.X86_64, Architecture.Arm64).map { arch ->
+                    val vendors = if (os == OperatingSystem.MacOs) {
+                        listOf(Vendor.Accelerate)
+                    } else {
+                        buildList {
+                            if (arch == Architecture.X86_64) add(Vendor.OneMkl)
+                            add(Vendor.OpenBlas)
+                            if (runtime == EngineRuntime.Jvm) {
+                                add(
+                                    if (arch == Architecture.X86_64) Vendor.Aocl else Vendor.ArmPl,
+                                )
+                            }
+                        }
+                    }
+                    EngineProfile(
+                        "${runtime.name.lowercase()}-$os-$arch-v1",
+                        vendors.flatMap { vendorRules(it, runtime) } +
+                            if (runtime == EngineRuntime.Jvm) jvmSimd?.rules.orEmpty() else emptyList(),
+                        runtime,
+                        HostPlatform(os, arch),
+                        "Provisional estimates; measure each vendor and target before merge",
+                    )
+                }
+            }
+        }
+    }
 
-    /** Native Intel Linux preferences retained from the i9-12900H benchmark suites. */
-    public val nativeLinuxOneMkl: EngineProfile = EngineProfile(
-        "native-linux-x64-intel-onemkl-v1",
-        listOf(
-            EngineRule("onemkl", setOf(Nrm2, Iamax), rows = 128..Int.MAX_VALUE),
-            EngineRule("onemkl", setOf(Dot, Asum, Axpy, Scale, Swap, Rot), rows = 64..Int.MAX_VALUE),
-            EngineRule("onemkl", halfWork, work = 2048),
-            EngineRule("onemkl", wholeMatrices - halfWork, work = 1024),
-        ),
-        "native",
-        HostPlatform(OperatingSystem.Linux, Architecture.X86_64, "12th Gen Intel(R) Core(TM) i9-12900H"),
-        "i9-12900H; oneMKL 2026.1; Kotlin/Native 2.4.10; koblas-bench Level 1 and dense suites",
-    )
+    /** One complete prebuilt profile; unavailable providers fall through to owned SIMD or portable arithmetic. */
+    public fun forTarget(runtime: EngineRuntime, host: HostPlatform, nativeAccess: Boolean = true): EngineProfile =
+        if (nativeAccess) {
+            profiles.firstOrNull { it.appliesTo(runtime, host) } ?: portable
+        } else {
+            if (runtime == EngineRuntime.Jvm) jvmSimd ?: portable else portable
+        }
 
-    /** JVM oneMKL preferences including operand transfers, for measured Intel Linux targets. */
-    public val jvmLinuxOneMkl: EngineProfile = EngineProfile(
-        "jvm-linux-x64-intel-onemkl-v1",
-        listOf(
-            EngineRule(
-                "onemkl",
-                levelThree,
-                rows = 128..Int.MAX_VALUE,
-                columns = 128..Int.MAX_VALUE,
-                depth = 128..Int.MAX_VALUE,
-            ),
-            EngineRule(
-                "onemkl",
-                levelThree - Gemmt,
-                rows = 64..Int.MAX_VALUE,
-                columns = 64..Int.MAX_VALUE,
-                depth = 64..Int.MAX_VALUE,
-                borrowed = false,
-            ),
-            EngineRule(
-                "onemkl",
-                setOf(Gemm),
-                rows = 16..Int.MAX_VALUE,
-                columns = 16..Int.MAX_VALUE,
-                depth = 1024..4096,
-                borrowed = false,
-            ),
-        ),
-        "jvm",
-        HostPlatform(OperatingSystem.Linux, Architecture.X86_64, "Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz"),
-        "Xeon Platinum 8375C AVX-512; koblas-bench transfer-inclusive suites; see BACKENDS.md",
-    )
+    private fun vendorRules(vendor: Vendor, runtime: EngineRuntime): List<EngineRule> {
+        val source = vendor.vendorName.lowercase()
+        if (runtime == EngineRuntime.Jvm) {
+            val order = if (vendor == Vendor.OneMkl || vendor == Vendor.Accelerate) 64 else 128
+            fun region(
+                operations: Set<EngineImplementation>,
+                minimum: Int,
+                borrowed: Boolean? = null,
+                depth: IntRange? = null,
+            ): EngineRule {
+                val extent = minimum..Int.MAX_VALUE
+                return EngineRule(source, operations, extent, extent, depth ?: extent, borrowed = borrowed)
+            }
+            return buildList {
+                add(region(levelThree, order * 2))
+                add(region(levelThree - Gemmt, order, borrowed = false))
+                if (vendor == Vendor.OneMkl) add(region(setOf(Gemm), 16, borrowed = false, depth = 1024..4096))
+            }
+        }
+        val length = if (vendor == Vendor.OpenBlas) 128 else 64
+        val work = when (vendor) {
+            Vendor.Accelerate -> 512L
+            Vendor.OneMkl -> 1024L
+            else -> 2048L
+        }
+        return listOf(
+            EngineRule(source, setOf(Nrm2, Iamax), rows = length * 2..Int.MAX_VALUE),
+            EngineRule(source, setOf(Dot, Asum, Axpy, Scale, Swap, Rot), rows = length..Int.MAX_VALUE),
+            EngineRule(source, halfWork, work = work * 2),
+            EngineRule(source, wholeMatrices - halfWork, work = work),
+        )
+    }
 }
 
 /** Platform code supplies access facts; target data and available providers determine the composition. */
 internal fun standardEngine(
-    runtime: String,
+    runtime: EngineRuntime,
     nativeAccess: Boolean = true,
     host: HostPlatform = hostPlatform(),
     owned: KoblasEngine? = BuiltinEngines.simd,
     openVendor: (Vendor) -> KoblasEngine? = BuiltinEngines::vendor,
-): KoblasEngine = configuredEngine(
-    EngineProfile(
-        "standard-$runtime",
-        StandardEngineProfiles.forTarget(runtime, host).flatMap { it.rules }
-            .filter { nativeAccess || it.source == "jvm-simd" },
-    ),
-    owned,
-    openVendor,
-)
+): KoblasEngine = configuredEngine(StandardEngineProfiles.forTarget(runtime, host, nativeAccess), owned, openVendor)

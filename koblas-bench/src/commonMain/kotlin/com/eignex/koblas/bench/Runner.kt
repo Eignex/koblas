@@ -11,7 +11,7 @@ internal expect fun resolveEngine(mode: String): Pair<KoblasEngine, String>
 internal expect fun runtimeIdentity(): String
 internal expect fun engineProfilePath(): String?
 /** A generated profile is exercised as an explicit combined engine, with binding costs inside the timed call. */
-internal fun profileEngine(runtime: String): KoblasEngine? = engineProfilePath()?.let { path ->
+internal fun profileEngine(runtime: EngineRuntime): KoblasEngine? = engineProfilePath()?.let { path ->
     val profile = EngineProfile.parse(readTextFile(path))
     require(profile.appliesTo(runtime, hostPlatform())) { "Profile ${profile.name} does not apply to this target" }
     BuiltinEngines.configured(profile)

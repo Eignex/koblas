@@ -20,7 +20,7 @@ internal actual fun resolveEngine(mode: String): Pair<KoblasEngine, String> {
         }
         // What an ordinary caller gets, which is a policy rather than an exact arm: its panels and kernels
         // are whatever this platform selected, and the engine name in each row says which those are.
-        "jvm-default" -> profileEngine("jvm") ?: koblas
+        "jvm-default" -> profileEngine(EngineRuntime.Jvm) ?: koblas
         else -> error("unknown JVM mode $mode")
     }
     return engine to engineIdentity(mode, engine)

@@ -27,7 +27,7 @@ private fun architecture(): Architecture = when (System.getProperty("os.arch")) 
     else -> Architecture.Other
 }
 
-/** Unknown CPU models retain portable coverage instead of borrowing another model's measurements. */
+/** Reported models let explicitly calibrated profiles restrict their applicability. */
 private fun cpuModel(): String? {
     if (operatingSystem() != OperatingSystem.Linux) return null
     return try {

@@ -39,7 +39,7 @@ internal actual fun resolveEngine(mode: String): Pair<KoblasEngine, String> {
     require(mode == "native" || mode == "native-default") {
         "Native runner requires --mode=native or --mode=native-default"
     }
-    val engine = if (mode == "native-default") profileEngine("native") ?: koblas else BuiltinEngines.scalar
+    val engine = if (mode == "native-default") profileEngine(EngineRuntime.Native) ?: koblas else BuiltinEngines.scalar
     return engine to engineIdentity(mode, engine)
 }
 

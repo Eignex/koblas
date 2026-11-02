@@ -6,33 +6,66 @@ import kotlin.test.*
 
 class StandardEngineProfilesTest {
     @Test
-    fun `default selection opens only eligible available providers`() {
-        for ((runtime, profile) in listOf(
-            "native" to StandardEngineProfiles.nativeLinuxOneMkl,
-            "jvm" to StandardEngineProfiles.jvmLinuxOneMkl,
+    fun `target profiles route through available permitted platform vendors`() {
+        for ((os, arch, candidates) in listOf(
+            Triple(OperatingSystem.MacOs, Architecture.Arm64, setOf(Vendor.Accelerate)),
+            Triple(OperatingSystem.MacOs, Architecture.X86_64, setOf(Vendor.Accelerate)),
+            Triple(OperatingSystem.Linux, Architecture.X86_64, setOf(Vendor.OneMkl, Vendor.OpenBlas)),
+            Triple(OperatingSystem.Linux, Architecture.Arm64, setOf(Vendor.OpenBlas)),
+            Triple(OperatingSystem.Windows, Architecture.X86_64, setOf(Vendor.OneMkl, Vendor.OpenBlas)),
+            Triple(OperatingSystem.Windows, Architecture.Arm64, setOf(Vendor.OpenBlas)),
         )) {
-            val measured = requireNotNull(profile.target)
-            for (host in listOf(measured, HostPlatform(measured.operatingSystem, measured.architecture))) {
-                for (access in listOf(false, true)) {
-                    for (available in listOf(false, true)) {
-                        val opened = mutableListOf<Vendor>()
-                        val vendor = provider("onemkl", setOf(Dot, Gemm))
-                        val engine = standardEngine(runtime, access, host, owned = null) {
-                            opened += it
-                            vendor.takeIf { available }
+            for (runtime in EngineRuntime.entries) {
+                val host = HostPlatform(os, arch)
+                val profile = StandardEngineProfiles.forTarget(runtime, host)
+                val extra = if (runtime == EngineRuntime.Jvm && os != OperatingSystem.MacOs) {
+                    setOf(if (arch == Architecture.X86_64) Vendor.Aocl else Vendor.ArmPl)
+                } else {
+                    emptySet()
+                }
+                val choices = candidates + extra
+                for (available in listOf(emptySet(), choices) + choices.map { setOf(it) }) {
+                    for (access in listOf(false, true)) {
+                        val opened = mutableSetOf<Vendor>()
+                        val engine = standardEngine(runtime, access, host, owned = null) { requested ->
+                            opened += requested
+                            provider(requested.vendorName.lowercase(), setOf(Gemm))
+                                .takeIf { requested in available }
                         }
-                        val eligible = host == measured && access
 
-                        assertEquals(if (eligible) listOf(Vendor.OneMkl) else emptyList(), opened)
-                        assertEquals(
-                            if (eligible && available) vendor else null,
-                            engine.wholeCallFor(Gemm, 128, 128, 128, false),
-                        )
-                        assertEquals("scalar", engine.implementationFor(Sum, 1024))
+                        assertSame(profile, StandardEngineProfiles.forTarget(runtime, host))
+                        assertEquals(if (access) candidates + extra else emptySet(), opened)
+                        val selected = if (access) choices.firstOrNull { it in available } else null
+                        for (borrowed in listOf(false, true)) {
+                            assertEquals(
+                                selected?.vendorName?.lowercase(),
+                                engine.wholeCallFor(Gemm, 256, 256, 256, borrowed)?.id,
+                            )
+                            assertNull(engine.wholeCallFor(Gemm, 1, 1, 1, borrowed))
+                        }
                     }
                 }
             }
         }
+    }
+
+    @Test
+    fun `matrix preferences bound every extent and the borrowed layout`() {
+        val backend = provider("matrix", setOf(Gemm))
+        val rule = EngineRule(backend.id, backend.implementations, 2..4, 3..5, 6..8, borrowed = false)
+        val engine = KoblasEngine.combine(EngineProfile("bounded", listOf(rule)), backend)
+
+        for (dimension in 0..2) {
+            val low = intArrayOf(2, 3, 6)
+            val high = intArrayOf(4, 5, 8)
+            low[dimension]--
+            high[dimension]++
+            assertNull(engine.wholeCallFor(Gemm, low[0], low[1], low[2], false))
+            assertNull(engine.wholeCallFor(Gemm, high[0], high[1], high[2], false))
+        }
+        assertSame(backend, engine.wholeCallFor(Gemm, 2, 3, 6, false))
+        assertSame(backend, engine.wholeCallFor(Gemm, 4, 5, 8, false))
+        assertNull(engine.wholeCallFor(Gemm, 2, 3, 6, true))
     }
 
     @Test

@@ -2,6 +2,15 @@ package com.eignex.koblas
 
 import com.eignex.koblas.vendor.*
 
+/** Execution bindings with distinct routing costs. */
+public enum class EngineRuntime {
+    /** JVM arrays and optional foreign-memory transfers. */
+    Jvm,
+
+    /** Kotlin/Native arrays and pinned foreign calls. */
+    Native,
+}
+
 /** One positive routing preference. Earlier matching rules take precedence over later ones. */
 public class EngineRule(
     /** Identifier of a backend supplying the requested implementations. */
@@ -50,8 +59,8 @@ public class EngineProfile(
     /** Stable profile identifier, including its revision. */
     public val name: String,
     rules: List<EngineRule>,
-    /** Execution runtime, such as `jvm` or `native`, or null for any runtime. */
-    public val runtime: String? = null,
+    /** Execution binding, or null for either runtime. */
+    public val runtime: EngineRuntime? = null,
     /** Target OS, architecture and optional CPU model, or null for any host. */
     public val target: HostPlatform? = null,
     /** Retained measurement location or a description of the configuration's provenance. */
@@ -61,7 +70,7 @@ public class EngineProfile(
     public val rules: List<EngineRule> = rules.toList()
 
     /** Whether this profile was declared applicable to the supplied runtime and platform. */
-    public fun appliesTo(runtime: String, host: HostPlatform): Boolean =
+    public fun appliesTo(runtime: EngineRuntime, host: HostPlatform): Boolean =
         (this.runtime == null || this.runtime == runtime) &&
             (
                 target == null || (
@@ -101,7 +110,7 @@ public class EngineProfile(
             return EngineProfile(
                 header[1],
                 rules,
-                optional(header[2]),
+                optional(header[2])?.let { EngineRuntime.valueOf(it.replaceFirstChar(Char::uppercase)) },
                 if (header.subList(3, 6).all { it == "*" }) {
                     null
                 } else {

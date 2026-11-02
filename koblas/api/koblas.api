@@ -186,13 +186,13 @@ public final class com/eignex/koblas/EngineInspectionKt {
 
 public final class com/eignex/koblas/EngineProfile {
 	public static final field Companion Lcom/eignex/koblas/EngineProfile$Companion;
-	public fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Lcom/eignex/koblas/vendor/HostPlatform;Ljava/lang/String;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Lcom/eignex/koblas/vendor/HostPlatform;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun appliesTo (Ljava/lang/String;Lcom/eignex/koblas/vendor/HostPlatform;)Z
+	public fun <init> (Ljava/lang/String;Ljava/util/List;Lcom/eignex/koblas/EngineRuntime;Lcom/eignex/koblas/vendor/HostPlatform;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;Lcom/eignex/koblas/EngineRuntime;Lcom/eignex/koblas/vendor/HostPlatform;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun appliesTo (Lcom/eignex/koblas/EngineRuntime;Lcom/eignex/koblas/vendor/HostPlatform;)Z
 	public final fun getEvidence ()Ljava/lang/String;
 	public final fun getName ()Ljava/lang/String;
 	public final fun getRules ()Ljava/util/List;
-	public final fun getRuntime ()Ljava/lang/String;
+	public final fun getRuntime ()Lcom/eignex/koblas/EngineRuntime;
 	public final fun getTarget ()Lcom/eignex/koblas/vendor/HostPlatform;
 }
 
@@ -211,6 +211,14 @@ public final class com/eignex/koblas/EngineRule {
 	public final fun getRows ()Lkotlin/ranges/IntRange;
 	public final fun getSource ()Ljava/lang/String;
 	public final fun getWork ()J
+}
+
+public final class com/eignex/koblas/EngineRuntime : java/lang/Enum {
+	public static final field Jvm Lcom/eignex/koblas/EngineRuntime;
+	public static final field Native Lcom/eignex/koblas/EngineRuntime;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/EngineRuntime;
+	public static fun values ()[Lcom/eignex/koblas/EngineRuntime;
 }
 
 public final class com/eignex/koblas/Koblas {
@@ -640,10 +648,8 @@ public final class com/eignex/koblas/SparseVector$Companion {
 
 public final class com/eignex/koblas/StandardEngineProfiles {
 	public static final field INSTANCE Lcom/eignex/koblas/StandardEngineProfiles;
-	public final fun forTarget (Ljava/lang/String;Lcom/eignex/koblas/vendor/HostPlatform;)Ljava/util/List;
-	public final fun getJvmLinuxOneMkl ()Lcom/eignex/koblas/EngineProfile;
-	public final fun getJvmSimd ()Lcom/eignex/koblas/EngineProfile;
-	public final fun getNativeLinuxOneMkl ()Lcom/eignex/koblas/EngineProfile;
+	public final fun forTarget (Lcom/eignex/koblas/EngineRuntime;Lcom/eignex/koblas/vendor/HostPlatform;Z)Lcom/eignex/koblas/EngineProfile;
+	public static synthetic fun forTarget$default (Lcom/eignex/koblas/StandardEngineProfiles;Lcom/eignex/koblas/EngineRuntime;Lcom/eignex/koblas/vendor/HostPlatform;ZILjava/lang/Object;)Lcom/eignex/koblas/EngineProfile;
 }
 
 public final class com/eignex/koblas/StridedVector : com/eignex/koblas/DenseVector {

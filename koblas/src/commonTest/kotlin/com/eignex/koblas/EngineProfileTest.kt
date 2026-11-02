@@ -1,9 +1,6 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.dense.ReferenceBlas
-import com.eignex.koblas.vendor.Architecture
-import com.eignex.koblas.vendor.HostPlatform
-import com.eignex.koblas.vendor.OperatingSystem
 import kotlin.test.*
 
 class EngineProfileTest {
@@ -132,27 +129,6 @@ class EngineProfileTest {
     }
 
     @Test
-    fun `automatic profiles apply only to their measured cpu model and runtime`() {
-        for ((runtime, profile) in listOf(
-            "native" to StandardEngineProfiles.nativeLinuxOneMkl,
-            "jvm" to StandardEngineProfiles.jvmLinuxOneMkl,
-        )) {
-            val host = requireNotNull(profile.target)
-            assertTrue(profile.appliesTo(runtime, host))
-            assertTrue(profile in StandardEngineProfiles.forTarget(runtime, host))
-            for (other in listOf(
-                HostPlatform(host.operatingSystem, host.architecture),
-                HostPlatform(host.operatingSystem, host.architecture, "Intel(R) Core(TM) i7-6700"),
-                HostPlatform(OperatingSystem.MacOs, Architecture.Arm64, host.cpuModel),
-            )) {
-                assertFalse(profile.appliesTo(runtime, other))
-                assertFalse(profile in StandardEngineProfiles.forTarget(runtime, other))
-            }
-            assertFalse(profile.appliesTo(if (runtime == "native") "jvm" else "native", host))
-        }
-    }
-
-    @Test
     fun `work boundaries avoid overflow at extreme extents`() {
         val rule = EngineRule("test", setOf(EngineImplementation.Gemm), work = Long.MAX_VALUE)
 
@@ -189,53 +165,13 @@ class EngineProfileTest {
     }
 
     @Test
-    fun `standard host rules preserve measured layout and shape boundaries`() {
-        fun eligible(
-            profile: EngineProfile,
-            operation: EngineImplementation,
-            rows: Int,
-            columns: Int,
-            depth: Int,
-            borrowed: Boolean = false,
-        ): Boolean = profile.rules.any {
-            operation in it.implementations && it.matches(rows, columns, depth, true, borrowed)
-        }
-        val native = StandardEngineProfiles.nativeLinuxOneMkl
-        assertTrue(eligible(native, EngineImplementation.Gemv, 32, 32, 1))
-        assertFalse(eligible(native, EngineImplementation.Gemv, 32, 31, 1))
-        assertTrue(eligible(native, EngineImplementation.Syrk, 8, 8, 32, borrowed = true))
-        assertFalse(eligible(native, EngineImplementation.Gemm, 128, 128, 0))
-        val jvm = StandardEngineProfiles.jvmLinuxOneMkl
-        for (op in listOf(
-            EngineImplementation.Gemm,
-            EngineImplementation.Symm,
-            EngineImplementation.Syrk,
-            EngineImplementation.Syr2k,
-            EngineImplementation.Trmm,
-            EngineImplementation.Trsm,
-        )) {
-            assertTrue(eligible(jvm, op, 64, 64, 64))
-            assertFalse(eligible(jvm, op, 63, 64, 64))
-            assertFalse(eligible(jvm, op, 64, 63, 64))
-            assertFalse(eligible(jvm, op, 64, 64, 63))
-            assertFalse(eligible(jvm, op, 127, 127, 127, borrowed = true))
-            assertTrue(eligible(jvm, op, 128, 128, 128, borrowed = true))
-        }
-        assertFalse(eligible(jvm, EngineImplementation.Gemmt, 64, 64, 64))
-        assertTrue(eligible(jvm, EngineImplementation.Gemmt, 128, 128, 128))
-        assertTrue(eligible(jvm, EngineImplementation.Gemm, 16, 16, 1024))
-        assertTrue(eligible(jvm, EngineImplementation.Gemm, 16, 16, 4096))
-        assertFalse(eligible(jvm, EngineImplementation.Gemm, 16, 16, 4097))
-        assertFalse(eligible(jvm, EngineImplementation.Gemm, 16, 16, 1024, borrowed = true))
-    }
-
-    @Test
     fun `generated profile parsing preserves bounded routing preferences`() {
         val text = "koblas-profile-v1\ttest\tnative\tLinux\tX86_64\tmeasured cpu\tcapture\tevidence\n" +
             "portable\tDot\t4\t8\t0\t2147483647\t0\t2147483647\t0\ttrue\t*\n"
         val profile = EngineProfile.parse(text)
         val rule = profile.rules.single()
 
+        assertEquals(EngineRuntime.Native, profile.runtime)
         assertEquals("measured cpu", profile.target?.cpuModel)
         assertTrue(rule.matches(4, 1, 1, true, false))
         assertTrue(rule.matches(8, 1, 1, true, false))
@@ -243,6 +179,7 @@ class EngineProfileTest {
         assertFalse(rule.matches(9, 1, 1, true, false))
         assertFalse(rule.matches(4, 1, 1, false, false))
         for ((before, after) in listOf(
+            "\tnative\t" to "\tunknown\t",
             "portable\tDot" to "portable\tUnknown",
             "\t4\t8\t" to "\t8\t4\t",
             "\t4\t8\t" to "\t-1\t8\t",
