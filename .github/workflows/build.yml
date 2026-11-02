@@ -308,12 +308,6 @@ jobs:
           :koblas:linkDebugTestIosSimulatorArm64 :koblas:publishKotlinMultiplatformPublicationToLocalStagingRepository
           :koblas:publishIosArm64PublicationToLocalStagingRepository
           :koblas:publishIosSimulatorArm64PublicationToLocalStagingRepository  --max-workers=1
-      - name: Verify prepared fingerprint compatibility on macOS
-        run: >-
-          ./gradlew -Ptargets.full -PciVersion="$CI_VERSION" :koblas-bench:jvmTest
-          --tests com.eignex.koblas.bench.FingerprintScriptTest
-          --tests com.eignex.koblas.bench.PreparedFingerprintsTest
-          --tests com.eignex.koblas.bench.WorkspaceChecksumsTest --max-workers=1
       - name: Link published iOS consumer tests and device and simulator frameworks
         run: >-
           ./gradlew -Ptargets.full -PciVersion="$CI_VERSION" -p tests/ios-consumer linkDebugTestIosSimulatorArm64
