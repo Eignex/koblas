@@ -31,7 +31,7 @@ class FingerprintScriptTest {
     }
 
     @Test
-    fun `malformed filename bytes and newlines fall back to the complete legacy output`() = fixture { root ->
+    fun `supported malformed filename bytes and newlines preserve the complete legacy output`() = fixture { root ->
         val source = Files.createDirectories(root.resolve("source"))
         Files.createDirectories(source.resolve("koblas-bench/build/lab/classes/com/eignex/koblas/bench"))
         Files.createFile(source.resolve(
@@ -45,8 +45,13 @@ class FingerprintScriptTest {
             set -euo pipefail
             source "${'$'}1"
             cd "${'$'}2"
-            printf original > ${'$'}'bad\xff'
+            if ! (printf original > ${'$'}'bad\xff') 2>"${'$'}3/filename-error"; then
+                # APFS refuses malformed UTF-8 names before either fingerprint path can inspect them.
+                test "${'$'}(uname -s)" = Darwin
+                grep -q 'Illegal byte sequence' "${'$'}3/filename-error"
+            fi
             printf newline > ${'$'}'split\nname'
+            printf ordinary > ordinary
             unset LAB_WORKSPACE_CACHE
             fingerprint "${'$'}2" sources archive > "${'$'}3/fresh"
             export LAB_WORKSPACE_CACHE="${'$'}3/cache"
