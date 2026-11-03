@@ -5,9 +5,9 @@ package com.eignex.koblas.internal.configuration
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
+import com.eignex.koblas.engine.Vendor
 import com.eignex.koblas.internal.portable.PortableEngine
 import com.eignex.koblas.sparse.*
-import com.eignex.koblas.vendor.Vendor
 
 /** Backends are bound once; arithmetic never resolves identifiers or capabilities. */
 internal class CompiledRouting(profile: EngineProfile, engines: List<KoblasEngine>) {

@@ -1,7 +1,6 @@
 package com.eignex.koblas.engine
 
 import com.eignex.koblas.*
-import com.eignex.koblas.vendor.*
 
 /** Execution bindings with distinct routing costs. */
 public enum class EngineRuntime {

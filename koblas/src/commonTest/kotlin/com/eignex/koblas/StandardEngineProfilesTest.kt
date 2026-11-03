@@ -3,7 +3,6 @@ package com.eignex.koblas
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.engine.EngineImplementation.*
 import com.eignex.koblas.internal.portable.PortableEngine
-import com.eignex.koblas.vendor.*
 import kotlin.test.*
 
 class StandardEngineProfilesTest {

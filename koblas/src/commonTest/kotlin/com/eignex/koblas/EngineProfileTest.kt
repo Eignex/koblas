@@ -5,7 +5,6 @@ import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.portable.PortableEngine
 import com.eignex.koblas.sparse.*
-import com.eignex.koblas.vendor.*
 import kotlin.test.*
 import com.eignex.koblas.dense.gemm as denseGemm
 
@@ -17,7 +16,7 @@ class EngineProfileTest {
     fun `nested compositions retain leaf identity and missing exports reach the next provider`() {
         val vendor = object : KoblasEngine {
             override val name = "host"
-            override val vendor = com.eignex.koblas.vendor.Vendor.OneMkl
+            override val vendor = com.eignex.koblas.engine.Vendor.OneMkl
             override val implementations = setOf(EngineImplementation.Dot, EngineImplementation.Gemm)
         }
         val fallback = object : KoblasEngine {

@@ -1,6 +1,6 @@
 @file:OptIn(kotlin.experimental.ExperimentalNativeApi::class)
 
-package com.eignex.koblas.vendor
+package com.eignex.koblas.engine
 
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.allocArray

@@ -1,6 +1,6 @@
 @file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 
-package com.eignex.koblas.vendor
+package com.eignex.koblas.engine
 
 import kotlinx.cinterop.CFunction
 import kotlinx.cinterop.invoke

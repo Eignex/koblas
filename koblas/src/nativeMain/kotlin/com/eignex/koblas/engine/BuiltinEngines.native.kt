@@ -1,7 +1,6 @@
 package com.eignex.koblas.engine
 
 import com.eignex.koblas.*
-import com.eignex.koblas.vendor.Vendor
 
 internal actual fun simdBackend(): List<KoblasEngine>? = null
 

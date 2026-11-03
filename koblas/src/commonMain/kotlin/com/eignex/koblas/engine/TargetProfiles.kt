@@ -1,7 +1,6 @@
 package com.eignex.koblas.engine
 
 import com.eignex.koblas.engine.EngineImplementation.*
-import com.eignex.koblas.vendor.*
 
 internal val standardProfiles: List<EngineProfile> = listOf(
     EngineProfile(

@@ -7,14 +7,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.MatrixStructure
 import com.eignex.koblas.engine.*
-import com.eignex.koblas.internal.host.Cblas
-import com.eignex.koblas.internal.host.diagFor
-import com.eignex.koblas.internal.host.positiveIncrement
-import com.eignex.koblas.internal.host.sideFor
-import com.eignex.koblas.internal.host.transposeFor
-import com.eignex.koblas.internal.host.uploFor
 import com.eignex.koblas.sparse.*
-import com.eignex.koblas.vendor.*
 import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.CFunction
 import kotlinx.cinterop.COpaquePointer

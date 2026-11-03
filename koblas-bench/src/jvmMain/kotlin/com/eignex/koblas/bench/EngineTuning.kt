@@ -1,7 +1,6 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.engine.*
-import com.eignex.koblas.vendor.*
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.math.exp
@@ -158,7 +157,7 @@ internal fun composeProfiles(captures: Map<String, CalibrationCapture>): Mutable
 }
 
 internal fun renderProfile(name: String, target: List<String>, rules: List<EngineRule>): String = buildString {
-    append("package com.eignex.koblas.engine\n\nimport com.eignex.koblas.engine.EngineImplementation.*\nimport com.eignex.koblas.vendor.*\n\n")
+    append("package com.eignex.koblas.engine\n\nimport com.eignex.koblas.engine.EngineImplementation.*\n\n")
     append("internal val recalculatedProfile = EngineProfile(\n    ${JsonPrimitive(name)},\n    listOf(\n")
     for (rule in rules) {
         append("        EngineRule(${JsonPrimitive(rule.source)}, setOf(${rule.implementations.joinToString { it.name }}),\n")

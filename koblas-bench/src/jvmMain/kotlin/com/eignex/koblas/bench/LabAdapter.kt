@@ -2,7 +2,7 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.vendor.Vendor
+import com.eignex.koblas.engine.Vendor
 import com.eignex.lab.bench.*
 import com.eignex.lab.bench.BenchCase as LabCase
 import java.io.File

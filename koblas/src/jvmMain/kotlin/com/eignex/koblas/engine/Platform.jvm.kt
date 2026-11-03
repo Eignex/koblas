@@ -1,4 +1,4 @@
-package com.eignex.koblas.vendor
+package com.eignex.koblas.engine
 
 import com.eignex.koblas.*
 import com.sun.management.HotSpotDiagnosticMXBean

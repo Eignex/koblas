@@ -8,12 +8,12 @@ import com.eignex.koblas.dense.MatrixStructure
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.host.Cblas
 import com.eignex.koblas.internal.host.diagFor
+import com.eignex.koblas.internal.host.exportedImplementations
 import com.eignex.koblas.internal.host.positiveIncrement
 import com.eignex.koblas.internal.host.sideFor
 import com.eignex.koblas.internal.host.transposeFor
 import com.eignex.koblas.internal.host.uploFor
 import com.eignex.koblas.sparse.*
-import com.eignex.koblas.vendor.*
 import java.lang.foreign.Arena
 import java.lang.foreign.FunctionDescriptor
 import java.lang.foreign.ValueLayout.ADDRESS

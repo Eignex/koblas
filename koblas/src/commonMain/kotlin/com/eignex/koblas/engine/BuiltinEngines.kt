@@ -5,7 +5,6 @@ package com.eignex.koblas.engine
 
 import com.eignex.koblas.*
 import com.eignex.koblas.internal.portable.PortableEngine
-import com.eignex.koblas.vendor.Vendor
 
 /** The immutable platform-selected BLAS engine used by top-level convenience operations. */
 @get:kotlin.jvm.JvmName("getDefault")

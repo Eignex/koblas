@@ -13,7 +13,7 @@ Container conveniences in `com.eignex.koblas` call the BLAS contracts through th
 All engine operations use [KoblasEngine][com.eignex.koblas.KoblasEngine]. Arithmetic implementations share
 one [KoblasEngine][com.eignex.koblas.KoblasEngine] contract and declare positive capability sets. Shared
 schedules bind panel, product and triangular families before packing or grouping work.
-The `vendor` package contains explicit host bindings, which platform engines may compose into eligible dense calls.
+The `engine` package contains selection, profiles and vendor metadata; host bindings live under `internal.host`.
 Schedules and kernels receive their dependencies from the engine; they do not read the global default.
 
 [Workspace][com.eignex.koblas.Workspace] reuses temporary storage with bounded retention. It belongs to one

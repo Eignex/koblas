@@ -1,6 +1,7 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.engine.*
+import com.eignex.koblas.engine.Vendor
 import com.eignex.koblas.internal.jvm25.host.JvmVendorBlas
 import com.eignex.koblas.internal.jvm25.host.JvmVendorLibrary
 import com.eignex.koblas.internal.jvm25.simd.SimdPanelKernels
@@ -8,7 +9,6 @@ import com.eignex.koblas.internal.jvm25.simd.SimdProductKernels
 import com.eignex.koblas.internal.jvm25.simd.SimdTriangularKernels
 import com.eignex.koblas.internal.jvm25.simd.simdAvailable
 import com.eignex.koblas.internal.jvm25.simd.simdContributions
-import com.eignex.koblas.vendor.Vendor
 
 /** Desktop implementation selected by the multi-release JAR on JDK 25 or later. */
 internal object JvmBackend {

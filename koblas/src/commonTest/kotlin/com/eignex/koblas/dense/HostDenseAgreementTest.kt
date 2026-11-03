@@ -3,6 +3,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.engine.*
+import com.eignex.koblas.engine.Vendor
 import com.eignex.koblas.engineWithHost
 import com.eignex.koblas.engineWithKernels
 import com.eignex.koblas.internal.portable.PortableEngine
@@ -11,7 +12,6 @@ import com.eignex.koblas.poisonedTriangle
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.randomVector
 import com.eignex.koblas.sparse.*
-import com.eignex.koblas.vendor.Vendor
 import com.eignex.koblas.wellConditioned
 import kotlin.random.Random
 import kotlin.test.Test

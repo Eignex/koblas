@@ -2,7 +2,7 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.*
-import com.eignex.koblas.vendor.hostPlatform
+import com.eignex.koblas.engine.hostPlatform
 import kotlin.math.max
 import kotlin.time.TimeSource
 

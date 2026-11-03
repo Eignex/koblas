@@ -4,7 +4,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.sparse.*
-import com.eignex.koblas.vendor.Vendor
+import com.eignex.koblas.engine.Vendor
 import kotlin.math.abs
 
 /** Checks the published dependency through its public API on each consuming runtime. */

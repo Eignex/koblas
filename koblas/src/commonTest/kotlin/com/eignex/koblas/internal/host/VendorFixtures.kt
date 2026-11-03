@@ -1,4 +1,4 @@
-package com.eignex.koblas.vendor
+package com.eignex.koblas.internal.host
 
 /** Deterministic finite operands shared by vendor conformance and concurrency tests. */
 internal fun vendorValues(size: Int, seed: Int = 1): DoubleArray {

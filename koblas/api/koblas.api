@@ -237,10 +237,10 @@ public abstract interface class com/eignex/koblas/KoblasEngine {
 	public fun getImplementations ()Ljava/util/Set;
 	public fun getLibraryPath ()Ljava/lang/String;
 	public abstract fun getName ()Ljava/lang/String;
-	public fun getThreadEvidence ()Lcom/eignex/koblas/vendor/ThreadEvidence;
+	public fun getThreadEvidence ()Lcom/eignex/koblas/engine/ThreadEvidence;
 	public fun getTileColumns ()I
 	public fun getTileRows ()I
-	public fun getVendor ()Lcom/eignex/koblas/vendor/Vendor;
+	public fun getVendor ()Lcom/eignex/koblas/engine/Vendor;
 	public fun getVersion ()Ljava/lang/String;
 	public fun iamax ([DIII)I
 	public static synthetic fun iamax$default (Lcom/eignex/koblas/KoblasEngine;[DIIIILjava/lang/Object;)I
@@ -320,10 +320,10 @@ public final class com/eignex/koblas/KoblasEngine$DefaultImpls {
 	public static fun getId (Lcom/eignex/koblas/KoblasEngine;)Ljava/lang/String;
 	public static fun getImplementations (Lcom/eignex/koblas/KoblasEngine;)Ljava/util/Set;
 	public static fun getLibraryPath (Lcom/eignex/koblas/KoblasEngine;)Ljava/lang/String;
-	public static fun getThreadEvidence (Lcom/eignex/koblas/KoblasEngine;)Lcom/eignex/koblas/vendor/ThreadEvidence;
+	public static fun getThreadEvidence (Lcom/eignex/koblas/KoblasEngine;)Lcom/eignex/koblas/engine/ThreadEvidence;
 	public static fun getTileColumns (Lcom/eignex/koblas/KoblasEngine;)I
 	public static fun getTileRows (Lcom/eignex/koblas/KoblasEngine;)I
-	public static fun getVendor (Lcom/eignex/koblas/KoblasEngine;)Lcom/eignex/koblas/vendor/Vendor;
+	public static fun getVendor (Lcom/eignex/koblas/KoblasEngine;)Lcom/eignex/koblas/engine/Vendor;
 	public static fun getVersion (Lcom/eignex/koblas/KoblasEngine;)Ljava/lang/String;
 	public static fun iamax (Lcom/eignex/koblas/KoblasEngine;[DIII)I
 	public static synthetic fun iamax$default (Lcom/eignex/koblas/KoblasEngine;[DIIIILjava/lang/Object;)I
@@ -552,12 +552,32 @@ public final class com/eignex/koblas/dense/MatrixStructure : java/lang/Enum {
 	public static fun values ()[Lcom/eignex/koblas/dense/MatrixStructure;
 }
 
+public final class com/eignex/koblas/engine/Architecture : java/lang/Enum {
+	public static final field Arm64 Lcom/eignex/koblas/engine/Architecture;
+	public static final field Other Lcom/eignex/koblas/engine/Architecture;
+	public static final field X86_64 Lcom/eignex/koblas/engine/Architecture;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/engine/Architecture;
+	public static fun values ()[Lcom/eignex/koblas/engine/Architecture;
+}
+
 public final class com/eignex/koblas/engine/BuiltinEngines {
 	public static final field INSTANCE Lcom/eignex/koblas/engine/BuiltinEngines;
 	public final fun configured (Lcom/eignex/koblas/engine/EngineProfile;)Lcom/eignex/koblas/KoblasEngine;
 	public static final fun getScalar ()Lcom/eignex/koblas/KoblasEngine;
 	public static final fun getSimd ()Lcom/eignex/koblas/KoblasEngine;
-	public final fun vendor (Lcom/eignex/koblas/vendor/Vendor;)Lcom/eignex/koblas/KoblasEngine;
+	public final fun vendor (Lcom/eignex/koblas/engine/Vendor;)Lcom/eignex/koblas/KoblasEngine;
+}
+
+public final class com/eignex/koblas/engine/CpuClass : java/lang/Enum {
+	public static final field Arm64 Lcom/eignex/koblas/engine/CpuClass;
+	public static final field Avx2 Lcom/eignex/koblas/engine/CpuClass;
+	public static final field Avx512 Lcom/eignex/koblas/engine/CpuClass;
+	public static final field Sve Lcom/eignex/koblas/engine/CpuClass;
+	public static final field X86_64 Lcom/eignex/koblas/engine/CpuClass;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/engine/CpuClass;
+	public static fun values ()[Lcom/eignex/koblas/engine/CpuClass;
 }
 
 public final class com/eignex/koblas/engine/EngineImplementation : java/lang/Enum {
@@ -608,14 +628,14 @@ public final class com/eignex/koblas/engine/EngineInspectionKt {
 }
 
 public final class com/eignex/koblas/engine/EngineProfile {
-	public fun <init> (Ljava/lang/String;Ljava/util/List;Lcom/eignex/koblas/engine/EngineRuntime;Lcom/eignex/koblas/vendor/HostPlatform;Ljava/lang/String;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;Lcom/eignex/koblas/engine/EngineRuntime;Lcom/eignex/koblas/vendor/HostPlatform;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun appliesTo (Lcom/eignex/koblas/engine/EngineRuntime;Lcom/eignex/koblas/vendor/HostPlatform;)Z
+	public fun <init> (Ljava/lang/String;Ljava/util/List;Lcom/eignex/koblas/engine/EngineRuntime;Lcom/eignex/koblas/engine/HostPlatform;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;Lcom/eignex/koblas/engine/EngineRuntime;Lcom/eignex/koblas/engine/HostPlatform;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun appliesTo (Lcom/eignex/koblas/engine/EngineRuntime;Lcom/eignex/koblas/engine/HostPlatform;)Z
 	public final fun getEvidence ()Ljava/lang/String;
 	public final fun getName ()Ljava/lang/String;
 	public final fun getRules ()Ljava/util/List;
 	public final fun getRuntime ()Lcom/eignex/koblas/engine/EngineRuntime;
-	public final fun getTarget ()Lcom/eignex/koblas/vendor/HostPlatform;
+	public final fun getTarget ()Lcom/eignex/koblas/engine/HostPlatform;
 }
 
 public final class com/eignex/koblas/engine/EngineRule {
@@ -643,6 +663,27 @@ public final class com/eignex/koblas/engine/Engines {
 	public static final fun getDefault ()Lcom/eignex/koblas/KoblasEngine;
 }
 
+public final class com/eignex/koblas/engine/HostPlatform {
+	public fun <init> (Lcom/eignex/koblas/engine/OperatingSystem;Lcom/eignex/koblas/engine/Architecture;Ljava/lang/String;Lcom/eignex/koblas/engine/CpuClass;Ljava/lang/Integer;)V
+	public synthetic fun <init> (Lcom/eignex/koblas/engine/OperatingSystem;Lcom/eignex/koblas/engine/Architecture;Ljava/lang/String;Lcom/eignex/koblas/engine/CpuClass;Ljava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getArchitecture ()Lcom/eignex/koblas/engine/Architecture;
+	public final fun getCpuClass ()Lcom/eignex/koblas/engine/CpuClass;
+	public final fun getCpuModel ()Ljava/lang/String;
+	public final fun getOperatingSystem ()Lcom/eignex/koblas/engine/OperatingSystem;
+	public final fun getSveVectorBits ()Ljava/lang/Integer;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/eignex/koblas/engine/OperatingSystem : java/lang/Enum {
+	public static final field Linux Lcom/eignex/koblas/engine/OperatingSystem;
+	public static final field MacOs Lcom/eignex/koblas/engine/OperatingSystem;
+	public static final field Other Lcom/eignex/koblas/engine/OperatingSystem;
+	public static final field Windows Lcom/eignex/koblas/engine/OperatingSystem;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/engine/OperatingSystem;
+	public static fun values ()[Lcom/eignex/koblas/engine/OperatingSystem;
+}
+
 public final class com/eignex/koblas/engine/PanelWork : java/lang/Enum {
 	public static final field ColumnUpdate Lcom/eignex/koblas/engine/PanelWork;
 	public static final field CoupledDotUpdate Lcom/eignex/koblas/engine/PanelWork;
@@ -655,10 +696,35 @@ public final class com/eignex/koblas/engine/PanelWork : java/lang/Enum {
 	public static fun values ()[Lcom/eignex/koblas/engine/PanelWork;
 }
 
+public final class com/eignex/koblas/engine/Platform_jvmKt {
+	public static final fun hostPlatform ()Lcom/eignex/koblas/engine/HostPlatform;
+}
+
 public final class com/eignex/koblas/engine/StandardEngineProfiles {
 	public static final field INSTANCE Lcom/eignex/koblas/engine/StandardEngineProfiles;
-	public final fun forTarget (Lcom/eignex/koblas/engine/EngineRuntime;Lcom/eignex/koblas/vendor/HostPlatform;Z)Lcom/eignex/koblas/engine/EngineProfile;
-	public static synthetic fun forTarget$default (Lcom/eignex/koblas/engine/StandardEngineProfiles;Lcom/eignex/koblas/engine/EngineRuntime;Lcom/eignex/koblas/vendor/HostPlatform;ZILjava/lang/Object;)Lcom/eignex/koblas/engine/EngineProfile;
+	public final fun forTarget (Lcom/eignex/koblas/engine/EngineRuntime;Lcom/eignex/koblas/engine/HostPlatform;Z)Lcom/eignex/koblas/engine/EngineProfile;
+	public static synthetic fun forTarget$default (Lcom/eignex/koblas/engine/StandardEngineProfiles;Lcom/eignex/koblas/engine/EngineRuntime;Lcom/eignex/koblas/engine/HostPlatform;ZILjava/lang/Object;)Lcom/eignex/koblas/engine/EngineProfile;
+}
+
+public final class com/eignex/koblas/engine/ThreadEvidence : java/lang/Enum {
+	public static final field Confirmed Lcom/eignex/koblas/engine/ThreadEvidence;
+	public static final field Unconfirmed Lcom/eignex/koblas/engine/ThreadEvidence;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun getLabel ()Ljava/lang/String;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/engine/ThreadEvidence;
+	public static fun values ()[Lcom/eignex/koblas/engine/ThreadEvidence;
+}
+
+public final class com/eignex/koblas/engine/Vendor : java/lang/Enum {
+	public static final field Accelerate Lcom/eignex/koblas/engine/Vendor;
+	public static final field Aocl Lcom/eignex/koblas/engine/Vendor;
+	public static final field ArmPl Lcom/eignex/koblas/engine/Vendor;
+	public static final field OneMkl Lcom/eignex/koblas/engine/Vendor;
+	public static final field OpenBlas Lcom/eignex/koblas/engine/Vendor;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun getVendorName ()Ljava/lang/String;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/engine/Vendor;
+	public static fun values ()[Lcom/eignex/koblas/engine/Vendor;
 }
 
 public final class com/eignex/koblas/sparse/Koblas {
@@ -723,71 +789,5 @@ public final class com/eignex/koblas/sparse/SparsePrimitives {
 	public static final fun scatterWorkspace (D[II[DII[D[II[III)I
 	public static final fun scatterWorkspaceChecked (D[II[DII[D[II[III[IIII)I
 	public static final fun selectPivotCandidates ([II[DII[ZDD[II)I
-}
-
-public final class com/eignex/koblas/vendor/Architecture : java/lang/Enum {
-	public static final field Arm64 Lcom/eignex/koblas/vendor/Architecture;
-	public static final field Other Lcom/eignex/koblas/vendor/Architecture;
-	public static final field X86_64 Lcom/eignex/koblas/vendor/Architecture;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/vendor/Architecture;
-	public static fun values ()[Lcom/eignex/koblas/vendor/Architecture;
-}
-
-public final class com/eignex/koblas/vendor/CpuClass : java/lang/Enum {
-	public static final field Arm64 Lcom/eignex/koblas/vendor/CpuClass;
-	public static final field Avx2 Lcom/eignex/koblas/vendor/CpuClass;
-	public static final field Avx512 Lcom/eignex/koblas/vendor/CpuClass;
-	public static final field Sve Lcom/eignex/koblas/vendor/CpuClass;
-	public static final field X86_64 Lcom/eignex/koblas/vendor/CpuClass;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/vendor/CpuClass;
-	public static fun values ()[Lcom/eignex/koblas/vendor/CpuClass;
-}
-
-public final class com/eignex/koblas/vendor/HostPlatform {
-	public fun <init> (Lcom/eignex/koblas/vendor/OperatingSystem;Lcom/eignex/koblas/vendor/Architecture;Ljava/lang/String;Lcom/eignex/koblas/vendor/CpuClass;Ljava/lang/Integer;)V
-	public synthetic fun <init> (Lcom/eignex/koblas/vendor/OperatingSystem;Lcom/eignex/koblas/vendor/Architecture;Ljava/lang/String;Lcom/eignex/koblas/vendor/CpuClass;Ljava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun getArchitecture ()Lcom/eignex/koblas/vendor/Architecture;
-	public final fun getCpuClass ()Lcom/eignex/koblas/vendor/CpuClass;
-	public final fun getCpuModel ()Ljava/lang/String;
-	public final fun getOperatingSystem ()Lcom/eignex/koblas/vendor/OperatingSystem;
-	public final fun getSveVectorBits ()Ljava/lang/Integer;
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class com/eignex/koblas/vendor/OperatingSystem : java/lang/Enum {
-	public static final field Linux Lcom/eignex/koblas/vendor/OperatingSystem;
-	public static final field MacOs Lcom/eignex/koblas/vendor/OperatingSystem;
-	public static final field Other Lcom/eignex/koblas/vendor/OperatingSystem;
-	public static final field Windows Lcom/eignex/koblas/vendor/OperatingSystem;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/vendor/OperatingSystem;
-	public static fun values ()[Lcom/eignex/koblas/vendor/OperatingSystem;
-}
-
-public final class com/eignex/koblas/vendor/Platform_jvmKt {
-	public static final fun hostPlatform ()Lcom/eignex/koblas/vendor/HostPlatform;
-}
-
-public final class com/eignex/koblas/vendor/ThreadEvidence : java/lang/Enum {
-	public static final field Confirmed Lcom/eignex/koblas/vendor/ThreadEvidence;
-	public static final field Unconfirmed Lcom/eignex/koblas/vendor/ThreadEvidence;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public final fun getLabel ()Ljava/lang/String;
-	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/vendor/ThreadEvidence;
-	public static fun values ()[Lcom/eignex/koblas/vendor/ThreadEvidence;
-}
-
-public final class com/eignex/koblas/vendor/Vendor : java/lang/Enum {
-	public static final field Accelerate Lcom/eignex/koblas/vendor/Vendor;
-	public static final field Aocl Lcom/eignex/koblas/vendor/Vendor;
-	public static final field ArmPl Lcom/eignex/koblas/vendor/Vendor;
-	public static final field OneMkl Lcom/eignex/koblas/vendor/Vendor;
-	public static final field OpenBlas Lcom/eignex/koblas/vendor/Vendor;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public final fun getVendorName ()Ljava/lang/String;
-	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/vendor/Vendor;
-	public static fun values ()[Lcom/eignex/koblas/vendor/Vendor;
 }
 

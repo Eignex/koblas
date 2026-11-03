@@ -8,7 +8,6 @@ import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.configuration.*
 import com.eignex.koblas.sparse.*
-import com.eignex.koblas.vendor.*
 
 /**
  * One immutable contract for portable, SIMD, vendor and combined dense and sparse BLAS.

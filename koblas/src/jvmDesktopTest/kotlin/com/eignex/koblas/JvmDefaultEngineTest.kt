@@ -3,8 +3,8 @@ package com.eignex.koblas
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.host.assertAgreesWithReference
 import com.eignex.koblas.sparse.*
-import com.eignex.koblas.vendor.assertAgreesWithReference
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

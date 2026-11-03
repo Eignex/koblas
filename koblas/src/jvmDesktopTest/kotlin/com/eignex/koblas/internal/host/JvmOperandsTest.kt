@@ -1,4 +1,4 @@
-package com.eignex.koblas.vendor
+package com.eignex.koblas.internal.host
 
 import com.eignex.koblas.*
 import com.eignex.koblas.internal.jvm25.host.stage

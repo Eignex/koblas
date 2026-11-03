@@ -1,4 +1,4 @@
-package com.eignex.koblas.vendor
+package com.eignex.koblas.internal.host
 
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.toKString

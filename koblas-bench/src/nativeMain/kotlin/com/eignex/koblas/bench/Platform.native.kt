@@ -4,8 +4,8 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.*
-import com.eignex.koblas.vendor.OperatingSystem
-import com.eignex.koblas.vendor.hostPlatform
+import com.eignex.koblas.engine.OperatingSystem
+import com.eignex.koblas.engine.hostPlatform
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.toKString
 import platform.posix.EOF

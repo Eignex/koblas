@@ -1,7 +1,7 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.engine.*
-import com.eignex.koblas.vendor.Vendor
+import com.eignex.koblas.engine.Vendor
 
 /** Portable entry points replaced by the multi-release JAR on desktop JDK 25 or later. */
 internal object JvmBackend {

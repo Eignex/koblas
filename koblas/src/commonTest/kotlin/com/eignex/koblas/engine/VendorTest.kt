@@ -1,4 +1,4 @@
-package com.eignex.koblas.vendor
+package com.eignex.koblas.engine
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
