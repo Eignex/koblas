@@ -8,6 +8,7 @@ import com.eignex.koblas.internal.dense.borrowOptional
 import com.eignex.koblas.internal.dense.forEachPanel
 import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.internal.operands.staged
+import com.eignex.koblas.internal.portable.sparse.*
 import kotlin.math.min
 
 /**
@@ -264,7 +265,7 @@ private fun gatherPanel(
     }
     if (actual == 1) {
         forEachSparseColumn(a) { outputRow, from, to ->
-            kernels.sparseGatherProductColumn(
+            sparseGatherProductColumn(
                 alpha, a.rowIndices, a.values, from, to,
                 source, offset, indexStride, c.values, c.offset + outputRow + columnStart * c.leadingDimension,
             )
@@ -317,7 +318,7 @@ private fun scatterPanel(
     }
     if (actual == 1) {
         forEachSparseColumn(a) { inner, from, to ->
-            kernels.sparseScatterProductColumn(
+            sparseScatterProductColumn(
                 alpha, a.rowIndices, a.values, from, to,
                 b.values, b.offset + columnStart * bRhsStride + inner * bIndexStride,
                 destination, offset, indexStride,
@@ -398,7 +399,7 @@ internal fun multiplySymmetricFromTheLeft(
                 }
                 forEachSparseColumn(a, SparseColumnShape.Selected, lower) { column, from, to ->
                     if (actual == 1) {
-                        kernels.sparseSymmetricLeftColumnSingle(
+                        sparseSymmetricLeftColumnSingle(
                             alpha, column, a.rowIndices, a.values,
                             from, to,
                             sourceValues, into, offset, indexStride, lower, destinationOffset,

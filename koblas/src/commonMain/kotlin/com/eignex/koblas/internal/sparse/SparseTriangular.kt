@@ -9,6 +9,7 @@ import com.eignex.koblas.internal.dense.borrowOptional
 import com.eignex.koblas.internal.dense.forEachPanel
 import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.internal.operands.staged
+import com.eignex.koblas.internal.portable.sparse.*
 import com.eignex.koblas.sparse.*
 
 /* Shared triangular scheduling over reusable sparse column and RHS-panel leaves. */
@@ -121,12 +122,12 @@ internal fun triangularLeftCore(
                     val dj = diagonal?.get(j) ?: 1.0
                     if (actual == 1) {
                         if (!transpose) {
-                            kernels.sparseTriangularScatterSingle(
+                            sparseTriangularScatterSingle(
                                 solve, j, lower, unitDiag, dj, a.rowIndices, a.values,
                                 from, to, dense, offset, indexStride,
                             )
                         } else {
-                            kernels.sparseTriangularGatherSingle(
+                            sparseTriangularGatherSingle(
                                 solve, j, lower, unitDiag, dj, a.rowIndices, a.values,
                                 from, to, dense, offset, indexStride,
                             )
@@ -192,48 +193,6 @@ internal fun trmmRightCore(
     }
 }
 
-/**
- * Sparse `dtrmv`. The direction preserves each source before its destination is written, so no work buffer is
- * needed for the ordinary in-place case.
- *
- * The diagonal is probed as `A(j, j)`, a binary search per column. That is `trmv`'s to pay: `trmm` walks
- * several right-hand sides against one triangle and precomputes the diagonal for itself instead.
- */
-@OptIn(UnsafeKoblasApi::class)
-@Suppress("LongParameterList") // the three BLAS triangle flags
-internal fun trmvCore(
-    kernels: KoblasEngine,
-    a: SparseMatrix,
-    x: DoubleArray,
-    lower: Boolean,
-    transpose: Boolean,
-    unitDiag: Boolean,
-) {
-    forEachTriangleColumn(a.rows, lower == transpose) { j ->
-        if (!transpose) {
-            val xj = x[j]
-            if (xj != 0.0) {
-                x[j] = if (unitDiag) xj else a[j, j] * xj
-                kernels.sparseTriangularAxpy(
-                    j,
-                    lower,
-                    a.rowIndices,
-                    a.values,
-                    a.colPointers[j],
-                    a.colPointers[j + 1],
-                    xj,
-                    x,
-                )
-            }
-        } else {
-            val scaled = if (unitDiag) x[j] else a[j, j] * x[j]
-            x[j] = kernels.sparseTriangularReduce(
-                j, lower, a.rowIndices, a.values, a.colPointers[j], a.colPointers[j + 1], x, scaled, subtract = false,
-            )
-        }
-    }
-}
-
 /** Right solve over contiguous dense columns, which turns every sparse update into a Level 1 operation. */
 @OptIn(UnsafeKoblasApi::class)
 internal fun trsmRightCore(
@@ -253,42 +212,5 @@ internal fun trsmRightCore(
             a.rowIndices, a.values, a.colPointers[j], a.colPointers[j + 1], b.values, rows, b.offset,
             b.leadingDimension,
         )
-    }
-}
-
-/** `trsv` over the `n` entries of [x], with the triangle flags resolved once by the caller. */
-@OptIn(UnsafeKoblasApi::class)
-@Suppress("LongParameterList") // the three BLAS triangle flags
-internal fun trsvCore(
-    kernels: KoblasEngine,
-    a: SparseMatrix,
-    x: DoubleArray,
-    lower: Boolean,
-    transpose: Boolean,
-    unitDiag: Boolean,
-) {
-    // Forward when a finished unknown feeds later columns, backward when it feeds earlier ones.
-    forEachTriangleColumn(a.rows, lower != transpose) { j ->
-        if (!transpose) {
-            val raw = x[j]
-            if (raw == 0.0) return@forEachTriangleColumn
-            val xj = if (unitDiag) raw else raw / a[j, j]
-            x[j] = xj
-            kernels.sparseTriangularAxpy(
-                j,
-                lower,
-                a.rowIndices,
-                a.values,
-                a.colPointers[j],
-                a.colPointers[j + 1],
-                -xj,
-                x,
-            )
-        } else {
-            val s = kernels.sparseTriangularReduce(
-                j, lower, a.rowIndices, a.values, a.colPointers[j], a.colPointers[j + 1], x, x[j], subtract = true,
-            )
-            x[j] = if (unitDiag) s else s / a[j, j]
-        }
     }
 }

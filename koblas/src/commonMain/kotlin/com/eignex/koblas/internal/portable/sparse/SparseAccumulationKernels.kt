@@ -1,8 +1,8 @@
 @file:Suppress("NOTHING_TO_INLINE") // keep run-level extraction from adding a hot call per CSC slice or column
 
-package com.eignex.koblas.internal.sparse
+package com.eignex.koblas.internal.portable.sparse
 
-import com.eignex.koblas.*
+import com.eignex.koblas.internal.sparse.sweepsTouchedRows
 
 /**
  * Portable numerical leaves for the sparse accumulation contracts the matrix algorithms share.

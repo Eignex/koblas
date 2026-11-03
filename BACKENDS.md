@@ -106,7 +106,9 @@ Unknown or different widths do not match.
 Standard selection borrows compatible preferences within the same runtime when no target profile matches,
 and labels the result `best-effort-*` with its donor names. Unsupported vendors are excluded.
 Standard profiles are typed Kotlin declarations in `engine/TargetProfiles.kt`; the library has no profile parser.
-Portable arithmetic lives in `internal/portable/`, with dense and sparse schedules in their respective packages.
+Portable vector, panel, product and triangular kernels live in `internal/portable/dense/` and
+`internal/portable/sparse/`; `PortableEngine` forwards to them. Shared blocking and CSC traversal live in
+`internal/dense/` and `internal/sparse/`, and call the selected engine or the fixed portable sparse kernels.
 `BuiltinEngines.configured` resolves named libraries and uses exactly the profile's preferences.
 Include owned SIMD rules explicitly when wanted. Missing optional libraries fall through; unknown source identifiers are rejected. Use
 `KoblasEngine.combine(profile, providers...)` for explicit custom providers or scalar-only composition.

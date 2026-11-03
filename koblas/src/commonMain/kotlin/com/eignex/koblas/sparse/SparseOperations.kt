@@ -9,6 +9,7 @@ import com.eignex.koblas.dense.*
 import com.eignex.koblas.internal.dense.*
 import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.internal.portable.dense.euclideanNorm
+import com.eignex.koblas.internal.portable.sparse.*
 import com.eignex.koblas.internal.sparse.*
 import com.eignex.koblas.matrix.*
 
@@ -138,7 +139,7 @@ public fun KoblasEngine.symv(
         staged(workspace, a, a.values === y) { stableA ->
             applyBeta(this, y, 0, y.size, beta)
             for (column in 0 until stableA.cols) {
-                this.sparseSymmetricVectorColumn(
+                sparseSymmetricVectorColumn(
                     alpha,
                     column,
                     stableA.rowIndices,
@@ -231,7 +232,7 @@ public fun KoblasEngine.trsv(
     requireTriangularVectorOperands(a, x.size, "trsv")
     // Snapshot an aliased triangle before substitution overwrites coefficients needed by later columns.
     staged(workspace, a, a.values === x) { stable ->
-        trsvCore(this, stable, x, lower, transpose, unitDiag)
+        trsvCore(stable, x, lower, transpose, unitDiag)
     }
 }
 
@@ -253,7 +254,7 @@ public fun KoblasEngine.trmv(
 ) {
     requireTriangularVectorOperands(a, x.size, "trmv")
     staged(workspace, a, a.values === x) { stable ->
-        trmvCore(this, stable, x, lower, transpose, unitDiag)
+        trmvCore(stable, x, lower, transpose, unitDiag)
     }
 }
 

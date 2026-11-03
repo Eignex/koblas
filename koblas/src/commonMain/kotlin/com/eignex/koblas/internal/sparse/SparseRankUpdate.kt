@@ -3,6 +3,7 @@
 package com.eignex.koblas.internal.sparse
 
 import com.eignex.koblas.*
+import com.eignex.koblas.internal.portable.sparse.*
 import com.eignex.koblas.requireShape
 
 /*
