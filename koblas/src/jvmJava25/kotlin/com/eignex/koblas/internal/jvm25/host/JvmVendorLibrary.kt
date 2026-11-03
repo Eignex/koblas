@@ -109,9 +109,30 @@ internal class JvmVendorLibrary private constructor(
             val dynamic = handleOrNull("MKL_Set_Dynamic", FunctionDescriptor.ofVoid(JAVA_INT))
             if (dynamic != null) dynamic.invokeExact(0)
         }
-        val setter = vendor.threadControl.setter ?: return
-        val handle = handleOrNull(setter, FunctionDescriptor.ofVoid(JAVA_INT)) ?: return
-        handle.invokeExact(1)
+        val setter = threadSetter ?: return
+        setter.invokeExact(1)
+        heldThreads.set(true)
+    }
+
+    private val threadSetter: MethodHandle? by lazy {
+        vendor.threadControl.setter?.let { handleOrNull(it, FunctionDescriptor.ofVoid(JAVA_INT)) }
+    }
+
+    private val heldThreads: ThreadLocal<Boolean> = ThreadLocal.withInitial { false }
+
+    /**
+     * Apply the one-thread setter on the calling thread, once per thread.
+     *
+     * OpenMP keeps its thread count per thread, as do current BLIS builds, and an OpenMP build of OpenBLAS
+     * resynchronises its count from the calling thread's. A setting made only on the thread that opened the
+     * library would leave every other caller with a full team, so each thread takes the setting before its
+     * first call.
+     */
+    fun holdCallingThread() {
+        if (heldThreads.get()) return
+        val setter = threadSetter ?: return
+        setter.invokeExact(1)
+        heldThreads.set(true)
     }
 
     /**
@@ -292,6 +313,8 @@ internal class JvmVendorLibrary private constructor(
                 return null // not on this machine
             } catch (_: UnsatisfiedLinkError) {
                 return null // present but unloadable
+            } catch (_: IllegalCallerException) {
+                return null // native access denied to this module
             }
             val library = JvmVendorLibrary(vendor, candidate, lookup, linker)
             // oneMKL interface selection must precede dynamic/thread controls, version reads and probes.

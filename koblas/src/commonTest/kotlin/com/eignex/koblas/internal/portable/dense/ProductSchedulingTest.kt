@@ -380,6 +380,42 @@ class ProductSchedulingTest {
             }
         }
 
+    @Test
+    fun `a product window with no depth scales only its selected entries`() = withProductKernels { products ->
+        val order = 5
+        val leading = order + 2
+        val stored = 2.0
+        for (selected in listOf(OutputTriangle.Full, OutputTriangle.Lower, OutputTriangle.Upper)) {
+            val destination = DoubleArray(C_ORIGIN + order * leading) { GUARD }
+            for (column in 0 until order) {
+                for (row in 0 until order) {
+                    destination[C_ORIGIN + row + column * leading] = stored
+                }
+            }
+
+            productWindow(
+                engineWithKernels(products = products, panels = panelsFor(products)),
+                ALPHA, DoubleArray(0), 0, 1, false, DoubleArray(0), 0, 1, false,
+                BETA, destination, C_ORIGIN, leading, order, order, 0, selected, null,
+            )
+
+            for (column in 0 until order) {
+                for (row in 0 until leading) {
+                    val expected = when {
+                        row >= order -> GUARD
+                        outsideTriangle(row, 1, column, 1, selected) -> stored
+                        else -> stored * BETA
+                    }
+                    assertEquals(
+                        expected,
+                        destination[C_ORIGIN + row + column * leading],
+                        "$selected at ($row, $column)",
+                    )
+                }
+            }
+        }
+    }
+
     @Suppress("LongParameterList") // the backend and the four facts that pick out one case of the sweep
     private fun assertWindowed(
         products: KoblasEngine,

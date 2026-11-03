@@ -42,7 +42,8 @@ internal object SparseSimd : KoblasEngine {
         dense: DoubleArray,
     ): Double {
         var k = 0
-        val bound = SPECIES.loopBound(count)
+        // The body fills exactly two lanes, so a wider unit runs the scalar tail alone rather than drop entries.
+        val bound = if (vectorDot) SPECIES.loopBound(count) else 0
         var sum = DoubleVector.zero(SPECIES)
         while (k < bound) {
             val gathered = DoubleVector.zero(SPECIES)

@@ -54,6 +54,10 @@ private typealias SetLayerFn = CFunction<(Int) -> Int>
 private typealias SetThreadsFn = CFunction<(Int) -> Unit>
 private typealias GetThreadsFn = CFunction<() -> Int>
 
+/** Bit [Vendor.ordinal] is set once this thread has applied that vendor's one-thread setter. */
+@kotlin.native.concurrent.ThreadLocal
+private var heldVendors: Int = 0
+
 /**
  * Vendor BLAS reached through the platform loader and typed function pointers.
  *
@@ -106,8 +110,26 @@ internal class NativeVendorBlas private constructor(
             library.symbol("MKL_Set_Threading_Layer")?.reinterpret<SetLayerFn>()?.invoke(MKL_SEQUENTIAL)
             library.symbol("MKL_Set_Dynamic")?.reinterpret<SetThreadsFn>()?.invoke(0)
         }
-        val setter = vendor.threadControl.setter ?: return
-        library.symbol(setter)?.reinterpret<SetThreadsFn>()?.invoke(1)
+        // Unconditional: this thread may have held an earlier candidate of the same vendor that was then refused.
+        threadSetter?.invoke(1)
+        heldVendors = heldVendors or (1 shl vendor.ordinal)
+    }
+
+    private val threadSetter = vendor.threadControl.setter?.let(library::symbol)?.reinterpret<SetThreadsFn>()
+
+    /**
+     * Apply the one-thread setter on the calling thread, once per thread.
+     *
+     * OpenMP keeps its thread count per thread, as do current BLIS builds, and an OpenMP build of OpenBLAS
+     * resynchronises its count from the calling thread's. A setting made only on the thread that opened the
+     * library would leave every other caller with a full team, so each thread takes the setting before its
+     * first call.
+     */
+    private fun holdCallingThread() {
+        val bit = 1 shl vendor.ordinal
+        if (heldVendors and bit != 0) return
+        threadSetter?.invoke(1)
+        heldVendors = heldVendors or bit
     }
 
     /** Set once at load, after [enforceSingleThread], and never again. */
@@ -198,8 +220,11 @@ internal class NativeVendorBlas private constructor(
     override val implementations: Set<EngineImplementation> =
         EngineImplementation.entries.filterTo(mutableSetOf()) { entryPoints[it.ordinal] != null }
 
-    private fun symbol(operation: EngineImplementation): COpaquePointer = checkNotNull(entryPoints[operation.ordinal]) {
-        "${vendor.vendorName} at $libraryPath does not export ${operation.entryPoint}"
+    private fun symbol(operation: EngineImplementation): COpaquePointer {
+        holdCallingThread()
+        return checkNotNull(entryPoints[operation.ordinal]) {
+            "${vendor.vendorName} at $libraryPath does not export ${operation.entryPoint}"
+        }
     }
 
     // Level 1 windows call the selected library directly; alias adaptation preserves that provider.

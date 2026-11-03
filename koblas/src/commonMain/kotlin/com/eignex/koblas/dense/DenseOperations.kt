@@ -27,7 +27,7 @@ public fun KoblasEngine.nrm2(x: DenseVector): Double = nrm2(x.values, x.offset, 
 public fun KoblasEngine.asum(x: DenseVector): Double = asum(x.values, x.offset, x.size, x.stride)
 
 /**
- * The index of the entry of largest magnitude, or 0 for an empty vector.
+ * The index of the entry of largest magnitude, or `-1` for an empty vector.
  *
  * BLAS defines its three reductions to return zero for a non-positive increment rather than to walk the
  * vector backwards, so a negatively strided vector is passed with the increment's magnitude and reaches
@@ -36,7 +36,7 @@ public fun KoblasEngine.asum(x: DenseVector): Double = asum(x.values, x.offset, 
  * one reports the last. That is a real difference from a single-pass forward scan, and it is documented
  * rather than papered over because no vendor flag expresses the forward-scan choice.
  */
-public fun KoblasEngine.iamax(x: DenseVector): Int = if (x.size == 0) 0 else iamax(x.values, x.offset, x.size, x.stride)
+public fun KoblasEngine.iamax(x: DenseVector): Int = iamax(x.values, x.offset, x.size, x.stride)
 
 /** `y = alpha · x + y`. */
 public fun KoblasEngine.axpy(alpha: Double, x: DenseVector, y: DenseVector) {

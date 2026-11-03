@@ -710,15 +710,6 @@ public final class com/eignex/koblas/engine/Vendor : java/lang/Enum {
 	public static fun values ()[Lcom/eignex/koblas/engine/Vendor;
 }
 
-public final class com/eignex/koblas/sparse/Koblas {
-	public static final fun syr (Lcom/eignex/koblas/SparseMatrix;DLcom/eignex/koblas/Vector;)Lcom/eignex/koblas/SparseMatrix;
-	public static final fun syr (Lcom/eignex/koblas/SparseMatrix;DLcom/eignex/koblas/Vector;Z)Lcom/eignex/koblas/SparseMatrix;
-	public static synthetic fun syr$default (Lcom/eignex/koblas/SparseMatrix;DLcom/eignex/koblas/Vector;ZILjava/lang/Object;)Lcom/eignex/koblas/SparseMatrix;
-	public static final fun syr2 (Lcom/eignex/koblas/SparseMatrix;DLcom/eignex/koblas/Vector;Lcom/eignex/koblas/Vector;)Lcom/eignex/koblas/SparseMatrix;
-	public static final fun syr2 (Lcom/eignex/koblas/SparseMatrix;DLcom/eignex/koblas/Vector;Lcom/eignex/koblas/Vector;Z)Lcom/eignex/koblas/SparseMatrix;
-	public static synthetic fun syr2$default (Lcom/eignex/koblas/SparseMatrix;DLcom/eignex/koblas/Vector;Lcom/eignex/koblas/Vector;ZILjava/lang/Object;)Lcom/eignex/koblas/SparseMatrix;
-}
-
 public final class com/eignex/koblas/sparse/SparseBlas {
 	public static final fun addScaled (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/SparseMatrix;ZLcom/eignex/koblas/SparseMatrix;)Lcom/eignex/koblas/SparseMatrix;
 	public static final fun asum (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/SparseVector;)D
@@ -771,6 +762,15 @@ public final class com/eignex/koblas/sparse/SparsePrimitives {
 	public static final fun scatterWorkspace (D[II[DII[D[II[III)I
 	public static final fun scatterWorkspaceChecked (D[II[DII[D[II[III[IIII)I
 	public static final fun selectPivotCandidates ([II[DII[ZDD[II)I
+}
+
+public final class com/eignex/koblas/sparse/SparseRankUpdatesKt {
+	public static final fun syr (Lcom/eignex/koblas/SparseMatrix;DLcom/eignex/koblas/Vector;)Lcom/eignex/koblas/SparseMatrix;
+	public static final fun syr (Lcom/eignex/koblas/SparseMatrix;DLcom/eignex/koblas/Vector;Z)Lcom/eignex/koblas/SparseMatrix;
+	public static synthetic fun syr$default (Lcom/eignex/koblas/SparseMatrix;DLcom/eignex/koblas/Vector;ZILjava/lang/Object;)Lcom/eignex/koblas/SparseMatrix;
+	public static final fun syr2 (Lcom/eignex/koblas/SparseMatrix;DLcom/eignex/koblas/Vector;Lcom/eignex/koblas/Vector;)Lcom/eignex/koblas/SparseMatrix;
+	public static final fun syr2 (Lcom/eignex/koblas/SparseMatrix;DLcom/eignex/koblas/Vector;Lcom/eignex/koblas/Vector;Z)Lcom/eignex/koblas/SparseMatrix;
+	public static synthetic fun syr2$default (Lcom/eignex/koblas/SparseMatrix;DLcom/eignex/koblas/Vector;Lcom/eignex/koblas/Vector;ZILjava/lang/Object;)Lcom/eignex/koblas/SparseMatrix;
 }
 
 public final class com/eignex/koblas/workspace/Workspace {

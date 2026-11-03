@@ -31,7 +31,8 @@ The default engine, exact engines, standard profiles and vendor metadata.
 
 # Package com.eignex.koblas.sparse
 
-Sparse routines over validated CSC storage: stored zeros participate and an absent position is never evaluated.
+Sparse routines over validated CSC storage: an absent position is never evaluated, and a stored zero is multiplied
+wherever the reference BLAS routine would multiply it.
 [SparsePrimitives] provides stateless arithmetic over caller-owned buffers; pivoting, dropping and solver state
 belong to the caller.
 

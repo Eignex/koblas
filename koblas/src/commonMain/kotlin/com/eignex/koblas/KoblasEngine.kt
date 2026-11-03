@@ -303,7 +303,8 @@ public interface KoblasEngine {
      *
      * [sums] is the caller's, which is where several results go rather than into a returned object. Its
      * window must not overlap [y]'s, which for a symmetric traversal it never does: the reduction lands on
-     * the diagonal side of the rows the update wrote.
+     * the diagonal side of the rows the update wrote. Nor may [x]'s window overlap [y]'s, because an
+     * implementation is free to read each `x(i)` before or after it writes `y(i)`.
      */
     public fun coupledUpdateDot(
         alpha: Double,

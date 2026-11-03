@@ -454,8 +454,13 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
 
     private fun gemmtHandle(): MethodHandle = supplied(gemmtOrNull)
 
-    private fun supplied(handle: MethodHandle?): MethodHandle =
-        handle ?: throw UnsupportedOperationException("Operation is not exported by ${vendor.vendorName}")
+    private fun supplied(handle: MethodHandle?): MethodHandle {
+        val exported = handle ?: throw UnsupportedOperationException(
+            "Operation is not exported by ${vendor.vendorName}",
+        )
+        library.holdCallingThread()
+        return exported
+    }
 
     private val dotHandle = library.handleOrNull(
         EngineImplementation.Dot.entryPoint,

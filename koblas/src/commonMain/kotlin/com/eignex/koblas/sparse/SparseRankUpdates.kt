@@ -1,6 +1,3 @@
-@file:kotlin.jvm.JvmName("Koblas")
-@file:kotlin.jvm.JvmMultifileClass
-
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
