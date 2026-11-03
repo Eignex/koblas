@@ -468,7 +468,7 @@ class StructuredProductTest {
         }
     }
 
-    private fun koblasPanels(): KoblasEngine = BuiltinEngines.simd ?: PortableEngine
+    private fun koblasPanels(): KoblasEngine = BuiltinEngines.simd?.panelProvider ?: PortableEngine
 
     /** The panel backend that belongs beside [products], so a composition under test is a real one. */
     private fun panelsFor(products: KoblasEngine): KoblasEngine =

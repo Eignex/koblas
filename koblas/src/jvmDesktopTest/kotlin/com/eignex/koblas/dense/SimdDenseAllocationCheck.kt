@@ -6,7 +6,6 @@ import com.eignex.koblas.copy
 import com.eignex.koblas.dot
 import com.eignex.koblas.engineWithHost
 import com.eignex.koblas.engineWithKernels
-import com.eignex.koblas.internal.configuration.CombinedEngine
 import com.eignex.koblas.internal.dense.TRIANGULAR_DIAGONAL_BLOCK
 import com.eignex.koblas.internal.jvm25.simd.SimdPanelKernels
 import com.eignex.koblas.internal.jvm25.simd.SimdProductKernels
@@ -64,11 +63,11 @@ internal object SimdDenseAllocationCheck {
         val engine = requireNotNull(BuiltinEngines.simd) {
             "dense allocation check requires the Vector API panel candidate"
         }
-        val panels = engine
+        val panels = engine.panelProvider
         require(
-            (panels as CombinedEngine).panelImplementation === SimdPanelKernels,
+            panels === SimdPanelKernels,
         ) { "dense allocation check selected ${panels.name}" }
-        require(panels.implementationFor(PanelWork.MultiDot, ORDER, COLUMNS) == panels.panelImplementation.name) {
+        require(panels.implementationFor(PanelWork.MultiDot, ORDER, COLUMNS) == panels.name) {
             "dense allocation check uses $ORDER rows, which does not reach the vector body"
         }
         assertLargeColumnUpdatesAgreeWithReference(panels)
@@ -237,7 +236,7 @@ internal object SimdDenseAllocationCheck {
      * borrowed tiles and squares no rectangular product does, so a loan that escaped shows up here.
      */
     private fun checkStructuredProducts(engine: KoblasEngine) {
-        val products = engine
+        val products = engine.productProvider
         val order = maxOf(products.tileRows * 3 + 1, STRUCTURED_ORDER)
         require(products.packsProduct(order, order, order)) {
             "the structured probe at $order cubed is not packed on this machine"
@@ -307,7 +306,7 @@ internal object SimdDenseAllocationCheck {
     private fun checkTriangularOrder(engine: KoblasEngine, order: Int) {
         val workspace = Workspace()
         val triangle = dominantTriangle(order)
-        val group = engine.rightHandSideGroup(TRIANGULAR_DIAGONAL_BLOCK, UNGROUPED_SIDES)
+        val group = engine.triangularProvider.rightHandSideGroup(TRIANGULAR_DIAGONAL_BLOCK, UNGROUPED_SIDES)
         for (sides in intArrayOf(1, group + 1)) {
             val left = DenseMatrix.wrap(order, sides, DoubleArray(order * sides))
             val right = DenseMatrix.wrap(sides, order, DoubleArray(sides * order))
@@ -372,9 +371,9 @@ internal object SimdDenseAllocationCheck {
      * scalar-replace one would allocate once per depth step.
      */
     private fun checkProducts(engine: KoblasEngine) {
-        val products = engine
+        val products = engine.productProvider
         require(
-            (products as CombinedEngine).productImplementation === SimdProductKernels,
+            products === SimdProductKernels,
         ) { "product allocation check selected ${products.name}" }
         val rows = products.tileRows
         val columns = products.tileColumns
@@ -469,11 +468,11 @@ internal object SimdDenseAllocationCheck {
         val workspace = Workspace()
         // Both shapes have to be ones this machine's tile geometry really packs, or the deep probe would
         // measure the unpacked route while claiming to measure depth blocks.
-        val narrow = maxOf(engine.tileRows + 1, PRODUCT_NARROW)
-        require(engine.packsProduct(narrow, narrow, PRODUCT_DEPTH)) {
+        val narrow = maxOf(engine.productProvider.tileRows + 1, PRODUCT_NARROW)
+        require(engine.productProvider.packsProduct(narrow, narrow, PRODUCT_DEPTH)) {
             "the deep product probe at ${narrow}x${narrow}x$PRODUCT_DEPTH is not packed on this machine"
         }
-        require(engine.packsProduct(PRODUCT_ORDER, PRODUCT_ORDER, PRODUCT_ORDER)) {
+        require(engine.productProvider.packsProduct(PRODUCT_ORDER, PRODUCT_ORDER, PRODUCT_ORDER)) {
             "the square product probe at $PRODUCT_ORDER cubed is not packed on this machine"
         }
         val square = PRODUCT_ORDER * PRODUCT_ORDER

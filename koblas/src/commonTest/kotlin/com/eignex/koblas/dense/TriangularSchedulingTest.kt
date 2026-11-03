@@ -437,7 +437,7 @@ class TriangularSchedulingTest {
  * because a count that fills one machine's lane block leaves another's empty.
  */
 internal val VECTOR_SIDES: Int = BuiltinEngines.simd
-    ?.rightHandSideGroup(TRIANGULAR_DIAGONAL_BLOCK, UNGROUPED_SIDES)
+    ?.triangularProvider?.rightHandSideGroup(TRIANGULAR_DIAGONAL_BLOCK, UNGROUPED_SIDES)
     ?: 4
 
 /** Wider than any grouping a backend recommends, so asking with it returns the recommendation itself. */
@@ -446,5 +446,5 @@ private const val UNGROUPED_SIDES = 1024
 /** Runs [body] against every composition of panel, product and substitution backends this platform has. */
 internal fun withBackends(body: (KoblasEngine, KoblasEngine, KoblasEngine) -> Unit) {
     body(PortableEngine, PortableEngine, PortableEngine)
-    BuiltinEngines.simd?.let { body(it, it, it) }
+    BuiltinEngines.simd?.let { body(it.panelProvider, it.productProvider, it.triangularProvider) }
 }

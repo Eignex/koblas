@@ -17,8 +17,8 @@ class JvmDefaultEngineTest {
             exact.implementationFor(EngineImplementation.Dot, 1024),
             koblas.implementationFor(EngineImplementation.Dot, 1024),
         )
-        assertEquals(exact.tileRows, koblas.tileRows)
-        assertEquals(exact.tileColumns, koblas.tileColumns)
+        assertEquals(exact.productProvider.tileRows, koblas.productProvider.tileRows)
+        assertEquals(exact.productProvider.tileColumns, koblas.productProvider.tileColumns)
     }
 
     @Test

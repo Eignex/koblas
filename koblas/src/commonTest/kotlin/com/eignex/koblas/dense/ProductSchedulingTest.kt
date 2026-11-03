@@ -21,7 +21,10 @@ import kotlin.test.assertTrue
 // The shapes reach what block scheduling has that a small product does not: more than one cache block on
 // each axis, a depth cut into several blocks, and extents that fill no tile exactly.
 class ProductSchedulingTest {
-    private val engines: List<KoblasEngine> get() = listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)
+    private val engines: List<KoblasEngine> get() = listOfNotNull(
+        BuiltinEngines.scalar,
+        BuiltinEngines.simd,
+    ).map { it.productProvider }
 
     /**
      * Shapes cross each block boundary while keeping the other axes small for the oracle.

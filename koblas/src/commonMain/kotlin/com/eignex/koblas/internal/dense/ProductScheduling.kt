@@ -92,14 +92,15 @@ internal fun productWindow(
     if (m <= 0 || n <= 0) return
     // A selected triangle uses the rectangular crossover over its actual extents: reducing the depth to stand
     // for discarded triangle work would distort what a backend decides from.
-    if (engine.packsProduct(m, n, k)) {
+    val kernels = engine.productProvider
+    if (kernels.packsProduct(m, n, k)) {
         blockedProduct(
-            engine, alpha, a, aOffset, lda, transposeA, b, bOffset, ldb, transposeB,
+            kernels, alpha, a, aOffset, lda, transposeA, b, bOffset, ldb, transposeB,
             beta, c, cOffset, ldc, m, n, k, selected, workspace,
         )
     } else {
         directProduct(
-            engine, alpha, a, aOffset, lda, transposeA, b, bOffset, ldb, transposeB,
+            engine.panelProvider, alpha, a, aOffset, lda, transposeA, b, bOffset, ldb, transposeB,
             beta, c, cOffset, ldc, m, n, k, selected, workspace,
         )
     }

@@ -1,7 +1,6 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
-import com.eignex.koblas.internal.configuration.CombinedEngine
 import com.eignex.koblas.testutil.allocation.AllocationProbe
 import com.eignex.koblas.testutil.allocation.bytesPerCall
 
@@ -47,13 +46,13 @@ internal object SimdSparseAllocationCheck {
             "SIMD sparse allocation check uses $ENTRY_COUNT entries below " +
                 "the 16-entry crossover"
         }
-        val panels = engine
+        val panels = engine.panelProvider
         require(
             panels.implementationFor(
                 PanelWork.SparseRightHandSides,
                 PANEL_SIDES,
                 PANEL_ENTRIES,
-            ) == (panels as CombinedEngine).panelImplementation.name,
+            ) == panels.name,
         ) {
             "the panel probes use $PANEL_SIDES right-hand sides, which do not reach the vector body"
         }
@@ -130,7 +129,7 @@ internal object SimdSparseAllocationCheck {
 
     /** The two indexed panel leaves, over an adjacent group of right-hand sides and over a strided one. */
     private fun checkPanels(engine: KoblasEngine) {
-        val panels = engine
+        val panels = engine.panelProvider
         val entries = PANEL_ENTRIES
         val positions = 4 * entries
         val indices = IntArray(entries) { it * 4 }

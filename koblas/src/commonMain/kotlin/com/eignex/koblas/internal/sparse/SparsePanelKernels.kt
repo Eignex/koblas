@@ -20,7 +20,7 @@ internal fun KoblasEngine.sparseRightHandSideGroup(
     columns: Int,
     contiguous: Boolean = false,
     reduction: Boolean = false,
-): Int = this.executionGroup(sparsePanelWork(reduction), rows, columns, contiguous)
+): Int = panelProvider.executionGroup(sparsePanelWork(reduction), rows, columns, contiguous)
 
 /**
  * Whether this backend does better over a panel of [width] adjacent right-hand sides than over a strided
@@ -31,7 +31,7 @@ internal fun KoblasEngine.sparseRightHandSideGroup(
  * it has a whole lane block of them.
  */
 internal fun KoblasEngine.sparsePrefersAdjacentSides(width: Int, entries: Int, reduction: Boolean = false): Boolean =
-    this.prefersContiguous(sparsePanelWork(reduction), width, entries)
+    panelProvider.prefersContiguous(sparsePanelWork(reduction), width, entries)
 
 /**
  * Which of the two sparse panel shapes a caller is asking about.
@@ -109,7 +109,7 @@ internal fun KoblasEngine.sparseSymmetricLeftColumn(
         else -> -1
     }
     // Both halves read the same source layout; the mirrored half accumulates directly into the pivot row.
-    this.indexedCoupledUpdate(
+    panelProvider.indexedCoupledUpdate(
         alpha, c, b, offset, rhsStride, indexStride, rowIndices, values, start, end - start, width,
         pivot, c, cOffset + column * indexStride, diagonal, cOffset, cRhsStride, indexStride,
     )
@@ -172,7 +172,7 @@ internal fun KoblasEngine.sparseGatherProductPanel(
 ) {
     if (fromIndex == toIndex) return
     work.fill(0.0, 0, width)
-    this.indexedColumnUpdate(
+    panelProvider.indexedColumnUpdate(
         1.0, b, offset, rhsStride, indexStride, rowIndices, values, fromIndex, toIndex - fromIndex,
         width, work, 0,
     )
@@ -204,7 +204,7 @@ internal fun KoblasEngine.sparseScatterProductPanel(
     work: DoubleArray,
 ) {
     for (rhs in 0 until width) work[rhs] = alpha * b[bOffset + rhs * bRhsStride]
-    this.indexedRankUpdate(
+    panelProvider.indexedRankUpdate(
         1.0, c, offset, rhsStride, indexStride, rowIndices, values, fromIndex, toIndex - fromIndex,
         width, work, 0,
     )
@@ -497,7 +497,7 @@ internal fun KoblasEngine.sparseTriangularPanelScatter(
     val end = strictRunEnd(rowIndices, fromIndex, toIndex, column, lower)
     if (start >= end) return
     if (live == width) {
-        this.indexedRankUpdate(
+        panelProvider.indexedRankUpdate(
             if (solve) -1.0 else 1.0, dense, offset, rhsStride, indexStride,
             rowIndices, values, start, end - start, width, work, 0,
         )
@@ -549,7 +549,7 @@ internal fun KoblasEngine.sparseTriangularPanelGather(
     val start = strictRunStart(rowIndices, fromIndex, toIndex, column, lower)
     val end = strictRunEnd(rowIndices, fromIndex, toIndex, column, lower)
     if (start < end) {
-        this.indexedColumnUpdate(
+        panelProvider.indexedColumnUpdate(
             if (solve) -1.0 else 1.0, dense, offset, rhsStride, indexStride,
             rowIndices, values, start, end - start, width, work, 0,
         )

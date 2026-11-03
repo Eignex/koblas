@@ -332,13 +332,14 @@ private fun KoblasEngine.gemvCore(
     yStride: Int,
     transpose: Boolean,
 ) {
+    val panels = panelProvider
     val rows = a.rows
     if (transpose) {
         forEachPanel(
             a.cols,
-            this.executionGroup(PanelWork.MultiDot, rows, a.cols, xStride == 1),
+            panels.executionGroup(PanelWork.MultiDot, rows, a.cols, xStride == 1),
         ) { start, width ->
-            this.multiDot(
+            panels.multiDot(
                 alpha, a.values, a.offset + start * a.leadingDimension, a.leadingDimension, x,
                 xOffset, xStride, rows, width, beta, y,
                 yOffset + start * yStride, yStride,
@@ -348,9 +349,9 @@ private fun KoblasEngine.gemvCore(
         applyBeta(this, y, yOffset, rows, beta, yStride)
         forEachPanel(
             a.cols,
-            this.executionGroup(PanelWork.ColumnUpdate, rows, a.cols, yStride == 1),
+            panels.executionGroup(PanelWork.ColumnUpdate, rows, a.cols, yStride == 1),
         ) { start, width ->
-            this.columnUpdate(
+            panels.columnUpdate(
                 alpha, a.values, a.offset + start * a.leadingDimension, a.leadingDimension, x,
                 xOffset + start * xStride, xStride, rows, width, y, yOffset, yStride,
             )
@@ -599,13 +600,14 @@ private fun KoblasEngine.symvCore(
     yStride: Int,
     lower: Boolean,
 ) {
+    val panels = panelProvider
     val n = a.rows
     applyBeta(this, y, yOffset, a.rows, beta, yStride)
-    val group = this.executionGroup(PanelWork.CoupledDotUpdate, n, n, xStride == 1 && yStride == 1)
+    val group = panels.executionGroup(PanelWork.CoupledDotUpdate, n, n, xStride == 1 && yStride == 1)
     forEachTrianglePanel(n, group, lower, fromDiagonal = false) { start, width, window, rows ->
         symmetricCorner(alpha, a, x, xOffset, xStride, y, yOffset, yStride, start, width, lower)
         if (rows > 0) {
-            this.coupledUpdateDot(
+            panels.coupledUpdateDot(
                 alpha, a.values, a.offset + window + start * a.leadingDimension, a.leadingDimension, x,
                 xOffset + window * xStride, rows, width, y, yOffset + window * yStride, x,
                 xOffset + start * xStride, y, yOffset + start * yStride, xStride, yStride,
@@ -849,11 +851,12 @@ private fun KoblasEngine.gerCore(
     rows: Int,
     columns: Int,
 ) {
+    val panels = panelProvider
     forEachPanel(
         columns,
-        this.executionGroup(PanelWork.RankUpdate, rows, columns, sxStride == 1),
+        panels.executionGroup(PanelWork.RankUpdate, rows, columns, sxStride == 1),
     ) { start, width ->
-        this.rankUpdate(
+        panels.rankUpdate(
             alpha, a.values, aOffset + start * a.leadingDimension, a.leadingDimension,
             sx, sxOffset, sxStride, rows, width,
             sy, syOffset + start * syStride, syStride,
@@ -952,10 +955,11 @@ public fun KoblasEngine.syr(
             implementation.computeSyr(alpha, sx, a, symmetricStructure(lower))
             return@staged
         }
+        val panels = panelProvider
         val xv = sx.values
         val origin = sx.offset
         val step = sx.stride
-        val group = this.executionGroup(PanelWork.RankUpdate, n, n, sx.stride == 1)
+        val group = panels.executionGroup(PanelWork.RankUpdate, n, n, sx.stride == 1)
         forEachTrianglePanel(n, group, lower, fromDiagonal = true) { start, width, window, rows ->
             // Only the diagonal corner has differing stored rows; the remaining window is shared by the group.
             val cornerFirst = if (lower) start else start + 1
@@ -967,7 +971,7 @@ public fun KoblasEngine.syr(
                     a.values[a.offset + i + c * a.leadingDimension] += coefficient * xv[origin + i * step]
                 }
             }
-            this.rankUpdate(
+            panels.rankUpdate(
                 alpha, a.values, a.offset + window + start * a.leadingDimension, a.leadingDimension, xv,
                 origin + window * step, step, rows, width,
                 xv, origin + start * step, step,
@@ -1001,6 +1005,7 @@ public fun KoblasEngine.syr2(
 }
 
 private fun KoblasEngine.syr2Core(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrixRegion, lower: Boolean) {
+    val panels = panelProvider
     val n = a.rows
     val xv = x.values
     val yv = y.values
@@ -1009,7 +1014,7 @@ private fun KoblasEngine.syr2Core(alpha: Double, x: DenseVector, y: DenseVector,
     val yOrigin = y.offset
     val yStep = y.stride
     val lda = a.leadingDimension
-    val group = this.executionGroup(PanelWork.RankUpdate, n, n, xStep == 1 && yStep == 1)
+    val group = panels.executionGroup(PanelWork.RankUpdate, n, n, xStep == 1 && yStep == 1)
     forEachTrianglePanel(n, group, lower, fromDiagonal = true) { start, width, window, rows ->
         // Only the diagonal corner has differing stored rows; the remaining window is shared by the group.
         val cornerFirst = if (lower) start else start + 1
@@ -1023,7 +1028,7 @@ private fun KoblasEngine.syr2Core(alpha: Double, x: DenseVector, y: DenseVector,
                     alpha * (xv[xOrigin + i * xStep] * yc + yv[yOrigin + i * yStep] * xc)
             }
         }
-        this.rankTwoUpdate(
+        panels.rankTwoUpdate(
             alpha, a.values, a.offset + window + start * lda, lda,
             xv, xOrigin + window * xStep, xStep, yv, yOrigin + window * yStep, yStep, rows, width,
             yv, yOrigin + start * yStep, yStep, xv, xOrigin + start * xStep, xStep,
@@ -1115,6 +1120,8 @@ private fun KoblasEngine.trsvCore(
     transpose: Boolean,
     unitDiag: Boolean,
 ) {
+    val panels = panelProvider
+    val triangles = triangularProvider
     val n = a.rows
     val lda = a.leadingDimension
     val ascending = lower != transpose
@@ -1124,17 +1131,17 @@ private fun KoblasEngine.trsvCore(
         val outsideRows = if (lower) n - end else start
         val block = a.offset + outside + start * lda
         if (transpose && outsideRows > 0) {
-            this.multiDot(
+            panels.multiDot(
                 -1.0, a.values, block, lda, x, xOffset + outside * xStride, xStride, outsideRows, end - start,
                 1.0, x, xOffset + start * xStride, xStride,
             )
         }
-        this.diagonalSolve(
+        triangles.diagonalSolve(
             a.values, lda, start, end - start, transpose, lower != transpose, unitDiag,
             x, xOffset + start * xStride, xStride, 1, 1, a.offset,
         )
         if (!transpose && outsideRows > 0) {
-            this.columnUpdate(
+            panels.columnUpdate(
                 -1.0, a.values, block, lda, x, xOffset + start * xStride, xStride, outsideRows, end - start,
                 x, xOffset + outside * xStride, xStride,
             )
@@ -1209,6 +1216,8 @@ private fun KoblasEngine.trmvCore(
     transpose: Boolean,
     unitDiag: Boolean,
 ) {
+    val panels = panelProvider
+    val triangles = triangularProvider
     val n = a.rows
     val lda = a.leadingDimension
     // Traverse in opposite directions for transpose variants to preserve values until their last use.
@@ -1219,17 +1228,17 @@ private fun KoblasEngine.trmvCore(
         val outsideRows = if (lower) n - end else start
         val block = a.offset + outside + start * lda
         if (!transpose && outsideRows > 0) {
-            this.columnUpdate(
+            panels.columnUpdate(
                 1.0, a.values, block, lda, x, xOffset + start * xStride, xStride, outsideRows, end - start,
                 x, xOffset + outside * xStride, xStride,
             )
         }
-        this.diagonalMultiply(
+        triangles.diagonalMultiply(
             a.values, lda, start, end - start, transpose, lower != transpose, unitDiag,
             x, xOffset + start * xStride, xStride, 1, 1, a.offset,
         )
         if (transpose && outsideRows > 0) {
-            this.multiDot(
+            panels.multiDot(
                 1.0, a.values, block, lda, x, xOffset + outside * xStride, xStride, outsideRows, end - start,
                 1.0, x, xOffset + start * xStride, xStride,
             )

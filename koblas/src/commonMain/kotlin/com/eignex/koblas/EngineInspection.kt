@@ -6,6 +6,15 @@ import com.eignex.koblas.internal.configuration.CombinedEngine
 public val KoblasEngine.providers: List<KoblasEngine> get() =
     if (this is CombinedEngine) routing.backends.toList() else listOf(this)
 
+internal val KoblasEngine.panelProvider: KoblasEngine get() =
+    if (this is CombinedEngine) panelImplementation else this
+
+internal val KoblasEngine.productProvider: KoblasEngine get() =
+    if (this is CombinedEngine) productImplementation else this
+
+internal val KoblasEngine.triangularProvider: KoblasEngine get() =
+    if (this is CombinedEngine) triangularImplementation else this
+
 /** The provider bound by the dispatcher, before any value-dependent arithmetic fallback. */
 internal fun KoblasEngine.providerFor(
     operation: EngineImplementation,
@@ -47,18 +56,18 @@ internal fun KoblasEngine.implementationFor(
     columns: Int,
     contiguous: Boolean = true,
 ): String {
-    val engine = if (this is CombinedEngine) panelImplementation else this
+    val engine = panelProvider
     return platformPanelImplementation(engine, work, rows, columns, contiguous) ?: engine.name
 }
 
 internal fun KoblasEngine.implementationsFor(rows: Int, columns: Int, depth: Int): List<String> {
-    val engine = if (this is CombinedEngine) productImplementation else this
+    val engine = productProvider
     return platformProductImplementations(engine, rows, columns, depth)
         ?: if (rows <= 0 || columns <= 0 || depth <= 0) emptyList() else listOf(engine.name)
 }
 
 internal fun KoblasEngine.implementationsFor(order: Int, sides: Int, contiguous: Boolean): List<String> {
-    val engine = if (this is CombinedEngine) triangularImplementation else this
+    val engine = triangularProvider
     return platformTriangularImplementations(engine, order, sides, contiguous)
         ?: if (order <= 0 || sides <= 0) emptyList() else listOf(engine.name)
 }

@@ -16,7 +16,7 @@ import kotlin.test.assertTrue
  * on a runtime without the module is a linkage error before any test body runs.
  */
 class SimdPanelKernelsTest {
-    private val kernels: KoblasEngine? = BuiltinEngines.simd
+    private val kernels: KoblasEngine? = BuiltinEngines.simd?.panelProvider
 
     @Test
     fun `long column updates agree with the scalar oracle`() {
@@ -28,12 +28,12 @@ class SimdPanelKernelsTest {
     @Test
     fun `a panel with lanes to fill reaches the vector body and a shorter one does not`() {
         val kernels = kernels ?: return skipped()
-        val lanes = lanes(kernels)
+        val lanes = lanes()
 
         for (work in vectorised()) {
-            assertEquals(panelName(kernels), kernels.implementationFor(work, lanes, 4), "$work at $lanes rows")
+            assertEquals(kernels.name, kernels.implementationFor(work, lanes, 4), "$work at $lanes rows")
             assertEquals(
-                if (hasShortBody(work)) panelName(kernels) else PortableEngine.name,
+                if (hasShortBody(work)) kernels.name else PortableEngine.name,
                 kernels.implementationFor(work, lanes - 1, 4),
                 "$work at ${lanes - 1} rows",
             )
@@ -45,8 +45,8 @@ class SimdPanelKernelsTest {
         val kernels = kernels ?: return skipped()
 
         for (work in listOf(PanelWork.MultiDot, PanelWork.ColumnUpdate)) {
-            for (rows in 1 until lanes(kernels)) {
-                assertEquals(panelName(kernels), kernels.implementationFor(work, rows, 4096), "$work over $rows rows")
+            for (rows in 1 until lanes()) {
+                assertEquals(kernels.name, kernels.implementationFor(work, rows, 4096), "$work over $rows rows")
                 assertEquals(
                     4096,
                     kernels.executionGroup(work, rows, 4096),
@@ -74,10 +74,10 @@ class SimdPanelKernelsTest {
     @Test
     fun `the sparse right hand side panel names a vector body only where its sides are adjacent`() {
         val kernels = kernels ?: return skipped()
-        val lanes = lanes(kernels)
+        val lanes = lanes()
 
         assertEquals(
-            panelName(kernels),
+            kernels.name,
             kernels.implementationFor(PanelWork.SparseRightHandSides, WIDE, 4),
             "adjacent right-hand sides",
         )
@@ -133,13 +133,9 @@ class SimdPanelKernelsTest {
     private fun hasShortBody(work: PanelWork): Boolean = work == PanelWork.MultiDot || work == PanelWork.ColumnUpdate
 
     /** The species this backend resolved, read back from the name it publishes. */
-    private fun lanes(kernels: KoblasEngine): Int = kernels.providers.first {
+    private fun lanes(): Int = checkNotNull(BuiltinEngines.simd).providers.first {
         EngineImplementation.Dot in it.implementations
     }.minimumLength(EngineImplementation.Dot)
-
-    private fun panelName(kernels: KoblasEngine): String = kernels.providers.first {
-        EngineImplementation.Panels in it.implementations
-    }.name
 
     private fun vectorised() = PanelWork.entries
 

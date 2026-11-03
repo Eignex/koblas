@@ -2,7 +2,6 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.internal.configuration.CombinedEngine
 import com.eignex.koblas.internal.jvm25.simd.SIMD_SPECIES
 import com.eignex.koblas.internal.jvm25.simd.hardwareFusedMultiplyAdd
 import com.eignex.koblas.internal.numeric.assertHardwareFmaAgreesWithVm
@@ -41,9 +40,9 @@ internal object SimdRuntimePathCheck {
         assertIamaxHonoursItsContract(engine)
         SimdOpsTest().`iamax agrees with the scalar oracle when blocks keep improving`()
         SimdOpsTest().`iamax distinguishes magnitudes sharing a high word`()
-        val panels = engine
+        val panels = engine.panelProvider
         check(
-            (panels as CombinedEngine).panelImplementation.name == "simd-panel($lanes lanes)",
+            panels.name == "simd-panel($lanes lanes)",
         ) { "the backend named ${panels.name} at $lanes lanes" }
 
         assertPanelKernelsAgreeWithReference(panels)
@@ -53,18 +52,18 @@ internal object SimdRuntimePathCheck {
         assertExecutionGroupIsUsable(panels)
 
         // The eligibility follows the species this process resolved, not the one it was written against.
-        check(panels.implementationFor(PanelWork.MultiDot, lanes, 4) == panels.panelImplementation.name) {
+        check(panels.implementationFor(PanelWork.MultiDot, lanes, 4) == panels.name) {
             "a panel of one whole lane block did not reach the vector body at $lanes lanes"
         }
         check(panels.implementationFor(PanelWork.RankUpdate, lanes - 1, 4) == PortableEngine.name) {
             "a rank update shorter than a lane block reached the vector body at $lanes lanes"
         }
-        check(panels.implementationFor(PanelWork.MultiDot, lanes - 1, 4) == panels.panelImplementation.name) {
+        check(panels.implementationFor(PanelWork.MultiDot, lanes - 1, 4) == panels.name) {
             "a reduction shorter than a lane block missed its short body at $lanes lanes"
         }
         checkProducts(engine, lanes)
-        val triangles = engine
-        check(triangles.triangularImplementation.name == "simd-substitution($lanes lanes)") {
+        val triangles = engine.triangularProvider
+        check(triangles.name == "simd-substitution($lanes lanes)") {
             "the backend named ${triangles.name} at $lanes lanes"
         }
         assertTriangularKernelsAgreeWithReference(triangles, lanes)
@@ -78,7 +77,7 @@ internal object SimdRuntimePathCheck {
      * destinations have a remainder moves with the species.
      */
     private fun checkProducts(engine: KoblasEngine, lanes: Int) {
-        val products = engine
+        val products = engine.productProvider
         check(products.tileRows % lanes == 0) {
             "the product tile has ${products.tileRows} rows, which is not lane blocks at $lanes lanes"
         }
@@ -112,8 +111,8 @@ internal object SimdRuntimePathCheck {
                 val orderStride = sides * rhsStride + 2
                 val bodies = when {
                     rhsStride != 1 || sides < lanes -> listOf(PortableEngine.name)
-                    sides % lanes == 0 -> listOf((kernels as CombinedEngine).triangularImplementation.name)
-                    else -> listOf((kernels as CombinedEngine).triangularImplementation.name, PortableEngine.name)
+                    sides % lanes == 0 -> listOf(kernels.name)
+                    else -> listOf(kernels.name, PortableEngine.name)
                 }
                 assertEquals(
                     bodies,
@@ -172,7 +171,7 @@ internal object SimdRuntimePathCheck {
             val start = 1
             check(
                 kernels.implementationsFor(order, 1, contiguous = true) ==
-                    listOf((kernels as CombinedEngine).triangularImplementation.name),
+                    listOf(kernels.name),
             ) {
                 "a single contiguous side of order $order missed its body at $lanes lanes"
             }

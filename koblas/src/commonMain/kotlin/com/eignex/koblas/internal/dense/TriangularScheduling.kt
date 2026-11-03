@@ -129,8 +129,9 @@ internal fun triangularMatrix(
     val orderStride = if (right) ldb else 1
     val rhsStride = if (right) 1 else ldb
     val block = if (TRIANGULAR_DIAGONAL_BLOCK < order) TRIANGULAR_DIAGONAL_BLOCK else order
-    val group = triangularGroup(engine, block, sides)
-    val gathers = engine.gathersRightHandSides(rhsStride, block, sides)
+    val triangles = engine.triangularProvider
+    val group = triangularGroup(triangles, block, sides)
+    val gathers = triangles.gathersRightHandSides(rhsStride, block, sides)
     workspace.borrowOptional(if (gathers) block * group else 0) { gathered ->
         forEachTriangularBlock(order, block, mLower, solve) {
                 start,
@@ -141,7 +142,7 @@ internal fun triangularMatrix(
                 sourceCount,
             ->
             diagonalStep(
-                engine, t, ldt, tOffset, start, size, flip, mLower, unitDiag, solve,
+                triangles, t, ldt, tOffset, start, size, flip, mLower, unitDiag, solve,
                 b, bOffset, orderStride, rhsStride, sides, group, gathers, gathered,
             )
             if (targetCount > 0 && sourceCount > 0) {
