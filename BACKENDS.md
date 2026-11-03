@@ -38,7 +38,7 @@ JVM native calls copy arrays to and from native memory, so they mainly help larg
 Kotlin/Native can pin arrays in place. Sparse operations keep portable CSC traversal and use selected
 kernels for arithmetic within it.
 
-## Explicit engines and workspaces
+## Explicit engines
 
 `BuiltinEngines.scalar` selects portable Kotlin; `BuiltinEngines.simd` and
 `BuiltinEngines.vendor(Vendor.OneMkl)` return an exact engine or null when unavailable.
@@ -56,17 +56,6 @@ All implementations share `KoblasEngine` and declare positive `EngineImplementat
 selects arithmetic through profile rules; shared operations handle validation, aliases and scheduling.
 Portable Levels 1–3 live under `internal/portable/dense/` and `internal/portable/sparse/`; vendor engines
 remain independent.
-
-Bind reusable scratch through the workspace package:
-
-```kotlin
-import com.eignex.koblas.workspace.*
-
-val engine = koblas.withWorkspace(Workspace())
-```
-
-This preserves routing and reuses alias snapshots, packed panels and sparse scratch. Concurrent calls
-need separate workspaces. See [usage examples](USAGE.md).
 
 ## Recalculate profiles
 

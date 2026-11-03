@@ -52,7 +52,8 @@ koblas.gemv(1.0, a, x, 0.0, destination) // Same calculation as a * x
 ```
 
 The fuller forms can scale the product and add it to the destination in one call. For matrices,
-GEMM computes `c = alpha * a * b + beta * c` when neither operand is transposed:
+GEMM computes `c = alpha * a * b + beta * c` when neither operand is transposed. Bind a workspace
+to the engine to reuse temporary buffers across calls:
 
 ```kotlin
 import com.eignex.koblas.workspace.*
@@ -70,9 +71,10 @@ repeat(1_000) {
 
 With beta set to zero, each call replaces the result; setting it to one accumulates into the result.
 Transpose flags let you multiply by a transposed operand without creating a separate transposed matrix.
-A workspace reuses temporary buffers, such as copies needed when inputs overlap the destination.
-It does not remove allocations from expressions that return new results or from sparse operations
-that build a new storage pattern. Concurrent calls need separate destinations and workspaces.
+`withWorkspace` preserves the engine’s arithmetic and routing while reusing alias snapshots, packed
+panels and sparse scratch. It does not remove allocations from expressions that return new results or
+from sparse operations that build a new storage pattern. Concurrent calls need separate destinations
+and workspaces.
 
 You can also reuse storage you already have. The wrapping factories share the supplied array without
 copying it. Dense matrix storage is column-major: elements in a column are adjacent, and `a[i, j]`
@@ -113,7 +115,7 @@ DenseVector x = DenseVector.of(new double[] {3.0, 5.0});
 DenseVector y = Koblas.multiply(a, x);
 
 DenseVector destination = DenseVector.wrap(new double[a.getRows()]);
-DenseBlas.gemv(Engines.getDefault(), 1.0, a, x, 0.0, destination, false, null);
+DenseBlas.gemv(Engines.getDefault(), 1.0, a, x, 0.0, destination, false);
 ```
 
 Android uses the same dependency as desktop JVM projects, with Java 17 bytecode support in your Android
