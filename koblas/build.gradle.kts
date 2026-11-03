@@ -187,7 +187,7 @@ val profiles = buildList {
     for (mode in listOf("inherited", "initialized")) {
         add(JvmCheckProfile(
             "oneMkl${mode.replaceFirstChar(Char::uppercase)}InterfaceCheck",
-            "com.eignex.koblas.vendor.OneMklInterfaceCheck", listOf(mode),
+            "com.eignex.koblas.internal.host.OneMklInterfaceCheck", listOf(mode),
             listOf("--enable-native-access=ALL-UNNAMED", "-XX:ActiveProcessorCount=1"),
             "128m", mapOf("MKL_INTERFACE_LAYER" to "ILP64"), oneMkl = true,
         ))

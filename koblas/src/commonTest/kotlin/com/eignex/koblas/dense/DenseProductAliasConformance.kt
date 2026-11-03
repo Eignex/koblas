@@ -1,10 +1,11 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.Workspace
+import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.copyOf
 import com.eignex.koblas.randomMatrix
+import com.eignex.koblas.sparse.*
+import com.eignex.koblas.workspace.*
 import kotlin.random.Random
 import kotlin.test.assertEquals
 
@@ -66,7 +67,7 @@ private fun assertProductAliasesAgreeWithReference(
 }
 
 /** Shared storage must retain distinct shapes, including a transposed input staged against its destination. */
-internal fun assertRectangularProductAliasesAgreeWithReference(blas: DenseBlas) {
+internal fun assertRectangularProductAliasesAgreeWithReference(blas: KoblasEngine) {
     val rng = Random(20261014)
     for (useWorkspace in booleanArrayOf(false, true)) {
         for (aliasDestination in booleanArrayOf(false, true)) {
@@ -77,7 +78,7 @@ internal fun assertRectangularProductAliasesAgreeWithReference(blas: DenseBlas) 
             ReferenceBlas.gemm(0.875, a.copyOf(), aliasDestination, b.copyOf(), false, -0.25, expected)
             val workspace = if (useWorkspace) Workspace() else null
 
-            blas.gemm(0.875, a, aliasDestination, b, false, -0.25, c, workspace)
+            blas.withWorkspace(workspace).gemm(0.875, a, aliasDestination, b, false, -0.25, c)
 
             assertClose(expected.values, c.values, "rectangular alias=$aliasDestination workspace=$useWorkspace")
             workspace?.let { assertEquals(if (aliasDestination) 1 else 0, it.available(a.values.size)) }
@@ -86,28 +87,28 @@ internal fun assertRectangularProductAliasesAgreeWithReference(blas: DenseBlas) 
 }
 
 /** All affected products, with independent transpose flags, stored triangles and symmetric sides. */
-internal fun assertDenseProductAliasesAgreeWithReference(blas: DenseBlas) {
+internal fun assertDenseProductAliasesAgreeWithReference(blas: KoblasEngine) {
     for (transposeA in booleanArrayOf(false, true)) {
         for (transposeB in booleanArrayOf(false, true)) {
             assertProductAliasesAgreeWithReference(
-                { a, b, c, w -> blas.gemm(0.875, a, transposeA, b, transposeB, -0.25, c, w) },
+                { a, b, c, w -> blas.withWorkspace(w).gemm(0.875, a, transposeA, b, transposeB, -0.25, c) },
                 { a, b, c -> ReferenceBlas.gemm(0.875, a, transposeA, b, transposeB, -0.25, c) },
             )
             for (lower in booleanArrayOf(false, true)) {
                 assertProductAliasesAgreeWithReference(
-                    { a, b, c, w -> blas.gemmt(0.875, a, transposeA, b, transposeB, -0.25, c, lower, w) },
+                    { a, b, c, w -> blas.withWorkspace(w).gemmt(0.875, a, transposeA, b, transposeB, -0.25, c, lower) },
                     { a, b, c -> ReferenceBlas.gemmt(0.875, a, transposeA, b, transposeB, -0.25, c, lower) },
                 )
             }
         }
         for (lower in booleanArrayOf(false, true)) {
             assertProductAliasesAgreeWithReference(
-                { a, b, c, w -> blas.syr2k(0.875, a, b, transposeA, -0.25, c, lower, w) },
+                { a, b, c, w -> blas.withWorkspace(w).syr2k(0.875, a, b, transposeA, -0.25, c, lower) },
                 { a, b, c -> ReferenceBlas.syr2k(0.875, a, b, transposeA, -0.25, c, lower) },
             )
             // The same flag also covers both positions of the symmetric operand.
             assertProductAliasesAgreeWithReference(
-                { a, b, c, w -> blas.symm(0.875, a, b, -0.25, c, lower, transposeA, w) },
+                { a, b, c, w -> blas.withWorkspace(w).symm(0.875, a, b, -0.25, c, lower, transposeA) },
                 { a, b, c -> ReferenceBlas.symm(0.875, a, b, -0.25, c, lower, transposeA) },
             )
         }

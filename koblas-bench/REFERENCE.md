@@ -45,7 +45,7 @@ Other timing distinctions to keep in mind:
 - Ordinary mutating cases commonly include destination reset. `timing=arithmetic` excludes it where supported.
 - `axpy-unit` accumulates with alpha one without a timed reset; ordinary `axpy` uses a nonunit multiplier and includes reset.
 - `ger-shrinking` and `ger-window-shrinking` report a batch of `n - 1` updates, excluding matrix reset and factorization work.
-- GEMM's `workspace=retained` reuses scratch; `layout=borrowed` uses offsets and padded storage. Explicit vendor arms decline borrowed cases.
+- GEMM's `workspace=retained` reuses scratch; `layout=borrowed` uses offsets and padded storage. All engine arms share these addressed fixtures.
 - Sparse construction cases include allocation; view and raw indexed cases include their public validation and dispatch.
 
 Setup validates results against scalar references before measurement. Kernel timings do not establish
@@ -58,10 +58,16 @@ An engine row's `comparison_kind` is `engine` and its `actual_kernel` is the sel
 the operation: a selection, not the body a given size reached. Exact arms pin an engine through
 `BuiltinEngines`, which is what makes them exact. Default engines can mix Kotlin and native calls. A default
 engine that loaded a native library names it, with its path, version and thread evidence, in the
-target's `implementation` line in `metadata.txt`; no row says whether its own call reached that library. SIMD
+target's `implementation` line in `metadata.txt`. The `provider` column records the Level 1 or whole-call
+provider selected by the same internal dispatcher the call uses. `scheduled` denotes shared scheduling
+with owned kernels, including portable CSC traversal; it does not claim a single arithmetic body. SIMD
 targets can take scalar fallbacks below their crossovers, and sparse scheduling remains Kotlin even when
-arithmetic uses SIMD. Vendor rows name the entry point the binding reached. JVM vendor timings include
+arithmetic uses SIMD. Vendor rows name the implementation supplied by the binding. JVM vendor timings include
 array transfers.
+
+Dense vector cases accept `stride=2`, `stride=-1` and `stride=-2`; omitted stride means contiguous owned
+arrays. `copy` measures the same checked engine operation as the other arms. Routing keys record
+`operation:rows:columns:depth:borrowed:level:contiguous`; indexed vector keys use stored counts.
 
 ## Lab captures
 
@@ -84,12 +90,57 @@ A request identifies `repository: "Eignex/koblas"` and supplies:
 }
 ```
 
-Pass this object as `bench`. Parameters follow the capture options; paths are relative to the repository.
-The adapter owns the output directory and retains logs and partial results on failure. It also accepts
-`platform`, `memory-mib` and `timeout-seconds`; Windows workers need Git Bash or an absolute KOBLAS_BASH.
+Pass this object as `bench`. Each selected workload becomes one paired case; paths are relative to the repository.
+Default arms use the compiled Kotlin profile. One adapter handles owned and vendor captures, with `vendor`, `platform` and `arch` selecting compatible placement. It uses 2 GiB per case,
+a 512 MiB JVM heap and serial GC; `samples`, `warmups`, `target-ms`, `forks` and `rounds` set the timing
+protocol. `jvm-options`, `profile-gc` and `smoke` are explicit options. Direct captures retain the CLI's
+other controls. The adapter owns the output directory and retains logs and partial results on failure.
+Windows workers need Git Bash or an absolute KOBLAS_BASH.
 Use automatic placement. Keep all arms of a comparison row on one machine in one worker attempt;
 replacement attempts rerun the complete unfinished row. Other rows may use different compatible machines.
 See [LabAdapter.kt](src/jvmMain/kotlin/com/eignex/koblas/bench/LabAdapter.kt) for accepted parameters and validation.
+
+The [calibration manifest](lab/calibration.json) prepares the same generated grids as local tuning under
+`koblas-bench/build/calibration/`. Set `cases` to `training.txt` or `holdout.txt` for JVM, or
+`native-training.txt` or `native-holdout.txt` for Native. `native-tail.txt` supplements identical measured
+sources; changing measured code requires a fresh capture of the target.
+Use [the macOS manifest](lab/calibration-macos.json) for Accelerate so preparation builds on a compatible
+Mac. The [Linux ARM64 manifest](lab/calibration-linux-arm64.json) declares x64 preparation and ARM64
+build outputs, so the lab hands the cross-built executable to compatible ARM workers.
+Native executables are frozen inputs built once during preparation; measured rows never invoke Gradle.
+Each workload has its own paired case, uses the lab's normal CPU accounting and 2 GiB, and runs without
+CPU affinity pinning. Placement chooses compatible hardware automatically. `native-timing.txt` is a small
+subset for comparing timing protocols before changing measurement settings.
+The exact `jvm-simd` arm measures every supplied owned contribution from its intrinsic minimum length.
+The Kotlin `generateCalibrationGrids` task generates the grids.
+OneMKL comparisons may also include OpenBLAS arms, keeping vendor-precedence measurements in the same
+worker attempt. Generated grids are declared inputs; they are not checked into source control.
+
+### Recalculate routing profiles
+
+Capture on the intended host; this example prepares Linux x64 Native comparisons:
+
+```bash
+./gradlew :koblas-bench:prepareLabCalibration :koblas-bench:tuneEngine \
+  --args="--capture --runtime native --backend onemkl --backend openblas --cpu * --native-executable koblas-bench/build/bin/linuxX64/releaseExecutable/koblas-bench.kexe --output /tmp/native-profile"
+```
+
+The Kotlin tool emits `Profile.kt` and external evidence. Use its declaration in the standard target
+configuration, rebuild, and capture disjoint holdouts through `native-default` or `jvm-default`.
+Use `--runtime jvm` for transfer-inclusive tuning, or repeated `--results PATH` arguments to refit
+fetched captures. Retain lab job and execution metadata alongside results; `--fallback aocl=openblas`
+and `--fallback armpl=openblas` explicitly label unmeasured vendor estimates.
+
+Validate the rebuilt composition against its generated profile identity:
+
+```bash
+./gradlew :koblas-bench:tuneEngine \
+  --args="--validate-results /tmp/holdouts --training /tmp/native-profile --runtime native --output /tmp/validated-profile"
+```
+
+Validation checks profile identity, disjoint cases, provider reach and paired ratios.
+`--validation-cases PATH` selects a holdout list; `generateCalibrationGrids` emits the standard grids.
+Keep reports and measurement data outside the repository.
 
 ### Score lab comparisons
 
@@ -119,11 +170,9 @@ coprocessor exemption.
 
 ### Prepared vendor comparisons
 
-[The vendor comparison manifest](lab/vendor-comparison.json) builds the Native executable and pins the
-oneMKL reference during preparation. [The macOS manifest](lab/vendor-comparison-macos.json) prepares
-Accelerate comparisons on a compatible Mac. [The Linux ARM64 manifest](lab/vendor-comparison-linux-arm64.json)
-cross-builds the executable during preparation, since Kotlin/Native has no Linux ARM64 compiler host.
-Use it with OpenBLAS and `arch=arm64`; execution rows select compatible ARM workers automatically.
+The same calibration manifests prepare vendor comparisons: Linux x64 pins the oneMKL reference,
+macOS supplies Accelerate, and Linux ARM64 cross-builds on x64 because Kotlin/Native has no ARM compiler host.
+Use the ARM manifest with OpenBLAS and `arch=arm64`; execution rows select compatible ARM workers automatically.
 Timed workers use these frozen inputs without invoking
 Gradle or downloading vendor packages. JVM-only arms need no Native executable input.
 

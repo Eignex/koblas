@@ -1,9 +1,5 @@
 package com.eignex.koblas.internal.jvm25.simd
 
-import com.eignex.koblas.*
-import com.eignex.koblas.dense.*
-import com.eignex.koblas.sparse.*
-import com.eignex.koblas.vendor.*
 import com.sun.management.HotSpotDiagnosticMXBean
 import java.lang.management.ManagementFactory
 

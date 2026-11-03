@@ -1,11 +1,7 @@
 package com.eignex.koblas.internal.jvm25.host
 
 import com.eignex.koblas.*
-import com.eignex.koblas.DenseMatrixRegion
-import com.eignex.koblas.DenseVector
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.sparse.*
-import com.eignex.koblas.vendor.*
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout.JAVA_DOUBLE
@@ -14,9 +10,8 @@ import kotlin.math.abs
 /**
  * Operands copied into native memory for one call.
  *
- * Non-critical downcalls cannot accept heap segments. The route names the transfer adapter so
- * measurements include this copy. A confined arena closes even on exceptions; concurrent calls
- * share no segments.
+ * Non-critical downcalls cannot accept heap segments, so measured vendor calls include this copy.
+ * A confined arena closes even on exceptions; concurrent calls share no segments.
  */
 internal class NativeVector(
     /** The native copy handed to BLAS. */

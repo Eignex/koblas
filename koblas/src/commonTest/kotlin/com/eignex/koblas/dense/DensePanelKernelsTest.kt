@@ -2,8 +2,9 @@
 
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.internal.dense.DensePanelKernels
-import com.eignex.koblas.internal.dense.PortablePanelKernels
+import com.eignex.koblas.*
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.portable.PortableEngine
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -63,7 +64,9 @@ class DensePanelKernelsTest {
     }
 
     /** A valid dense zero shortcut; indexed leaves retain their separate stored-position behavior. */
-    private class ZeroSkippingPanels : DensePanelKernels by PortablePanelKernels {
+    private class ZeroSkippingPanels : KoblasEngine by PortableEngine {
+        override val name = "zero-skipping"
+        override val implementations = setOf(EngineImplementation.Panels)
         var skippedCoefficients: Int = 0
             private set
 
@@ -86,7 +89,7 @@ class DensePanelKernelsTest {
                 if (x[xOffset + column * xStride] == 0.0) {
                     skippedCoefficients++
                 } else {
-                    PortablePanelKernels.columnUpdate(
+                    PortableEngine.columnUpdate(
                         alpha, a, aOffset + column * lda, lda, x, xOffset + column * xStride, xStride,
                         rows, 1, y, yOffset, yStride,
                     )
@@ -113,7 +116,7 @@ class DensePanelKernelsTest {
                 if (coefficients[coefficientOffset + column * coefficientStride] == 0.0) {
                     skippedCoefficients++
                 } else {
-                    PortablePanelKernels.rankUpdate(
+                    PortableEngine.rankUpdate(
                         alpha, a, aOffset + column * lda, lda, x, xOffset, xStride, rows, 1,
                         coefficients, coefficientOffset + column * coefficientStride, coefficientStride,
                     )

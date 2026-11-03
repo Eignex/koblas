@@ -1,23 +1,18 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.MAX_IDLE_LENGTHS
-import com.eignex.koblas.Workspace
+import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.copyOf
-import com.eignex.koblas.internal.dense.DensePanelKernels
-import com.eignex.koblas.internal.dense.DenseProductKernels
-import com.eignex.koblas.internal.dense.DenseTriangularKernels
-import com.eignex.koblas.internal.dense.PortableDenseBlas
-import com.eignex.koblas.internal.dense.PortablePanelKernels
-import com.eignex.koblas.internal.dense.PortableProductKernels
-import com.eignex.koblas.internal.dense.PortableTriangularKernels
-import com.eignex.koblas.internal.dense.SYMMETRIC_BLOCK
-import com.eignex.koblas.internal.dense.ScalarVectorKernels
-import com.eignex.koblas.internal.dense.TRIANGULAR_DIAGONAL_BLOCK
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.engineWithKernels
+import com.eignex.koblas.internal.operands.*
+import com.eignex.koblas.internal.portable.PortableEngine
+import com.eignex.koblas.internal.portable.dense.SYMMETRIC_BLOCK
+import com.eignex.koblas.internal.portable.dense.TRIANGULAR_DIAGONAL_BLOCK
 import com.eignex.koblas.poisonedTriangle
 import com.eignex.koblas.randomMatrix
+import com.eignex.koblas.sparse.*
+import com.eignex.koblas.workspace.*
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -30,75 +25,72 @@ class TriangularSchedulingTest {
     private val rng = Random(20261103)
 
     @Test
-    fun `trsm solves every transpose and diagonal mode from the left with an upper triangle`() = withDenseBlas { blas ->
+    fun `trsm solves every transpose and diagonal mode from the left with an upper triangle`() = withEngines { blas ->
         assertSolves(blas, right = false, lower = false)
     }
 
     @Test
-    fun `trsm solves every transpose and diagonal mode from the left with a lower triangle`() = withDenseBlas { blas ->
+    fun `trsm solves every transpose and diagonal mode from the left with a lower triangle`() = withEngines { blas ->
         assertSolves(blas, right = false, lower = true)
     }
 
     @Test
-    fun `trsm solves every transpose and diagonal mode from the right with an upper triangle`() =
-        withDenseBlas { blas ->
-            assertSolves(blas, right = true, lower = false)
-        }
+    fun `trsm solves every transpose and diagonal mode from the right with an upper triangle`() = withEngines { blas ->
+        assertSolves(blas, right = true, lower = false)
+    }
 
     @Test
-    fun `trsm solves every transpose and diagonal mode from the right with a lower triangle`() = withDenseBlas { blas ->
+    fun `trsm solves every transpose and diagonal mode from the right with a lower triangle`() = withEngines { blas ->
         assertSolves(blas, right = true, lower = true)
     }
 
     @Test
-    fun `trmm multiplies every uplo transpose and diagonal mode from the left`() = withDenseBlas { blas ->
+    fun `trmm multiplies every uplo transpose and diagonal mode from the left`() = withEngines { blas ->
         assertMultiplies(blas, right = false)
     }
 
     @Test
-    fun `trmm multiplies every uplo transpose and diagonal mode from the right`() = withDenseBlas { blas ->
+    fun `trmm multiplies every uplo transpose and diagonal mode from the right`() = withEngines { blas ->
         assertMultiplies(blas, right = true)
     }
 
     @Test
-    fun `trsm agrees with the oracle over three blocks from the left with an upper triangle`() = withDenseBlas { blas ->
+    fun `trsm agrees with the oracle over three blocks from the left with an upper triangle`() = withEngines { blas ->
         assertSolves(blas, right = false, lower = false, shapes = threeBlockShapes())
     }
 
     @Test
-    fun `trsm agrees with the oracle over three blocks from the left with a lower triangle`() = withDenseBlas { blas ->
+    fun `trsm agrees with the oracle over three blocks from the left with a lower triangle`() = withEngines { blas ->
         assertSolves(blas, right = false, lower = true, shapes = threeBlockShapes())
     }
 
     @Test
-    fun `trsm agrees with the oracle over three blocks from the right with an upper triangle`() =
-        withDenseBlas { blas ->
-            assertSolves(blas, right = true, lower = false, shapes = threeBlockShapes())
-        }
+    fun `trsm agrees with the oracle over three blocks from the right with an upper triangle`() = withEngines { blas ->
+        assertSolves(blas, right = true, lower = false, shapes = threeBlockShapes())
+    }
 
     @Test
-    fun `trsm agrees with the oracle over three blocks from the right with a lower triangle`() = withDenseBlas { blas ->
+    fun `trsm agrees with the oracle over three blocks from the right with a lower triangle`() = withEngines { blas ->
         assertSolves(blas, right = true, lower = true, shapes = threeBlockShapes())
     }
 
     @Test
-    fun `trmm agrees with the oracle over three blocks from the left with an upper triangle`() = withDenseBlas { blas ->
+    fun `trmm agrees with the oracle over three blocks from the left with an upper triangle`() = withEngines { blas ->
         assertMultiplies(blas, right = false, lowerModes = booleanArrayOf(false), shapes = threeBlockShapes())
     }
 
     @Test
-    fun `trmm agrees with the oracle over three blocks from the left with a lower triangle`() = withDenseBlas { blas ->
+    fun `trmm agrees with the oracle over three blocks from the left with a lower triangle`() = withEngines { blas ->
         assertMultiplies(blas, right = false, lowerModes = booleanArrayOf(true), shapes = threeBlockShapes())
     }
 
     @Test
-    fun `trmm agrees with the oracle over three blocks from the right with an upper triangle`() =
-        withDenseBlas { blas ->
-            assertMultiplies(blas, right = true, lowerModes = booleanArrayOf(false), shapes = threeBlockShapes())
-        }
+    fun `trmm agrees with the oracle over three blocks from the right with an upper triangle`() = withEngines { blas ->
+        assertMultiplies(blas, right = true, lowerModes = booleanArrayOf(false), shapes = threeBlockShapes())
+    }
 
     @Test
-    fun `trmm agrees with the oracle over three blocks from the right with a lower triangle`() = withDenseBlas { blas ->
+    fun `trmm agrees with the oracle over three blocks from the right with a lower triangle`() = withEngines { blas ->
         assertMultiplies(blas, right = true, lowerModes = booleanArrayOf(true), shapes = threeBlockShapes())
     }
 
@@ -106,7 +98,7 @@ class TriangularSchedulingTest {
     private fun threeBlockShapes(): List<Pair<Int, Int>> = listOf(2 * TRIANGULAR_DIAGONAL_BLOCK + 5 to VECTOR_SIDES + 3)
 
     private fun assertSolves(
-        blas: DenseBlas,
+        blas: KoblasEngine,
         right: Boolean,
         lower: Boolean,
         shapes: List<Pair<Int, Int>> = triangularShapes(),
@@ -138,7 +130,7 @@ class TriangularSchedulingTest {
     }
 
     private fun assertMultiplies(
-        blas: DenseBlas,
+        blas: KoblasEngine,
         right: Boolean,
         lowerModes: BooleanArray = booleanArrayOf(false, true),
         shapes: List<Pair<Int, Int>> = triangularShapes(),
@@ -161,7 +153,7 @@ class TriangularSchedulingTest {
 
     /** A zero multiplier writes zeros over the whole block and reads no coefficient at all. */
     @Test
-    fun `a zero alpha fills the block without reading the triangle`() = withDenseBlas { blas ->
+    fun `a zero alpha fills the block without reading the triangle`() = withEngines { blas ->
         val order = TRIANGULAR_DIAGONAL_BLOCK + 3
         val sides = 5
         val triangle = DenseMatrix.wrap(order, order, DoubleArray(order * order) { Double.NaN })
@@ -181,7 +173,7 @@ class TriangularSchedulingTest {
     // Scaling by alpha writes the block before the substitution starts, so a call that scaled first and
     // staged afterwards would feed the substitution coefficients the caller never gave it.
     @Test
-    fun `a triangle sharing its own block is staged before the block is scaled`() = withDenseBlas { blas ->
+    fun `a triangle sharing its own block is staged before the block is scaled`() = withEngines { blas ->
         val order = TRIANGULAR_DIAGONAL_BLOCK + 3
         val workspace = Workspace()
         for (solve in booleanArrayOf(false, true)) {
@@ -197,9 +189,9 @@ class TriangularSchedulingTest {
             val aliased = triangle.copyOf()
 
             if (solve) {
-                blas.trsm(aliased, aliased, lower = true, alpha = ALPHA, workspace = workspace)
+                blas.withWorkspace(workspace).trsm(aliased, aliased, lower = true, alpha = ALPHA)
             } else {
-                blas.trmm(aliased, aliased, lower = true, alpha = ALPHA, workspace = workspace)
+                blas.withWorkspace(workspace).trmm(aliased, aliased, lower = true, alpha = ALPHA)
             }
 
             assertClose(expected.values, aliased.values, "aliased triangle solve=$solve", SOLVE_TOLERANCE)
@@ -209,13 +201,13 @@ class TriangularSchedulingTest {
     // Twenty four shrinking windows exceed the workspace retention limit and expose scratch sized by call order.
     @Test
     fun `portable trmm retains bounded scratch over twenty four blocks`() {
-        val blas = testDenseBlas
+        val blas = portableEngine
         longThinScratch(blas, 24 * TRIANGULAR_DIAGONAL_BLOCK, solve = false)
     }
 
     @Test
     fun `portable trsm retains bounded scratch over twenty four blocks`() {
-        val blas = testDenseBlas
+        val blas = portableEngine
         longThinScratch(blas, 24 * TRIANGULAR_DIAGONAL_BLOCK, solve = true)
     }
 
@@ -231,22 +223,22 @@ class TriangularSchedulingTest {
         longThinScratch(blas, 24 * TRIANGULAR_DIAGONAL_BLOCK, solve = true)
     }
 
-    private fun longThinScratch(blas: DenseBlas, order: Int, solve: Boolean) {
+    private fun longThinScratch(blas: KoblasEngine, order: Int, solve: Boolean) {
         val workspace = Workspace()
         val triangle = dominantDiagonal(order)
         val b = randomMatrix(order, 1, rng)
 
         if (solve) {
-            blas.trsm(triangle, b, lower = true, workspace = workspace)
+            blas.withWorkspace(workspace).trsm(triangle, b, lower = true)
         } else {
-            blas.trmm(triangle, b, lower = true, workspace = workspace)
+            blas.withWorkspace(workspace).trmm(triangle, b, lower = true)
         }
         val afterOne = workspace.idleLengths()
         repeat(3) {
             if (solve) {
-                blas.trsm(triangle, b, lower = true, workspace = workspace)
+                blas.withWorkspace(workspace).trsm(triangle, b, lower = true)
             } else {
-                blas.trmm(triangle, b, lower = true, workspace = workspace)
+                blas.withWorkspace(workspace).trmm(triangle, b, lower = true)
             }
         }
 
@@ -265,7 +257,7 @@ class TriangularSchedulingTest {
     /** The same for a symmetric product, whose strips beside the diagonal shrink the same way. */
     @Test
     fun `a long thin portable symmetric product retains bounded scratch`() {
-        assertSymmetricScratchIsBounded(testDenseBlas)
+        assertSymmetricScratchIsBounded(portableEngine)
     }
 
     @Test
@@ -274,16 +266,16 @@ class TriangularSchedulingTest {
         assertSymmetricScratchIsBounded(blas)
     }
 
-    private fun assertSymmetricScratchIsBounded(blas: DenseBlas) {
+    private fun assertSymmetricScratchIsBounded(blas: KoblasEngine) {
         val order = 16 * SYMMETRIC_BLOCK
         val workspace = Workspace()
         val a = dominantDiagonal(order)
         val b = randomMatrix(order, 1, rng)
         val c = randomMatrix(order, 1, rng)
 
-        blas.symm(ALPHA, a, b, -0.25, c, lower = true, workspace = workspace)
+        blas.withWorkspace(workspace).symm(ALPHA, a, b, -0.25, c, lower = true)
         val afterOne = workspace.idleLengths()
-        repeat(3) { blas.symm(ALPHA, a, b, -0.25, c, lower = true, workspace = workspace) }
+        repeat(3) { blas.withWorkspace(workspace).symm(ALPHA, a, b, -0.25, c, lower = true) }
 
         assertTrue(afterOne > 0, "a symmetric product over ${order / SYMMETRIC_BLOCK} blocks borrowed nothing")
         assertTrue(afterOne <= MAX_IDLE_LENGTHS, "symm left $afterOne lengths behind")
@@ -342,9 +334,9 @@ class TriangularSchedulingTest {
 
     @Suppress("LongParameterList") // the backends under test plus the three flags the schedule depends on
     private fun assertTriangularBlocksAt(
-        panels: DensePanelKernels,
-        products: DenseProductKernels,
-        triangles: DenseTriangularKernels,
+        panels: KoblasEngine,
+        products: KoblasEngine,
+        triangles: KoblasEngine,
         lower: Boolean,
         transpose: Boolean,
         right: Boolean,
@@ -354,7 +346,7 @@ class TriangularSchedulingTest {
         val sides = 2 * VECTOR_SIDES + 1
         val recordedTriangles = RecordingTriangles(triangles)
         val recordedProducts = RecordingProducts(products)
-        val blas = PortableDenseBlas(ScalarVectorKernels, panels, recordedProducts, recordedTriangles)
+        val blas = engineWithKernels(PortableEngine, panels, recordedProducts, recordedTriangles)
         val (triangle, _) = poisonedTriangle(rng, order, lower, unitDiag = false)
         val b = randomMatrix(if (right) sides else order, if (right) order else sides, rng)
         val context = "${if (solve) "trsm" else "trmm"} " +
@@ -450,15 +442,14 @@ class TriangularSchedulingTest {
  * because a count that fills one machine's lane block leaves another's empty.
  */
 internal val VECTOR_SIDES: Int = BuiltinEngines.simd
-    ?.triangularKernels
-    ?.rightHandSideGroup(TRIANGULAR_DIAGONAL_BLOCK, UNGROUPED_SIDES)
+    ?.triangularProvider?.rightHandSideGroup(TRIANGULAR_DIAGONAL_BLOCK, UNGROUPED_SIDES)
     ?: 4
 
 /** Wider than any grouping a backend recommends, so asking with it returns the recommendation itself. */
 private const val UNGROUPED_SIDES = 1024
 
 /** Runs [body] against every composition of panel, product and substitution backends this platform has. */
-internal fun withBackends(body: (DensePanelKernels, DenseProductKernels, DenseTriangularKernels) -> Unit) {
-    body(PortablePanelKernels, PortableProductKernels, PortableTriangularKernels)
-    BuiltinEngines.simd?.let { body(it.panelKernels, it.productKernels, it.triangularKernels) }
+internal fun withBackends(body: (KoblasEngine, KoblasEngine, KoblasEngine) -> Unit) {
+    body(PortableEngine, PortableEngine, PortableEngine)
+    BuiltinEngines.simd?.let { body(it.panelProvider, it.productProvider, it.triangularProvider) }
 }

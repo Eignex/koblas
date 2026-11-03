@@ -7,9 +7,11 @@
 
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.DenseMatrixOperation
+import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.ReferenceBlas
-import com.eignex.koblas.internal.host.NativeBlasPolicy
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.sparse.*
+import com.eignex.koblas.workspace.*
 import kotlin.native.concurrent.TransferMode
 import kotlin.native.concurrent.Worker
 import kotlin.random.Random
@@ -29,10 +31,13 @@ class NativeHostConcurrencyTest {
 
     /** Whether a product of these extents is one the default hands to a library, asserted not assumed. */
     private fun assertHostEligible(rows: Int, columns: Int, depth: Int, what: String) {
-        if (koblas.vendor == null) {
-            println("SKIPPED: no CBLAS library installed; $what exercised the portable schedule instead")
+        if (koblas.providers.none { it.vendor != null }) {
+            println(
+                "SKIPPED: no host binding; $what exercised portable scheduling",
+            )
+        } else {
+            assertTrue(koblas.wholeCallFor(EngineImplementation.Gemm, rows, columns, depth)?.vendor != null, what)
         }
-        assertTrue(NativeBlasPolicy.eligible(DenseMatrixOperation.Gemm, rows, columns, depth), "$what stays portable")
     }
 
     /** Eight workers, one shared pair of operands, and a destination and a workspace each. */
@@ -56,7 +61,7 @@ class NativeHostConcurrencyTest {
                 val workspace = Workspace()
                 repeat(REPEATS) {
                     destination.values.fill(1.0)
-                    koblas.gemm(1.0, task.a, false, task.b, false, task.beta, destination, workspace)
+                    koblas.withWorkspace(workspace).gemm(1.0, task.a, false, task.b, false, task.beta, destination)
                 }
                 task.beta to destination.values
             }
@@ -92,7 +97,7 @@ class NativeHostConcurrencyTest {
                 var last = DoubleArray(0)
                 repeat(REPEATS) {
                     val shared = operand.copyOf()
-                    koblas.gemm(1.0, shared, false, shared, false, 0.0, shared, workspace)
+                    koblas.withWorkspace(workspace).gemm(1.0, shared, false, shared, false, 0.0, shared)
                     last = shared.values
                 }
                 last
@@ -108,14 +113,14 @@ class NativeHostConcurrencyTest {
     /** The library the cases above reached reports one compute thread, or exports no way to be asked. */
     @Test
     fun `the composed default runs on a library held to one compute thread`() {
-        val vendor = koblas.vendor ?: return println(
-            "SKIPPED: no CBLAS library installed; the one-thread configuration was not verified on this host",
-        )
-
-        assertTrue(
-            vendor.threadEvidence.label.startsWith("1-thread-"),
-            "the default composed a library that was not held to one compute thread",
-        )
+        val vendors = koblas.providers.filter { it.vendor != null }
+        if (vendors.isEmpty()) return println("SKIPPED: no host binding; thread configuration was not verified")
+        for (vendor in vendors) {
+            assertTrue(
+                vendor.threadEvidence.label.startsWith("1-thread-"),
+                "${vendor.name} was not held to one compute thread",
+            )
+        }
     }
 
     /** A destination multiplier that is this worker's own, so no two workers expect the same answer. */

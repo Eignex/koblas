@@ -1,68 +1,68 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.DenseVectorKernels
-import com.eignex.koblas.internal.dense.ScalarVectorKernels
-import com.eignex.koblas.internal.sparse.IndexedSparseKernels
-import com.eignex.koblas.internal.sparse.ScalarIndexedSparseKernels
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.sparse.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
-import kotlin.test.assertSame
 
 class KoblasEngineTest {
-    @Test
-    fun `portable factory selects owned scalar kernels without a vendor`() {
-        val engine = KoblasEngine.portable()
-
-        assertNull(engine.vendor)
-        assertSame(ScalarVectorKernels, engine.vectorKernels)
-        assertSame(ScalarIndexedSparseKernels, engine.indexedSparseKernels)
-        assertEquals("scalar-panel", engine.panelKernels.name)
-        assertEquals(BuiltinEngines.scalar.productKernels.name, engine.productKernels.name)
-        assertEquals(BuiltinEngines.scalar.triangularKernels.name, engine.triangularKernels.name)
-    }
-
-    @Test
-    fun `portable selection leaves the platform default intact`() {
-        val default = koblas
-
-        KoblasEngine.portable()
-        assertSame(default, koblas)
-    }
-
-    @Test
-    fun `sparse convenience operations execute the engine selected kernels`() {
-        val x = SparseVector.of(4, intArrayOf(1, 3), doubleArrayOf(2.0, 4.0))
-        val calls = mutableListOf<String>()
-        val dense = object : DenseVectorKernels by ScalarVectorKernels {
-            override val name = "selected-dense"
-            override fun nrm2(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
-                assertSame(x.values, v)
-                calls += name
-                return 0.0
-            }
+    private val partial = object : KoblasEngine {
+        override val name = "partial"
+        override val implementations = setOf(EngineImplementation.Dot)
+        override fun dot(
+            a: DoubleArray,
+            aOff: Int,
+            b: DoubleArray,
+            bOff: Int,
+            len: Int,
+            aStride: Int,
+            bStride: Int,
+        ): Double {
+            var sum = 0.0
+            for (i in 0 until len) sum += a[aOff + i * aStride] * b[bOff + i * bStride]
+            return sum
         }
-        val indexed = object : IndexedSparseKernels by ScalarIndexedSparseKernels {
-            override val name = "selected-indexed"
-            override fun dotDense(
-                indices: IntArray,
-                indexOffset: Int,
-                values: DoubleArray,
-                valueOffset: Int,
-                count: Int,
-                dense: DoubleArray,
-            ): Double {
-                assertSame(x.indices, indices)
-                assertSame(x.values, values)
-                calls += name
-                return 0.0
-            }
-        }
-        val engine = KoblasEngine(dense, indexed, null)
-
-        engine.sparseKernels.nrm2(x)
-        engine.sparseKernels.dot(x, DoubleArray(x.size))
-
-        assertEquals(listOf(dense.name, indexed.name), calls)
     }
+
+    @Test
+    fun `a partial provider never inherits portable arithmetic`() {
+        assertFailsWith<UnsupportedOperationException> { partial.sum(doubleArrayOf(1.0), 0, 1) }
+        assertFailsWith<UnsupportedOperationException> {
+            partial.dotDense(
+                intArrayOf(0),
+                0,
+                doubleArrayOf(1.0),
+                0,
+                1,
+                doubleArrayOf(1.0),
+            )
+        }
+        assertFailsWith<UnsupportedOperationException> { partial.tileRows }
+        assertNull(partial.implementationFor(EngineImplementation.Sum, 1))
+    }
+
+    @Test
+    fun `composition calls separate providers for supported and missing parts`() {
+        val engine = KoblasEngine.combine(
+            EngineProfile("partial with portable", listOf(EngineRule(partial.id, partial.implementations))),
+            partial,
+            BuiltinEngines.scalar,
+        )
+        assertEquals(setOf(partial.id, BuiltinEngines.scalar.id), engine.providers.map { it.id }.toSet())
+        val values = doubleArrayOf(0.5, -2.0, 3.0)
+
+        val dot = engine.dot(values, 0, values, 0, values.size)
+        val sum = engine.sum(values, 0, values.size)
+
+        assertArithmeticAgreesWithReference(BuiltinEngines.scalar.dot(values, 0, values, 0, values.size), dot)
+        assertArithmeticAgreesWithReference(BuiltinEngines.scalar.sum(values, 0, values.size), sum)
+        assertEquals(partial.name, engine.implementationFor(EngineImplementation.Dot, values.size))
+        assertEquals(BuiltinEngines.scalar.name, engine.implementationFor(EngineImplementation.Sum, values.size))
+    }
+
+    private fun assertArithmeticAgreesWithReference(expected: Double, actual: Double) =
+        assertClose(expected, actual, "provider composition")
 }

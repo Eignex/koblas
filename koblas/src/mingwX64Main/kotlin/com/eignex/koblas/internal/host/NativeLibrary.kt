@@ -2,7 +2,7 @@
 
 package com.eignex.koblas.internal.host
 
-import com.eignex.koblas.vendor.*
+import com.eignex.koblas.engine.*
 import kotlinx.cinterop.COpaquePointer
 import kotlinx.cinterop.alloc
 import kotlinx.cinterop.allocArray

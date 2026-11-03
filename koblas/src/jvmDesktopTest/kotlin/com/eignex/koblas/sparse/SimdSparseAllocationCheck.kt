@@ -1,22 +1,14 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.Matrix
-import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.Workspace
-import com.eignex.koblas.internal.dense.PanelWork
-import com.eignex.koblas.internal.jvm25.simd.SimdIndexedSparseKernels
-import com.eignex.koblas.internal.jvm25.simd.SparseSimd
-import com.eignex.koblas.internal.sparse.SparseTuning
-import com.eignex.koblas.internal.sparse.axpy
-import com.eignex.koblas.internal.sparse.dotDense
-import com.eignex.koblas.internal.sparse.gather
-import com.eignex.koblas.internal.sparse.scatter
-import com.eignex.koblas.koblas
+import com.eignex.koblas.*
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.portable.PortableEngine
 import com.eignex.koblas.testutil.allocation.AllocationProbe
 import com.eignex.koblas.testutil.allocation.bytesPerCall
+import com.eignex.koblas.workspace.*
+
+private val selectedBackend = BuiltinEngines.simd ?: PortableEngine
 
 /**
  * Runs indexed Level 1, panel and whole-operation allocation checks in an uninstrumented JVM.
@@ -54,15 +46,18 @@ internal object SimdSparseAllocationCheck {
         val engine = requireNotNull(BuiltinEngines.simd) {
             "SIMD sparse allocation check requires the Vector API module"
         }
-        require(engine.sparseKernels.name == "simd-sparse") {
-            "SIMD sparse allocation check selected ${engine.sparseKernels.name}"
-        }
-        require(crossesSimdCrossover(SparseTuning.simdIndexedCrossover)) {
+        require(crossesSimdCrossover(16)) {
             "SIMD sparse allocation check uses $ENTRY_COUNT entries below " +
-                "the ${SparseTuning.simdIndexedCrossover}-entry crossover"
+                "the 16-entry crossover"
         }
-        val panels = engine.panelKernels
-        require(panels.implementationFor(PanelWork.SparseRightHandSides, PANEL_SIDES, PANEL_ENTRIES) == panels.name) {
+        val panels = engine.panelProvider
+        require(
+            panels.implementationFor(
+                PanelWork.SparseRightHandSides,
+                PANEL_SIDES,
+                PANEL_ENTRIES,
+            ) == panels.name,
+        ) {
             "the panel probes use $PANEL_SIDES right-hand sides, which do not reach the vector body"
         }
 
@@ -70,28 +65,15 @@ internal object SimdSparseAllocationCheck {
         val values = DoubleArray(ENTRY_COUNT) { it * 0.125 - 16.0 }
         val dense = DoubleArray(DIMENSION) { 1.0 + (it % 17) * 0.03125 }
 
-        assertAllocationFree("indexed dot") {
-            // Exercise the Vector API leaf even where production prefers scalar indexed loads.
-            SparseSimd.dotDense(indices, 0, values, 0, ENTRY_COUNT, dense)
-        }
-        assertAllocationFree("indexed gather") {
-            // Exercise the Vector API leaf even where production prefers scalar indexed loads.
-            SparseSimd.gather(indices, 0, values, 0, ENTRY_COUNT, dense)
-            values[ENTRY_COUNT / 2]
-        }
-        assertAllocationFree("indexed norm") {
-            // Exercise the Vector API leaf even where production prefers scalar indexed loads.
-            SparseSimd.nrm2(indices, 0, ENTRY_COUNT, dense)
-        }
         assertAllocationFree("dispatched indexed dot") {
-            SimdIndexedSparseKernels.dotDense(indices, values, dense)
+            selectedBackend.dotDense(indices, 0, values, 0, values.size, dense)
         }
         assertAllocationFree("dispatched indexed gather") {
-            SimdIndexedSparseKernels.gather(indices, values, dense)
+            selectedBackend.gather(indices, 0, values, 0, values.size, dense)
             values[ENTRY_COUNT / 2]
         }
         assertAllocationFree("dispatched indexed norm") {
-            SimdIndexedSparseKernels.nrm2(indices, 0, ENTRY_COUNT, dense)
+            selectedBackend.nrm2(indices, 0, ENTRY_COUNT, dense)
         }
         checkPublicSlices(engine)
         checkPanels(engine)
@@ -118,7 +100,7 @@ internal object SimdSparseAllocationCheck {
         }
         val dense = DoubleArray(DIMENSION) { 1.0 + (it % 17) * 0.03125 }
         val large = DoubleArray(DIMENSION) { 1e200 }
-        val kernels = engine.sparseKernels
+        val kernels = engine
         val matrix = SparseMatrix.wrap(
             DIMENSION,
             2,
@@ -151,7 +133,7 @@ internal object SimdSparseAllocationCheck {
 
     /** The two indexed panel leaves, over an adjacent group of right-hand sides and over a strided one. */
     private fun checkPanels(engine: KoblasEngine) {
-        val panels = engine.panelKernels
+        val panels = engine.panelProvider
         val entries = PANEL_ENTRIES
         val positions = 4 * entries
         val indices = IntArray(entries) { it * 4 }
@@ -218,20 +200,20 @@ internal object SimdSparseAllocationCheck {
                     OPERATION_WARMUP,
                     OPERATION_ITERATIONS,
                 ) {
-                    engine.gemm(0.875, a, transposeA, operand, transposeB, -0.25, c, false, workspace)
+                    engine.withWorkspace(workspace).gemm(0.875, a, transposeA, operand, transposeB, -0.25, c, false)
                     c.values[0]
                 }
             }
         }
         assertAllocationFree("sparse product from the right", OPERATION_WARMUP, OPERATION_ITERATIONS) {
-            engine.gemm(0.875, a, false, wide, false, -0.25, cWide, true, workspace)
+            engine.withWorkspace(workspace).gemm(0.875, a, false, wide, false, -0.25, cWide, true)
             cWide.values[0]
         }
         for (right in booleanArrayOf(false, true)) {
             val operand = if (right) wide else b
             val destination = if (right) cWide else c
             assertAllocationFree("symmetric product right=$right", OPERATION_WARMUP, OPERATION_ITERATIONS) {
-                engine.symm(0.875, triangle, operand, -0.25, destination, true, right, workspace)
+                engine.withWorkspace(workspace).symm(0.875, triangle, operand, -0.25, destination, true, right)
                 destination.values[0]
             }
             for (transpose in booleanArrayOf(false, true)) {
@@ -240,7 +222,7 @@ internal object SimdSparseAllocationCheck {
                     OPERATION_WARMUP,
                     OPERATION_ITERATIONS,
                 ) {
-                    engine.trsm(triangle, operand, true, transpose, false, right, 0.875, workspace)
+                    engine.withWorkspace(workspace).trsm(triangle, operand, true, transpose, false, right, 0.875)
                     operand.values[0]
                 }
                 assertAllocationFree(
@@ -248,7 +230,7 @@ internal object SimdSparseAllocationCheck {
                     OPERATION_WARMUP,
                     OPERATION_ITERATIONS,
                 ) {
-                    engine.trmm(triangle, operand, true, transpose, false, right, 0.875, workspace)
+                    engine.withWorkspace(workspace).trmm(triangle, operand, true, transpose, false, right, 0.875)
                     operand.values[0]
                 }
             }
@@ -264,7 +246,7 @@ internal object SimdSparseAllocationCheck {
             y[0]
         }
         assertAllocationFree("sparse rank update into a dense triangle", OPERATION_WARMUP, OPERATION_ITERATIONS) {
-            engine.syrk(0.875, a, false, -0.25, square, true, workspace)
+            engine.withWorkspace(workspace).syrk(0.875, a, false, -0.25, square, true)
             square.values[0]
         }
         checkGenericDispatch(a, b, wide, c, cWide, workspace)
@@ -284,11 +266,11 @@ internal object SimdSparseAllocationCheck {
         workspace: Workspace,
     ) {
         assertAllocationFree("generic product with a sparse left operand", OPERATION_WARMUP, OPERATION_ITERATIONS) {
-            koblas.gemm(0.875, a, false, b, false, -0.25, c, workspace)
+            koblas.withWorkspace(workspace).gemm(0.875, a, false, b, false, -0.25, c)
             c.values[0]
         }
         assertAllocationFree("generic product with a sparse right operand", OPERATION_WARMUP, OPERATION_ITERATIONS) {
-            koblas.gemm(0.875, wide, false, a, false, -0.25, cWide, workspace)
+            koblas.withWorkspace(workspace).gemm(0.875, wide, false, a, false, -0.25, cWide)
             cWide.values[0]
         }
     }

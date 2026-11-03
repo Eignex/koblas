@@ -1,10 +1,9 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.internal.dense.DensePanelKernels
-import com.eignex.koblas.internal.dense.PanelWork
-import com.eignex.koblas.internal.dense.PortablePanelKernels
+import com.eignex.koblas.*
+import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.jvm25.simd.hardwareFusedMultiplyAdd
+import com.eignex.koblas.internal.portable.PortableEngine
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -19,7 +18,7 @@ import kotlin.test.assertTrue
  * on a runtime without the module is a linkage error before any test body runs.
  */
 class SimdPanelKernelsTest {
-    private val kernels: DensePanelKernels? = BuiltinEngines.simd?.panelKernels
+    private val kernels: KoblasEngine? = BuiltinEngines.simd?.panelProvider
 
     @Test
     fun `long column updates agree with the scalar oracle`() {
@@ -31,12 +30,12 @@ class SimdPanelKernelsTest {
     @Test
     fun `a panel with lanes to fill reaches the vector body and a shorter one does not`() {
         val kernels = kernels ?: return skipped()
-        val lanes = lanes(kernels)
+        val lanes = lanes()
 
         for (work in vectorised()) {
             assertEquals(kernels.name, kernels.implementationFor(work, lanes, 4), "$work at $lanes rows")
             assertEquals(
-                if (hasShortBody(work)) kernels.name else PortablePanelKernels.name,
+                if (hasShortBody(work)) kernels.name else PortableEngine.name,
                 kernels.implementationFor(work, lanes - 1, 4),
                 "$work at ${lanes - 1} rows",
             )
@@ -48,7 +47,7 @@ class SimdPanelKernelsTest {
         val kernels = kernels ?: return skipped()
 
         for (work in listOf(PanelWork.MultiDot, PanelWork.ColumnUpdate)) {
-            for (rows in 1 until lanes(kernels)) {
+            for (rows in 1 until lanes()) {
                 assertEquals(kernels.name, kernels.implementationFor(work, rows, 4096), "$work over $rows rows")
                 assertEquals(
                     4096,
@@ -65,7 +64,7 @@ class SimdPanelKernelsTest {
 
         for (work in vectorised()) {
             assertEquals(
-                PortablePanelKernels.name,
+                PortableEngine.name,
                 kernels.implementationFor(work, WIDE, 4, contiguous = false),
                 "$work strided",
             )
@@ -77,7 +76,7 @@ class SimdPanelKernelsTest {
     @Test
     fun `the sparse right hand side panel names a vector body only where its sides are adjacent`() {
         val kernels = kernels ?: return skipped()
-        val lanes = lanes(kernels)
+        val lanes = lanes()
 
         assertEquals(
             kernels.name,
@@ -85,12 +84,12 @@ class SimdPanelKernelsTest {
             "adjacent right-hand sides",
         )
         assertEquals(
-            PortablePanelKernels.name,
+            PortableEngine.name,
             kernels.implementationFor(PanelWork.SparseRightHandSides, WIDE, 4, contiguous = false),
             "strided right-hand sides",
         )
         assertEquals(
-            PortablePanelKernels.name,
+            PortableEngine.name,
             kernels.implementationFor(PanelWork.SparseRightHandSides, lanes - 1, 4),
             "fewer adjacent right-hand sides than one lane block",
         )
@@ -123,7 +122,7 @@ class SimdPanelKernelsTest {
         val vector = DoubleArray(1)
         kernels.multiDot(1.0, a, 0, rows, x, 0, 1, rows, 1, 0.0, vector, 0, 1)
         val portable = DoubleArray(1)
-        PortablePanelKernels.multiDot(1.0, a, 0, rows, x, 0, 1, rows, 1, 0.0, portable, 0, 1)
+        PortableEngine.multiDot(1.0, a, 0, rows, x, 0, 1, rows, 1, 0.0, portable, 0, 1)
 
         val bound = rows * 2.220446049250313e-16 * portable[0]
         assertTrue(
@@ -136,7 +135,9 @@ class SimdPanelKernelsTest {
     private fun hasShortBody(work: PanelWork): Boolean = work == PanelWork.MultiDot || work == PanelWork.ColumnUpdate
 
     /** The species this backend resolved, read back from the name it publishes. */
-    private fun lanes(kernels: DensePanelKernels): Int = kernels.name.substringAfter('(').substringBefore(' ').toInt()
+    private fun lanes(): Int = checkNotNull(BuiltinEngines.simd).providers.first {
+        EngineImplementation.Dot in it.implementations
+    }.minimumLength(EngineImplementation.Dot)
 
     private fun vectorised() = PanelWork.entries
 

@@ -1,10 +1,7 @@
 package com.eignex.koblas.internal.jvm25.host
 
-import com.eignex.koblas.*
-import com.eignex.koblas.dense.*
-import com.eignex.koblas.internal.host.Cblas
-import com.eignex.koblas.sparse.*
-import com.eignex.koblas.vendor.*
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.host.*
 import java.lang.foreign.Arena
 import java.lang.foreign.FunctionDescriptor
 import java.lang.foreign.Linker
@@ -183,7 +180,7 @@ internal class JvmVendorLibrary private constructor(
     @Suppress("SpreadOperator") // The small ABI probe copies only once when a library is opened.
     private fun probeDot(): Boolean {
         val handle = handleOrNull(
-            BlasOperation.Dot.entryPoint,
+            EngineImplementation.Dot.entryPoint,
             FunctionDescriptor.of(JAVA_DOUBLE, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT),
         ) ?: return false
         Arena.ofConfined().use { arena ->
@@ -196,7 +193,7 @@ internal class JvmVendorLibrary private constructor(
     @Suppress("SpreadOperator") // The small ABI probe copies only once when a library is opened.
     private fun probeGemm(): Boolean {
         val handle = handleOrNull(
-            BlasOperation.Gemm.entryPoint,
+            EngineImplementation.Gemm.entryPoint,
             FunctionDescriptor.ofVoid(
                 JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE,
                 ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
@@ -223,10 +220,6 @@ internal class JvmVendorLibrary private constructor(
         val address = lookup.find(name).orElse(null) ?: return null
         return linker.downcallHandle(address, descriptor)
     }
-
-    /** A non-critical handle for [name], which the library is required to export. */
-    fun handle(name: String, descriptor: FunctionDescriptor): MethodHandle =
-        checkNotNull(handleOrNull(name, descriptor)) { "${vendor.vendorName} at $path does not export $name" }
 
     private fun readVersion(): String {
         mklVersion()?.let { return it }
@@ -269,8 +262,8 @@ internal class JvmVendorLibrary private constructor(
         private const val WINDOWS_MODULE_FLAGS = 6
 
         /**
-         * Open the first [vendor] candidate with every required CBLAS symbol, or null. Reject partial
-         * installs before arithmetic; the ABI and single-thread checks must also succeed.
+         * Open the first [vendor] candidate that passes the LP64 probes and single-thread checks.
+         * Missing non-probe exports remain absent capabilities.
          */
         fun open(vendor: Vendor): JvmVendorLibrary? {
             val linker = try {
@@ -301,7 +294,6 @@ internal class JvmVendorLibrary private constructor(
                 return null // present but unloadable
             }
             val library = JvmVendorLibrary(vendor, candidate, lookup, linker)
-            if (missingRequiredSymbols(library::exports).isNotEmpty()) return null
             // oneMKL interface selection must precede dynamic/thread controls, version reads and probes.
             if (!library.establishIntegerInterface()) return null
             library.enforceSingleThread()

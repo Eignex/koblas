@@ -1,12 +1,12 @@
 package com.eignex.koblas.sparse.internal
 
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.DimensionMismatch
-import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.Workspace
-import com.eignex.koblas.koblas
+import com.eignex.koblas.*
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.sparse.*
 import com.eignex.koblas.times
 import com.eignex.koblas.transpose
+import com.eignex.koblas.workspace.*
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -133,7 +133,7 @@ class SparseCapacityTest {
         val tall = tallEmpty(Int.MAX_VALUE)
         val destination = DenseMatrix.wrap(0, 0, DoubleArray(0))
 
-        koblas.syrk(1.0, tall, transpose = true, 0.5, destination, workspace = Workspace())
+        koblas.withWorkspace(Workspace()).syrk(1.0, tall, transpose = true, 0.5, destination)
 
         assertEquals(0, destination.values.size)
     }

@@ -1,14 +1,15 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.sparse.*
 import kotlin.random.Random
 import kotlin.test.*
 
 class TriangularTest {
 
     @Test
-    fun `trsv solves all eight flag combinations and never reads the opposite triangle`() = withDenseBlas { blas ->
+    fun `trsv solves all eight flag combinations and never reads the opposite triangle`() = withEngines { blas ->
         val rng = Random(20260728)
         for (n in intArrayOf(1, 3, 8, 25, 65, 130)) {
             for (lower in booleanArrayOf(true, false)) {
@@ -35,7 +36,7 @@ class TriangularTest {
     }
 
     @Test
-    fun `trmv matches gemv on the explicit triangle for all flag combos`() = withDenseBlas { blas ->
+    fun `trmv matches gemv on the explicit triangle for all flag combos`() = withEngines { blas ->
         val rng = Random(20260915)
         for (n in intArrayOf(1, 2, 7, 16, 65, 130)) {
             for (lower in booleanArrayOf(true, false)) {

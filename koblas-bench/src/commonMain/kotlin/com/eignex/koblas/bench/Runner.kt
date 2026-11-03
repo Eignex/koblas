@@ -1,6 +1,8 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.*
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.engine.hostPlatform
 import kotlin.math.max
 import kotlin.time.TimeSource
 
@@ -8,6 +10,7 @@ internal expect fun readTextFile(path: String): String
 internal expect fun writeTextFile(path: String, text: String)
 internal expect fun resolveEngine(mode: String): Pair<KoblasEngine, String>
 internal expect fun runtimeIdentity(): String
+
 private val clockOrigin = TimeSource.Monotonic.markNow()
 internal fun nanoTime(): Long = clockOrigin.elapsedNow().inWholeNanoseconds
 
@@ -39,7 +42,7 @@ public fun main(args: Array<String>) {
     var sink = 0.0
     for (case in selected) {
         val arm = vendor?.let { vendorArm(case, it.first) }
-            ?: engine?.let { sparseArm(case, it) ?: denseArm(case, it) }
+            ?: engine?.let { engineArm(case, it) }
         val work = arm?.work
         if (work == null) {
             rows += measurement(
@@ -58,7 +61,7 @@ public fun main(args: Array<String>) {
                 val elapsed = max(1L, nanoTime() - start)
                 rows += measurement(
                     case, settings, sample, elapsed.toDouble() / operations, "ok",
-                    work.comparisonKind, work.timingMode, work.kernel,
+                    work.comparisonKind, work.timingMode, work.kernel, work.provider,
                 )
             }
         } finally {
@@ -68,7 +71,7 @@ public fun main(args: Array<String>) {
     if (sink == Double.POSITIVE_INFINITY) throw IllegalStateException("unreachable result sink")
     writeTextFile(settings.outputPath, reportCsv(rows))
     println("wrote ${selected.size} case summaries from ${rows.count { it.nanos != null }} measurements to ${settings.outputPath}")
-    println("resolved implementation=$implementation runtime=${runtimeIdentity()} harness=native-calibrated")
+    printIdentity(implementation, "native-calibrated", EngineRuntime.Native)
     println("last retained result=${Retained.describe()}")
 }
 
@@ -177,6 +180,7 @@ internal fun measurement(
     comparisonKind: String,
     timingMode: String,
     kernel: String? = null,
+    provider: String? = null,
 ): Measurement = Measurement(
     listOf(
         case.id, status, comparisonKind, timingMode,
@@ -184,10 +188,71 @@ internal fun measurement(
         if (status != "ok") kernel ?: "unavailable" else checkNotNull(kernel) {
             "timed ${case.id} carries no attribution for the call it made"
         },
+        if (status == "ok") checkNotNull(provider) { "timed ${case.id} carries no selected provider" } else "",
+        case.routingKey()?.toString().orEmpty(),
     ),
     if (settings.mode.startsWith("jvm")) (sample - 1) / settings.samples + 1 else 1,
     nanos,
 )
+
+/** A case's primitive operation; batched schedules and construction cases carry no single routing key. */
+internal val BenchCase.implementation: EngineImplementation? get() {
+    val name = when (operation) {
+        "scal" -> "Scale"
+        "axpy-unit" -> "Axpy"
+        "spdot", "spdot-raw", "spdot-slice" -> "IndexedDot"
+        "spdot-sparse" -> "IndexedSparseDot"
+        "spaxpy", "spaxpy-raw", "spaxpy-slice" -> "IndexedAxpy"
+        "spscatter", "spscatter-raw", "spscatter-slice" -> "IndexedScatter"
+        "spgather" -> "IndexedGather"
+        "spgather-zero" -> "IndexedGatherZero"
+        "spnrm2-indexed", "spnrm2-slice" -> "IndexedNrm2"
+        "spnrm2" -> "Nrm2"
+        "spasum" -> "Asum"
+        else -> operation
+    }
+    val base = EngineImplementation.entries.firstOrNull { it.name.equals(name, ignoreCase = true) } ?: return null
+    return if (operation in setOf("gemv", "trmv", "trsv") && flag("transA")) {
+        EngineImplementation.valueOf("${base.name}Transposed")
+    } else base
+}
+
+/** Shape passed to the engine, shared by both report writers and routing inspection outside timing. */
+internal fun BenchCase.routingKey(): RoutingKey? {
+    val selected = implementation ?: return null
+    val transposedGemv = selected == EngineImplementation.GemvTransposed
+    val vector = dimensions.size == 1 && operation !in setOf("symv", "syr", "syr2", "trmv", "trsv")
+    val rows = if (operation.startsWith("sp")) {
+        Fixtures.storedCount(dimension(0), option("density", "0.01").toDouble())
+    } else dimension(if (transposedGemv) 1 else 0)
+    val columns = when {
+        vector -> 1
+        operation in setOf("gemmt", "syrk", "syr2k") || dimensions.size == 1 -> rows
+        else -> dimension(if (transposedGemv) 0 else 1)
+    }
+    val (level, depth) = when (operation) {
+        "gemm" -> 3 to dimension(2)
+        "gemmt", "syrk", "syr2k" -> 3 to dimension(1)
+        "symm", "trmm", "trsm" -> 3 to if (option("side", "L") == "R") columns else rows
+        else -> (if (vector) 1 else 2) to 1
+    }
+    return RoutingKey(selected, rows, columns, depth, option("layout", "owned") == "borrowed", level, option("stride", "1") == "1")
+}
+
+internal data class RoutingKey(
+    val operation: EngineImplementation,
+    val rows: Int,
+    val columns: Int,
+    val depth: Int,
+    val borrowed: Boolean,
+    val level: Int,
+    val contiguous: Boolean,
+) {
+    override fun toString(): String = "$operation:$rows:$columns:$depth:$borrowed:$level:$contiguous"
+
+}
+
+internal expect fun RoutingKey.provider(engine: KoblasEngine): String
 
 internal data class Measurement(val case: List<String>, val fork: Int, val nanos: Double?)
 
@@ -213,13 +278,28 @@ private fun csv(value: String): String = if (value.any { it == ',' || it == '"' 
     "\"${value.replace("\"", "\"\"")}\""
 } else value
 
-internal const val CSV_HEADER = "case,status,comparison_kind,timing_mode,actual_kernel,samples,forks,median_ns,min_ns,max_ns"
+internal const val CSV_HEADER = "case,status,comparison_kind,timing_mode,actual_kernel,provider,routing_key,samples,forks,median_ns,min_ns,max_ns"
 private const val MAX_OPERATIONS = 1_000_000
 
 /** The same engine and host evidence on either runtime. */
 internal fun engineIdentity(mode: String, engine: KoblasEngine): String {
-    val host = engine.vendor?.let {
-        "/${it.vendor.vendorName}/${it.libraryPath}/${it.version}/threads=${it.threadEvidence.label}"
-    } ?: ""
-    return "$mode/${engine.name}$host"
+    val host = engine.providers.filter { it.vendor != null }.joinToString("") {
+        "/${it.vendor!!.vendorName}/${it.libraryPath}/${it.version}/threads=${it.threadEvidence.label}"
+    }
+    val owned = engine.providers.groupBy { it.id }.entries.joinToString("") { (id, providers) ->
+        val operations = providers.flatMapTo(mutableSetOf()) { it.implementations }
+        "/caps[$id:${operations.joinToString(",") { it.name }}]"
+    }
+    return "$mode/${engine.name}$host$owned"
+}
+
+internal fun printIdentity(implementation: String, harness: String, runtime: EngineRuntime) {
+    val platform = hostPlatform()
+    println("resolved implementation=$implementation runtime=${runtimeIdentity()} harness=$harness")
+    println("profile_runtime=${runtime.name.lowercase()}")
+    println("profile_os=${platform.operatingSystem}")
+    println("profile_arch=${platform.architecture}")
+    println("profile_cpu_model=${platform.cpuModel ?: "*"}")
+    println("profile_cpu_class=${platform.cpuClass ?: "*"}")
+    println("profile_sve_vector_bits=${platform.sveVectorBits ?: "*"}")
 }

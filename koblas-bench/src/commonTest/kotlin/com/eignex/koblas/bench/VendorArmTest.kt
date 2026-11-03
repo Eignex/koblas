@@ -1,9 +1,8 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.vendor.Vendor
-import com.eignex.koblas.vendor.Blas
-import com.eignex.koblas.vendor.openBlas
+import com.eignex.koblas.*
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.engine.Vendor
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -17,10 +16,16 @@ import kotlin.test.assertTrue
  * scalar arm on the same case means the two arms computed the same thing from the same fixtures.
  */
 class VendorArmTest {
-    private fun vendor(): Blas? = openBlas()
+    private fun vendor(): KoblasEngine? = Vendor.entries.firstNotNullOfOrNull { BuiltinEngines.vendor(it) }
 
     private val dense = listOf(
         "dot+512+uniform",
+        "copy+17+uniform",
+        "copy+17+uniform+stride=-2",
+        "dot+17+uniform+stride=2",
+        "nrm2+17+uniform+stride=-1",
+        "rot+17+uniform+stride=-2",
+        "gemm+7x5x11+uniform+layout=borrowed",
         "axpy+512+uniform",
         "axpy-unit+27+uniform",
         "scal+512+uniform",
@@ -97,7 +102,7 @@ class VendorArmTest {
     }
 
     @Test
-    fun `a timed vendor case reports the entry point it called`() {
+    fun `a timed vendor case reports the implementation it called`() {
         val blas = vendor()
         if (blas == null) {
             println("SKIPPED: no CBLAS library installed; vendor attribution was not verified on this host")
@@ -109,9 +114,9 @@ class VendorArmTest {
 
         assertEquals("direct", work.comparisonKind)
         assertEquals(
-            "${blas.vendor.vendorName}/cblas_dgemm",
+            "${blas.vendor!!.vendorName}/Gemm",
             work.kernel,
-            "a vendor arm must carry the entry point of the call it makes",
+            "a vendor arm must identify the implementation it calls",
         )
         work.close()
     }

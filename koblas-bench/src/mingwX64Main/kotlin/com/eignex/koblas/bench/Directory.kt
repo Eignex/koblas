@@ -5,9 +5,9 @@ package com.eignex.koblas.bench
 import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.wcstr
-import platform.windows.CreateDirectoryW
 import platform.posix.FILE
 import platform.posix._wfopen
+import platform.windows.CreateDirectoryW
 
 internal actual fun createDirectory(path: String) {
     memScoped { CreateDirectoryW(path.wcstr.ptr, null) }

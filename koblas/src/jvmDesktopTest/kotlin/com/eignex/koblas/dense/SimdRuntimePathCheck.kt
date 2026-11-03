@@ -1,20 +1,18 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.internal.dense.DenseTriangularKernels
-import com.eignex.koblas.internal.dense.PanelWork
-import com.eignex.koblas.internal.dense.PortablePanelKernels
-import com.eignex.koblas.internal.dense.PortableTriangularKernels
+import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.jvm25.simd.SIMD_SPECIES
-import com.eignex.koblas.internal.jvm25.simd.SparseSimd
+import com.eignex.koblas.internal.jvm25.simd.assertHardwareFmaAgreesWithVm
 import com.eignex.koblas.internal.jvm25.simd.hardwareFusedMultiplyAdd
-import com.eignex.koblas.internal.numeric.assertHardwareFmaAgreesWithVm
-import com.eignex.koblas.internal.sparse.ScalarIndexedSparseKernels
+import com.eignex.koblas.internal.portable.PortableEngine
 import com.eignex.koblas.poisonedTriangle
+import com.eignex.koblas.sparse.*
 import kotlin.random.Random
 import kotlin.test.assertEquals
+
+private val selectedBackend = BuiltinEngines.simd ?: PortableEngine
 
 /**
  * Runs the panel, product and diagonal substitution contracts on this JVM's species and multiply-add.
@@ -40,13 +38,15 @@ internal object SimdRuntimePathCheck {
             }
         }
         val engine = requireNotNull(BuiltinEngines.simd) { "no Vector API arm" }
-        assertReductionsAgreeWithReference(engine.vectorKernels)
+        assertReductionsAgreeWithReference(engine)
         SimdOpsTest().`dot agrees with the scalar oracle across independent offsets and vector boundaries`()
-        assertIamaxHonoursItsContract(engine.vectorKernels)
+        assertIamaxHonoursItsContract(engine)
         SimdOpsTest().`iamax agrees with the scalar oracle when blocks keep improving`()
         SimdOpsTest().`iamax distinguishes magnitudes sharing a high word`()
-        val panels = engine.panelKernels
-        check(panels.name == "simd-panel($lanes lanes)") { "the backend named ${panels.name} at $lanes lanes" }
+        val panels = engine.panelProvider
+        check(
+            panels.name == "simd-panel($lanes lanes)",
+        ) { "the backend named ${panels.name} at $lanes lanes" }
 
         assertPanelKernelsAgreeWithReference(panels)
         assertPanelContractHolds(panels)
@@ -58,14 +58,14 @@ internal object SimdRuntimePathCheck {
         check(panels.implementationFor(PanelWork.MultiDot, lanes, 4) == panels.name) {
             "a panel of one whole lane block did not reach the vector body at $lanes lanes"
         }
-        check(panels.implementationFor(PanelWork.RankUpdate, lanes - 1, 4) == PortablePanelKernels.name) {
+        check(panels.implementationFor(PanelWork.RankUpdate, lanes - 1, 4) == PortableEngine.name) {
             "a rank update shorter than a lane block reached the vector body at $lanes lanes"
         }
         check(panels.implementationFor(PanelWork.MultiDot, lanes - 1, 4) == panels.name) {
             "a reduction shorter than a lane block missed its short body at $lanes lanes"
         }
         checkProducts(engine, lanes)
-        val triangles = engine.triangularKernels
+        val triangles = engine.triangularProvider
         check(triangles.name == "simd-substitution($lanes lanes)") {
             "the backend named ${triangles.name} at $lanes lanes"
         }
@@ -80,7 +80,7 @@ internal object SimdRuntimePathCheck {
      * destinations have a remainder moves with the species.
      */
     private fun checkProducts(engine: KoblasEngine, lanes: Int) {
-        val products = engine.productKernels
+        val products = engine.productProvider
         check(products.tileRows % lanes == 0) {
             "the product tile has ${products.tileRows} rows, which is not lane blocks at $lanes lanes"
         }
@@ -102,7 +102,7 @@ internal object SimdRuntimePathCheck {
      * At least two steps are needed to reach multiply-subtract in a solve and multiply-add in a product.
      * Lane boundaries distinguish the vector body, its portable tail and the wholly portable fallback.
      */
-    private fun assertTriangularKernelsAgreeWithReference(kernels: DenseTriangularKernels, lanes: Int) {
+    private fun assertTriangularKernelsAgreeWithReference(kernels: KoblasEngine, lanes: Int) {
         val rng = Random(20261013)
         val order = 3
         val n = order + 2
@@ -113,9 +113,9 @@ internal object SimdRuntimePathCheck {
             for (rhsStride in intArrayOf(1, 2)) {
                 val orderStride = sides * rhsStride + 2
                 val bodies = when {
-                    rhsStride != 1 || sides < lanes -> listOf(PortableTriangularKernels.name)
+                    rhsStride != 1 || sides < lanes -> listOf(PortableEngine.name)
                     sides % lanes == 0 -> listOf(kernels.name)
-                    else -> listOf(kernels.name, PortableTriangularKernels.name)
+                    else -> listOf(kernels.name, PortableEngine.name)
                 }
                 assertEquals(
                     bodies,
@@ -135,7 +135,7 @@ internal object SimdRuntimePathCheck {
                             for (solve in booleanArrayOf(false, true)) {
                                 val expected = initial.copyOf()
                                 val actual = initial.copyOf()
-                                for ((backend, x) in listOf(PortableTriangularKernels to expected, kernels to actual)) {
+                                for ((backend, x) in listOf(PortableEngine to expected, kernels to actual)) {
                                     if (solve) {
                                         backend.diagonalSolve(
                                             triangle.values, n, start, order, transposed, lower, unitDiag,
@@ -167,12 +167,15 @@ internal object SimdRuntimePathCheck {
      * One contiguous side runs along the block. The oracle is the portable loop over every side, reached by
      * giving it a second side it does not otherwise take, so the new body is not checked against itself.
      */
-    private fun assertSingleSideAgreesWithReference(kernels: DenseTriangularKernels, lanes: Int) {
+    private fun assertSingleSideAgreesWithReference(kernels: KoblasEngine, lanes: Int) {
         val rng = Random(20261031)
         for (order in intArrayOf(lanes + 1, 4 * lanes + 3)) {
             val n = order + 2
             val start = 1
-            check(kernels.implementationsFor(order, 1, contiguous = true) == listOf(kernels.name)) {
+            check(
+                kernels.implementationsFor(order, 1, contiguous = true) ==
+                    listOf(kernels.name),
+            ) {
                 "a single contiguous side of order $order missed its body at $lanes lanes"
             }
             for (lower in booleanArrayOf(false, true)) {
@@ -184,14 +187,14 @@ internal object SimdRuntimePathCheck {
                             val paired = DoubleArray(2 * order) { if (it % 2 == 0) values[it / 2] else 0.0 }
                             val actual = values.copyOf()
                             if (solve) {
-                                PortableTriangularKernels.diagonalSolve(
+                                PortableEngine.diagonalSolve(
                                     triangle.values, n, start, order, transposed, lower, unitDiag, paired, 0, 2, 1, 2,
                                 )
                                 kernels.diagonalSolve(
                                     triangle.values, n, start, order, transposed, lower, unitDiag, actual, 0, 1, 1, 1,
                                 )
                             } else {
-                                PortableTriangularKernels.diagonalMultiply(
+                                PortableEngine.diagonalMultiply(
                                     triangle.values, n, start, order, transposed, lower, unitDiag, paired, 0, 2, 1, 2,
                                 )
                                 kernels.diagonalMultiply(
@@ -212,7 +215,7 @@ internal object SimdRuntimePathCheck {
         }
     }
 
-    /** The indexed dense dot, whose vector body only a two-lane unit reaches, against the scalar loop. */
+    /** The exact indexed composition, whose vector body only two lanes reach, against the scalar loop. */
     private fun assertSparseDotAgreesWithReference() {
         val rng = Random(20261101)
         for (count in intArrayOf(1, 2, 3, 7, 32, 33, 257)) {
@@ -220,10 +223,10 @@ internal object SimdRuntimePathCheck {
             val values = DoubleArray(count + 3) { rng.nextDouble(-1.0, 1.0) }
             val dense = DoubleArray(3 * count + 8) { rng.nextDouble(-1.0, 1.0) }
 
-            val expected = ScalarIndexedSparseKernels.dotDense(indices, 1, values, 2, count, dense)
-            val actual = SparseSimd.dotDense(indices, 1, values, 2, count, dense)
+            val expected = PortableEngine.dotDense(indices, 1, values, 2, count, dense)
+            val actual = selectedBackend.dotDense(indices, 1, values, 2, count, dense)
 
-            assertClose(expected, actual, "sparse dot count=$count vector=${SparseSimd.vectorDot}")
+            assertClose(expected, actual, "sparse dot count=$count engine=${selectedBackend.name}")
         }
     }
 }

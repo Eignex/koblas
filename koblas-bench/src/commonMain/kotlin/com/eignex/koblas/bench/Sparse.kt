@@ -1,11 +1,11 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.Matrix
-import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.Workspace
-import com.eignex.koblas.koblas
+import com.eignex.koblas.workspace.*
+
+import com.eignex.koblas.*
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.sparse.*
 import com.eignex.koblas.sparse.SparsePrimitives
 
 /**
@@ -13,7 +13,7 @@ import com.eignex.koblas.sparse.SparsePrimitives
  * is not a sparse one.
  *
  * The engine-dispatched arms are exact because each runs on the engine its arm pinned through
- * [com.eignex.koblas.BuiltinEngines]. A row records that selection, not the body a given width reached: a
+ * [BuiltinEngines]. A row records that selection, not the body a given width reached: a
  * Vector API selection still runs scalar loops below its crossover.
  *
  * The generic primitives are the exception, because no engine selects them. They are one implementation, timed
@@ -24,7 +24,7 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
     if (!case.operation.startsWith("sp")) return null
     val density = case.option("density", "0.01").toDouble()
     val d = case.dimensions
-    val kernels = engine.sparseKernels
+    val kernels = engine
 
     fun arm(count: Int, timing: String, result: DoubleArray? = null, run: () -> Double): ArmChoice =
         if (count == 0) {
@@ -47,7 +47,7 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
         "spaccumulate" -> {
             // The generic primitives are one implementation for every engine, so this is timed once rather
             // than repeated under each label, where it would compare a selection against a copy of itself.
-            if (kernels.name != "scalar") {
+            if (engine !== BuiltinEngines.scalar) {
                 return ArmChoice(null, "the generic primitives have one implementation, timed on the scalar arm")
             }
             val x = Fixtures.sparseVector(d[0], density, 1)
@@ -175,7 +175,7 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
     val right = case.option("side", "L") == "R"
     val alpha = 0.875
     val beta = -0.25
-    val workspace = Workspace()
+    val buffered = engine.withWorkspace(Workspace())
 
     fun arm(verify: () -> Unit, run: () -> Double) = publish(engine, case, "oneshot", verify, run)
 
@@ -214,24 +214,24 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
                     case, engine,
                     verify = {
                         c0.values.copyInto(c.values)
-                        engine.gemm(alpha, a as Matrix, transpose, b as Matrix, transposeDense, beta, c, workspace)
+                        buffered.gemm(alpha, a as Matrix, transpose, b as Matrix, transposeDense, beta, c)
                         SparseReference.check(expected, SparseReference.dense(c), "${case.id} generic product")
                     },
                 ) {
                     c0.values.copyInto(c.values)
-                    engine.gemm(alpha, a as Matrix, transpose, b as Matrix, transposeDense, beta, c, workspace)
+                    buffered.gemm(alpha, a as Matrix, transpose, b as Matrix, transposeDense, beta, c)
                     c.values[0]
                 }
             } else {
                 arm(
                     verify = {
                         c0.values.copyInto(c.values)
-                        engine.gemm(alpha, a, transpose, b, transposeDense, beta, c, workspace = workspace)
+                        buffered.gemm(alpha, a, transpose, b, transposeDense, beta, c)
                         SparseReference.check(expected, SparseReference.dense(c), "${case.id} product")
                     },
                 ) {
                     c0.values.copyInto(c.values)
-                    engine.gemm(alpha, a, transpose, b, transposeDense, beta, c, workspace = workspace)
+                    buffered.gemm(alpha, a, transpose, b, transposeDense, beta, c)
                     c.values[0]
                 }
             }
@@ -256,12 +256,21 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             arm(
                 verify = {
                     mirror0.values.copyInto(mirror.values)
-                    engine.gemm(alpha, a, transpose, leftDense, false, beta, mirror, right = true, workspace = workspace)
+                    buffered.gemm(
+                        alpha,
+                        a,
+                        transpose,
+                        leftDense,
+                        false,
+                        beta,
+                        mirror,
+                        right = true,
+                    )
                     SparseReference.check(expected, SparseReference.dense(mirror), "${case.id} product")
                 },
             ) {
                 mirror0.values.copyInto(mirror.values)
-                engine.gemm(alpha, a, transpose, leftDense, false, beta, mirror, right = true, workspace = workspace)
+                buffered.gemm(alpha, a, transpose, leftDense, false, beta, mirror, right = true)
                 mirror.values[0]
             }
         }
@@ -284,12 +293,12 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
                 case, engine,
                 verify = {
                     mirror0.values.copyInto(mirror.values)
-                    engine.gemm(alpha, leftDense as Matrix, false, a as Matrix, transpose, beta, mirror, workspace)
+                    buffered.gemm(alpha, leftDense as Matrix, false, a as Matrix, transpose, beta, mirror)
                     SparseReference.check(expected, SparseReference.dense(mirror), "${case.id} generic product")
                 },
             ) {
                 mirror0.values.copyInto(mirror.values)
-                engine.gemm(alpha, leftDense as Matrix, false, a as Matrix, transpose, beta, mirror, workspace)
+                buffered.gemm(alpha, leftDense as Matrix, false, a as Matrix, transpose, beta, mirror)
                 mirror.values[0]
             }
         }
@@ -361,12 +370,12 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             arm(
                 verify = {
                     c0.values.copyInto(c.values)
-                    engine.symm(alpha, a, b, beta, c, lower, right, workspace)
+                    buffered.symm(alpha, a, b, beta, c, lower, right)
                     SparseReference.check(expected, SparseReference.dense(c), "${case.id} symmetric product")
                 },
             ) {
                 c0.values.copyInto(c.values)
-                engine.symm(alpha, a, b, beta, c, lower, right, workspace)
+                buffered.symm(alpha, a, b, beta, c, lower, right)
                 c.values[0]
             }
         }
@@ -411,18 +420,18 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
                 verify = {
                     original.values.copyInto(b.values)
                     if (solve) {
-                        engine.trsm(a, b, lower, transpose, unit, right, alpha, workspace)
+                        buffered.trsm(a, b, lower, transpose, unit, right, alpha)
                     } else {
-                        engine.trmm(a, b, lower, transpose, unit, right, alpha, workspace)
+                        buffered.trmm(a, b, lower, transpose, unit, right, alpha)
                     }
                     SparseReference.check(expected, SparseReference.dense(b), "${case.id} triangular block")
                 },
             ) {
                 original.values.copyInto(b.values)
                 if (solve) {
-                    engine.trsm(a, b, lower, transpose, unit, right, alpha, workspace)
+                    buffered.trsm(a, b, lower, transpose, unit, right, alpha)
                 } else {
-                    engine.trmm(a, b, lower, transpose, unit, right, alpha, workspace)
+                    buffered.trmm(a, b, lower, transpose, unit, right, alpha)
                 }
                 b.values[0]
             }
@@ -439,7 +448,7 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
                 verify = {
                     if (dense) {
                         c0.values.copyInto(c.values)
-                        engine.syrk(alpha, a, false, beta, c, lower, workspace)
+                        buffered.syrk(alpha, a, false, beta, c, lower)
                         SparseReference.check(
                             SparseReference.syrk(alpha, reference, false, beta, SparseReference.dense(c0), lower),
                             SparseReference.dense(c), "${case.id} rank update",
@@ -456,7 +465,7 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             ) {
                 if (dense) {
                     c0.values.copyInto(c.values)
-                    engine.syrk(alpha, a, false, beta, c, lower, workspace)
+                    buffered.syrk(alpha, a, false, beta, c, lower)
                     c.values[0]
                 } else {
                     Retained.retain(engine.syrk(a, false, lower))
@@ -482,7 +491,6 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
         else -> null
     }
 }
-
 
 /** A timed row for a sparse matrix call on [engine], refused when one of the case's extents is empty. */
 private fun publish(

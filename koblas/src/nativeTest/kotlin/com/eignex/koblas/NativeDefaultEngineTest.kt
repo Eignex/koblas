@@ -4,30 +4,36 @@
 
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.DenseOperation
+import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.ReferenceBlas
-import com.eignex.koblas.internal.dense.implementationFor
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.sparse.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /** Checks the Native default engine. Missing libraries are reported explicitly. */
 class NativeDefaultEngineTest {
     private fun skipped(what: String) {
-        println("SKIPPED: no CBLAS library installed; $what was not verified on this host")
+        println("SKIPPED: no applicable measured host profile or binding; $what was not verified on this host")
     }
 
-    /**
-     * Aliased rotations stay portable because reference `drot` reads an entry after storing it,
-     * while owned kernels read both inputs before writing. Width alone cannot settle the kernel.
-     */
+    /** Equal runs are staged before the vendor call, without changing arithmetic providers. */
     @Test
-    fun `a wide rotation is decided by its operands rather than its width`() {
-        val vendor = koblas.vendor ?: return skipped("the rotation's alias-dependent dispatch")
-        val arm = "${vendor.vendor.vendorName.lowercase()}-level1"
-        if (koblas.vectorKernels.name != arm) return skipped("this platform keeps Level 1 off the library")
+    fun `an aliased rotation stays on the selected vendor`() {
+        val arm = koblas.implementationFor(EngineImplementation.Rot, LONG_COLUMN)
+        if (koblas.providers.none { it.vendor != null && it.name == arm }) return skipped("vendor rotation")
+        val values = DoubleArray(LONG_COLUMN) { (it - 17) / 13.0 }
+        val expected = values.copyOf()
+        BuiltinEngines.scalar.rot(expected, 0, expected, 0, LONG_COLUMN, 0.75, -0.25)
 
-        assertEquals(null, koblas.vectorKernels.implementationFor(DenseOperation.Rot, LONG_COLUMN))
+        koblas.rot(values, 0, values, 0, LONG_COLUMN, 0.75, -0.25)
+
+        assertEquals(arm, koblas.implementationFor(EngineImplementation.Rot, LONG_COLUMN))
+        assertRotationAgreesWithReference(expected, values)
     }
+
+    private fun assertRotationAgreesWithReference(expected: DoubleArray, actual: DoubleArray) =
+        assertClose(expected, actual, "aliased vendor rotation")
 
     /** The exact portable engine resolves no host binding and provides the availability floor. */
     @Test

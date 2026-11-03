@@ -16,7 +16,7 @@ internal data class BenchCase(
 internal object Cases {
     private val dimensionCounts = mapOf(
         "dot" to 1, "axpy" to 1, "axpy-unit" to 1, "scal" to 1, "nrm2" to 1, "asum" to 1, "sum" to 1,
-        "iamax" to 1, "swap" to 1, "rot" to 1,
+        "iamax" to 1, "swap" to 1, "rot" to 1, "copy" to 1,
         "copy-overlap" to 1, "axpy-views" to 1, "swap-views" to 1, "spdot-view" to 1,
         "gemv" to 2, "symv" to 1, "ger" to 2, "syr" to 1, "syr2" to 1, "trsv" to 1,
         "ger-shrinking" to 1, "ger-window-shrinking" to 1,
@@ -36,7 +36,7 @@ internal object Cases {
     )
     private val fixtures = setOf("uniform", "triangular", "sparse-uniform", "sparse-triangular")
     private val optionOrder =
-        listOf("density", "support", "mode", "side", "uplo", "transA", "transB", "diag", "timing", "workspace", "layout")
+        listOf("density", "support", "mode", "side", "uplo", "transA", "transB", "diag", "timing", "workspace", "layout", "stride")
 
     fun parse(text: String): List<BenchCase> {
         val cases = text.lineSequence().mapIndexedNotNull { index, raw ->
@@ -68,7 +68,7 @@ internal object Cases {
         val operation = parts[0]
         val count = dimensionCounts[operation] ?: invalid("unknown operation '$operation'")
         val dimensions = parts[1].split('x').map {
-            it.toIntOrNull()?.takeIf { value -> value in 1..MAX_DIMENSION } ?: invalid("invalid positive dimension '$it'")
+            it.toIntOrNull()?.takeIf { value -> value > 0 } ?: invalid("invalid positive dimension '$it'")
         }
         if (dimensions.size != count) invalid("$operation requires $count dimensions")
         if (operation in setOf("ger-shrinking", "ger-window-shrinking") && dimensions[0] < 2) {
@@ -111,6 +111,7 @@ internal object Cases {
             "diag" -> if (value !in setOf("N", "U")) invalid("invalid diag '$value'")
             "workspace" -> if (value != "retained") invalid("workspace must be retained")
             "layout" -> if (value != "borrowed") invalid("layout must be borrowed")
+            "stride" -> if (value.toIntOrNull()?.let { it != 0 && it != Int.MIN_VALUE } != true) invalid("invalid stride '$value'")
         }
     }
 
@@ -146,6 +147,7 @@ internal object Cases {
     }
 
     private fun allowedOptions(operation: String, sparse: Boolean): Set<String> = buildSet {
+        if (operation in setOf("dot", "copy", "axpy", "scal", "nrm2", "asum", "sum", "iamax", "swap", "rot")) add("stride")
         if (sparse) add("density")
         // Only where a matrix operand is drawn: a sparse vector case has one column and no distribution.
         if (operation in SUPPORT_OPERATIONS) add("support")
@@ -208,5 +210,4 @@ internal object Cases {
         "spsyrk-dense", "spsyrk-sparse", "spadd", "spmm-generic", "spmm-generic-right", "spgemm-generic",
         "spbuild-triplets", "spbuild-duplicates",
     )
-    private const val MAX_DIMENSION = 1_000_000
 }

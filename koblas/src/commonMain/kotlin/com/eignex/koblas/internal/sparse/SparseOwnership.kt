@@ -1,21 +1,17 @@
 package com.eignex.koblas.internal.sparse
 
-import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.Workspace
-import com.eignex.koblas.borrow
-import com.eignex.koblas.borrowI32
-import com.eignex.koblas.dense.*
-import com.eignex.koblas.sparse.*
-import com.eignex.koblas.vendor.*
+import com.eignex.koblas.*
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.portable.sparse.*
 
 /**
  * Borrows the complete rank-update scratch set as one exception-safe inline scope. No holder object is
- * created; each buffer remains an independent workspace loan and is returned if a later loan or the kernel
+ * created; each buffer remains an independent arrays loan and is returned if a later loan or the kernel
  * throws.
  */
 @Suppress("LongParameterList")
 internal inline fun <T> withSymmetricRankScratch(
-    workspace: Workspace?,
+    arrays: ArraySupplier?,
     order: Int,
     sourceRows: Int,
     sourceEntries: Int,
@@ -28,13 +24,13 @@ internal inline fun <T> withSymmetricRankScratch(
         adjacentPositions: IntArray,
         rowCursor: IntArray,
     ) -> T,
-): T = workspace.borrow(order) { sums ->
-    workspace.borrowI32(order) { touchedAt ->
-        workspace.borrowI32(order) { touched ->
-            workspace.borrowI32(scratchLength(sourceRows, "syrk")) { rowPointers ->
-                workspace.borrowI32(sourceEntries) { adjacentColumns ->
-                    workspace.borrowI32(sourceEntries) { adjacentPositions ->
-                        workspace.borrowI32(sourceRows) { rowCursor ->
+): T = arrays.borrow(order) { sums ->
+    arrays.borrowI32(order) { touchedAt ->
+        arrays.borrowI32(order) { touched ->
+            arrays.borrowI32(scratchLength(sourceRows, "syrk")) { rowPointers ->
+                arrays.borrowI32(sourceEntries) { adjacentColumns ->
+                    arrays.borrowI32(sourceEntries) { adjacentPositions ->
+                        arrays.borrowI32(sourceRows) { rowCursor ->
                             block(
                                 sums,
                                 touchedAt,

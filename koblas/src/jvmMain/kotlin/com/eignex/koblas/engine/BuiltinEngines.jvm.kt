@@ -1,0 +1,10 @@
+package com.eignex.koblas.engine
+
+import com.eignex.koblas.*
+
+/** Owned JVM kernels, with eligible host calls when native access and a vendor are available. */
+internal actual fun platformEngine(): KoblasEngine = JvmBackend.default
+
+internal actual fun simdBackend(): List<KoblasEngine>? = JvmBackend.contributions
+
+internal actual fun vendorEngine(vendor: Vendor): KoblasEngine? = JvmBackend.open(vendor)

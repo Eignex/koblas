@@ -1,14 +1,12 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.DimensionMismatch
-import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.Workspace
+import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.copyOf
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.sparse.withSymmetricRankScratch
+import com.eignex.koblas.workspace.*
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -53,7 +51,7 @@ class PortableSparseBlasTest {
             for (transpose in booleanArrayOf(false, true)) {
                 for (a in patterns) {
                     val order = if (transpose) a.cols else a.rows
-                    withSymmetricRankScratch(workspace, order, a.rows, a.nnz) {
+                    withSymmetricRankScratch(workspace.arrays, order, a.rows, a.nnz) {
                             sums,
                             marks,
                             touched,
@@ -82,7 +80,7 @@ class PortableSparseBlasTest {
                             val actual = initial.copyOf()
                             ReferenceSparseBlas.syrk(0.875, a, transpose, -0.25, expected, lower)
 
-                            engine.syrk(0.875, a, transpose, -0.25, actual, lower, workspace)
+                            engine.withWorkspace(workspace).syrk(0.875, a, transpose, -0.25, actual, lower)
 
                             val context = "${engine.name} pass=$pass pattern=$pattern transpose=$transpose lower=$lower"
                             assertSyrkAgreesWithReference(expected, actual, context)
@@ -130,7 +128,7 @@ class PortableSparseBlasTest {
                             val context = "${engine.name} nnz=${a.nnz} right=$right lower=$lower " +
                                 "transpose=$transpose unitDiag=$unitDiag"
 
-                            engine.trmm(a, b, lower, transpose, unitDiag, right, 1.0, workspace)
+                            engine.withWorkspace(workspace).trmm(a, b, lower, transpose, unitDiag, right, 1.0)
 
                             assertContentEquals(DoubleArray(0), backing, context)
                             assertEquals(0, workspace.idleLengths(), context)
@@ -157,7 +155,7 @@ class PortableSparseBlasTest {
                     val workspace = Workspace()
 
                     assertFailsWith<DimensionMismatch>("${engine.name} shape=${a.rows} by ${a.cols} right=$right") {
-                        engine.trmm(a, b, lower = true, right = right, workspace = workspace)
+                        engine.withWorkspace(workspace).trmm(a, b, lower = true, right = right)
                     }
 
                     assertEquals(0, workspace.idleLengths())

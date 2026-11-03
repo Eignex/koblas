@@ -4,16 +4,14 @@ package com.eignex.koblas.internal.jvm25.simd
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.internal.dense.DensePanelKernels
-import com.eignex.koblas.internal.dense.PanelWork
-import com.eignex.koblas.internal.dense.PortablePanelKernels
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.portable.PortableEngine
 import com.eignex.koblas.sparse.*
-import com.eignex.koblas.vendor.*
 import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
 
 /**
- * JVM Vector API panel arithmetic with [PortablePanelKernels] fallbacks.
+ * JVM Vector API panel arithmetic with [PortableEngine] fallbacks.
  *
  * Explicit lanes allow floating-point reductions to reorder additions. Column and rank updates
  * keep a destination strip in registers while several columns accumulate into it. Column grouping
@@ -23,12 +21,15 @@ import jdk.incubator.vector.VectorOperators
  * elementwise update or a scalar pass over all its columns at once, and a column update of one or two lane
  * blocks keeps its destination in registers across every column. Other short panels and strided operands
  * requiring gathers use the portable bodies; [implementationFor] reports the body reached. Species
- * initialization requires the Vector API module, so [com.eignex.koblas.BuiltinEngines] checks availability
+ * initialization requires the Vector API module, so [BuiltinEngines] checks availability
  * before using this backend.
  */
-internal object SimdPanelKernels : DensePanelKernels {
+internal object SimdPanelKernels : KoblasEngine {
+    override val id: String = "jvm-simd"
+    override val implementations = setOf(EngineImplementation.Panels)
+
     private val SPECIES = SIMD_SPECIES
-    private val LANE = if (simdAvailable) SPECIES.length() else 0
+    private val LANE = SPECIES.length()
 
     /**
      * Cache the name so scheduling decisions that compare it do not allocate.
@@ -44,8 +45,7 @@ internal object SimdPanelKernels : DensePanelKernels {
     private val VECTOR_MINIMUM = MINIMUM_BLOCKS * LANE
 
     /** Whether a panel of this shape and spacing reaches the vector bodies rather than the portable ones. */
-    private fun vectorizes(rows: Int, contiguous: Boolean): Boolean =
-        simdAvailable && contiguous && rows >= VECTOR_MINIMUM
+    private fun vectorizes(rows: Int, contiguous: Boolean): Boolean = contiguous && rows >= VECTOR_MINIMUM
 
     /**
      * A multi-dot is handed over whole and reuses one loaded vector across eight columns at a time; column
@@ -54,7 +54,6 @@ internal object SimdPanelKernels : DensePanelKernels {
      * a triangular caller's scalar corner. Group sizes reflect measurements on one host.
      */
     override fun executionGroup(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean): Int {
-        if (!simdAvailable) return PortablePanelKernels.executionGroup(work, rows, columns, contiguous)
         val preferred = when {
             contiguous && groupsWholeRow(work, rows) -> columns
 
@@ -77,13 +76,13 @@ internal object SimdPanelKernels : DensePanelKernels {
      * one vector operation per column and did not pay for itself on the measured host.
      */
     override fun prefersContiguous(work: PanelWork, rows: Int, columns: Int): Boolean =
-        simdAvailable && rows >= COPY_WORTH_BLOCKS * LANE && !vectorizes(rows, contiguous = false)
+        rows >= COPY_WORTH_BLOCKS * LANE && !vectorizes(rows, contiguous = false)
 
-    override fun implementationFor(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean): String =
+    internal fun implementationFor(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean): String =
         if (vectorizes(rows, contiguous) || (contiguous && reachesShortBody(work, rows))) {
             name
         } else {
-            PortablePanelKernels.implementationFor(work, rows, columns, contiguous)
+            PortableEngine.implementationFor(work, rows, columns, contiguous)
         }
 
     override fun multiDot(
@@ -106,7 +105,7 @@ internal object SimdPanelKernels : DensePanelKernels {
             return
         }
         if (!vectorizes(rows, xStride == 1)) {
-            PortablePanelKernels.multiDot(
+            PortableEngine.multiDot(
                 alpha, a, aOffset, lda, x, xOffset, xStride, rows, columns, beta, y, yOffset, yStride,
             )
             return
@@ -312,7 +311,7 @@ internal object SimdPanelKernels : DensePanelKernels {
             return
         }
         if (!vectorizes(rows, yStride == 1)) {
-            PortablePanelKernels.columnUpdate(
+            PortableEngine.columnUpdate(
                 alpha, a, aOffset, lda, x, xOffset, xStride, rows, columns, y, yOffset, yStride,
             )
             return
@@ -516,7 +515,7 @@ internal object SimdPanelKernels : DensePanelKernels {
     ) {
         if (rows <= 0 || columns <= 0) return
         if (!vectorizes(rows, contiguous = xStride == 1 && yStride == 1 && coefficientStride == 1 && sumStride == 1)) {
-            PortablePanelKernels.coupledUpdateDot(
+            PortableEngine.coupledUpdateDot(
                 alpha, a, aOffset, lda, x, xOffset, rows, columns, y, yOffset,
                 coefficients, coefficientOffset, sums, sumOffset, xStride, yStride, coefficientStride, sumStride,
             )
@@ -716,7 +715,7 @@ internal object SimdPanelKernels : DensePanelKernels {
     ) {
         if (rows <= 0 || columns <= 0) return
         if (!vectorizes(rows, xStride == 1)) {
-            PortablePanelKernels.rankUpdate(
+            PortableEngine.rankUpdate(
                 alpha, a, aOffset, lda, x, xOffset, xStride, rows, columns,
                 coefficients, coefficientOffset, coefficientStride,
             )
@@ -783,7 +782,7 @@ internal object SimdPanelKernels : DensePanelKernels {
     ) {
         if (rows <= 0 || columns <= 0) return
         if (!vectorizes(rows, xStride == 1 && yStride == 1)) {
-            PortablePanelKernels.rankTwoUpdate(
+            PortableEngine.rankTwoUpdate(
                 alpha, a, aOffset, lda, x, xOffset, xStride, y, yOffset, yStride, rows, columns,
                 u, uOffset, uStride, v, vOffset, vStride,
             )
@@ -985,7 +984,7 @@ internal object SimdPanelKernels : DensePanelKernels {
     ) {
         if (rows <= 0 || columns <= 0) return
         if (!vectorizes(rows, rowStride == 1)) {
-            PortablePanelKernels.indexedColumnUpdate(
+            PortableEngine.indexedColumnUpdate(
                 alpha, a, aOffset, rowStride, indexStride, indices, values, fromIndex, columns, rows, y, yOffset,
             )
             return
@@ -1061,7 +1060,7 @@ internal object SimdPanelKernels : DensePanelKernels {
     ) {
         if (rows <= 0 || columns <= 0) return
         if (!vectorizes(rows, rowStride == 1)) {
-            PortablePanelKernels.indexedRankUpdate(
+            PortableEngine.indexedRankUpdate(
                 alpha, a, aOffset, rowStride, indexStride, indices, values, fromIndex, columns, rows, x, xOffset,
             )
             return
@@ -1142,7 +1141,7 @@ internal object SimdPanelKernels : DensePanelKernels {
     ) {
         if (rows <= 0 || columns <= 0) return
         if (!vectorizes(rows, rowStride == 1 && destinationRowStride == 1)) {
-            PortablePanelKernels.indexedCoupledUpdate(
+            PortableEngine.indexedCoupledUpdate(
                 alpha, a, b, offset, rowStride, indexStride, indices, values, fromIndex, columns, rows,
                 pivot, sums, sumOffset, excluded, destinationOffset, destinationRowStride, destinationIndexStride,
             )
@@ -1217,7 +1216,7 @@ internal object SimdPanelKernels : DensePanelKernels {
     }
 
     /** A panel with fewer rows than one lane block, which a column cannot fill and the work runs along. */
-    private fun isShort(rows: Int): Boolean = simdAvailable && rows in 1 until VECTOR_MINIMUM
+    private fun isShort(rows: Int): Boolean = rows in 1 until VECTOR_MINIMUM
 
     /**
      * Panels handed over whole. A multi-dot groups its columns itself and reuses the shared vector across all of
@@ -1448,7 +1447,7 @@ internal object SimdPanelKernels : DensePanelKernels {
     }
 
     /** Rows a column update keeps in registers across every column instead of reloading per group. */
-    private fun isResident(rows: Int): Boolean = simdAvailable && rows >= LANE && rows < RESIDENT_BLOCKS * LANE
+    private fun isResident(rows: Int): Boolean = rows >= LANE && rows < RESIDENT_BLOCKS * LANE
 
     /**
      * A column update over one or two lane blocks of rows, with the destination held in registers across

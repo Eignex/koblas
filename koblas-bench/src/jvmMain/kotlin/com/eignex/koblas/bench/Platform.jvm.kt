@@ -1,8 +1,7 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.koblas
+import com.eignex.koblas.*
+import com.eignex.koblas.engine.*
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -29,3 +28,6 @@ internal actual fun resolveEngine(mode: String): Pair<KoblasEngine, String> {
 }
 
 internal actual fun runtimeIdentity(): String = "kotlin-${KotlinVersion.CURRENT}/jvm/${System.getProperty("java.vendor")}/${System.getProperty("java.version")}".replace(',', '_')
+
+internal actual fun RoutingKey.provider(engine: KoblasEngine): String =
+    engine.providerFor(operation, rows, columns, depth, contiguous, borrowed)

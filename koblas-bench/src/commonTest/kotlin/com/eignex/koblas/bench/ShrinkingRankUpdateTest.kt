@@ -1,8 +1,8 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.*
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.engine.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -36,7 +36,11 @@ class ShrinkingRankUpdateTest {
 
                 repeat(3) {
                     for (step in fixture.x.indices) {
-                        expected = DenseReference.ger(-1.0, fixture.x[step], fixture.y[step], DenseMatrix.wrap(n, n, expected))
+                        expected = DenseReference.ger(-1.0, fixture.x[step], fixture.y[step], DenseMatrix.wrap(
+                            n,
+                            n,
+                            expected,
+                        ))
                     }
                     work.run()
                     assertRankUpdateAgreesWithReference(expected, assertNotNull(work.result), "$operation n=$n ${engine.name}")
@@ -46,7 +50,6 @@ class ShrinkingRankUpdateTest {
             }
         }
     }
-
 
     private fun assertRankUpdateAgreesWithReference(expected: DoubleArray, actual: DoubleArray, context: String) {
         DenseReference.check(expected, actual, context)

@@ -1,19 +1,17 @@
 package com.eignex.koblas.sparse.internal
 
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.DimensionMismatch
-import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.UnsafeKoblasApi
-import com.eignex.koblas.Workspace
+import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.copyOf
-import com.eignex.koblas.internal.dense.PanelWork
-import com.eignex.koblas.internal.sparse.sweepsTouchedRows
-import com.eignex.koblas.koblas
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.portable.sparse.sweepsTouchedRows
 import com.eignex.koblas.partialPanelWidth
 import com.eignex.koblas.randomMatrix
+import com.eignex.koblas.sparse.*
 import com.eignex.koblas.sparse.ReferenceSparseBlas
 import com.eignex.koblas.times
+import com.eignex.koblas.workspace.*
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -59,7 +57,7 @@ class SparseProductTest {
                 val fromDense = c.copyOf()
                 koblas.gemm(0.75, dense, transposeA, b, transposeB, -0.5, fromDense)
                 val fromSparse = c.copyOf()
-                koblas.gemm(0.75, sparse, transposeA, b, transposeB, -0.5, fromSparse, workspace = Workspace())
+                koblas.withWorkspace(Workspace()).gemm(0.75, sparse, transposeA, b, transposeB, -0.5, fromSparse)
 
                 assertClose(fromDense, fromSparse, "transposeA=$transposeA transposeB=$transposeB")
             }
@@ -80,9 +78,15 @@ class SparseProductTest {
                 val fromDense = c.copyOf()
                 koblas.gemm(0.75, b, transposeB, dense, transposeA, -0.5, fromDense)
                 val fromSparse = c.copyOf()
-                koblas.gemm(
-                    0.75, sparse, transposeA, b, transposeB, -0.5, fromSparse,
-                    right = true, workspace = Workspace(),
+                koblas.withWorkspace(Workspace()).gemm(
+                    0.75,
+                    sparse,
+                    transposeA,
+                    b,
+                    transposeB,
+                    -0.5,
+                    fromSparse,
+                    right = true,
                 )
 
                 assertClose(fromDense, fromSparse, "right transposeA=$transposeA transposeB=$transposeB")
@@ -189,7 +193,7 @@ class SparseProductTest {
                 val actual = expected.copyOf()
 
                 ReferenceSparseBlas.gemm(0.5, a, transposeA, b, transposeB, -0.25, expected)
-                koblas.gemm(0.5, a, transposeA, b, transposeB, -0.25, actual, Workspace())
+                koblas.withWorkspace(Workspace()).gemm(0.5, a, transposeA, b, transposeB, -0.25, actual)
 
                 assertClose(expected, actual, "sparse-sparse dense transposeA=$transposeA transposeB=$transposeB")
             }

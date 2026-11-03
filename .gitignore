@@ -4,6 +4,7 @@ local.properties
 build/
 **/build
 **/*.db
+__pycache__/
 
 ### IntelliJ IDEA ###
 .idea

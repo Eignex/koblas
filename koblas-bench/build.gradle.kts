@@ -1,6 +1,7 @@
 @file:OptIn(org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi::class)
 
 import java.nio.file.Path as JdkPath
+import java.io.File as JdkFile
 import org.gradle.api.tasks.JavaExec
 
 import org.gradle.jvm.toolchain.JavaLanguageVersion
@@ -65,6 +66,24 @@ kotlin {
         jvmMain.dependencies {
             implementation(project(":koblas-bench:jmh"))
             implementation("com.eignex:lab-bench:$labBenchVersion")
+            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.12.0")
+        }
+    }
+}
+
+// Benchmarks inspect the same internal dispatchers as conformance tests without publishing a route API.
+kotlin.targets.configureEach {
+    compilations.configureEach {
+        val friends = compileDependencyFiles.filter { it.path.contains("koblas") && !it.path.contains("koblas-bench") }
+        val inspect = name != "test"
+        compileTaskProvider.configure {
+            if (this is org.jetbrains.kotlin.gradle.tasks.BaseKotlinCompile) friendPaths.from(friends)
+            if (this is org.jetbrains.kotlin.gradle.tasks.KotlinNativeCompile && inspect) {
+                val nativeFriends = libraries.filter { it.path.contains("koblas") && !it.path.contains("koblas-bench") }
+                compilerOptions.freeCompilerArgs.add(nativeFriends.elements.map {
+                    "-friend-modules=" + it.joinToString(JdkFile.pathSeparator) { entry -> entry.asFile.absolutePath }
+                })
+            }
         }
     }
 }
@@ -85,6 +104,27 @@ private fun benchmarkArguments(mode: String, jmh: Boolean): List<String> = listO
 ) + if (jmh) listOf("--forks=${providers.gradleProperty("bench.forks").orElse("2").get()}") else emptyList()
 
 val jvmCompilation = (kotlin.targets.getByName("jvm") as KotlinJvmTarget).compilations.getByName("main")
+val generateCalibrationGrids = tasks.register<JavaExec>("generateCalibrationGrids") {
+    dependsOn(jvmCompilation.compileTaskProvider)
+    val output = layout.buildDirectory.dir("calibration")
+    inputs.files(jvmCompilation.output.allOutputs, "cases-addressed.txt")
+    outputs.dir(output)
+    classpath(jvmCompilation.output.allOutputs, configurations.getByName("jvmRuntimeClasspath"))
+    mainClass.set("com.eignex.koblas.bench.EngineTuning")
+    workingDir(rootProject.projectDir)
+    args("--write-cases", output.get().asFile)
+}
+
+tasks.register<JavaExec>("tuneEngine") {
+    dependsOn("prepareLabBenchmark")
+    group = "benchmark"
+    description = "Recalculates Kotlin routing profiles from paired captures. Pass options with --args."
+    dependsOn(jvmCompilation.compileTaskProvider)
+    classpath(jvmCompilation.output.allOutputs, configurations.getByName("jvmRuntimeClasspath"))
+    mainClass.set("com.eignex.koblas.bench.EngineTuning")
+    workingDir(rootProject.projectDir)
+}
+
 val benchmarkJavaVersion = providers.gradleProperty("bench.javaVersion").orElse("25")
 val benchmarkJvmVendor = providers.gradleProperty("bench.javaVendor")
 val expectedBenchmarkJavaHome = providers.gradleProperty("bench.expectedJavaHome")
@@ -128,8 +168,8 @@ val hostTarget = when {
     else -> null
 }
 
-tasks.register("prepareLabComparison") {
-    dependsOn("prepareLabBenchmark", "prepareLabVendor")
+tasks.register("prepareLabCalibration") {
+    dependsOn("prepareLabBenchmark", "prepareLabVendor", generateCalibrationGrids)
     hostTarget?.let { dependsOn("linkReleaseExecutable$it") }
 }
 

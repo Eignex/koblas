@@ -22,6 +22,13 @@ public enum class MatrixStructure {
 
     /** Upper triangular with implicit diagonal ones. */
     UnitUpper,
+    ;
+
+    /** Whether the stored triangle is lower. */
+    internal val isLower: Boolean get() = this == SymmetricLower || this == TriangularLower || this == UnitLower
+
+    /** Whether the diagonal is implicit. */
+    internal val isUnitDiagonal: Boolean get() = this == UnitLower || this == UnitUpper
 }
 
 /**
@@ -41,20 +48,3 @@ internal fun triangle(lower: Boolean, unitDiag: Boolean): MatrixStructure = when
 /** The stored triangle a symmetric operand declares, shared with the callers that state it themselves. */
 internal fun symmetricStructure(lower: Boolean): MatrixStructure =
     if (lower) MatrixStructure.SymmetricLower else MatrixStructure.SymmetricUpper
-
-/** Symmetric bindings have no unit-diagonal flag, so they require a stored triangle and diagonal. */
-internal fun requireStructured(structure: MatrixStructure, what: String) {
-    val stored = structure != MatrixStructure.General &&
-        structure != MatrixStructure.UnitLower &&
-        structure != MatrixStructure.UnitUpper
-    require(stored) { "$what requires a stored triangle with a stored diagonal" }
-}
-
-/** A triangular structure, stored or with an implicit unit diagonal. */
-internal fun requireTriangular(structure: MatrixStructure, what: String) {
-    val triangular = structure == MatrixStructure.TriangularLower ||
-        structure == MatrixStructure.TriangularUpper ||
-        structure == MatrixStructure.UnitLower ||
-        structure == MatrixStructure.UnitUpper
-    require(triangular) { "$what requires a triangular matrix" }
-}

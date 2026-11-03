@@ -1,12 +1,11 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.StridedVector
+import com.eignex.koblas.*
 import com.eignex.koblas.axpy
 import com.eignex.koblas.copy
-import com.eignex.koblas.dot
-import com.eignex.koblas.koblas
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.sparse.*
 import com.eignex.koblas.swap
 
 /**
@@ -23,7 +22,7 @@ internal fun vectorViewsArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
         val dense = Fixtures.vector(size, 2)
         val backing = DoubleArray(2 * size) { if (it % 2 == 0) dense[it / 2] else Double.NaN }
         val view = StridedVector(backing, 0, size, 2)
-        val expected = BuiltinEngines.scalar.sparseKernels.dot(sparse, dense)
+        val expected = BuiltinEngines.scalar.dot(sparse, dense)
         DenseReference.check(doubleArrayOf(expected), doubleArrayOf(sparse dot view), case.id)
         return ArmChoice(CaseWork("default-policy", "arithmetic", { sparse dot view },
             kernel = "portable-vector+scalar/dot-view"), null)
@@ -36,7 +35,7 @@ internal fun vectorViewsArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
     val destination = StridedVector(backing, 1, size, stride)
     val x = DoubleArray(size) { initial[it * stride] }
     val y = DoubleArray(size) { initial[1 + it * stride] }
-    val kernels = BuiltinEngines.scalar.vectorKernels
+    val kernels = BuiltinEngines.scalar
     when (case.operation) {
         "copy-overlap" -> x.copyInto(y)
         "axpy-views" -> kernels.axpy(y, 0, 0.875, x, 0, size)

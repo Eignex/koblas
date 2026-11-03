@@ -1,0 +1,215 @@
+@file:Suppress("VariableNaming", "FunctionParameterNaming") // math convention: single-letter A, B, T, X
+
+package com.eignex.koblas.internal.portable.sparse
+
+import com.eignex.koblas.*
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.operands.*
+import com.eignex.koblas.internal.operands.staged
+import com.eignex.koblas.internal.portable.dense.forEachPanel
+import com.eignex.koblas.internal.sparse.*
+import com.eignex.koblas.sparse.*
+
+/* Shared triangular scheduling over reusable sparse column and RHS-panel leaves. */
+
+/** Walks triangle columns in dependency order without allocating a descending progression. */
+internal inline fun forEachTriangleColumn(order: Int, forward: Boolean, action: (column: Int) -> Unit) {
+    var step = 0
+    while (step < order) {
+        action(if (forward) step else order - 1 - step)
+        step++
+    }
+}
+
+/**
+ * Which direction a triangular dependence runs.
+ */
+internal fun triangularForward(lower: Boolean, transpose: Boolean, solve: Boolean): Boolean =
+    lower != (transpose == solve)
+
+/**
+ * The plan a triangular routine takes over a block of right-hand sides.
+ *
+ * The block is both the source and the destination, so a staged copy is read in and written back, and the
+ * direction that gathers finished rows into a pivot is the shape the backend is asked about.
+ */
+internal fun triangularRhsPlan(kernels: KoblasEngine, order: Int, sides: Int, entries: Int, transpose: Boolean): Int =
+    planRightHandSides(
+        kernels,
+        order,
+        sides,
+        entries,
+        copiedPerSide = 2L * order,
+        nativelyContiguous = false,
+        reduction = transpose,
+    )
+
+/** Runs [block] with the diagonal of [a] borrowed from reusable scratch, or null when [unitDiag] takes it as 1. */
+internal inline fun withExplicitDiagonal(
+    a: SparseMatrix,
+    n: Int,
+    unitDiag: Boolean,
+    arrays: ArraySupplier?,
+    crossinline block: (DoubleArray?) -> Unit,
+) {
+    if (unitDiag) {
+        block(null)
+    } else {
+        arrays.borrow(n) { diagonal ->
+            for (j in 0 until n) diagonal[j] = a[j, j]
+            block(diagonal)
+        }
+    }
+}
+
+/**
+ * Sparse triangular multiply or solve over panels of right-hand sides, so a column's values and indices are
+ * read once for several of them.
+ *
+ * One traversal for both, because they are the same walk with the same panels and differ in what each column
+ * does at its pivot. The dependence between columns is the triangle's and stays in the order below; the
+ * right-hand sides of a panel are independent of each other, which is what a panel leaf may vectorise.
+ *
+ * Where the block's right-hand sides are worth staging adjacent, the whole panel is solved or multiplied in
+ * the staged copy and written back, which is correct for the same reason the panel exists: nothing in one
+ * right-hand side's arithmetic reaches another's.
+ */
+@OptIn(UnsafeKoblasApi::class)
+@Suppress("LongParameterList") // the triangle, the block, and the four BLAS triangle flags
+internal fun triangularLeftCore(
+    kernels: KoblasEngine,
+    solve: Boolean,
+    a: SparseMatrix,
+    b: DenseMatrixRegion,
+    lower: Boolean,
+    transpose: Boolean,
+    unitDiag: Boolean,
+    diagonal: DoubleArray?,
+    arrays: ArraySupplier?,
+) {
+    val n = a.rows
+    val bd = b.values
+    val sides = b.cols
+    if (n == 0 || sides == 0) return
+    val forward = triangularForward(lower, transpose, solve)
+    // Gathering reduces finished rows into a pivot; scattering spreads a pivot. Backends tune them separately.
+    val plan = triangularRhsPlan(kernels, n, sides, a.nnz, transpose)
+    val width = rhsWidth(plan)
+    val staged = rhsStaged(plan)
+    // Scatter scratch holds values and live flags. Single-right-hand-side groups need no panel loan.
+    arrays.borrowOptional(if (width > 1 && sides > 1) 2 * width else 0) { work ->
+        arrays.borrowOptional(if (staged) width * n else 0) { panel ->
+            forEachPanel(sides, width) { columnStart, actual ->
+                val dense = if (staged) panel else bd
+                val offset = if (staged) 0 else b.offset + columnStart * b.leadingDimension
+                val rhsStride = if (staged) 1 else b.leadingDimension
+                val indexStride = if (staged) width else 1
+                if (staged) {
+                    stageRhsPanel(
+                        bd,
+                        b.offset + columnStart * b.leadingDimension,
+                        b.leadingDimension,
+                        1,
+                        n,
+                        actual,
+                        panel,
+                        width,
+                    )
+                }
+                forEachSparseColumn(a, SparseColumnShape.Strict, lower, forward) { j, from, to ->
+                    val dj = diagonal?.get(j) ?: 1.0
+                    if (actual == 1) {
+                        if (!transpose) {
+                            sparseTriangularScatterSingle(
+                                solve, j, lower, unitDiag, dj, a.rowIndices, a.values,
+                                from, to, dense, offset, indexStride,
+                            )
+                        } else {
+                            sparseTriangularGatherSingle(
+                                solve, j, lower, unitDiag, dj, a.rowIndices, a.values,
+                                from, to, dense, offset, indexStride,
+                            )
+                        }
+                    } else if (!transpose) {
+                        kernels.sparseTriangularPanelScatter(
+                            solve, j, lower, unitDiag, dj, a.rowIndices, a.values,
+                            from, to,
+                            dense, offset, rhsStride, indexStride, actual, work,
+                        )
+                    } else {
+                        kernels.sparseTriangularPanelGather(
+                            solve, j, lower, unitDiag, dj, a.rowIndices, a.values,
+                            from, to,
+                            dense, offset, rhsStride, indexStride, actual, work,
+                        )
+                    }
+                }
+                if (staged) {
+                    unstageRhsPanel(
+                        panel,
+                        width,
+                        bd,
+                        b.offset + columnStart * b.leadingDimension,
+                        b.leadingDimension,
+                        1,
+                        n,
+                        actual,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Right multiply over contiguous dense columns, which turns every sparse update into a Level 1 operation,
+ * the same trade [trsmRightCore] makes. A row times op(T) is op(T)ᵀ times its column-shaped view, so this
+ * walks the triangle exactly as [triangularLeftCore] does with the transpose flag flipped, only every scalar
+ * lane of that algorithm is a whole column of [b] here instead of one right-hand side in a panel.
+ */
+@OptIn(UnsafeKoblasApi::class)
+@Suppress("LongParameterList") // the triangle, the block, and the three BLAS triangle flags
+internal fun trmmRightCore(
+    kernels: KoblasEngine,
+    a: SparseMatrix,
+    b: DenseMatrixRegion,
+    lower: Boolean,
+    transpose: Boolean,
+    unitDiag: Boolean,
+    diagonal: DoubleArray?,
+) {
+    val rows = b.rows
+    if (rows == 0) return
+    val n = a.rows
+    val gather = !transpose
+    forEachTriangleColumn(n, lower == gather) { l ->
+        kernels.sparseTriangularRightColumn(
+            false, gather, l, lower, unitDiag, diagonal?.get(l) ?: 1.0,
+            a.rowIndices, a.values, a.colPointers[l], a.colPointers[l + 1], b.values, rows, b.offset,
+            b.leadingDimension,
+        )
+    }
+}
+
+/** Right solve over contiguous dense columns, which turns every sparse update into a Level 1 operation. */
+@OptIn(UnsafeKoblasApi::class)
+internal fun trsmRightCore(
+    kernels: KoblasEngine,
+    a: SparseMatrix,
+    b: DenseMatrixRegion,
+    lower: Boolean,
+    transpose: Boolean,
+    diagonal: DoubleArray?,
+) {
+    val rows = b.rows
+    if (rows == 0) return
+    val gather = !transpose
+    forEachTriangleColumn(a.rows, lower != transpose) { j ->
+        kernels.sparseTriangularRightColumn(
+            true, gather, j, lower, diagonal == null, diagonal?.get(j) ?: 1.0,
+            a.rowIndices, a.values, a.colPointers[j], a.colPointers[j + 1], b.values, rows, b.offset,
+            b.leadingDimension,
+        )
+    }
+}

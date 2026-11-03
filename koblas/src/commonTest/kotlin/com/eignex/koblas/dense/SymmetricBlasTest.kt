@@ -1,14 +1,15 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.sparse.*
 import kotlin.random.Random
 import kotlin.test.*
 
 class SymmetricBlasTest {
 
     @Test
-    fun `symv matches gemv on the full matrix and reads only the selected triangle`() = withDenseBlas { blas ->
+    fun `symv matches gemv on the full matrix and reads only the selected triangle`() = withEngines { blas ->
         val rng = Random(20260910)
         for (lower in booleanArrayOf(true, false)) {
             for (n in intArrayOf(1, 2, 7, 16)) {
@@ -51,7 +52,7 @@ class SymmetricBlasTest {
     }
 
     @Test
-    fun `symm matches gemm on the full matrix and reads only the selected triangle`() = withDenseBlas { blas ->
+    fun `symm matches gemm on the full matrix and reads only the selected triangle`() = withEngines { blas ->
         val rng = Random(20260911)
         for (lower in booleanArrayOf(true, false)) {
             for (n in intArrayOf(1, 5, 12)) {
@@ -75,7 +76,7 @@ class SymmetricBlasTest {
     }
 
     @Test
-    fun `symm handles empty shapes`() = withDenseBlas { blas ->
+    fun `symm handles empty shapes`() = withEngines { blas ->
         blas.symm(1.0, DenseMatrix(0, 0), DenseMatrix(0, 3), 0.0, DenseMatrix(0, 3))
         blas.symm(1.0, DenseMatrix(2, 2), DenseMatrix(2, 0), 0.0, DenseMatrix(2, 0))
     }
@@ -103,7 +104,7 @@ class SymmetricBlasTest {
     }
 
     @Test
-    fun `syrk triangle modes write only the selected triangle with strict beta semantics`() = withDenseBlas { blas ->
+    fun `syrk triangle modes write only the selected triangle with strict beta semantics`() = withEngines { blas ->
         val rng = Random(20260933)
         for (lower in booleanArrayOf(true, false)) {
             for (transpose in booleanArrayOf(false, true)) {
@@ -118,7 +119,7 @@ class SymmetricBlasTest {
 
     @Suppress("CyclomaticComplexMethod", "LongParameterList") // one loop variable per flag the routine carries
     private fun checkSyrk(
-        blas: DenseBlas,
+        blas: KoblasEngine,
         rng: Random,
         lower: Boolean,
         transpose: Boolean,
@@ -158,7 +159,7 @@ class SymmetricBlasTest {
     }
 
     @Test
-    fun `the rank two update snapshots a destination sharing either input buffer`() = withDenseBlas { blas ->
+    fun `the rank two update snapshots a destination sharing either input buffer`() = withEngines { blas ->
         val initial = DenseMatrix.ofRows(Array(3) { i -> DoubleArray(3) { j -> (i * 3 + j + 1).toDouble() / 7.0 } })
         val other = DenseMatrix.wrap(3, 3, initial.values.copyOf()).also {
             for (i in it.values.indices) it.values[i] += 0.25

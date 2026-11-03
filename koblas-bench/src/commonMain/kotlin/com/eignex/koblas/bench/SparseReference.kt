@@ -2,8 +2,9 @@
 
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.*
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.sparse.*
 import kotlin.math.abs
 
 /**

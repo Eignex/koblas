@@ -14,6 +14,8 @@ Create a matrix from rows and a vector from a one-dimensional array:
 
 ```kotlin
 import com.eignex.koblas.*
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.engine.*
 
 val a = DenseMatrix.ofRows(arrayOf(
     doubleArrayOf(2.0, 1.0),
@@ -50,26 +52,29 @@ koblas.gemv(1.0, a, x, 0.0, destination) // Same calculation as a * x
 ```
 
 The fuller forms can scale the product and add it to the destination in one call. For matrices,
-GEMM computes `c = alpha * a * b + beta * c` when neither operand is transposed:
+GEMM computes `c = alpha * a * b + beta * c` when neither operand is transposed. Bind a workspace
+to the engine to reuse temporary buffers across calls:
 
 ```kotlin
+import com.eignex.koblas.workspace.*
+
 val result = DenseMatrix.zero(a.rows, b.cols)
-val workspace = Workspace()
+val engine = koblas.withWorkspace(Workspace())
 
 repeat(1_000) {
-    koblas.gemm(
+    engine.gemm(
         alpha = 1.0, a = a, transposeA = false,
         b = b, transposeB = false, beta = 0.0, c = result,
-        workspace = workspace,
     )
 }
 ```
 
 With beta set to zero, each call replaces the result; setting it to one accumulates into the result.
 Transpose flags let you multiply by a transposed operand without creating a separate transposed matrix.
-A workspace reuses temporary buffers, such as copies needed when inputs overlap the destination.
-It does not remove allocations from expressions that return new results or from sparse operations
-that build a new storage pattern. Concurrent calls need separate destinations and workspaces.
+`withWorkspace` preserves the engine’s arithmetic and routing while reusing alias snapshots, packed
+panels and sparse scratch. It does not remove allocations from expressions that return new results or
+from sparse operations that build a new storage pattern. Concurrent calls need separate destinations
+and workspaces.
 
 You can also reuse storage you already have. The wrapping factories share the supplied array without
 copying it. Dense matrix storage is column-major: elements in a column are adjacent, and `a[i, j]`
@@ -95,20 +100,22 @@ general solvers belong in the calling library.
 
 ## Java and mobile projects
 
-From Java, factories are static methods, Kotlin operators and extensions are exposed through Koblas, and
-`Koblas.getDefault()` is the default engine:
+From Java, factories are static methods and container conveniences use `Koblas`.
+Dense operations use `DenseBlas`, with `Engines.getDefault()` selecting the default engine:
 
 ```java
 import com.eignex.koblas.DenseMatrix;
 import com.eignex.koblas.DenseVector;
 import com.eignex.koblas.Koblas;
+import com.eignex.koblas.dense.DenseBlas;
+import com.eignex.koblas.engine.Engines;
 
 DenseMatrix a = DenseMatrix.ofRows(new double[][] {{2.0, 1.0}, {1.0, 3.0}});
 DenseVector x = DenseVector.of(new double[] {3.0, 5.0});
 DenseVector y = Koblas.multiply(a, x);
 
 DenseVector destination = DenseVector.wrap(new double[a.getRows()]);
-Koblas.getDefault().gemv(1.0, a, x, 0.0, destination, false, null);
+DenseBlas.gemv(Engines.getDefault(), 1.0, a, x, 0.0, destination, false);
 ```
 
 Android uses the same dependency as desktop JVM projects, with Java 17 bytecode support in your Android

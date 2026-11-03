@@ -1,16 +1,15 @@
-@file:Suppress("LongParameterList") // BLAS operands, flags and workspace
+@file:Suppress("LongParameterList") // BLAS operands, flags and scratch
 
 package com.eignex.koblas.internal.operands
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.internal.dense.applyBeta
-import com.eignex.koblas.sparse.*
-import com.eignex.koblas.vendor.*
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.portable.dense.applyBeta
 
 /** Snapshots a region only when it shares the destination buffer. */
 internal inline fun <T> stagedRegion(
-    workspace: Workspace?,
+    arrays: ArraySupplier?,
     a: DenseMatrixRegion,
     destination: DoubleArray,
     stable: DenseMatrixRegion? = null,
@@ -25,7 +24,7 @@ internal inline fun <T> stagedRegion(
     ) {
         return block(stable)
     }
-    return workspace.borrow(DenseMatrix.entryCount(a.rows, a.cols)) { copy ->
+    return arrays.borrow(DenseMatrix.entryCount(a.rows, a.cols)) { copy ->
         for (j in 0 until a.cols) {
             for (i in 0 until a.rows) {
                 if (lower == null || (if (lower) i >= j else i <= j)) {
@@ -64,7 +63,7 @@ internal fun scalingLength(rows: Int, columns: Int, leadingDimension: Int): Int 
 
 /** Disjoint submatrices of the same parent need no snapshot. */
 internal inline fun <T> stagedRegion(
-    workspace: Workspace?,
+    arrays: ArraySupplier?,
     a: DenseMatrixRegion,
     destination: DenseMatrixRegion,
     stable: DenseMatrixRegion? = null,
@@ -74,16 +73,11 @@ internal inline fun <T> stagedRegion(
     block: (DenseMatrixRegion) -> T,
 ): T {
     if (!regionsOverlap(a, destination)) return block(a)
-    return stagedRegion(workspace, a, destination.values, stable, original, lower, unitDiag, block)
+    return stagedRegion(arrays, a, destination.values, stable, original, lower, unitDiag, block)
 }
 
 /** Scales selected entries, never reading a zero-scaled destination or visiting its padding. */
-internal fun scaleRegion(
-    a: DenseMatrixRegion,
-    beta: Double,
-    lower: Boolean? = null,
-    vectors: DenseVectorKernels? = null,
-) {
+internal fun scaleRegion(a: DenseMatrixRegion, beta: Double, lower: Boolean? = null, vectors: KoblasEngine? = null) {
     if (beta == 1.0 || a.rows == 0 || a.cols == 0) return
     if (lower == null && vectors != null) {
         val length = scalingLength(a.rows, a.cols, a.leadingDimension)
@@ -118,7 +112,7 @@ internal fun regionVectorOverlap(a: DenseMatrixRegion, x: DenseVector): Boolean 
 
 /** A vector destination snapshots only overlapping logical matrix entries. */
 internal inline fun <T> stagedRegion(
-    workspace: Workspace?,
+    arrays: ArraySupplier?,
     a: DenseMatrixRegion,
     destination: DenseVector,
     lower: Boolean? = null,
@@ -126,7 +120,7 @@ internal inline fun <T> stagedRegion(
     block: (DenseMatrixRegion) -> T,
 ): T {
     if (!regionVectorOverlap(a, destination)) return block(a)
-    return stagedRegion(workspace, a, destination.values, lower = lower, unitDiag = unitDiag, block = block)
+    return stagedRegion(arrays, a, destination.values, lower = lower, unitDiag = unitDiag, block = block)
 }
 
 /** Whether two regions have identical logical-to-physical addressing. */

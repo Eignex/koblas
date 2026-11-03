@@ -1,0 +1,163 @@
+@file:Suppress("TooManyFunctions", "LongParameterList") // one check per BLAS routine, with that routine's operands
+
+package com.eignex.koblas.internal.operands
+
+import com.eignex.koblas.*
+
+/* Shared extent checks for conveniences, portable schedules and direct host bindings.
+ * Matrix inputs supply shape only; vector lengths avoid allocating wrappers for arrays.
+ * Caller-supplied structure flags are validated separately in dense/MatrixStructure.kt.
+ */
+
+/** Two vector operands the call reads in step. */
+internal fun requireSameSize(a: Int, b: Int, what: String) {
+    requireShape(a == b) { "$what: sizes differ, $a and $b" }
+}
+
+/** Requires a square operand, naming [what] in a failure. */
+internal fun requireSquare(a: Matrix, what: String) {
+    requireShape(a.rows == a.cols) { "$what requires a square matrix, got ${a.rows}x${a.cols}" }
+}
+
+/** Compares explicit, possibly transposed extents against [b] without allocating an oriented operand. */
+internal fun requireSameShape(rows: Int, cols: Int, b: Matrix, what: String) {
+    requireShape(rows == b.rows && cols == b.cols) {
+        "$what: ${rows}x$cols and ${b.rows}x${b.cols}, which must match"
+    }
+}
+
+/** `y = alpha · op(A) · x + beta · y`: the flag decides which dimension each vector answers to. */
+internal fun requireGemvOperands(a: Matrix, transposeA: Boolean, xSize: Int, ySize: Int) {
+    val expectedX = if (transposeA) a.rows else a.cols
+    val expectedY = if (transposeA) a.cols else a.rows
+    requireShape(xSize == expectedX && ySize == expectedY) {
+        "gemv: ${a.rows}x${a.cols} with transpose=$transposeA needs x=$expectedX and y=$expectedY, " +
+            "got x=$xSize and y=$ySize"
+    }
+}
+
+/** `y = alpha · A · x + beta · y` for a symmetric `A`, whose order both vectors answer to. */
+internal fun requireSymvOperands(a: Matrix, xSize: Int, ySize: Int) {
+    requireSquare(a, "symv")
+    requireShape(xSize == a.rows && ySize == a.rows) {
+        "symv: order ${a.rows} needs x and y of that size, got x=$xSize and y=$ySize"
+    }
+}
+
+/** `A = alpha · x · yᵀ + A`, whose vectors span the destination's two dimensions. */
+internal fun requireGerOperands(xSize: Int, ySize: Int, a: Matrix) {
+    requireShape(xSize == a.rows && ySize == a.cols) {
+        "ger: ${a.rows}x${a.cols} needs x=${a.rows} and y=${a.cols}, got x=$xSize and y=$ySize"
+    }
+}
+
+/** Validates each rank-update window with subtraction, so overflowing end offsets cannot pass. */
+internal fun requireGerWindowOperands(
+    xSize: Int,
+    ySize: Int,
+    a: Matrix,
+    rowOffset: Int,
+    columnOffset: Int,
+    rows: Int,
+    columns: Int,
+    xOffset: Int,
+    yOffset: Int,
+) {
+    requireShape(rows >= 0 && columns >= 0) { "ger: negative window shape ${rows}x$columns" }
+    requireShape(rowOffset >= 0 && rowOffset <= a.rows && rows <= a.rows - rowOffset) {
+        "ger: row window offset=$rowOffset length=$rows outside ${a.rows} rows"
+    }
+    requireShape(columnOffset >= 0 && columnOffset <= a.cols && columns <= a.cols - columnOffset) {
+        "ger: column window offset=$columnOffset length=$columns outside ${a.cols} columns"
+    }
+    requireShape(xOffset >= 0 && xOffset <= xSize && rows <= xSize - xOffset) {
+        "ger: x window offset=$xOffset length=$rows outside length $xSize"
+    }
+    requireShape(yOffset >= 0 && yOffset <= ySize && columns <= ySize - yOffset) {
+        "ger: y window offset=$yOffset length=$columns outside length $ySize"
+    }
+}
+
+/** Symmetric rank update validation; separate one- and two-vector entries avoid vararg allocation. */
+internal fun requireSyrOperands(a: Matrix, xSize: Int, what: String) {
+    requireSquare(a, what)
+    requireOrder(a, xSize, what)
+}
+
+/** [requireSyrOperands] for the two-vector update. */
+internal fun requireSyr2Operands(a: Matrix, xSize: Int, ySize: Int, what: String) {
+    requireSquare(a, what)
+    requireOrder(a, xSize, what)
+    requireOrder(a, ySize, what)
+}
+
+private fun requireOrder(a: Matrix, size: Int, what: String) {
+    requireShape(size == a.rows) { "$what: order ${a.rows} needs a vector of that size, got $size" }
+}
+
+/** `op(T) · x = b` and `x = op(T) · x`, which solve or multiply in place over one vector. */
+internal fun requireTriangularVectorOperands(a: Matrix, xSize: Int, what: String) {
+    requireSquare(a, what)
+    requireShape(xSize == a.rows) { "$what: triangle order ${a.rows} does not match operand size $xSize" }
+}
+
+/** The shared dimension of `op(A) · op(B)`, which is all a product into fresh storage constrains. */
+internal fun requireProductOperands(a: Matrix, transposeA: Boolean, b: Matrix, transposeB: Boolean, what: String) {
+    val k = if (transposeA) a.rows else a.cols
+    val kb = if (transposeB) b.cols else b.rows
+    requireShape(k == kb) { "$what: inner dimensions differ, $k vs $kb" }
+}
+
+/** `C = alpha · op(A) · op(B) + beta · C`, with `op(A): m×k`, `op(B): k×n` and `C: m×n`. */
+internal fun requireGemmOperands(
+    a: Matrix,
+    transposeA: Boolean,
+    b: Matrix,
+    transposeB: Boolean,
+    c: Matrix,
+    what: String = "gemm",
+) {
+    requireProductOperands(a, transposeA, b, transposeB, what)
+    val m = if (transposeA) a.cols else a.rows
+    val n = if (transposeB) b.rows else b.cols
+    requireShape(c.rows == m && c.cols == n) { "$what: destination must be ${m}x$n, got ${c.rows}x${c.cols}" }
+}
+
+/** `C = alpha · op(A) · op(B) + beta · C` in one triangle, so the destination is square. */
+internal fun requireGemmtOperands(a: Matrix, transposeA: Boolean, b: Matrix, transposeB: Boolean, c: Matrix) {
+    requireSquare(c, "gemmt")
+    requireGemmOperands(a, transposeA, b, transposeB, c, "gemmt")
+}
+
+/** `C = alpha · A · B + beta · C` for a symmetric `A`, or `C = alpha · B · A + beta · C` from the right. */
+internal fun requireSymmOperands(a: Matrix, b: Matrix, c: Matrix, rightSide: Boolean) {
+    requireSquare(a, "symm")
+    requireSameShape(b.rows, b.cols, c, "symm")
+    val order = if (rightSide) c.cols else c.rows
+    requireShape(a.rows == order) {
+        "symm: the symmetric operand has order ${a.rows}, and from the ${if (rightSide) "right" else "left"} " +
+            "it must be $order"
+    }
+}
+
+/** `C = alpha · op(A) · op(A)ᵀ + beta · C`, whose destination is square of the update's order. */
+internal fun requireSyrkOperands(a: Matrix, transposeA: Boolean, c: Matrix, what: String = "syrk") {
+    requireSquare(c, what)
+    val order = if (transposeA) a.cols else a.rows
+    requireShape(c.rows == order) { "$what: destination must be ${order}x$order, got ${c.rows}x${c.cols}" }
+}
+
+/** [requireSyrkOperands] with a second operand of the first's shape. */
+internal fun requireSyr2kOperands(a: Matrix, b: Matrix, transposeA: Boolean, c: Matrix) {
+    requireSameShape(a.rows, a.cols, b, "syr2k")
+    requireSyrkOperands(a, transposeA, c, "syr2k")
+}
+
+/** `op(T) · X = alpha · B` and its product counterpart, from either side. */
+internal fun requireTriangularMatrixOperands(a: Matrix, b: Matrix, rightSide: Boolean, what: String) {
+    requireSquare(a, what)
+    val order = if (rightSide) b.cols else b.rows
+    requireShape(a.rows == order) {
+        "$what: triangle order ${a.rows} does not match the ${if (rightSide) "columns" else "rows"} of B, $order"
+    }
+}

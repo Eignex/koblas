@@ -2,8 +2,11 @@
 
 package com.eignex.koblas
 
+import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.MatrixStructure
-import com.eignex.koblas.internal.sparse.axpy
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.sparse.*
+import com.eignex.koblas.workspace.*
 import kotlin.random.Random
 import kotlin.test.*
 
@@ -322,7 +325,7 @@ class MatrixOpsTest {
         val workspace = Workspace()
         val destination = DoubleArray(n)
 
-        koblas.gemv(1.0, A, x, 0.0, DenseVector.wrap(destination), workspace = workspace)
+        koblas.withWorkspace(workspace).gemv(1.0, A, x, 0.0, DenseVector.wrap(destination))
 
         assertContentEquals(expected, destination)
         assertEquals(0, workspace.available(n), "the addressed call borrowed a gather")

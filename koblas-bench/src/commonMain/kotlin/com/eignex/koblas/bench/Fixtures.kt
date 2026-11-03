@@ -1,8 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.SparseVector
+import com.eignex.koblas.*
 
 internal const val FIXTURE_SEED: Long = 0x243f6a8885a308d3L
 
@@ -69,7 +67,7 @@ internal object Fixtures {
         val rowIndices = ArrayList<Int>()
         val columnIndices = ArrayList<Int>()
         val values = ArrayList<Double>()
-        val average = ((rows * density) + 0.5).toInt().coerceIn(1, rows)
+        val average = storedCount(rows, density)
         for (j in 0 until cols) {
             val count = countFor(support, average, rows, j)
             val columnSeed = FIXTURE_SEED xor ((operand * 65537L + j) * -7046029254386353131L)
@@ -99,6 +97,9 @@ internal object Fixtures {
             DoubleArray(order.size) { values[order[it]] },
         )
     }
+
+    /** Uniform sparse vector support is fixed independently of the operand seed. */
+    fun storedCount(size: Int, density: Double): Int = ((size * density) + 0.5).toInt().coerceIn(1, size)
 
     fun sparseVector(size: Int, density: Double, operand: Int): SparseVector {
         val matrix = sparse(size, 1, density, operand)

@@ -1,7 +1,9 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
+import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.ReferenceBlas
+import com.eignex.koblas.engine.*
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 

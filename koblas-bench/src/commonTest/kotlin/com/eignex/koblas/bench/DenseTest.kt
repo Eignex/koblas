@@ -1,8 +1,9 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.koblas
+import com.eignex.koblas.*
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.sparse.*
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -27,12 +28,14 @@ class DenseTest {
     fun `arithmetic scaling preserves fixture magnitudes across repeated calls`() {
         val case = Cases.parse("scal+17+uniform+timing=arithmetic").single()
         val work = assertNotNull(denseWork(case, BuiltinEngines.scalar))
-        val initial = Fixtures.vector(17, 1)
+        val initial = assertNotNull(work.result).copyOf()
+        val expected = initial.copyOf()
+        BuiltinEngines.scalar.scale(expected, 0, -1.0, 17)
 
         repeat(101) { work.run() }
 
         assertEquals("arithmetic", work.timingMode)
-        assertContentEquals(initial.map { -it }.toDoubleArray(), work.result)
+        assertContentEquals(expected, work.result)
         work.run()
         assertContentEquals(initial, work.result)
     }
@@ -106,6 +109,20 @@ class DenseTest {
                 val work = assertNotNull(denseWork(case, engine))
                 assertTrue(work.run().isFinite())
                 assertNotNull(work.kernel)
+            }
+        }
+    }
+
+    @Test
+    fun `strided vector workloads preserve padding and agree with the scalar reference`() {
+        for (operation in listOf("dot", "copy", "axpy", "scal", "nrm2", "asum", "sum", "iamax", "swap", "rot")) {
+            for (stride in listOf(2, -1, -2, 256, -257)) {
+                val case = Cases.parse("$operation+17+uniform+stride=$stride").single()
+                for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd, koblas)) {
+                    val work = assertNotNull(engineArm(case, engine)?.work)
+                    assertTrue(work.run().isFinite())
+                    assertNotNull(work.provider)
+                }
             }
         }
     }

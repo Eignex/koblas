@@ -1,16 +1,12 @@
 package com.eignex.koblas.internal.jvm25.simd
 
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.*
-import com.eignex.koblas.internal.sparse.IndexedSparseKernels
-import com.eignex.koblas.internal.sparse.ScalarIndexedSparseKernels
-import com.eignex.koblas.sparse.*
-import com.eignex.koblas.vendor.*
+import com.eignex.koblas.engine.*
 import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
 
 /**
- * The indexed dense dot in lanes, and the scalar kernels for every other indexed operation.
+ * The indexed dense dot in two lanes. Other operations have no registration here.
  *
  * The dot is the one indexed kernel whose lanes measured faster than HotSpot's scalar loop, and only on two-lane
  * units, where a lane block is two scalar loads put side by side: 0.81 to 0.92 of the scalar time on Apple
@@ -20,12 +16,11 @@ import jdk.incubator.vector.VectorOperators
  *
  * Its own object so the initializer, which touches DoubleVector, runs only once the module is present.
  */
-internal object SparseSimd : IndexedSparseKernels by ScalarIndexedSparseKernels {
-    override val name: String = "simd"
+internal object SparseSimd : KoblasEngine {
+    override val id: String = "jvm-simd"
+    override fun minimumLength(implementation: EngineImplementation): Int = 2
 
-    override fun implementationFor(operation: SparseOperation, count: Int): String? =
-        if (operation == SparseOperation.DotDense && vectorDot) name else ScalarIndexedSparseKernels.name
-
+    override val name: String = "simd-indexed"
     private val SPECIES = SIMD_SPECIES
     private val LANE = SPECIES.length()
 
@@ -34,6 +29,8 @@ internal object SparseSimd : IndexedSparseKernels by ScalarIndexedSparseKernels 
 
     /** Whether this unit takes the vector dot: two lanes, each loaded as a scalar. */
     val vectorDot: Boolean get() = LANE == 2
+
+    override val implementations = if (vectorDot) setOf(EngineImplementation.IndexedDot) else emptySet()
 
     @Suppress("LongParameterList")
     override fun dotDense(
@@ -44,9 +41,6 @@ internal object SparseSimd : IndexedSparseKernels by ScalarIndexedSparseKernels 
         count: Int,
         dense: DoubleArray,
     ): Double {
-        if (!vectorDot) {
-            return ScalarIndexedSparseKernels.dotDense(indices, indexOffset, values, valueOffset, count, dense)
-        }
         var k = 0
         val bound = SPECIES.loopBound(count)
         var sum = DoubleVector.zero(SPECIES)

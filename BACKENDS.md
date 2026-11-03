@@ -1,87 +1,64 @@
 # Engines and native libraries
 
-You can use every supported operation without installing a native library. Koblas works with ordinary
-Kotlin double arrays and chooses an implementation for you. On the JVM, enabling SIMD is the first step
-for faster vector and matrix arithmetic. A native library can help with larger matrix operations.
+Koblas supports dense and sparse BLAS Levels 1–3 without a native library. Operators such as `a * b`
+and convenience functions use `koblas`, an immutable engine selected once on first use.
 
-An engine is the implementation that carries out your calculations. Operators such as `a * b` and
-convenience functions use the default engine, available as `koblas`.
+## Automatic selection
 
-## How the default engine loads
+The default combines available implementations using one standard profile for the runtime and target.
+JDK 25+ adds Kotlin SIMD when enabled; JDK 17–24, Android and iOS use portable Kotlin without host lookup.
+Missing libraries, exports or native-access permission retain the remaining providers and portable coverage.
 
-The first use of `koblas` selects the engine once, using what is available on your platform:
-
-```mermaid
-flowchart LR
-    P["Portable Kotlin"] --> E["Default engine"]
-    S["JVM SIMD<br/>when enabled"] --> E
-    N["Native library<br/>when eligible and available"] --> E
-```
-
-| Platform | What the default engine uses |
+| Target | Standard composition and tuning |
 |---|---|
-| JDK 25+ | JVM SIMD when enabled, otherwise portable Kotlin. Native access can add oneMKL on Intel or unidentified Linux/Windows x64. |
-| Kotlin/Native, Intel or unidentified Linux/Windows x64 | First available compatible library: oneMKL → AOCL → OpenBLAS |
-| Kotlin/Native, AMD Linux/Windows x64 | First available compatible library: AOCL → oneMKL → OpenBLAS |
-| Kotlin/Native, Linux ARM64 | First available compatible library: ArmPL → OpenBLAS |
-| Kotlin/Native, macOS | System Accelerate |
-| JDK 17–24, Android and iOS | Portable Kotlin; no native library lookup |
+| Linux x86-64 | oneMKL, OpenBLAS and portable Kotlin have separate AVX2/AVX-512 tunings. JVM profiles add SIMD and estimated AOCL preferences. |
+| Linux Arm64 | OpenBLAS and portable Kotlin use SVE-256 tuning. JVM profiles add SIMD and estimated ArmPL preferences. |
+| macOS Arm64 | Accelerate combines with portable Kotlin, plus SIMD on JVM. Native thresholds use measurements; JVM thresholds are estimates. |
+| Other supported hosts | Windows borrows Linux tuning; Intel macOS borrows Arm64 Accelerate and Linux x86 JVM SIMD tuning. Other CPU classes and SVE widths use the closest compatible profile, labeled unmeasured best effort. |
 
-Finding a library makes it available to the engine. Each calculation then uses it only if that operation
-and size qualify; the rest uses JVM SIMD where applicable, or portable Kotlin. Missing libraries leave
-the Kotlin implementation available. The engine does not search again for each call.
+Profiles contain broad operation, shape and layout thresholds. Native routing favors host libraries;
+JVM transfers use higher cutoffs. Declarations and measurement references live in
+`engine/StandardEngineProfiles.kt`; thresholds are tuning estimates.
 
-On JDK 25+, enable SIMD with this JVM argument:
+## Enable acceleration
+
+On JDK 25+, enable SIMD with the first flag and native library calls with the second:
 
 ```text
 --add-modules=jdk.incubator.vector
+--enable-native-access=ALL-UNNAMED
 ```
 
-SIMD processes several numbers in one CPU instruction. It requires no native numerical library and
-works independently of native access.
+On the module path, use `--enable-native-access=com.eignex.koblas` instead.
+Install compatible LP64 libraries with 32-bit BLAS indices and make them discoverable by the system loader.
+Windows DLLs and dependencies need an absolute directory on PATH. Linux oneMKL is also searched under
+`~/intel/oneapi/mkl/latest` and `/opt/intel/oneapi/mkl/latest`. Set these before application startup.
 
-On x86-64, vector-heavy workloads can also add `-XX:ObjectAlignmentInBytes=32`. HotSpot then starts
-every array at a known offset, so dot products, absolute sums and maximum-magnitude searches can align
-their loads. On Intel AVX-512 lab hosts, with both settings on the same machine
-([10006](https://lab.eignex.com/jobs/10006), [10007](https://lab.eignex.com/jobs/10007)), dot products
-of 4,096 elements and longer ran 13–19% faster, and norms and AXPY of 4,096 to 16,384 elements 21–28%
-faster, and absolute sums 4–16% faster. AXPY of 65,536 elements ran 3–11% slower. Scaling, swaps,
-rotations and vectors shorter than 4,096 elements changed by a few percent either way. The cost is memory:
-every object is padded to 32 bytes.
+JVM native calls copy arrays to and from native memory, so they mainly help larger matrix products.
+Kotlin/Native can pin arrays in place. Sparse operations keep portable CSC traversal and use selected
+kernels for arithmetic within it.
 
-## When a native library helps
+## Explicit engines
 
-On the JVM, vector operations and matrix-vector operations stay in Kotlin. SIMD covers dot products,
-sums, norms, absolute sums, maximum-magnitude searches and scaled vector addition (AXPY), with scalar
-fallbacks. Scaling, copying, swapping and rotations use Kotlin loops or array-copy intrinsics.
-Matrix-vector products and rank updates use SIMD where applicable. Sparse operations keep their Kotlin
-traversal and can use SIMD for the arithmetic within it.
+`BuiltinEngines.scalar` selects portable Kotlin; `BuiltinEngines.simd` and
+`BuiltinEngines.vendor(Vendor.OneMkl)` return an exact engine or null when unavailable.
+An exact vendor engine supports only its declared operations. To combine providers with portable coverage:
 
-Automatic JVM native calls are limited to larger matrix-matrix operations: GEMM, GEMMT, SYMM, SYRK,
-SYR2K, TRMM and TRSM. Their output dimensions and shared dimension or structured order must each be
-at least 64, or at least 128 for GEMMT and for borrowed views. Whole-matrix GEMM also qualifies with at
-least 16 output rows and columns and a shared dimension of 1,024–4,096. These thresholds are built in.
+```kotlin
+val profile = StandardEngineProfiles.forTarget(EngineRuntime.Native, hostPlatform())
+val engine = BuiltinEngines.configured(profile)
+```
 
-JVM native calls copy arrays to and from native memory. An Intel comparison that includes this
-cost measured oneMKL at 1.45–4.66x JVM SIMD throughput for matrix-matrix cases at orders 128, 256
-and 768. For those workloads, installing oneMKL can pay off. For vector and matrix-vector workloads,
-enabling SIMD is enough to reach the default engine's accelerated paths. These figures come from Intel
-hosts; measure before relying on them elsewhere. Kotlin/Native can pin arrays in place and uses
-separate native cutoffs.
+Use `KoblasEngine.combine(profile, providers...)` for custom providers. A custom profile's applicability
+can be checked with `profile.appliesTo(runtime, hostPlatform())`; include SIMD rules explicitly when wanted.
 
-To allow native calls on JDK 25+, also pass `--enable-native-access=ALL-UNNAMED` on the classpath,
-or `--enable-native-access=com.eignex.koblas` on the module path. Install a compatible library using 32-bit BLAS
-indices (LP64) and make it discoverable by the system loader. Koblas also searches `~/intel/oneapi/mkl/latest` and
-`/opt/intel/oneapi/mkl/latest` for oneMKL on Linux. Set flags and library locations before starting the application.
+All implementations share `KoblasEngine` and declare positive `EngineImplementation` sets. Composition
+selects arithmetic through profile rules; shared operations handle validation, aliases and scheduling.
+Portable Levels 1–3 live under `internal/portable/dense/` and `internal/portable/sparse/`; vendor engines
+remain independent.
 
-On Windows, put matching vendor DLLs in an absolute directory on PATH, with runtime dependencies beside
-the DLL or in Windows system directories. Windows shares Linux's vendor preferences and cutoffs, but
-runtime behavior and thresholds have not been verified on a Windows host. Windows Arm64 supports
-explicit JVM bindings; the Kotlin/Native target is Windows x64.
+## Recalculate profiles
 
-Direct JVM bindings also support Accelerate, OpenBLAS, AOCL and ArmPL on their supported hosts;
-automatic JVM selection currently uses only oneMKL. The manual loader `openBlas(vendor)` means
-"open a BLAS binding": it returns a binding for direct calls, or null, without changing the default engine.
-To choose portable Kotlin explicitly, create a `KoblasEngine.portable()` and call it directly.
-See the [API overview](koblas/module.md) for explicit engines and bindings, or the
-[usage guide](USAGE.md) for array, workspace and view examples.
+The [benchmark workflow](koblas-bench/REFERENCE.md#recalculate-routing-profiles) captures paired workloads,
+emits Kotlin configuration and validates rebuilt profiles on disjoint holdouts. Recalculation is explicit;
+application startup only selects a prebuilt profile. Keep reports and measurement data outside the repository.

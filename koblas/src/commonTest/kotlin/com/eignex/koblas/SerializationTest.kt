@@ -1,6 +1,5 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.*
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.*
 import kotlin.test.*

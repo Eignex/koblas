@@ -1,15 +1,11 @@
 package com.eignex.koblas.internal.sparse
 
 import com.eignex.koblas.*
-import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.SparseVector
-import com.eignex.koblas.UnsafeKoblasApi
-import com.eignex.koblas.dense.*
+import com.eignex.koblas.engine.*
 import com.eignex.koblas.forEachStored
+import com.eignex.koblas.internal.portable.sparse.*
 import com.eignex.koblas.requireIndex
 import com.eignex.koblas.requireShape
-import com.eignex.koblas.sparse.*
-import com.eignex.koblas.vendor.*
 
 /**
  * [a] with every column [replacements] names replaced by the vector it maps to, in one pass.
@@ -90,7 +86,7 @@ internal inline fun forEachSparseColumn(
         val first = when (shape) {
             SparseColumnShape.Whole -> from
 
-            SparseColumnShape.Selected -> com.eignex.koblas.internal.sparse.selectedRunStart(
+            SparseColumnShape.Selected -> com.eignex.koblas.internal.portable.sparse.selectedRunStart(
                 a.rowIndices,
                 from,
                 to,
@@ -98,7 +94,7 @@ internal inline fun forEachSparseColumn(
                 lower,
             )
 
-            SparseColumnShape.Strict -> com.eignex.koblas.internal.sparse.strictRunStart(
+            SparseColumnShape.Strict -> com.eignex.koblas.internal.portable.sparse.strictRunStart(
                 a.rowIndices,
                 from,
                 to,
@@ -109,7 +105,7 @@ internal inline fun forEachSparseColumn(
         val end = when (shape) {
             SparseColumnShape.Whole -> to
 
-            SparseColumnShape.Selected -> com.eignex.koblas.internal.sparse.selectedRunEnd(
+            SparseColumnShape.Selected -> com.eignex.koblas.internal.portable.sparse.selectedRunEnd(
                 a.rowIndices,
                 from,
                 to,
@@ -117,7 +113,7 @@ internal inline fun forEachSparseColumn(
                 lower,
             )
 
-            SparseColumnShape.Strict -> com.eignex.koblas.internal.sparse.strictRunEnd(
+            SparseColumnShape.Strict -> com.eignex.koblas.internal.portable.sparse.strictRunEnd(
                 a.rowIndices,
                 from,
                 to,

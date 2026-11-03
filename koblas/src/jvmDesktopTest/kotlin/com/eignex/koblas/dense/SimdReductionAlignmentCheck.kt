@@ -1,8 +1,10 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.BuiltinEngines
+import com.eignex.koblas.*
+import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.jvm25.simd.HotSpotArrayAlignment
 import com.eignex.koblas.internal.jvm25.simd.SimdOps
+import com.eignex.koblas.sparse.*
 import com.eignex.koblas.testutil.allocation.AllocationProbe
 import com.eignex.koblas.testutil.allocation.bytesPerCall
 
@@ -42,7 +44,7 @@ internal object SimdReductionAlignmentCheck {
         SimdOpsTest().`reductions agree with the scalar oracle for windows in large backing arrays`()
         SimdOpsTest().assertFiniteReductionsAgreeWithReference(65_536)
         SimdOpsTest().assertFiniteReductionsAgreeWithReference(65_537)
-        val kernels = requireNotNull(BuiltinEngines.simd).vectorKernels
+        val kernels = requireNotNull(BuiltinEngines.simd)
         for (i in values.indices) values[i] = (i % 17 - 8) / 16.0
         val other = DoubleArray(values.size) { (it % 11 - 5) / 8.0 }
         assertAllocationFree("asum") { kernels.asum(values, 0, 65_536) }

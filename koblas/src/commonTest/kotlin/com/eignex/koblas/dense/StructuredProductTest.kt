@@ -1,24 +1,21 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.BuiltinEngines
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.Workspace
+import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.copyOf
-import com.eignex.koblas.internal.dense.DensePanelKernels
-import com.eignex.koblas.internal.dense.DenseProductKernels
-import com.eignex.koblas.internal.dense.OutputTriangle
-import com.eignex.koblas.internal.dense.PORTABLE_PRODUCT_TILE
-import com.eignex.koblas.internal.dense.PRODUCT_BLOCK_DEPTH
-import com.eignex.koblas.internal.dense.PortableDenseBlas
-import com.eignex.koblas.internal.dense.PortablePanelKernels
-import com.eignex.koblas.internal.dense.PortableProductKernels
-import com.eignex.koblas.internal.dense.SYMMETRIC_BLOCK
-import com.eignex.koblas.internal.dense.ScalarVectorKernels
-import com.eignex.koblas.internal.dense.outsideTriangle
-import com.eignex.koblas.internal.dense.productWindow
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.engineWithKernels
+import com.eignex.koblas.internal.portable.PortableEngine
+import com.eignex.koblas.internal.portable.dense.OutputTriangle
+import com.eignex.koblas.internal.portable.dense.PORTABLE_PRODUCT_TILE
+import com.eignex.koblas.internal.portable.dense.PRODUCT_BLOCK_DEPTH
+import com.eignex.koblas.internal.portable.dense.SYMMETRIC_BLOCK
+import com.eignex.koblas.internal.portable.dense.outsideTriangle
+import com.eignex.koblas.internal.portable.dense.productWindow
 import com.eignex.koblas.poisonedSymmetric
 import com.eignex.koblas.randomMatrix
+import com.eignex.koblas.sparse.*
+import com.eignex.koblas.workspace.*
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -53,7 +50,7 @@ class StructuredProductTest {
     }
 
     @Test
-    fun `gemmt agrees with the oracle on both routes in every orientation`() = withDenseBlas { blas ->
+    fun `gemmt agrees with the oracle on both routes in every orientation`() = withEngines { blas ->
         for ((order, depth) in shapes()) {
             for (transposeA in booleanArrayOf(false, true)) {
                 for (transposeB in booleanArrayOf(false, true)) {
@@ -80,7 +77,7 @@ class StructuredProductTest {
     }
 
     @Test
-    fun `the rank updates agree with the oracle on both routes in every orientation`() = withDenseBlas { blas ->
+    fun `the rank updates agree with the oracle on both routes in every orientation`() = withEngines { blas ->
         for ((order, depth) in shapes()) {
             for (transpose in booleanArrayOf(false, true)) {
                 for (lower in booleanArrayOf(false, true)) {
@@ -108,7 +105,7 @@ class StructuredProductTest {
     // A NaN outside the selection catches both a write outside it and a read of it; both routes, since the
     // packed one masks at the tile and the unpacked one shortens each destination column.
     @Test
-    fun `a selected triangle product leaves the opposite triangle exactly as it found it`() = withDenseBlas { blas ->
+    fun `a selected triangle product leaves the opposite triangle exactly as it found it`() = withEngines { blas ->
         for ((order, depth) in shapes()) {
             for (lower in booleanArrayOf(false, true)) {
                 val a = randomMatrix(order, depth, rng)
@@ -145,7 +142,7 @@ class StructuredProductTest {
         )
         for (lower in booleanArrayOf(false, true)) {
             val recorder = RecordingProducts(products)
-            val blas = PortableDenseBlas(ScalarVectorKernels, panelsFor(products), recorder)
+            val blas = engineWithKernels(PortableEngine, panelsFor(products), recorder)
             val a = randomMatrix(order, depth, rng)
             val b = randomMatrix(depth, order, rng)
             val poisoned = DenseMatrix.wrap(order, order, DoubleArray(order * order) { Double.NaN })
@@ -192,7 +189,7 @@ class StructuredProductTest {
             products.packsProduct(order, order, order),
             "${products.name}: a square of $order does not take the blocked route",
         )
-        val blas = PortableDenseBlas(ScalarVectorKernels, panelsFor(products), products)
+        val blas = engineWithKernels(PortableEngine, panelsFor(products), products)
         val start = randomMatrix(order, order, rng)
         for (lower in booleanArrayOf(false, true)) {
             val expected = start.copyOf()
@@ -224,7 +221,7 @@ class StructuredProductTest {
 
     @Suppress("LongParameterList") // the backend and the four facts that pick out one case of the sweep
     private fun assertWindowed(
-        products: DenseProductKernels,
+        products: KoblasEngine,
         selected: OutputTriangle,
         packed: Boolean,
         transposeA: Boolean,
@@ -264,11 +261,13 @@ class StructuredProductTest {
         val rightBefore = right.copyOf()
 
         productWindow(
-            products, panelsFor(products), ALPHA,
-            left, A_ORIGIN, a.rows + 3, transposeA,
-            right, B_ORIGIN, b.rows + 5, transposeB,
-            BETA, destination, C_ORIGIN, order + 7,
-            order, order, depth, selected, Workspace(),
+            engineWithKernels(
+                products = products,
+                panels = panelsFor(products),
+            ),
+            ALPHA, left, A_ORIGIN, a.rows + 3, transposeA, right, B_ORIGIN, b.rows + 5, transposeB,
+            BETA, destination, C_ORIGIN,
+            order + 7, order, order, depth, selected, Workspace().arrays,
         )
 
         assertContentEquals(leftBefore, left, "$context: the left operand was written")
@@ -304,7 +303,7 @@ class StructuredProductTest {
     }
 
     @Test
-    fun `symm agrees with the oracle on both sides and reads only the stored triangle`() = withDenseBlas { blas ->
+    fun `symm agrees with the oracle on both sides and reads only the stored triangle`() = withEngines { blas ->
         for ((order, sides) in symmetricShapes()) {
             for (lower in booleanArrayOf(false, true)) {
                 for (right in booleanArrayOf(false, true)) {
@@ -315,7 +314,7 @@ class StructuredProductTest {
     }
 
     @Test
-    fun `symm agrees with the oracle over three blocks from the left with an upper triangle`() = withDenseBlas { blas ->
+    fun `symm agrees with the oracle over three blocks from the left with an upper triangle`() = withEngines { blas ->
         assertSymmetricProductAgreesWithReference(
             blas,
             2 * SYMMETRIC_BLOCK + 3,
@@ -326,7 +325,7 @@ class StructuredProductTest {
     }
 
     @Test
-    fun `symm agrees with the oracle over three blocks from the left with a lower triangle`() = withDenseBlas { blas ->
+    fun `symm agrees with the oracle over three blocks from the left with a lower triangle`() = withEngines { blas ->
         assertSymmetricProductAgreesWithReference(
             blas,
             2 * SYMMETRIC_BLOCK + 3,
@@ -337,19 +336,18 @@ class StructuredProductTest {
     }
 
     @Test
-    fun `symm agrees with the oracle over three blocks from the right with an upper triangle`() =
-        withDenseBlas { blas ->
-            assertSymmetricProductAgreesWithReference(
-                blas,
-                2 * SYMMETRIC_BLOCK + 3,
-                VECTOR_SIDES + 3,
-                lower = false,
-                right = true,
-            )
-        }
+    fun `symm agrees with the oracle over three blocks from the right with an upper triangle`() = withEngines { blas ->
+        assertSymmetricProductAgreesWithReference(
+            blas,
+            2 * SYMMETRIC_BLOCK + 3,
+            VECTOR_SIDES + 3,
+            lower = false,
+            right = true,
+        )
+    }
 
     @Test
-    fun `symm agrees with the oracle over three blocks from the right with a lower triangle`() = withDenseBlas { blas ->
+    fun `symm agrees with the oracle over three blocks from the right with a lower triangle`() = withEngines { blas ->
         assertSymmetricProductAgreesWithReference(
             blas,
             2 * SYMMETRIC_BLOCK + 3,
@@ -360,7 +358,7 @@ class StructuredProductTest {
     }
 
     private fun assertSymmetricProductAgreesWithReference(
-        blas: DenseBlas,
+        blas: KoblasEngine,
         order: Int,
         sides: Int,
         lower: Boolean,
@@ -389,7 +387,7 @@ class StructuredProductTest {
 
     /** A symmetric product with nothing to add still overwrites its destination rather than scaling it. */
     @Test
-    fun `symm with a zero beta overwrites a poisoned destination`() = withDenseBlas { blas ->
+    fun `symm with a zero beta overwrites a poisoned destination`() = withEngines { blas ->
         val order = SYMMETRIC_BLOCK + 3
         val sides = 5
         val (_, poisoned) = poisonedSymmetric(rng, order, lower = true)
@@ -403,7 +401,7 @@ class StructuredProductTest {
 
     /** A rank update whose operand is its own destination reads the operand it was given, not the result. */
     @Test
-    fun `a rank update over its own destination agrees with the oracle`() = withDenseBlas { blas ->
+    fun `a rank update over its own destination agrees with the oracle`() = withEngines { blas ->
         val order = 2 * PORTABLE_PRODUCT_TILE + 1
         val start = randomMatrix(order, order, rng)
         for (lower in booleanArrayOf(false, true)) {
@@ -419,7 +417,7 @@ class StructuredProductTest {
 
     /** A symmetric product whose dense operand is its destination reads what the caller supplied. */
     @Test
-    fun `symm over its own destination agrees with the oracle`() = withDenseBlas { blas ->
+    fun `symm over its own destination agrees with the oracle`() = withEngines { blas ->
         val order = SYMMETRIC_BLOCK + 3
         val (full, poisoned) = poisonedSymmetric(rng, order, lower = true)
         val start = randomMatrix(order, order, rng)
@@ -435,7 +433,7 @@ class StructuredProductTest {
     // Every operand shares one empty array, so a call testing for an alias before testing for an empty
     // destination would take a staging loan for a result that does not exist.
     @Test
-    fun `a structured call with no output borrows nothing`() = withDenseBlas { blas ->
+    fun `a structured call with no output borrows nothing`() = withEngines { blas ->
         val workspace = Workspace()
         val shared = DoubleArray(0)
         val tall = DenseMatrix.wrap(0, 4, shared)
@@ -443,12 +441,12 @@ class StructuredProductTest {
         val square = DenseMatrix.wrap(0, 0, shared)
         val destination = DenseMatrix.wrap(0, 4, shared)
 
-        blas.gemmt(ALPHA, tall, false, wide, false, BETA, square, workspace = workspace)
-        blas.syrk(ALPHA, tall, false, BETA, square, workspace = workspace)
-        blas.syr2k(ALPHA, tall, tall, false, BETA, square, workspace = workspace)
-        blas.symm(ALPHA, square, tall, BETA, destination, workspace = workspace)
-        blas.trsm(square, tall, lower = true, workspace = workspace)
-        blas.trmm(square, tall, lower = true, workspace = workspace)
+        blas.withWorkspace(workspace).gemmt(ALPHA, tall, false, wide, false, BETA, square)
+        blas.withWorkspace(workspace).syrk(ALPHA, tall, false, BETA, square)
+        blas.withWorkspace(workspace).syr2k(ALPHA, tall, tall, false, BETA, square)
+        blas.withWorkspace(workspace).symm(ALPHA, square, tall, BETA, destination)
+        blas.withWorkspace(workspace).trsm(square, tall, lower = true)
+        blas.withWorkspace(workspace).trmm(square, tall, lower = true)
 
         assertEquals(0, workspace.idleLengths(), "a call with no output borrowed scratch it had no use for")
     }
@@ -474,11 +472,11 @@ class StructuredProductTest {
         }
     }
 
-    private fun koblasPanels(): DensePanelKernels = BuiltinEngines.simd?.panelKernels ?: PortablePanelKernels
+    private fun koblasPanels(): KoblasEngine = BuiltinEngines.simd?.panelProvider ?: PortableEngine
 
     /** The panel backend that belongs beside [products], so a composition under test is a real one. */
-    private fun panelsFor(products: DenseProductKernels): DensePanelKernels =
-        if (products === PortableProductKernels) PortablePanelKernels else koblasPanels()
+    private fun panelsFor(products: KoblasEngine): KoblasEngine =
+        if (products === PortableEngine) PortableEngine else koblasPanels()
 
     /** The blocked shape and the direct one, so every conformance check covers both routes. */
     private fun shapes(): List<Pair<Int, Int>> {

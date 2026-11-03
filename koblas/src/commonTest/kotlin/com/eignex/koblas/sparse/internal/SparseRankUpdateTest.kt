@@ -1,15 +1,12 @@
 package com.eignex.koblas.sparse.internal
 
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.DenseVector
-import com.eignex.koblas.DimensionMismatch
-import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.SparseVector
-import com.eignex.koblas.Vector
+import com.eignex.koblas.*
+import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.denseCopy
-import com.eignex.koblas.syr
-import com.eignex.koblas.syr2
+import com.eignex.koblas.sparse.*
+import com.eignex.koblas.sparse.syr
+import com.eignex.koblas.sparse.syr2
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals

@@ -2,7 +2,6 @@
 
 package com.eignex.koblas.internal.host
 
-import com.eignex.koblas.vendor.*
 import kotlinx.cinterop.COpaquePointer
 
 /** A platform loader handle whose symbols belong to the requested library. */
