@@ -9,7 +9,8 @@ import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
 
 plugins { id("com.eignex.kmp") }
 
-val fullTargets = providers.gradleProperty("targets.full").isPresent
+val fullTargets = providers.gradleProperty("targets.full").isPresent ||
+    gradle.startParameter.taskNames.any { it.endsWith("LinuxArm64") }
 
 eignexPublish { publish.set(false) }
 eignexBuild {
@@ -44,9 +45,11 @@ kotlin {
     linuxX64 { binaries.executable { entryPoint = "com.eignex.koblas.bench.main"; baseName = "koblas-bench" } }
     if (fullTargets) {
         linuxArm64 { binaries.executable { entryPoint = "com.eignex.koblas.bench.main"; baseName = "koblas-bench" } }
-        mingwX64 { binaries.executable { entryPoint = "com.eignex.koblas.bench.main"; baseName = "koblas-bench" } }
-        macosArm64 { binaries.executable { entryPoint = "com.eignex.koblas.bench.main"; baseName = "koblas-bench" } }
     }
+    if (fullTargets || System.getProperty("os.name").startsWith("Windows"))
+        mingwX64 { binaries.executable { entryPoint = "com.eignex.koblas.bench.main"; baseName = "koblas-bench" } }
+    if (fullTargets || System.getProperty("os.name").startsWith("Mac"))
+        macosArm64 { binaries.executable { entryPoint = "com.eignex.koblas.bench.main"; baseName = "koblas-bench" } }
     applyDefaultHierarchyTemplate {
         common {
             group("native") {
@@ -123,6 +126,20 @@ val hostTarget = when {
     System.getProperty("os.name").startsWith("Mac") && System.getProperty("os.arch") == "aarch64" -> "MacosArm64"
     System.getProperty("os.name").startsWith("Windows") && System.getProperty("os.arch") == "amd64" -> "MingwX64"
     else -> null
+}
+
+tasks.register("prepareLabComparison") {
+    dependsOn("prepareLabBenchmark", "prepareLabVendor")
+    hostTarget?.let { dependsOn("linkReleaseExecutable$it") }
+}
+
+tasks.register<Exec>("prepareLabVendor") {
+    val supported = hostTarget == "LinuxX64"
+    onlyIf { supported }
+    inputs.file("lab/prepare-vendor.sh")
+    outputs.dir(layout.buildDirectory.dir("vendor-reference/lib"))
+    outputs.file(layout.buildDirectory.file("vendor-reference/vendor-package.txt"))
+    commandLine("bash", project.file("lab/prepare-vendor.sh"))
 }
 
 private val NO_NATIVE_HOST = "native benchmarks are supported on Linux x86-64, Windows x64 and macOS arm64"
