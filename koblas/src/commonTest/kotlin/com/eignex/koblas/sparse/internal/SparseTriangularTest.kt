@@ -6,6 +6,7 @@ import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.sparse.*
+import com.eignex.koblas.workspace.*
 import kotlin.random.Random
 import kotlin.test.*
 
@@ -122,10 +123,14 @@ class SparseTriangularTest {
                             val actual = input.copyOf()
                             if (solve) {
                                 ReferenceBlas.trsm(dense, expected, lower, transpose, unitDiag, right, alpha = -0.75)
-                                engine.trsm(sparse, actual, lower, transpose, unitDiag, right, -0.75, Workspace())
+                                engine.withWorkspace(
+                                    Workspace(),
+                                ).trsm(sparse, actual, lower, transpose, unitDiag, right, -0.75)
                             } else {
                                 ReferenceBlas.trmm(dense, expected, lower, transpose, unitDiag, right, alpha = -0.75)
-                                engine.trmm(sparse, actual, lower, transpose, unitDiag, right, -0.75, Workspace())
+                                engine.withWorkspace(
+                                    Workspace(),
+                                ).trmm(sparse, actual, lower, transpose, unitDiag, right, -0.75)
                             }
                             val context = "${engine.name} solve=$solve lower=$lower transpose=$transpose " +
                                 "unit=$unitDiag right=$right"

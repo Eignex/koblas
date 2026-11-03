@@ -8,6 +8,7 @@ import com.eignex.koblas.engineWithKernels
 import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.internal.portable.PortableEngine
 import com.eignex.koblas.sparse.*
+import com.eignex.koblas.workspace.*
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -59,7 +60,7 @@ class CombinedEngineTest {
             val expected = copy(c)
             ReferenceBlas.gemm(0.875, copy(a), false, copy(b), false, -0.25, expected)
 
-            blas.gemm(0.875, a, false, b, false, -0.25, c, Workspace())
+            blas.withWorkspace(Workspace()).gemm(0.875, a, false, b, false, -0.25, c)
 
             for (j in 0 until ORDER) {
                 for (i in 0 until ORDER) {
@@ -210,9 +211,11 @@ class CombinedEngineTest {
                     val workspace = if (useWorkspace) Workspace() else null
 
                     when (operation) {
-                        EngineImplementation.Gemm -> blas.gemm(0.875, c, false, b, true, -0.25, c, workspace)
+                        EngineImplementation.Gemm -> blas.withWorkspace(
+                            workspace,
+                        ).gemm(0.875, c, false, b, true, -0.25, c)
 
-                        EngineImplementation.Gemmt -> blas.gemmt(
+                        EngineImplementation.Gemmt -> blas.withWorkspace(workspace).gemmt(
                             0.875,
                             c,
                             false,
@@ -220,12 +223,11 @@ class CombinedEngineTest {
                             true,
                             -0.25,
                             c,
-                            workspace = workspace,
                         )
 
-                        EngineImplementation.Symm -> blas.symm(0.875, c, b, -0.25, c, workspace = workspace)
+                        EngineImplementation.Symm -> blas.withWorkspace(workspace).symm(0.875, c, b, -0.25, c)
 
-                        EngineImplementation.Syr2k -> blas.syr2k(0.875, c, b, true, -0.25, c, workspace = workspace)
+                        EngineImplementation.Syr2k -> blas.withWorkspace(workspace).syr2k(0.875, c, b, true, -0.25, c)
 
                         else -> error("unexpected product $operation")
                     }
@@ -264,9 +266,13 @@ class CombinedEngineTest {
         val shared = DoubleArray(ORDER * ORDER) { 1.0 + it }
         val c = DenseMatrix.wrap(ORDER, ORDER, shared)
 
-        blas.gemm(1.0, DenseMatrix.wrap(ORDER, ORDER, shared), false, matrix(ORDER), false, 0.0, c, workspace)
+        blas.withWorkspace(
+            workspace,
+        ).gemm(1.0, DenseMatrix.wrap(ORDER, ORDER, shared), false, matrix(ORDER), false, 0.0, c)
         val lent = workspace.available(ORDER * ORDER)
-        blas.gemm(1.0, DenseMatrix.wrap(ORDER, ORDER, shared), false, matrix(ORDER), false, 0.0, c, workspace)
+        blas.withWorkspace(
+            workspace,
+        ).gemm(1.0, DenseMatrix.wrap(ORDER, ORDER, shared), false, matrix(ORDER), false, 0.0, c)
 
         assertEquals(1, lent, "the staging was not lent by the workspace")
         assertEquals(1, workspace.available(ORDER * ORDER), "a second call allocated its own staging")
@@ -282,7 +288,7 @@ class CombinedEngineTest {
         val expectedA = a.toArray()
         val expectedB = b.toArray()
 
-        blas.gemm(1.0, a, false, b, false, 0.0, c, Workspace())
+        blas.withWorkspace(Workspace()).gemm(1.0, a, false, b, false, 0.0, c)
 
         val call = recorder.single()
         assertEquals(EngineImplementation.Gemm, call.operation)
@@ -305,11 +311,11 @@ class CombinedEngineTest {
         val beside = parent.view(0, 4, 3, 5)
         val workspace = Workspace()
 
-        blas.gemv(1.0, panel, DoubleArray(3), 0.0, DoubleArray(5), workspace = workspace)
-        blas.gemm(1.0, panel, false, beside, false, 1.0, trailing, workspace)
-        blas.syrk(-1.0, panel, false, 1.0, trailing, workspace = workspace)
-        blas.trsv(triangle, DoubleArray(3), lower = true, workspace = workspace)
-        blas.trsm(triangle, beside, lower = true, workspace = workspace)
+        blas.withWorkspace(workspace).gemv(1.0, panel, DoubleArray(3), 0.0, DoubleArray(5))
+        blas.withWorkspace(workspace).gemm(1.0, panel, false, beside, false, 1.0, trailing)
+        blas.withWorkspace(workspace).syrk(-1.0, panel, false, 1.0, trailing)
+        blas.withWorkspace(workspace).trsv(triangle, DoubleArray(3), lower = true)
+        blas.withWorkspace(workspace).trsm(triangle, beside, lower = true)
 
         val expected = listOf(
             listOf(panel),
@@ -337,7 +343,7 @@ class CombinedEngineTest {
         val c = parent.view(1, 1, 4, 4)
         val entries = a.toArray()
 
-        blas.syrk(-1.0, a, false, 1.0, c, workspace = Workspace())
+        blas.withWorkspace(Workspace()).syrk(-1.0, a, false, 1.0, c)
 
         val call = recorder.calls.single()
         assertNotSame(parent.values, call.matrices[0].values)

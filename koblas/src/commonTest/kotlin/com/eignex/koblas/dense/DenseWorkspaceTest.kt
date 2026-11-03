@@ -7,6 +7,7 @@ import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.randomVector
 import com.eignex.koblas.sparse.*
+import com.eignex.koblas.workspace.*
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -36,7 +37,7 @@ class DenseWorkspaceTest {
             ReferenceBlas.gemv(0.875, a, start.copyOf(), -0.25, expected, transpose)
             val aliased = start.copyOf()
 
-            blas.gemv(0.875, a, aliased, -0.25, aliased, transpose, workspace)
+            blas.withWorkspace(workspace).gemv(0.875, a, aliased, -0.25, aliased, transpose)
 
             assertClose(expected, aliased, "gemv transpose=$transpose")
         }
@@ -55,7 +56,7 @@ class DenseWorkspaceTest {
         ReferenceBlas.gemm(0.875, start.copyOf(), false, start.copyOf(), true, -0.25, expected)
         val aliased = start.copyOf()
 
-        blas.gemm(0.875, aliased, false, aliased, true, -0.25, aliased, workspace)
+        blas.withWorkspace(workspace).gemm(0.875, aliased, false, aliased, true, -0.25, aliased)
 
         assertClose(expected.values, aliased.values, "gemm with both operands aliased")
         assertEquals(1, workspace.available(n * n), "the shared operands did not reuse one snapshot")
@@ -73,7 +74,7 @@ class DenseWorkspaceTest {
         ReferenceBlas.trsm(start.copyOf(), expected, lower = true)
         val aliased = start.copyOf()
 
-        blas.trsm(aliased, aliased, lower = true, workspace = workspace)
+        blas.withWorkspace(workspace).trsm(aliased, aliased, lower = true)
 
         assertClose(expected.values, aliased.values, "trsm with its own triangle", tolerance = 1e-9)
         assertEquals(1, workspace.available(n * n), "the triangle was not staged from the workspace")
@@ -88,9 +89,9 @@ class DenseWorkspaceTest {
         val a = randomMatrix(order, order, rng)
         val b = randomMatrix(order, 4, rng)
 
-        blas.gemm(0.5, a, false, b, false, 0.5, b, workspace)
+        blas.withWorkspace(workspace).gemm(0.5, a, false, b, false, 0.5, b)
         val afterOne = workspace.idleLengths()
-        repeat(3) { blas.gemm(0.5, a, false, b, false, 0.5, b, workspace) }
+        repeat(3) { blas.withWorkspace(workspace).gemm(0.5, a, false, b, false, 0.5, b) }
 
         assertTrue(afterOne > 0, "an aliased product needs an operand snapshot")
         assertEquals(afterOne, workspace.idleLengths(), "a repeated call kept asking for new buffers")
@@ -105,8 +106,8 @@ class DenseWorkspaceTest {
         val a = randomMatrix(n, n, rng)
         val c = randomMatrix(n, n, rng)
 
-        blas.gemm(0.0, a, false, a, false, -0.25, c, workspace)
-        blas.gemv(0.0, a, DoubleArray(n), -0.25, DoubleArray(n), false, workspace)
+        blas.withWorkspace(workspace).gemm(0.0, a, false, a, false, -0.25, c)
+        blas.withWorkspace(workspace).gemv(0.0, a, DoubleArray(n), -0.25, DoubleArray(n), false)
 
         assertEquals(0, workspace.idleLengths(), "a no-work call borrowed scratch it had no use for")
     }
@@ -126,35 +127,37 @@ class DenseWorkspaceTest {
 
         assertStaged(n, "gemv over the vector it writes") { w ->
             val y = randomVector(n, rng)
-            blas.gemv(0.875, randomMatrix(n, n, rng), y, -0.25, y, false, w)
+            blas.withWorkspace(w).gemv(0.875, randomMatrix(n, n, rng), y, -0.25, y, false)
         }
         assertStaged(n, "gemv over the matrix it writes") { w ->
             val y = randomVector(n, rng)
-            blas.gemv(0.875, DenseMatrix.wrap(n, 1, y), doubleArrayOf(2.0), -0.25, y, false, w)
+            blas.withWorkspace(w).gemv(0.875, DenseMatrix.wrap(n, 1, y), doubleArrayOf(2.0), -0.25, y, false)
         }
         assertStaged(n, "symv over the vector it writes") { w ->
             val y = randomVector(n, rng)
-            blas.symv(0.875, randomMatrix(n, n, rng), y, -0.25, y, true, w)
+            blas.withWorkspace(w).symv(0.875, randomMatrix(n, n, rng), y, -0.25, y, true)
         }
         assertStaged(n, "ger over the vector that is its matrix") { w ->
             val values = randomVector(n, rng)
-            blas.ger(0.875, values, doubleArrayOf(2.0), DenseMatrix.wrap(n, 1, values), w)
+            blas.withWorkspace(w).ger(0.875, values, doubleArrayOf(2.0), DenseMatrix.wrap(n, 1, values))
         }
         assertStaged(1, "syr over the vector that is its matrix") { w ->
             val values = doubleArrayOf(2.0)
-            blas.syr(0.875, DenseVector.wrap(values), DenseMatrix.wrap(1, 1, values), true, w)
+            blas.withWorkspace(w).syr(0.875, DenseVector.wrap(values), DenseMatrix.wrap(1, 1, values), true)
         }
         assertStaged(1, "syr2 over the vector that is its matrix") { w ->
             val values = doubleArrayOf(2.0)
-            blas.syr2(0.875, DenseVector.wrap(values), DenseVector.wrap(doubleArrayOf(3.0)), one(values), true, w)
+            blas.withWorkspace(
+                w,
+            ).syr2(0.875, DenseVector.wrap(values), DenseVector.wrap(doubleArrayOf(3.0)), one(values), true)
         }
         assertStaged(1, "trsv over the triangle that is its right-hand side") { w ->
             val values = doubleArrayOf(2.0)
-            blas.trsv(one(values), values, lower = true, workspace = w)
+            blas.withWorkspace(w).trsv(one(values), values, lower = true)
         }
         assertStaged(1, "trmv over the triangle that is its right-hand side") { w ->
             val values = doubleArrayOf(2.0)
-            blas.trmv(one(values), values, lower = true, workspace = w)
+            blas.withWorkspace(w).trmv(one(values), values, lower = true)
         }
     }
 

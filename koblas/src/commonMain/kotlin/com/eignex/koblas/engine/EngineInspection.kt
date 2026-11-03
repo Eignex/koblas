@@ -5,16 +5,16 @@ import com.eignex.koblas.internal.portable.PortableEngine
 
 /** Leaf providers in routing order, including their own capabilities and host provenance. */
 public val KoblasEngine.providers: List<KoblasEngine> get() =
-    if (this is CombinedEngine) routing.backends.toList() else listOf(this)
+    arithmeticEngine.let { if (it is CombinedEngine) it.routing.backends.toList() else listOf(it) }
 
 internal val KoblasEngine.panelProvider: KoblasEngine get() =
-    if (this is CombinedEngine) panelImplementation else this
+    arithmeticEngine.let { if (it is CombinedEngine) it.panelImplementation else it }
 
 internal val KoblasEngine.productProvider: KoblasEngine get() =
-    if (this is CombinedEngine) productImplementation else this
+    arithmeticEngine.let { if (it is CombinedEngine) it.productImplementation else it }
 
 internal val KoblasEngine.triangularProvider: KoblasEngine get() =
-    if (this is CombinedEngine) triangularImplementation else this
+    arithmeticEngine.let { if (it is CombinedEngine) it.triangularImplementation else it }
 
 /** The provider bound by the dispatcher, before any value-dependent arithmetic fallback. */
 internal fun KoblasEngine.providerFor(
@@ -25,7 +25,9 @@ internal fun KoblasEngine.providerFor(
     contiguous: Boolean,
     borrowed: Boolean,
 ): String = if (operation.vector) {
-    (if (this is CombinedEngine) routing.select(operation, rows, contiguous = contiguous) else this).id
+    arithmeticEngine.let {
+        (if (it is CombinedEngine) it.routing.select(operation, rows, contiguous = contiguous) else it).id
+    }
 } else {
     wholeCallFor(operation, rows, columns, depth, borrowed)?.id ?: "scheduled"
 }
@@ -37,8 +39,8 @@ internal fun KoblasEngine.wholeCallFor(
     depth: Int = 1,
     borrowed: Boolean = false,
 ): KoblasEngine? {
-    val provider = (this as? CombinedEngine)?.routing
-        ?.select(operation, rows, columns, depth, borrowed = borrowed) ?: this
+    val provider = (arithmeticEngine as? CombinedEngine)?.routing
+        ?.select(operation, rows, columns, depth, borrowed = borrowed) ?: arithmeticEngine
     // Portable schedules retain the caller's selected kernels and workspace without allocating vector views.
     return provider.takeIf { it !== PortableEngine && operation in it.implementations }
 }
@@ -48,7 +50,11 @@ internal fun KoblasEngine.implementationFor(
     length: Int,
     contiguous: Boolean = true,
 ): String? {
-    val provider = (this as? CombinedEngine)?.routing?.select(operation, length, contiguous = contiguous) ?: this
+    val provider = (arithmeticEngine as? CombinedEngine)?.routing?.select(
+        operation,
+        length,
+        contiguous = contiguous,
+    ) ?: arithmeticEngine
     return provider.takeIf { operation in it.implementations && !it.dynamicAttribution(operation) }?.name
 }
 

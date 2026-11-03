@@ -59,7 +59,8 @@ public fun KoblasEngine.copy(x: DenseVector, y: DenseVector) {
     requireSameSize(x.size, y.size, "copy")
     if (sameVectorMapping(x, y)) return
     val contiguous = x.stride == 1 && y.stride == 1
-    val provider = if (this is CombinedEngine) copyProvider(x.size, contiguous) else this
+    val engine = arithmeticEngine
+    val provider = if (engine is CombinedEngine) engine.copyProvider(x.size, contiguous) else engine
     // Portable contiguous copy is a memmove, so it needs no alias snapshot.
     val source = if (provider === PortableEngine && contiguous) x else x.stableFor(y)
     provider.copy(source.values, source.offset, y.values, y.offset, x.size, source.stride, y.stride)
@@ -94,7 +95,7 @@ public fun KoblasEngine.gemm(a: DenseMatrixRegion, b: DenseMatrixRegion): DenseM
     product(1.0, a, false, b, false) as DenseMatrix
 
 /** Array convenience for the addressed [gemv] operation. */
-@Suppress("LongParameterList") // BLAS operands and workspace
+@Suppress("LongParameterList") // BLAS operands
 public fun KoblasEngine.gemv(
     alpha: Double,
     a: DenseMatrixRegion,
@@ -102,7 +103,6 @@ public fun KoblasEngine.gemv(
     beta: Double,
     y: DoubleArray,
     transpose: Boolean = false,
-    workspace: Workspace? = null,
 ) {
     requireGemvOperands(a, transpose, x.size, y.size)
     if (y.isEmpty()) return
@@ -111,7 +111,7 @@ public fun KoblasEngine.gemv(
         return
     }
     if (a.values === y || x === y) {
-        gemv(alpha, a, DenseVector.wrap(x), beta, DenseVector.wrap(y), transpose, workspace)
+        gemv(alpha, a, DenseVector.wrap(x), beta, DenseVector.wrap(y), transpose)
         return
     }
     val implementation = wholeCallFor(
@@ -130,10 +130,9 @@ public fun KoblasEngine.gemv(
 /**
  * `y = alpha · op(A) · x + beta · y` (BLAS `dgemv`), with `op(A)` being `Aᵀ` when [transpose].
  *
- * [workspace] lends the staging a call takes when [a] or [x] shares [y]. A call that needs no
- * staging takes nothing from it.
+ * An operand sharing [y] is snapshotted before the first write.
  */
-@Suppress("LongParameterList") // the BLAS dgemv signature plus the workspace
+@Suppress("LongParameterList") // the BLAS dgemv signature
 public fun KoblasEngine.gemv(
     alpha: Double,
     a: DenseMatrixRegion,
@@ -141,7 +140,6 @@ public fun KoblasEngine.gemv(
     beta: Double,
     y: DenseVector,
     transpose: Boolean = false,
-    workspace: Workspace? = null,
 ) {
     requireGemvOperands(a, transpose, x.size, y.size)
     if (y.size == 0) return
@@ -157,8 +155,8 @@ public fun KoblasEngine.gemv(
         a.cols,
         borrowed = a !is DenseMatrix,
     )
-    stagedRegion(workspace, a, y) { stableA ->
-        staged(workspace, x, x.overlaps(y)) { stableX ->
+    stagedRegion(arrays, a, y) { stableA ->
+        staged(arrays, x, x.overlaps(y)) { stableX ->
             if (implementation != null) {
                 implementation.computeGemv(alpha, stableA, transpose, stableX, beta, y)
             } else {
@@ -193,9 +191,8 @@ public fun KoblasEngine.transpose(a: DenseMatrixRegion): DenseMatrix {
  * `C = alpha · op(A) · op(B) + beta · C` (BLAS `dgemm`), with shapes `op(A): m×k`, `op(B): k×n`, `C: m×n`.
  *
  * An input that shares [c] is snapshotted before dispatch.
- * [workspace] lends that snapshot, packed panels for a blocked product, an accumulating column for an
- * unpacked product, and a coefficient column for a gathered strided reduction. A zero [alpha] or an empty
- * shared dimension scales [c] and reads no operand; a zero [beta] overwrites [c] without reading it.
+ * A zero [alpha] or an empty shared dimension scales [c] and reads no operand; a zero [beta]
+ * overwrites [c] without reading it.
  *
  * Scaling placement and accumulation order depend on the selected implementation. This includes
  * whether [alpha] scales operand entries or partial sums. Rounding, overflow and non-finite results
@@ -210,7 +207,6 @@ public fun KoblasEngine.gemm(
     transposeB: Boolean,
     beta: Double,
     c: DenseMatrixRegion,
-    workspace: Workspace? = null,
 ) {
     requireGemmOperands(a, transposeA, b, transposeB, c)
     // Return before borrowing operand-sized scratch for an empty destination.
@@ -227,13 +223,13 @@ public fun KoblasEngine.gemm(
         depth,
         a !is DenseMatrix || b !is DenseMatrix || c !is DenseMatrix,
     )
-    stagedRegion(workspace, a, c) { sa ->
-        stagedRegion(workspace, b, c, stable = sa, original = a) { sb ->
+    stagedRegion(arrays, a, c) { sa ->
+        stagedRegion(arrays, b, c, stable = sa, original = a) { sb ->
             if (implementation != null) {
                 implementation.computeGemm(alpha, sa, transposeA, sb, transposeB, beta, c)
                 return@stagedRegion
             }
-            portableGemm(alpha, sa, transposeA, sb, transposeB, beta, c, depth, workspace)
+            portableGemm(alpha, sa, transposeA, sb, transposeB, beta, c, depth, arrays)
         }
     }
 }
@@ -255,7 +251,6 @@ public fun KoblasEngine.gemmt(
     beta: Double,
     c: DenseMatrixRegion,
     lower: Boolean = true,
-    workspace: Workspace? = null,
 ) {
     requireGemmtOperands(a, transposeA, b, transposeB, c)
     // An empty destination needs no staging, even when operands share an empty array.
@@ -272,8 +267,8 @@ public fun KoblasEngine.gemmt(
         depth,
         a !is DenseMatrix || b !is DenseMatrix || c !is DenseMatrix,
     )
-    stagedRegion(workspace, a, c) { sa ->
-        stagedRegion(workspace, b, c, stable = sa, original = a) { sb ->
+    stagedRegion(arrays, a, c) { sa ->
+        stagedRegion(arrays, b, c, stable = sa, original = a) { sb ->
             if (implementation != null) {
                 implementation.computeGemmt(
                     alpha,
@@ -287,13 +282,13 @@ public fun KoblasEngine.gemmt(
                 )
                 return@stagedRegion
             }
-            portableGemmt(alpha, sa, transposeA, sb, transposeB, beta, c, lower, workspace)
+            portableGemmt(alpha, sa, transposeA, sb, transposeB, beta, c, lower, arrays)
         }
     }
 }
 
 /** Array convenience for the addressed [symv] operation. */
-@Suppress("LongParameterList") // BLAS operands and workspace
+@Suppress("LongParameterList") // BLAS operands
 public fun KoblasEngine.symv(
     alpha: Double,
     a: DenseMatrixRegion,
@@ -301,7 +296,6 @@ public fun KoblasEngine.symv(
     beta: Double,
     y: DoubleArray,
     lower: Boolean = true,
-    workspace: Workspace? = null,
 ) {
     requireSymvOperands(a, x.size, y.size)
     if (y.isEmpty()) return
@@ -310,7 +304,7 @@ public fun KoblasEngine.symv(
         return
     }
     if (a.values === y || x === y) {
-        symv(alpha, a, DenseVector.wrap(x), beta, DenseVector.wrap(y), lower, workspace)
+        symv(alpha, a, DenseVector.wrap(x), beta, DenseVector.wrap(y), lower)
         return
     }
     val implementation = wholeCallFor(EngineImplementation.Symv, a.rows, a.cols, borrowed = a !is DenseMatrix)
@@ -322,8 +316,8 @@ public fun KoblasEngine.symv(
 }
 
 /** `y = alpha · A · x + beta · y` for a symmetric [a] (BLAS `dsymv`). Only the [lower] triangle is read,
- *  diagonal included. [workspace] lends the staging an overlap with [y] takes, as in [gemv]. */
-@Suppress("LongParameterList") // the BLAS dsymv signature plus the workspace
+ *  diagonal included. Overlap with [y] is snapshotted, as in [gemv]. */
+@Suppress("LongParameterList") // the BLAS dsymv signature
 public fun KoblasEngine.symv(
     alpha: Double,
     a: DenseMatrixRegion,
@@ -331,7 +325,6 @@ public fun KoblasEngine.symv(
     beta: Double,
     y: DenseVector,
     lower: Boolean = true,
-    workspace: Workspace? = null,
 ) {
     requireSymvOperands(a, x.size, y.size)
     val n = a.rows
@@ -341,8 +334,8 @@ public fun KoblasEngine.symv(
     }
     // Snapshot aliased operands before beta overwrites values still needed by the product.
     val implementation = wholeCallFor(EngineImplementation.Symv, a.rows, a.cols, 1, a !is DenseMatrix)
-    stagedRegion(workspace, a, y, lower = lower) { sa ->
-        staged(workspace, x, x.overlaps(y)) { xv ->
+    stagedRegion(arrays, a, y, lower = lower) { sa ->
+        staged(arrays, x, x.overlaps(y)) { xv ->
             if (implementation != null) {
                 implementation.computeSymv(alpha, sa, symmetricStructure(lower), xv, beta, y)
             } else {
@@ -363,7 +356,6 @@ public fun KoblasEngine.symm(
     c: DenseMatrixRegion,
     lower: Boolean = true,
     right: Boolean = false,
-    workspace: Workspace? = null,
 ) {
     requireSymmOperands(a, b, c, right)
     if (c.rows == 0 || c.cols == 0) return
@@ -378,13 +370,13 @@ public fun KoblasEngine.symm(
         a.rows,
         a !is DenseMatrix || b !is DenseMatrix || c !is DenseMatrix,
     )
-    stagedRegion(workspace, a, c, lower = if (sameRegion(a, b)) null else lower) { sa ->
-        stagedRegion(workspace, b, c, stable = sa, original = a) { sb ->
+    stagedRegion(arrays, a, c, lower = if (sameRegion(a, b)) null else lower) { sa ->
+        stagedRegion(arrays, b, c, stable = sa, original = a) { sb ->
             if (implementation != null) {
                 implementation.computeSymm(alpha, sa, symmetricStructure(lower), sb, beta, c, rightSide = right)
                 return@stagedRegion
             }
-            portableSymm(alpha, sa, sb, beta, c, lower, right, workspace)
+            portableSymm(alpha, sa, sb, beta, c, lower, right, arrays)
         }
     }
 }
@@ -403,7 +395,6 @@ public fun KoblasEngine.syrk(
     beta: Double,
     c: DenseMatrixRegion,
     lower: Boolean = true,
-    workspace: Workspace? = null,
 ) {
     requireSyrkOperands(a, transpose, c)
     if (c.rows == 0) return
@@ -419,12 +410,12 @@ public fun KoblasEngine.syrk(
         depth,
         a !is DenseMatrix || c !is DenseMatrix,
     )
-    stagedRegion(workspace, a, c) { sa ->
+    stagedRegion(arrays, a, c) { sa ->
         if (implementation != null) {
             implementation.computeSyrk(alpha, sa, transpose, beta, c, symmetricStructure(lower))
             return@stagedRegion
         }
-        portableSyrk(alpha, sa, transpose, beta, c, lower, workspace)
+        portableSyrk(alpha, sa, transpose, beta, c, lower, arrays)
     }
 }
 
@@ -444,10 +435,9 @@ public fun KoblasEngine.syr2k(
     beta: Double,
     c: DenseMatrixRegion,
     lower: Boolean = true,
-    workspace: Workspace? = null,
 ) {
     requireSyr2kOperands(a, b, transpose, c)
-    productTriangle(alpha, a, b, transpose, beta, c, lower, workspace)
+    productTriangle(alpha, a, b, transpose, beta, c, lower, arrays)
 }
 
 /**
@@ -470,7 +460,7 @@ private fun KoblasEngine.productTriangle(
     beta: Double,
     c: DenseMatrixRegion,
     lower: Boolean,
-    workspace: Workspace?,
+    arrays: ArraySupplier?,
 ) {
     if (c.rows == 0) return
     val depth = if (transpose) a.rows else a.cols
@@ -485,30 +475,23 @@ private fun KoblasEngine.productTriangle(
         depth,
         a !is DenseMatrix || b !is DenseMatrix || c !is DenseMatrix,
     )
-    stagedRegion(workspace, a, c) { sa ->
-        stagedRegion(workspace, b, c, stable = sa, original = a) { sb ->
+    stagedRegion(arrays, a, c) { sa ->
+        stagedRegion(arrays, b, c, stable = sa, original = a) { sb ->
             if (implementation != null) {
                 implementation.computeSyr2k(alpha, sa, sb, transpose, beta, c, symmetricStructure(lower))
                 return@stagedRegion
             }
-            portableSyr2k(alpha, sa, sb, transpose, beta, c, lower, workspace)
+            portableSyr2k(alpha, sa, sb, transpose, beta, c, lower, arrays)
         }
     }
 }
 
-/** `A = A + alpha · x · yᵀ` (BLAS `dger`). A vector sharing [a]'s buffer is snapshotted, and
- *  [workspace] lends that snapshot. */
-public fun KoblasEngine.ger(
-    alpha: Double,
-    x: DenseVector,
-    y: DenseVector,
-    a: DenseMatrixRegion,
-    workspace: Workspace? = null,
-) {
+/** `A = A + alpha · x · yᵀ` (BLAS `dger`). A vector sharing [a]'s buffer is snapshotted. */
+public fun KoblasEngine.ger(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrixRegion) {
     requireGerOperands(x.size, y.size, a)
     if (alpha == 0.0 || a.rows == 0 || a.cols == 0) return
     val implementation = wholeCallFor(EngineImplementation.Ger, a.rows, a.cols, 1, a !is DenseMatrix)
-    stagedVectors(workspace, x, y, a) { sx, sy ->
+    stagedVectors(arrays, x, y, a) { sx, sy ->
         if (implementation != null) {
             implementation.computeGer(alpha, sx, sy, a)
             return@stagedVectors
@@ -521,18 +504,17 @@ public fun KoblasEngine.ger(
 }
 
 /** Array convenience for the addressed [ger] operation. */
-@Suppress("LongParameterList") // BLAS operands and workspace
+@Suppress("LongParameterList") // BLAS operands
 public fun KoblasEngine.ger(
     alpha: Double,
     x: DoubleArray,
     y: DoubleArray,
     a: DenseMatrixRegion,
-    workspace: Workspace? = null,
 ) {
     requireGerOperands(x.size, y.size, a)
     if (alpha == 0.0 || a.rows == 0 || a.cols == 0) return
     if (x === a.values || y === a.values) {
-        ger(alpha, DenseVector.wrap(x), DenseVector.wrap(y), a, workspace)
+        ger(alpha, DenseVector.wrap(x), DenseVector.wrap(y), a)
         return
     }
     val implementation = wholeCallFor(EngineImplementation.Ger, a.rows, a.cols, borrowed = a !is DenseMatrix)
@@ -551,8 +533,8 @@ public fun KoblasEngine.ger(
  * directly, without copying the rectangle or allocating vector views. All matrix and vector ranges
  * are validated before writing, including when [alpha] is zero or either extent is empty.
  *
- * A vector sharing [a]'s buffer is snapshotted over only its selected range; [workspace] lends that
- * snapshot. A zero [alpha] or an empty rectangle reads no entries and takes no scratch.
+ * A vector sharing [a]'s buffer is snapshotted over only its selected range. A zero [alpha] or an empty
+ * rectangle reads no entries and takes no scratch.
  */
 @Suppress("LongParameterList") // the rank update and its three independently addressed windows
 public fun KoblasEngine.ger(
@@ -566,14 +548,13 @@ public fun KoblasEngine.ger(
     columns: Int,
     xOffset: Int = 0,
     yOffset: Int = 0,
-    workspace: Workspace? = null,
 ) {
     requireGerWindowOperands(x.size, y.size, a, rowOffset, columnOffset, rows, columns, xOffset, yOffset)
     if (alpha == 0.0 || rows == 0 || columns == 0) return
     if (x === a.values || y === a.values) {
         val window = a.view(rowOffset, columnOffset, rows, columns)
         stagedVectors(
-            workspace,
+            arrays,
             StridedVector(x, xOffset, rows, 1),
             StridedVector(y, yOffset, columns, 1),
             window,
@@ -593,20 +574,19 @@ public fun KoblasEngine.ger(
 
 /** `A += alpha · x · xᵀ` (BLAS `dsyr`), writing only the [lower] or upper triangle. [x] must be dense or
  *  strided storage, which is what a vendor can address. Overlap staging follows [ger]. */
-@Suppress("LongParameterList") // the BLAS dsyr signature plus the workspace
+@Suppress("LongParameterList") // the BLAS dsyr signature
 public fun KoblasEngine.syr(
     alpha: Double,
     x: DenseVector,
     a: DenseMatrixRegion,
     lower: Boolean = true,
-    workspace: Workspace? = null,
 ) {
     requireSyrOperands(a, x.size, "syr")
     val n = a.rows
     if (alpha == 0.0 || n == 0) return
     // Snapshot an aliased vector before updates overwrite coefficients needed by later columns.
     val implementation = wholeCallFor(EngineImplementation.Syr, n, n, 1, a !is DenseMatrix)
-    staged(workspace, x, regionVectorOverlap(a, x)) { sx ->
+    staged(arrays, x, regionVectorOverlap(a, x)) { sx ->
         if (implementation != null) {
             implementation.computeSyr(alpha, sx, a, symmetricStructure(lower))
             return@staged
@@ -617,20 +597,19 @@ public fun KoblasEngine.syr(
 
 /** `A += alpha · (x · yᵀ + y · xᵀ)` (BLAS `dsyr2`), writing only the [lower] or upper triangle. Operand
  *  storage and overlap staging follow [syr]. */
-@Suppress("LongParameterList") // the BLAS dsyr2 signature plus the workspace
+@Suppress("LongParameterList") // the BLAS dsyr2 signature
 public fun KoblasEngine.syr2(
     alpha: Double,
     x: DenseVector,
     y: DenseVector,
     a: DenseMatrixRegion,
     lower: Boolean = true,
-    workspace: Workspace? = null,
 ) {
     requireSyr2Operands(a, x.size, y.size, "syr2")
     val n = a.rows
     if (alpha == 0.0 || n == 0) return
     val implementation = wholeCallFor(EngineImplementation.Syr2, n, n, 1, a !is DenseMatrix)
-    stagedVectors(workspace, x, y, a) { sx, sy ->
+    stagedVectors(arrays, x, y, a) { sx, sy ->
         if (implementation != null) {
             implementation.computeSyr2(alpha, sx, sy, a, symmetricStructure(lower))
             return@stagedVectors
@@ -640,19 +619,18 @@ public fun KoblasEngine.syr2(
 }
 
 /** Array convenience for the addressed [trsv] operation. */
-@Suppress("LongParameterList") // BLAS operands and workspace
+@Suppress("LongParameterList") // BLAS operands
 public fun KoblasEngine.trsv(
     a: DenseMatrixRegion,
     x: DoubleArray,
     lower: Boolean,
     transpose: Boolean = false,
     unitDiag: Boolean = false,
-    workspace: Workspace? = null,
 ) {
     requireTriangularVectorOperands(a, x.size, "trsv")
     if (a.rows == 0) return
     if (a.values === x) {
-        trsv(a, DenseVector.wrap(x), lower, transpose, unitDiag, workspace)
+        trsv(a, DenseVector.wrap(x), lower, transpose, unitDiag)
         return
     }
     val implementation = wholeCallFor(
@@ -675,17 +653,15 @@ public fun KoblasEngine.trsv(
  * As in BLAS `dtrsv`, no singularity or conditioning check is performed. Singular inputs have no
  * guaranteed numerical result.
  *
- * The substitution overwrites [x] as it goes, so a triangle sharing that buffer is snapshotted first and
- * [workspace] lends the snapshot.
+ * The substitution overwrites [x] as it goes, so a triangle sharing that buffer is snapshotted first.
  */
-@Suppress("LongParameterList") // the BLAS dtrsv signature plus the workspace
+@Suppress("LongParameterList") // the BLAS dtrsv signature
 public fun KoblasEngine.trsv(
     a: DenseMatrixRegion,
     x: DenseVector,
     lower: Boolean,
     transpose: Boolean = false,
     unitDiag: Boolean = false,
-    workspace: Workspace? = null,
 ) {
     requireTriangularVectorOperands(a, x.size, "trsv")
     val n = a.rows
@@ -696,7 +672,7 @@ public fun KoblasEngine.trsv(
         n,
         borrowed = a !is DenseMatrix,
     )
-    stagedRegion(workspace, a, x, lower = lower, unitDiag = unitDiag) { sa ->
+    stagedRegion(arrays, a, x, lower = lower, unitDiag = unitDiag) { sa ->
         if (implementation != null) {
             implementation.computeTrsv(sa, triangle(lower, unitDiag), transpose, x)
             return@stagedRegion
@@ -706,19 +682,18 @@ public fun KoblasEngine.trsv(
 }
 
 /** Array convenience for the addressed [trmv] operation. */
-@Suppress("LongParameterList") // BLAS operands and workspace
+@Suppress("LongParameterList") // BLAS operands
 public fun KoblasEngine.trmv(
     a: DenseMatrixRegion,
     x: DoubleArray,
     lower: Boolean,
     transpose: Boolean = false,
     unitDiag: Boolean = false,
-    workspace: Workspace? = null,
 ) {
     requireTriangularVectorOperands(a, x.size, "trmv")
     if (a.rows == 0) return
     if (a.values === x) {
-        trmv(a, DenseVector.wrap(x), lower, transpose, unitDiag, workspace)
+        trmv(a, DenseVector.wrap(x), lower, transpose, unitDiag)
         return
     }
     val implementation = wholeCallFor(
@@ -734,16 +709,14 @@ public fun KoblasEngine.trmv(
     }
 }
 
-/** `x = op(T) · x` in place (BLAS `dtrmv`), the product counterpart of [trsv], whose overlap staging and
- *  [workspace] it shares. */
-@Suppress("LongParameterList") // the BLAS dtrmv signature plus the workspace
+/** `x = op(T) · x` in place (BLAS `dtrmv`), sharing the overlap staging of [trsv]. */
+@Suppress("LongParameterList") // the BLAS dtrmv signature
 public fun KoblasEngine.trmv(
     a: DenseMatrixRegion,
     x: DenseVector,
     lower: Boolean,
     transpose: Boolean = false,
     unitDiag: Boolean = false,
-    workspace: Workspace? = null,
 ) {
     requireTriangularVectorOperands(a, x.size, "trmv")
     val n = a.rows
@@ -754,7 +727,7 @@ public fun KoblasEngine.trmv(
         n,
         borrowed = a !is DenseMatrix,
     )
-    stagedRegion(workspace, a, x, lower = lower, unitDiag = unitDiag) { sa ->
+    stagedRegion(arrays, a, x, lower = lower, unitDiag = unitDiag) { sa ->
         if (implementation != null) {
             implementation.computeTrmv(sa, triangle(lower, unitDiag), transpose, x)
             return@stagedRegion
@@ -774,8 +747,7 @@ public fun KoblasEngine.trsm(
     unitDiag: Boolean = false,
     right: Boolean = false,
     alpha: Double = 1.0,
-    workspace: Workspace? = null,
-): Unit = triangularMatrix(a, b, lower, transpose, unitDiag, right, alpha, solve = true, workspace = workspace)
+): Unit = triangularMatrix(a, b, lower, transpose, unitDiag, right, alpha, solve = true, arrays = arrays)
 
 /** `B = alpha · op(T) · B`, or `B = alpha · B · op(T)` when [right] (BLAS `dtrmm`), the counterpart of
  *  [trsm]. */
@@ -788,8 +760,7 @@ public fun KoblasEngine.trmm(
     unitDiag: Boolean = false,
     right: Boolean = false,
     alpha: Double = 1.0,
-    workspace: Workspace? = null,
-): Unit = triangularMatrix(a, b, lower, transpose, unitDiag, right, alpha, solve = false, workspace = workspace)
+): Unit = triangularMatrix(a, b, lower, transpose, unitDiag, right, alpha, solve = false, arrays = arrays)
 
 /**
  * Both triangular matrix routines, over a triangle staged against an overlap with the block it works on.
@@ -798,7 +769,7 @@ public fun KoblasEngine.trmm(
  * substitution, and where the triangle shares their buffer that write would otherwise reach the
  * coefficients the substitution is about to read.
  */
-@Suppress("LongParameterList") // the BLAS dtrsm signature, which of the two it is, and the workspace
+@Suppress("LongParameterList") // the BLAS dtrsm signature, which of the two it is, and the arrays
 private fun KoblasEngine.triangularMatrix(
     a: DenseMatrixRegion,
     b: DenseMatrixRegion,
@@ -808,7 +779,7 @@ private fun KoblasEngine.triangularMatrix(
     right: Boolean,
     alpha: Double,
     solve: Boolean,
-    workspace: Workspace?,
+    arrays: ArraySupplier?,
 ) {
     val what = if (solve) "trsm" else "trmm"
     requireTriangularMatrixOperands(a, b, right, what)
@@ -826,7 +797,7 @@ private fun KoblasEngine.triangularMatrix(
         order,
         a !is DenseMatrix || b !is DenseMatrix,
     )
-    stagedRegion(workspace, a, b, lower = lower, unitDiag = unitDiag) { sa ->
+    stagedRegion(arrays, a, b, lower = lower, unitDiag = unitDiag) { sa ->
         if (implementation != null) {
             val structure = triangle(lower, unitDiag)
             if (solve) {
@@ -836,7 +807,7 @@ private fun KoblasEngine.triangularMatrix(
             }
             return@stagedRegion
         }
-        portableTriangularMatrix(alpha, sa, triangle(lower, unitDiag), transpose, b, right, solve, workspace)
+        portableTriangularMatrix(alpha, sa, triangle(lower, unitDiag), transpose, b, right, solve, arrays)
     }
 }
 

@@ -1,8 +1,10 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.dense.*
+import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.internal.operands.staged
+import com.eignex.koblas.workspace.*
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -25,7 +27,7 @@ class StagingTest {
             val expected = x.toDoubleArray()
             val workspace = Workspace()
 
-            staged(workspace, x, aliased = true) { copy ->
+            staged(workspace.arrays, x, aliased = true) { copy ->
                 assertEquals(x.size, copy.values.size, "$x staged its buffer rather than its entries")
                 assertContentEquals(expected, copy.toDoubleArray(), "$x")
             }
@@ -40,7 +42,7 @@ class StagingTest {
         val x = StridedVector(DoubleArray(64), 33, 4, -8)
         val workspace = Workspace()
 
-        staged(workspace, x, aliased = false) { values -> assertSame(x, values) }
+        staged(workspace.arrays, x, aliased = false) { values -> assertSame(x, values) }
 
         assertEquals(0, workspace.idleLengths())
     }

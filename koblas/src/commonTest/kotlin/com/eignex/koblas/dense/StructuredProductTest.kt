@@ -15,6 +15,7 @@ import com.eignex.koblas.internal.portable.dense.productWindow
 import com.eignex.koblas.poisonedSymmetric
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.sparse.*
+import com.eignex.koblas.workspace.*
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -266,7 +267,7 @@ class StructuredProductTest {
             ),
             ALPHA, left, A_ORIGIN, a.rows + 3, transposeA, right, B_ORIGIN, b.rows + 5, transposeB,
             BETA, destination, C_ORIGIN,
-            order + 7, order, order, depth, selected, Workspace(),
+            order + 7, order, order, depth, selected, Workspace().arrays,
         )
 
         assertContentEquals(leftBefore, left, "$context: the left operand was written")
@@ -440,12 +441,12 @@ class StructuredProductTest {
         val square = DenseMatrix.wrap(0, 0, shared)
         val destination = DenseMatrix.wrap(0, 4, shared)
 
-        blas.gemmt(ALPHA, tall, false, wide, false, BETA, square, workspace = workspace)
-        blas.syrk(ALPHA, tall, false, BETA, square, workspace = workspace)
-        blas.syr2k(ALPHA, tall, tall, false, BETA, square, workspace = workspace)
-        blas.symm(ALPHA, square, tall, BETA, destination, workspace = workspace)
-        blas.trsm(square, tall, lower = true, workspace = workspace)
-        blas.trmm(square, tall, lower = true, workspace = workspace)
+        blas.withWorkspace(workspace).gemmt(ALPHA, tall, false, wide, false, BETA, square)
+        blas.withWorkspace(workspace).syrk(ALPHA, tall, false, BETA, square)
+        blas.withWorkspace(workspace).syr2k(ALPHA, tall, tall, false, BETA, square)
+        blas.withWorkspace(workspace).symm(ALPHA, square, tall, BETA, destination)
+        blas.withWorkspace(workspace).trsm(square, tall, lower = true)
+        blas.withWorkspace(workspace).trmm(square, tall, lower = true)
 
         assertEquals(0, workspace.idleLengths(), "a call with no output borrowed scratch it had no use for")
     }

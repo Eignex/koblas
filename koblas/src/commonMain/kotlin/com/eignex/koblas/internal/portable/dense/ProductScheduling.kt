@@ -3,7 +3,6 @@
 package com.eignex.koblas.internal.portable.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.borrow
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.portable.dense.scaleProductWindow
 
@@ -36,14 +35,6 @@ internal const val PRODUCT_BLOCK_COLUMNS: Int = 256
  * backend's register tile, which divides a block rather than sizing it.
  */
 internal const val PRODUCT_BLOCK_DEPTH: Int = 128
-
-private val NO_PANEL = DoubleArray(0)
-
-/**
- * Optional [borrow] that skips zero-length loans so unused scratch does not consume workspace retention.
- */
-internal inline fun <T> Workspace?.borrowOptional(size: Int, block: (DoubleArray) -> T): T =
-    if (size == 0) block(NO_PANEL) else borrow(size, block)
 
 /**
  * Which part of a square destination a product is allowed to write.
@@ -86,7 +77,7 @@ internal fun productWindow(
     n: Int,
     k: Int,
     selected: OutputTriangle,
-    workspace: Workspace?,
+    arrays: ArraySupplier?,
 ) {
     if (m <= 0 || n <= 0) return
     // A selected triangle uses the rectangular crossover over its actual extents: reducing the depth to stand
@@ -95,12 +86,12 @@ internal fun productWindow(
     if (kernels.packsProduct(m, n, k)) {
         blockedProduct(
             kernels, alpha, a, aOffset, lda, transposeA, b, bOffset, ldb, transposeB,
-            beta, c, cOffset, ldc, m, n, k, selected, workspace,
+            beta, c, cOffset, ldc, m, n, k, selected, arrays,
         )
     } else {
         directProduct(
             engine.panelProvider, alpha, a, aOffset, lda, transposeA, b, bOffset, ldb, transposeB,
-            beta, c, cOffset, ldc, m, n, k, selected, workspace,
+            beta, c, cOffset, ldc, m, n, k, selected, arrays,
         )
     }
 }
@@ -125,7 +116,7 @@ internal fun blockedProduct(
     n: Int,
     k: Int,
     selected: OutputTriangle,
-    workspace: Workspace?,
+    arrays: ArraySupplier?,
 ) {
     val blockRows = productBlockRows(kernels, m)
     val blockColumns = productBlockColumns(kernels, n)
@@ -133,9 +124,9 @@ internal fun blockedProduct(
     val leftSize = scratchCapacity(blockRows * blockDepth)
     val rightSize = scratchCapacity(blockColumns * blockDepth)
     val edgeSize = if (selected == OutputTriangle.Full) 0 else kernels.tileRows * kernels.tileColumns
-    workspace.borrowOptional(leftSize) { left ->
-        workspace.borrowOptional(rightSize) { right ->
-            workspace.borrowOptional(edgeSize) { edge ->
+    arrays.borrowOptional(leftSize) { left ->
+        arrays.borrowOptional(rightSize) { right ->
+            arrays.borrowOptional(edgeSize) { edge ->
                 blockedProductCore(
                     kernels, alpha, a, aOffset, lda, transposeA, left,
                     b, bOffset, ldb, transposeB, right,
@@ -436,7 +427,7 @@ private fun mergeSelected(
 /**
  * The product as Level 2 panel work, one destination column at a time, without packing both operands.
  *
- * Untransposed on the left, panels accumulate in a bounded workspace column before destination writeback.
+ * Untransposed on the left, panels accumulate in a bounded arrays column before destination writeback.
  * The thin-GEMM comparison found this faster than direct destination updates; alpha placement stays internal.
  * Transposed panels apply both multipliers on write. Neither form promises identical backend rounding.
  *
@@ -467,19 +458,19 @@ internal fun directProduct(
     n: Int,
     k: Int,
     selected: OutputTriangle,
-    workspace: Workspace?,
+    arrays: ArraySupplier?,
 ) {
     val coefficientStride = if (transposeB) ldb else 1
     if (transposeA) {
         reducedProduct(
             panels, alpha, a, aOffset, lda, b, bOffset, ldb, transposeB, coefficientStride,
-            beta, c, cOffset, ldc, m, n, k, selected, workspace,
+            beta, c, cOffset, ldc, m, n, k, selected, arrays,
         )
         return
     }
     val chunk = directColumnBlock(m)
     val group = directPanelGroup(panels, m, k, transposeA = false)
-    workspace.borrowOptional(scratchCapacity(chunk)) { accumulated ->
+    arrays.borrowOptional(scratchCapacity(chunk)) { accumulated ->
         forEachDirectProductPanel(m, n, k, selected, false, group) { column, first, step, height, width ->
             if (step == 0) accumulated.fill(0.0, 0, height)
             val coefficients = bOffset + if (transposeB) column else column * ldb
@@ -542,11 +533,11 @@ private fun reducedProduct(
     n: Int,
     k: Int,
     selected: OutputTriangle,
-    workspace: Workspace?,
+    arrays: ArraySupplier?,
 ) {
     val group = directPanelGroup(panels, m, k, transposeA = true)
     val gathers = gathersCoefficients(panels, m, k, coefficientStride != 1)
-    workspace.borrowOptional(if (gathers) scratchCapacity(k) else 0) { gathered ->
+    arrays.borrowOptional(if (gathers) scratchCapacity(k) else 0) { gathered ->
         forEachDirectProductPanel(m, n, k, selected, true, group) { column, first, _, height, width ->
             val coefficients = bOffset + if (transposeB) column else column * ldb
             if (gathers && first == selectedRow(column, m, selected)) {
@@ -616,7 +607,7 @@ private fun writeScaledColumn(
 }
 
 /**
- * Round scratch lengths so neighboring windows reuse workspace loans. Schedule blocks bound the
+ * Round scratch lengths so neighboring windows reuse arrays loans. Schedule blocks bound the
  * accumulating column and packed panels; rounding retains at most twice the requested storage.
  * Oversized lengths pass through.
  */

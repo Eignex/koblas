@@ -1,5 +1,7 @@
 package com.eignex.koblas;
 
+import com.eignex.koblas.workspace.Workspace;
+import static com.eignex.koblas.workspace.WorkspaceEngines.withWorkspace;
 import com.eignex.koblas.engine.BuiltinEngines;
 import com.eignex.koblas.engine.Engines;
 import static com.eignex.koblas.dense.DenseBlas.*;
@@ -22,7 +24,7 @@ final class JavaInteropSmoke {
         assertEquals(34.0, Koblas.dot(vector, vector));
 
         DenseVector destination = DenseVector.wrap(new double[2]);
-        gemv(Engines.getDefault(), 1.0, matrix, vector, 0.0, destination, false, null);
+        gemv(Engines.getDefault(), 1.0, matrix, vector, 0.0, destination, false);
         assertArrayEquals(result.toDoubleArray(), destination.toDoubleArray());
         assertEquals(8.0, Koblas.asum(vector));
 
@@ -42,22 +44,22 @@ final class JavaInteropSmoke {
         assertArrayEquals(new double[] {2.0, 0.0}, scattered);
 
         double[] gemvResult = new double[2];
-        gemv(Engines.getDefault(), 1.0, sparse, new double[] {4.0, 5.0}, 0.0, gemvResult, false, null);
+        gemv(Engines.getDefault(), 1.0, sparse, new double[] {4.0, 5.0}, 0.0, gemvResult, false);
         assertArrayEquals(new double[] {8.0, 15.0}, gemvResult);
         assertArrayEquals(new double[] {8.0, 15.0}, gemv(Engines.getDefault(), sparse, new double[] {4.0, 5.0}, false));
 
         KoblasEngine engine = BuiltinEngines.getScalar();
         DenseMatrixRegion outputRegion = DenseMatrix.zero(5, 5).view(1, 1, 2, 2);
-        com.eignex.koblas.Koblas.gemm(engine, 1.0, (Matrix) sparse, false, (Matrix) identity, false, 0.0, outputRegion, new Workspace());
+        com.eignex.koblas.Koblas.gemm(withWorkspace(engine, new Workspace()), 1.0, (Matrix) sparse, false, (Matrix) identity, false, 0.0, outputRegion);
         assertEquals(2.0, outputRegion.get(0, 0));
         assertEquals(3.0, outputRegion.get(1, 1));
-        trmm(engine, sparse, outputRegion, true, false, true, false, 1.0, new Workspace());
+        trmm(withWorkspace(engine, new Workspace()), sparse, outputRegion, true, false, true, false, 1.0);
         assertEquals(2.0, outputRegion.get(0, 0));
 
         DenseVector reverseInput = new StridedVector(new double[] {5.0, 0.0, 3.0}, 2, 2, -2);
         double[] outputBuffer = new double[] {-7.0, -7.0, -7.0, -7.0, -7.0};
         DenseVector reverseOutput = new StridedVector(outputBuffer, 3, 2, -2);
-        gemv(engine, 1.0, matrix, reverseInput, 0.0, reverseOutput, false, null);
+        gemv(engine, 1.0, matrix, reverseInput, 0.0, reverseOutput, false);
         assertArrayEquals(new double[] {-7.0, 18.0, -7.0, 11.0, -7.0}, outputBuffer);
 
         DenseVector rotatedX = DenseVector.of(new double[] {3.0});

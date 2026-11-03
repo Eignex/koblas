@@ -16,7 +16,7 @@ schedules bind panel, product and triangular families before packing or grouping
 The `engine` package contains selection, profiles and vendor metadata; host bindings live under `internal.host`.
 Schedules and kernels receive their dependencies from the engine; they do not read the global default.
 
-[Workspace][com.eignex.koblas.Workspace] reuses temporary storage with bounded retention. It belongs to one
+[Workspace][com.eignex.koblas.workspace.Workspace] reuses temporary storage with bounded retention. It belongs to one
 invocation at a time; concurrent calls need separate outputs and scratch. Allocating operations still own
 their fresh results. Factorization and solver workflows are outside this artifact.
 
@@ -33,7 +33,7 @@ are absent capabilities and retain portable coverage through the combined engine
 
 # Package com.eignex.koblas
 
-Owning dense and sparse containers, borrowed vector views, [Workspace] and high-level arithmetic.
+Owning dense and sparse containers, borrowed vector views and high-level arithmetic.
 Ordinary use needs only `com.eignex.koblas.*`; [Matrix] and [Vector] are read-only contracts custom types can
 implement. Dense matrices are column-major and sparse matrices are validated CSC.
 
@@ -67,3 +67,8 @@ consumer. Empty masked reductions return the identity and report no position.
 Sparse Levels 1–3 use [com.eignex.koblas.KoblasEngine]. Traversal stays in validated CSC storage: stored zeros
 participate, cancellation retains an entry, and an absent position is never evaluated. Fresh results own their
 arrays with ascending row indices; mutable scratch belongs to one invocation.
+
+# Package com.eignex.koblas.workspace
+
+[Workspace] retains temporary arrays for an engine bound through [withWorkspace]. Core arithmetic uses
+scoped array loans and has no dependency on Workspace. Concurrent calls need separate workspaces.

@@ -4,6 +4,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.operands.*
+import com.eignex.koblas.workspace.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -36,23 +37,23 @@ class SparseWorkspaceTest {
 
         assertStaged(n, "gemv over the vector it writes") { w ->
             val y = doubleArrayOf(1.0, -2.0, 0.5, 3.0)
-            koblas.gemv(0.5, permutation(), y, -1.5, y, false, w)
+            koblas.withWorkspace(w).gemv(0.5, permutation(), y, -1.5, y, false)
         }
         assertStaged(n, "gemv over the coefficients it writes") { w ->
             val a = permutation()
-            koblas.gemv(0.5, a, doubleArrayOf(1.0, -2.0, 0.5, 3.0), -1.5, a.values, false, w)
+            koblas.withWorkspace(w).gemv(0.5, a, doubleArrayOf(1.0, -2.0, 0.5, 3.0), -1.5, a.values, false)
         }
         assertStaged(n, "symv over the vector it writes") { w ->
             val y = doubleArrayOf(1.0, -2.0, 0.5, 3.0)
-            koblas.symv(0.5, permutation(), y, -1.5, y, true, w)
+            koblas.withWorkspace(w).symv(0.5, permutation(), y, -1.5, y, true)
         }
         assertStaged(3, "trsv over the coefficients that are its right-hand side") { w ->
             val a = triangle()
-            koblas.trsv(a, a.values, lower = true, workspace = w)
+            koblas.withWorkspace(w).trsv(a, a.values, lower = true)
         }
         assertStaged(3, "trmv over the coefficients that are its right-hand side") { w ->
             val a = triangle()
-            koblas.trmv(a, a.values, lower = true, workspace = w)
+            koblas.withWorkspace(w).trmv(a, a.values, lower = true)
         }
     }
 
@@ -62,7 +63,7 @@ class SparseWorkspaceTest {
         val workspace = Workspace()
         val a = permutation()
 
-        koblas.gemv(0.5, a, doubleArrayOf(1.0, -2.0, 0.5, 3.0), -1.5, a.values, false, workspace)
+        koblas.withWorkspace(workspace).gemv(0.5, a, doubleArrayOf(1.0, -2.0, 0.5, 3.0), -1.5, a.values, false)
 
         assertEquals(1, workspace.available(a.nnz), "the coefficients were not staged from the workspace")
         assertEquals(0, workspace.availableI32(a.cols + 1), "the column pointers were copied")

@@ -4,6 +4,7 @@ import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.testutil.allocation.bytesPerIteration
+import com.eignex.koblas.workspace.*
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import kotlin.test.Test
@@ -191,7 +192,7 @@ class AllocationFreeTest(private val name: String, private val iterations: Int, 
                 400,
                 with(AliasedLevelTwoFixture()) {
                     {
-                        portable.gemv(1e-12, a, y, 1.0, y, workspace = workspace)
+                        portable.withWorkspace(workspace).gemv(1e-12, a, y, 1.0, y)
                         y
                     }
                 },
@@ -201,7 +202,7 @@ class AllocationFreeTest(private val name: String, private val iterations: Int, 
                 400,
                 with(AliasedLevelTwoFixture()) {
                     {
-                        portable.symv(1e-12, a, y, 1.0, y, workspace = workspace)
+                        portable.withWorkspace(workspace).symv(1e-12, a, y, 1.0, y)
                         y
                     }
                 },
@@ -211,7 +212,7 @@ class AllocationFreeTest(private val name: String, private val iterations: Int, 
                 400,
                 with(AliasedLevelTwoFixture()) {
                     {
-                        koblas.gemv(1e-12, sparse, coefficients, 1.0, coefficients, workspace = workspace)
+                        koblas.withWorkspace(workspace).gemv(1e-12, sparse, coefficients, 1.0, coefficients)
                         coefficients
                     }
                 },
@@ -221,7 +222,7 @@ class AllocationFreeTest(private val name: String, private val iterations: Int, 
                 100,
                 with(DenseLevelThreeFixture()) {
                     {
-                        portable.trsm(triangle, b, lower = true, workspace = workspace)
+                        portable.withWorkspace(workspace).trsm(triangle, b, lower = true)
                         b
                     }
                 },
@@ -231,7 +232,7 @@ class AllocationFreeTest(private val name: String, private val iterations: Int, 
                 100,
                 with(DenseLevelThreeFixture()) {
                     {
-                        portable.trmm(triangle, b, lower = true, workspace = workspace)
+                        portable.withWorkspace(workspace).trmm(triangle, b, lower = true)
                         b
                     }
                 },
@@ -241,7 +242,7 @@ class AllocationFreeTest(private val name: String, private val iterations: Int, 
                 50,
                 with(DenseProductFixture()) {
                     {
-                        portable.gemm(1e-12, wide, false, wide, false, 1.0, packedTarget, workspace)
+                        portable.withWorkspace(workspace).gemm(1e-12, wide, false, wide, false, 1.0, packedTarget)
                         packedTarget
                     }
                 },
@@ -251,7 +252,15 @@ class AllocationFreeTest(private val name: String, private val iterations: Int, 
                 50,
                 with(DenseProductFixture()) {
                     {
-                        portable.gemm(1e-12, deepLeft, false, deepRight, false, 1.0, deepTarget, workspace)
+                        portable.withWorkspace(workspace).gemm(
+                            1e-12,
+                            deepLeft,
+                            false,
+                            deepRight,
+                            false,
+                            1.0,
+                            deepTarget,
+                        )
                         deepTarget
                     }
                 },
@@ -261,7 +270,7 @@ class AllocationFreeTest(private val name: String, private val iterations: Int, 
                 200,
                 with(DenseProductFixture()) {
                     {
-                        portable.gemm(1e-12, small, false, small, false, 1.0, smallTarget, workspace)
+                        portable.withWorkspace(workspace).gemm(1e-12, small, false, small, false, 1.0, smallTarget)
                         smallTarget
                     }
                 },
@@ -301,7 +310,7 @@ class AllocationFreeTest(private val name: String, private val iterations: Int, 
                 300,
                 with(SparseLevelThreeFixture()) {
                     {
-                        engine.gemm(1e-12, sparse, false, b, false, 1.0, panel, workspace = workspace)
+                        engine.withWorkspace(workspace).gemm(1e-12, sparse, false, b, false, 1.0, panel)
                         panel
                     }
                 },
@@ -311,7 +320,16 @@ class AllocationFreeTest(private val name: String, private val iterations: Int, 
                 300,
                 with(SparseLevelThreeFixture()) {
                     {
-                        engine.gemm(1e-12, sparse, false, b, true, 1.0, transposed, right = true, workspace = workspace)
+                        engine.withWorkspace(workspace).gemm(
+                            1e-12,
+                            sparse,
+                            false,
+                            b,
+                            true,
+                            1.0,
+                            transposed,
+                            right = true,
+                        )
                         transposed
                     }
                 },
@@ -321,7 +339,7 @@ class AllocationFreeTest(private val name: String, private val iterations: Int, 
                 300,
                 with(SparseLevelThreeFixture()) {
                     {
-                        engine.syrk(1e-12, sparse, false, 1.0, square, workspace = workspace)
+                        engine.withWorkspace(workspace).syrk(1e-12, sparse, false, 1.0, square)
                         square
                     }
                 },
@@ -331,7 +349,7 @@ class AllocationFreeTest(private val name: String, private val iterations: Int, 
                 300,
                 with(SparseLevelThreeFixture()) {
                     {
-                        engine.symm(1e-12, sparse, b, 1.0, panel, workspace = workspace)
+                        engine.withWorkspace(workspace).symm(1e-12, sparse, b, 1.0, panel)
                         panel
                     }
                 },
@@ -341,7 +359,7 @@ class AllocationFreeTest(private val name: String, private val iterations: Int, 
                 300,
                 with(SparseLevelThreeFixture()) {
                     {
-                        engine.gemm(1e-12, sparse, false, identity, false, 1.0, square, workspace)
+                        engine.withWorkspace(workspace).gemm(1e-12, sparse, false, identity, false, 1.0, square)
                         square
                     }
                 },
@@ -351,7 +369,7 @@ class AllocationFreeTest(private val name: String, private val iterations: Int, 
                 300,
                 with(SparseLevelThreeFixture()) {
                     {
-                        engine.trsm(sparse, solveBlock, lower = true, workspace = workspace)
+                        engine.withWorkspace(workspace).trsm(sparse, solveBlock, lower = true)
                         solveBlock
                     }
                 },
@@ -361,7 +379,7 @@ class AllocationFreeTest(private val name: String, private val iterations: Int, 
                 300,
                 with(SparseLevelThreeFixture()) {
                     {
-                        engine.trmm(sparse, multiplyBlock, lower = true, workspace = workspace)
+                        engine.withWorkspace(workspace).trmm(sparse, multiplyBlock, lower = true)
                         multiplyBlock
                     }
                 },
@@ -465,8 +483,8 @@ class AllocationFreeTest(private val name: String, private val iterations: Int, 
         val coefficients = sparse.values
         val workspace = Workspace()
         init {
-            portable.gemv(1e-12, a, y, 1.0, y, workspace = workspace)
-            koblas.gemv(1e-12, sparse, coefficients, 1.0, coefficients, workspace = workspace)
+            portable.withWorkspace(workspace).gemv(1e-12, a, y, 1.0, y)
+            koblas.withWorkspace(workspace).gemv(1e-12, sparse, coefficients, 1.0, coefficients)
         }
     }
 
@@ -480,8 +498,8 @@ class AllocationFreeTest(private val name: String, private val iterations: Int, 
         val b = DenseMatrix.wrap(order, sides, DoubleArray(order * sides) { 1.0 })
         val workspace = Workspace()
         init {
-            portable.trsm(triangle, b, lower = true, workspace = workspace)
-            portable.trmm(triangle, b, lower = true, workspace = workspace)
+            portable.withWorkspace(workspace).trsm(triangle, b, lower = true)
+            portable.withWorkspace(workspace).trmm(triangle, b, lower = true)
         }
     }
 
@@ -496,9 +514,9 @@ class AllocationFreeTest(private val name: String, private val iterations: Int, 
         val smallTarget = DenseMatrix.wrap(5, 5, DoubleArray(25))
         val packedTarget = DenseMatrix.wrap(48, 48, DoubleArray(48 * 48))
         init {
-            portable.gemm(1e-12, wide, false, wide, false, 1.0, packedTarget, workspace)
-            portable.gemm(1e-12, deepLeft, false, deepRight, false, 1.0, deepTarget, workspace)
-            portable.gemm(1e-12, small, false, small, false, 1.0, smallTarget, workspace)
+            portable.withWorkspace(workspace).gemm(1e-12, wide, false, wide, false, 1.0, packedTarget)
+            portable.withWorkspace(workspace).gemm(1e-12, deepLeft, false, deepRight, false, 1.0, deepTarget)
+            portable.withWorkspace(workspace).gemm(1e-12, small, false, small, false, 1.0, smallTarget)
         }
     }
 
@@ -523,13 +541,13 @@ class AllocationFreeTest(private val name: String, private val iterations: Int, 
         val workspace = Workspace()
         init {
             // One warm call per shape, so the loans exist before the measured loop asks for them again.
-            engine.gemm(1e-12, sparse, false, b, false, 1.0, panel, workspace = workspace)
-            engine.gemm(1e-12, sparse, false, b, true, 1.0, transposed, right = true, workspace = workspace)
-            engine.syrk(1e-12, sparse, false, 1.0, square, workspace = workspace)
-            engine.symm(1e-12, sparse, b, 1.0, panel, workspace = workspace)
-            engine.gemm(1e-12, sparse, false, identity, false, 1.0, square, workspace)
-            engine.trsm(sparse, solveBlock, lower = true, workspace = workspace)
-            engine.trmm(sparse, multiplyBlock, lower = true, workspace = workspace)
+            engine.withWorkspace(workspace).gemm(1e-12, sparse, false, b, false, 1.0, panel)
+            engine.withWorkspace(workspace).gemm(1e-12, sparse, false, b, true, 1.0, transposed, right = true)
+            engine.withWorkspace(workspace).syrk(1e-12, sparse, false, 1.0, square)
+            engine.withWorkspace(workspace).symm(1e-12, sparse, b, 1.0, panel)
+            engine.withWorkspace(workspace).gemm(1e-12, sparse, false, identity, false, 1.0, square)
+            engine.withWorkspace(workspace).trsm(sparse, solveBlock, lower = true)
+            engine.withWorkspace(workspace).trmm(sparse, multiplyBlock, lower = true)
         }
     }
 }

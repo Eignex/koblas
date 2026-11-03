@@ -5,6 +5,7 @@ import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.host.assertAgreesWithReference
 import com.eignex.koblas.sparse.*
+import com.eignex.koblas.workspace.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -39,7 +40,7 @@ class JvmDefaultEngineTest {
         val expected = DenseMatrix.wrap(order, order, a.values.copyOf())
         ReferenceBlas.gemm(0.875, a, false, b, true, -0.25, expected)
 
-        koblas.gemm(0.875, a, false, b, true, -0.25, a, Workspace())
+        koblas.withWorkspace(Workspace()).gemm(0.875, a, false, b, true, -0.25, a)
 
         assertAgreesWithReference(expected.values, a.values, "aliased default host product")
     }

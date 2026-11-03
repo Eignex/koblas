@@ -55,14 +55,15 @@ The fuller forms can scale the product and add it to the destination in one call
 GEMM computes `c = alpha * a * b + beta * c` when neither operand is transposed:
 
 ```kotlin
+import com.eignex.koblas.workspace.*
+
 val result = DenseMatrix.zero(a.rows, b.cols)
-val workspace = Workspace()
+val engine = koblas.withWorkspace(Workspace())
 
 repeat(1_000) {
-    koblas.gemm(
+    engine.gemm(
         alpha = 1.0, a = a, transposeA = false,
         b = b, transposeB = false, beta = 0.0, c = result,
-        workspace = workspace,
     )
 }
 ```

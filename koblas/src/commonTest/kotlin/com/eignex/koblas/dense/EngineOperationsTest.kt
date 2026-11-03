@@ -4,6 +4,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.portable.PortableEngine
 import com.eignex.koblas.sparse.*
+import com.eignex.koblas.workspace.*
 import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlin.random.Random
@@ -272,7 +273,7 @@ class EngineOperationsTest {
                     val yOffset = if (alias != 1) 30 else 4
                     val expected = referenceWindow(a, x, y, 3, 2, xOffset, yOffset)
 
-                    engine.ger(-0.875, x, y, a, 2, 3, 3, 2, xOffset, yOffset, workspace)
+                    engine.withWorkspace(workspace).ger(-0.875, x, y, a, 2, 3, 3, 2, xOffset, yOffset)
 
                     assertWindowAgreesWithReference(expected, a, 3, 2)
                     assertEquals(if (alias != 2) 1 else 0, workspace.available(3))
@@ -316,10 +317,10 @@ class EngineOperationsTest {
                 val workspace = Workspace()
                 val alpha = if (shape.first > 0 && shape.second > 0) 0.0 else Double.NaN
 
-                engine.ger(
+                engine.withWorkspace(workspace).ger(
                     alpha, a.values, a.values, a,
                     9 - shape.first, 8 - shape.second, shape.first, shape.second,
-                    72 - shape.first, 72 - shape.second, workspace,
+                    72 - shape.first, 72 - shape.second,
                 )
 
                 assertContentEquals(DoubleArray(72) { Double.NaN }, a.values)

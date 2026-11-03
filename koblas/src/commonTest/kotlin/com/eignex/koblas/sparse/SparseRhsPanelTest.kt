@@ -16,6 +16,7 @@ import com.eignex.koblas.internal.portable.sparse.rhsStaged
 import com.eignex.koblas.internal.portable.sparse.symmetricRhsPlan
 import com.eignex.koblas.internal.portable.sparse.triangularRhsPlan
 import com.eignex.koblas.internal.sparse.*
+import com.eignex.koblas.workspace.*
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -59,7 +60,7 @@ class SparseRhsPanelTest {
 
                         for ((name, engine) in engines()) {
                             val actual = DenseMatrix.wrap(order, sides, initial.copyOf())
-                            engine.gemm(alpha, a, true, b, transposeB, beta, actual, workspace = Workspace())
+                            engine.withWorkspace(Workspace()).gemm(alpha, a, true, b, transposeB, beta, actual)
 
                             assertGemmAgreesWithReference(
                                 expected.values,
@@ -125,9 +126,9 @@ class SparseRhsPanelTest {
                 "the symmetric fixture did not stage at lower=$lower",
             )
             val staged = DenseMatrix.wrap(order, SIDES, c0.values.copyOf())
-            staging.symm(ALPHA, a, b, BETA, staged, lower, right = false, workspace = Workspace())
+            staging.withWorkspace(Workspace()).symm(ALPHA, a, b, BETA, staged, lower, right = false)
             val unstaged = DenseMatrix.wrap(order, SIDES, c0.values.copyOf())
-            plain.symm(ALPHA, a, b, BETA, unstaged, lower, right = false, workspace = Workspace())
+            plain.withWorkspace(Workspace()).symm(ALPHA, a, b, BETA, unstaged, lower, right = false)
 
             assertClose(expected.values, staged.values, "staged symmetric product lower=$lower")
             assertClose(unstaged.values, staged.values, "staged against unstaged lower=$lower")
@@ -154,11 +155,11 @@ class SparseRhsPanelTest {
                         val staged = DenseMatrix.wrap(order, SIDES, source.values.copyOf())
                         val unstaged = DenseMatrix.wrap(order, SIDES, source.values.copyOf())
                         if (solve) {
-                            staging.trsm(t, staged, lower, transpose, unit, false, ALPHA, Workspace())
-                            plain.trsm(t, unstaged, lower, transpose, unit, false, ALPHA, Workspace())
+                            staging.withWorkspace(Workspace()).trsm(t, staged, lower, transpose, unit, false, ALPHA)
+                            plain.withWorkspace(Workspace()).trsm(t, unstaged, lower, transpose, unit, false, ALPHA)
                         } else {
-                            staging.trmm(t, staged, lower, transpose, unit, false, ALPHA, Workspace())
-                            plain.trmm(t, unstaged, lower, transpose, unit, false, ALPHA, Workspace())
+                            staging.withWorkspace(Workspace()).trmm(t, staged, lower, transpose, unit, false, ALPHA)
+                            plain.withWorkspace(Workspace()).trmm(t, unstaged, lower, transpose, unit, false, ALPHA)
                         }
                         assertClose(unstaged.values, staged.values, "staged triangular block $context")
                     }
@@ -176,18 +177,31 @@ class SparseRhsPanelTest {
         val shared = randomDense(order, SIDES, rng)
 
         val expectedProduct = DenseMatrix.wrap(order, SIDES, shared.values.copyOf())
-        plain.gemm(
-            ALPHA, a, false, DenseMatrix.wrap(order, SIDES, shared.values.copyOf()), false,
-            BETA, expectedProduct, right = false, workspace = Workspace(),
+        plain.withWorkspace(Workspace()).gemm(
+            ALPHA,
+            a,
+            false,
+            DenseMatrix.wrap(order, SIDES, shared.values.copyOf()),
+            false,
+            BETA,
+            expectedProduct,
+            right = false,
         )
         val aliasedProduct = DenseMatrix.wrap(order, SIDES, shared.values.copyOf())
-        staging.gemm(
-            ALPHA, a, false, aliasedProduct, false, BETA, aliasedProduct, right = false, workspace = Workspace(),
+        staging.withWorkspace(Workspace()).gemm(
+            ALPHA,
+            a,
+            false,
+            aliasedProduct,
+            false,
+            BETA,
+            aliasedProduct,
+            right = false,
         )
         assertClose(expectedProduct.values, aliasedProduct.values, "a staged product against its own source")
 
         val expectedSymmetric = DenseMatrix.wrap(order, SIDES, shared.values.copyOf())
-        plain.symm(
+        plain.withWorkspace(Workspace()).symm(
             ALPHA,
             a,
             DenseMatrix.wrap(order, SIDES, shared.values.copyOf()),
@@ -195,10 +209,9 @@ class SparseRhsPanelTest {
             expectedSymmetric,
             lower = true,
             right = false,
-            workspace = Workspace(),
         )
         val aliasedSymmetric = DenseMatrix.wrap(order, SIDES, shared.values.copyOf())
-        staging.symm(
+        staging.withWorkspace(Workspace()).symm(
             ALPHA,
             a,
             aliasedSymmetric,
@@ -206,7 +219,6 @@ class SparseRhsPanelTest {
             aliasedSymmetric,
             lower = true,
             right = false,
-            workspace = Workspace(),
         )
         assertClose(
             expectedSymmetric.values,
@@ -236,7 +248,7 @@ class SparseRhsPanelTest {
 
         val independent = SparseMatrix.wrap(order, order, pointers, rows, block.copyOf())
         val expected = DenseMatrix.wrap(order, sides, block.copyOf())
-        plain.trsm(independent, expected, true, false, false, false, ALPHA, Workspace())
+        plain.withWorkspace(Workspace()).trsm(independent, expected, true, false, false, false, ALPHA)
 
         val sharedTriangle = SparseMatrix.wrap(order, order, pointers, rows, block.copyOf())
         val aliased = DenseMatrix.wrap(order, sides, sharedTriangle.values)
@@ -244,7 +256,7 @@ class SparseRhsPanelTest {
             rhsStaged(triangularRhsPlan(stagingPanels, order, sides, sharedTriangle.nnz, transpose = false)),
             "the aliased triangular fixture did not stage",
         )
-        staging.trsm(sharedTriangle, aliased, true, false, false, false, ALPHA, Workspace())
+        staging.withWorkspace(Workspace()).trsm(sharedTriangle, aliased, true, false, false, false, ALPHA)
 
         assertClose(expected.values, aliased.values, "a staged solve against its own triangle")
     }
@@ -261,7 +273,7 @@ class SparseRhsPanelTest {
         val c = randomDense(m, SIDES, rng)
         for (side in 0 until SIDES) c.values[EMPTY_ROW + side * m] = -0.0
 
-        staging.gemm(ALPHA, a, false, b, false, 1.0, c, right = false, workspace = Workspace())
+        staging.withWorkspace(Workspace()).gemm(ALPHA, a, false, b, false, 1.0, c, right = false)
 
         for (side in 0 until SIDES) {
             val at = EMPTY_ROW + side * m
@@ -279,10 +291,10 @@ class SparseRhsPanelTest {
         val emptySparse = SparseMatrix.wrap(0, 0, IntArray(1), IntArray(0), DoubleArray(0))
         val emptyDense = DenseMatrix.wrap(0, wide, DoubleArray(0))
 
-        staging.symm(ALPHA, emptySparse, emptyDense, BETA, emptyDense, true, right = false, workspace = workspace)
-        staging.gemm(ALPHA, emptySparse, false, emptyDense, false, BETA, emptyDense, false, workspace)
-        staging.trsm(emptySparse, emptyDense, true, false, false, false, ALPHA, workspace)
-        staging.trmm(emptySparse, emptyDense, true, false, false, false, ALPHA, workspace)
+        staging.withWorkspace(workspace).symm(ALPHA, emptySparse, emptyDense, BETA, emptyDense, true, right = false)
+        staging.withWorkspace(workspace).gemm(ALPHA, emptySparse, false, emptyDense, false, BETA, emptyDense, false)
+        staging.withWorkspace(workspace).trsm(emptySparse, emptyDense, true, false, false, false, ALPHA)
+        staging.withWorkspace(workspace).trmm(emptySparse, emptyDense, true, false, false, false, ALPHA)
 
         assertEquals(0, workspace.idleLengths(), "an empty call took a loan from the workspace")
     }
@@ -298,9 +310,9 @@ class SparseRhsPanelTest {
         val c = randomDense(m, SIDES, rng)
         val workspace = Workspace()
 
-        staging.gemm(ALPHA, a, false, b, false, BETA, c, right = false, workspace = workspace)
+        staging.withWorkspace(workspace).gemm(ALPHA, a, false, b, false, BETA, c, right = false)
         val afterFirst = workspace.idleLengths()
-        repeat(4) { staging.gemm(ALPHA, a, false, b, false, BETA, c, right = false, workspace = workspace) }
+        repeat(4) { staging.withWorkspace(workspace).gemm(ALPHA, a, false, b, false, BETA, c, right = false) }
 
         assertTrue(afterFirst > 0, "a staged call borrowed nothing at all")
         assertEquals(afterFirst, workspace.idleLengths(), "a repeated staged call asked for new lengths")
@@ -314,7 +326,7 @@ class SparseRhsPanelTest {
             for (sides in intArrayOf(1, 3, 8)) {
                 val b = DenseMatrix.wrap(1, sides, DoubleArray(sides) { 3.0 })
                 val c = DenseMatrix.wrap(1, sides, DoubleArray(sides))
-                engine.second.symm(
+                engine.second.withWorkspace(null).symm(
                     Double.POSITIVE_INFINITY,
                     a,
                     b,
@@ -322,7 +334,6 @@ class SparseRhsPanelTest {
                     c,
                     lower = true,
                     right = false,
-                    workspace = null,
                 )
                 for (side in 0 until sides) {
                     assertEquals(
@@ -344,7 +355,7 @@ class SparseRhsPanelTest {
             for (sides in intArrayOf(1, 3)) {
                 val b = DenseMatrix.wrap(2, sides, DoubleArray(2 * sides))
                 val c = DenseMatrix.wrap(2, sides, DoubleArray(2 * sides) { -0.0 })
-                engine.second.symm(1.0, a, b, 1.0, c, lower = true, right = false, workspace = null)
+                engine.second.withWorkspace(null).symm(1.0, a, b, 1.0, c, lower = true, right = false)
                 for (side in 0 until sides) {
                     val at = side * 2
                     assertEquals(-0.0, c.values[at], "${engine.first} at $sides sides: entry $at changed")
@@ -483,9 +494,9 @@ class SparseRhsPanelTest {
                         for ((name, engine) in engines()) {
                             val actual = DenseMatrix.wrap(order, sides, source.copyOf())
                             if (solve) {
-                                engine.trsm(triangle, actual, lower = true, workspace = Workspace())
+                                engine.withWorkspace(Workspace()).trsm(triangle, actual, lower = true)
                             } else {
-                                engine.trmm(triangle, actual, lower = true, workspace = Workspace())
+                                engine.withWorkspace(Workspace()).trmm(triangle, actual, lower = true)
                             }
 
                             assertTriangularAgreesWithReference(
@@ -522,7 +533,7 @@ class SparseRhsPanelTest {
         engine: KoblasEngine,
     ): DenseMatrix {
         val c = c0.copyOf()
-        engine.gemm(ALPHA, a, transposeA, b, transposeB, BETA, c, right = false, workspace = Workspace())
+        engine.withWorkspace(Workspace()).gemm(ALPHA, a, transposeA, b, transposeB, BETA, c, right = false)
         return c
     }
 

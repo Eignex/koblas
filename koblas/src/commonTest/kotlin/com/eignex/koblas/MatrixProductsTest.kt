@@ -4,6 +4,7 @@ import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.sparse.ReferenceSparseBlas
+import com.eignex.koblas.workspace.*
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -47,7 +48,7 @@ class MatrixProductsTest {
         val right: Matrix = DenseMatrix.diagonal(2, 2.0)
         val destination = DenseMatrix.wrap(2, 2, backing)
 
-        koblas.gemm(1.0, left, true, right, false, 0.5, destination, Workspace())
+        koblas.withWorkspace(Workspace()).gemm(1.0, left, true, right, false, 0.5, destination)
 
         assertContentEquals(doubleArrayOf(2.5, 5.5, 7.0, 10.0), destination.values)
     }
@@ -143,7 +144,7 @@ class MatrixProductsTest {
         val identity: Matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 1.0)))
         val destination = DenseMatrix.wrap(2, 2, backing)
 
-        koblas.gemm(1.0, sparse as Matrix, false, identity, false, 0.0, destination, Workspace())
+        koblas.withWorkspace(Workspace()).gemm(1.0, sparse as Matrix, false, identity, false, 0.0, destination)
 
         assertContentEquals(doubleArrayOf(2.0, 3.0, 5.0, 7.0), destination.values, "left operand alias")
 
@@ -152,7 +153,7 @@ class MatrixProductsTest {
         val denseDestination = DenseMatrix.wrap(2, 2, denseBacking)
         val scale: Matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 2.0)))
 
-        koblas.gemm(1.0, dense as Matrix, false, scale, false, 0.0, denseDestination, Workspace())
+        koblas.withWorkspace(Workspace()).gemm(1.0, dense as Matrix, false, scale, false, 0.0, denseDestination)
 
         assertContentEquals(doubleArrayOf(2.0, 0.0, 0.0, 2.0), denseDestination.values, "right operand alias")
     }
@@ -175,7 +176,9 @@ class MatrixProductsTest {
                     val cols = if (foreignOnLeft) 0 else order
                     val destination = DenseMatrix.zero(rows, cols)
 
-                    koblas.gemm(1.0, left, transpose, right, transposeOther, 0.0, destination, Workspace())
+                    koblas.withWorkspace(
+                        Workspace(),
+                    ).gemm(1.0, left, transpose, right, transposeOther, 0.0, destination)
                     val result = koblas.gemm(1.0, left, transpose, right, transposeOther)
 
                     assertEquals(rows, result.rows)
@@ -253,7 +256,7 @@ class MatrixProductsTest {
         val destination = DenseMatrix.zero(3, 2)
         val workspace = Workspace()
 
-        repeat(2) { koblas.gemm(1.0, foreign, false, right, false, 0.0, destination, workspace) }
+        repeat(2) { koblas.withWorkspace(workspace).gemm(1.0, foreign, false, right, false, 0.0, destination) }
 
         assertEquals(1, workspace.available(6), "the second call adapted into fresh storage")
     }
@@ -264,7 +267,9 @@ class MatrixProductsTest {
         val foreign: Matrix = ForeignMatrix(DenseMatrix.wrap(2, 2, backing))
         val destination = DenseMatrix.wrap(2, 2, backing)
 
-        koblas.gemm(1.0, foreign, false, DenseMatrix.diagonal(2, 2.0) as Matrix, false, 0.0, destination, Workspace())
+        koblas.withWorkspace(
+            Workspace(),
+        ).gemm(1.0, foreign, false, DenseMatrix.diagonal(2, 2.0) as Matrix, false, 0.0, destination)
 
         assertContentEquals(doubleArrayOf(2.0, 4.0, 6.0, 8.0), destination.values)
     }

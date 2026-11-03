@@ -11,6 +11,7 @@ import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.sparse.*
+import com.eignex.koblas.workspace.*
 import kotlin.native.concurrent.TransferMode
 import kotlin.native.concurrent.Worker
 import kotlin.random.Random
@@ -60,7 +61,7 @@ class NativeHostConcurrencyTest {
                 val workspace = Workspace()
                 repeat(REPEATS) {
                     destination.values.fill(1.0)
-                    koblas.gemm(1.0, task.a, false, task.b, false, task.beta, destination, workspace)
+                    koblas.withWorkspace(workspace).gemm(1.0, task.a, false, task.b, false, task.beta, destination)
                 }
                 task.beta to destination.values
             }
@@ -96,7 +97,7 @@ class NativeHostConcurrencyTest {
                 var last = DoubleArray(0)
                 repeat(REPEATS) {
                     val shared = operand.copyOf()
-                    koblas.gemm(1.0, shared, false, shared, false, 0.0, shared, workspace)
+                    koblas.withWorkspace(workspace).gemm(1.0, shared, false, shared, false, 0.0, shared)
                     last = shared.values
                 }
                 last

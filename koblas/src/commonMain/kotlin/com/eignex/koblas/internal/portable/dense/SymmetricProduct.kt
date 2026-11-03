@@ -3,6 +3,7 @@
 package com.eignex.koblas.internal.portable.dense
 
 import com.eignex.koblas.*
+import com.eignex.koblas.engine.*
 
 /*
  * `C = alpha · A · B + beta · C` and `C = alpha · B · A + beta · C` for a symmetric `A`, as ordinary windows
@@ -75,7 +76,7 @@ internal fun symmetricProduct(
     rows: Int,
     columns: Int,
     right: Boolean,
-    workspace: Workspace?,
+    arrays: ArraySupplier?,
     aOffset: Int = 0,
     lda: Int = order,
     bOffset: Int = 0,
@@ -83,7 +84,7 @@ internal fun symmetricProduct(
 ) {
     if (order == 0 || rows == 0 || columns == 0) return
     val block = if (SYMMETRIC_BLOCK < order) SYMMETRIC_BLOCK else order
-    workspace.borrowOptional(block * block) { square ->
+    arrays.borrowOptional(block * block) { square ->
         forEachSymmetricBlock(order, block, lower) { start, size, stripStart, stripCount ->
             expandSymmetric(a, lda, lower, start, size, square, aOffset)
             forEachSymmetricWindow(rows, columns, right, lda, ldb, ldc, start, size, stripStart, stripCount) {
@@ -142,7 +143,7 @@ internal fun symmetricProduct(
                 productWindow(
                     engine, alpha, left, leftOrigin + leftOffset, leftStride, transposeA, rightValues,
                     rightOrigin + rightOffset, rightStride, transposeB, 1.0, c,
-                    cOffset + targetOffset, ldc, m, n, k, OutputTriangle.Full, workspace,
+                    cOffset + targetOffset, ldc, m, n, k, OutputTriangle.Full, arrays,
                 )
             }
         }

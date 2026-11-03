@@ -109,7 +109,7 @@ internal fun triangularMatrix(
     right: Boolean,
     alpha: Double,
     solve: Boolean,
-    workspace: Workspace?,
+    arrays: ArraySupplier?,
     tOffset: Int = 0,
     ldt: Int = order,
     bOffset: Int = 0,
@@ -132,7 +132,7 @@ internal fun triangularMatrix(
     val triangles = engine.triangularProvider
     val group = triangularGroup(triangles, block, sides)
     val gathers = triangles.gathersRightHandSides(rhsStride, block, sides)
-    workspace.borrowOptional(if (gathers) block * group else 0) { gathered ->
+    arrays.borrowOptional(if (gathers) block * group else 0) { gathered ->
         forEachTriangularBlock(order, block, mLower, solve) {
                 start,
                 size,
@@ -148,7 +148,7 @@ internal fun triangularMatrix(
             if (targetCount > 0 && sourceCount > 0) {
                 triangularUpdate(
                     engine, if (solve) -1.0 else 1.0, t, ldt, tOffset, flip, b, bOffset, ldb,
-                    sides, right, targetStart, targetCount, sourceStart, sourceCount, workspace,
+                    sides, right, targetStart, targetCount, sourceStart, sourceCount, arrays,
                 )
             }
         }
@@ -276,7 +276,7 @@ private fun triangularUpdate(
     targetCount: Int,
     sourceStart: Int,
     sourceCount: Int,
-    workspace: Workspace?,
+    arrays: ArraySupplier?,
 ) {
     forTriangularProductWindow(
         order, ldb, sides, right, transposed, targetStart, targetCount, sourceStart,
@@ -296,7 +296,7 @@ private fun triangularUpdate(
             (if (right) bOffset else tOffset) + leftOffset, if (right) ldb else order, transposeA,
             if (right) t else b,
             (if (right) tOffset else bOffset) + rightOffset, if (right) order else ldb, transposeB, 1.0, b,
-            bOffset + targetOffset, ldb, m, n, k, OutputTriangle.Full, workspace,
+            bOffset + targetOffset, ldb, m, n, k, OutputTriangle.Full, arrays,
         )
     }
 }

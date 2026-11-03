@@ -15,6 +15,7 @@ import com.eignex.koblas.internal.portable.dense.productBlockRows
 import com.eignex.koblas.internal.portable.dense.scratchCapacity
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.sparse.*
+import com.eignex.koblas.workspace.*
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -187,7 +188,7 @@ class ProductSchedulingTest {
             )
             val aliased = DenseMatrix(order, order, start.values.copyOf())
 
-            engine.gemm(0.875, aliased, false, aliased, true, -0.25, aliased, workspace)
+            engine.withWorkspace(workspace).gemm(0.875, aliased, false, aliased, true, -0.25, aliased)
 
             assertClose(expected.values, aliased.values, "${engine.name} aliased product", tolerance = 1e-10)
             val staged = order * order
@@ -205,7 +206,9 @@ class ProductSchedulingTest {
             )
 
             val separate = Workspace()
-            engine.gemm(0.875, randomMatrix(order, order, rng), false, aliased, true, -0.25, expected, separate)
+            engine.withWorkspace(
+                separate,
+            ).gemm(0.875, randomMatrix(order, order, rng), false, aliased, true, -0.25, expected)
             assertEquals(
                 expectedLoans(staged, listOf(leftPanel, rightPanel)),
                 separate.available(staged),
@@ -257,7 +260,7 @@ class ProductSchedulingTest {
             val b = DenseMatrix(1, 0, DoubleArray(0))
             val c = DenseMatrix(128, 0, DoubleArray(0))
 
-            engine.gemm(1.0, a, false, b, false, 1.0, c, workspace)
+            engine.withWorkspace(workspace).gemm(1.0, a, false, b, false, 1.0, c)
 
             assertEquals(
                 0,
@@ -326,9 +329,9 @@ class ProductSchedulingTest {
         val left = scratchCapacity(productBlockRows(tile, 37) * productBlockDepth(41))
         val right = scratchCapacity(productBlockColumns(tile, 29) * productBlockDepth(41))
 
-        engine.gemm(0.875, a, false, b, false, -0.25, c, workspace)
+        engine.withWorkspace(workspace).gemm(0.875, a, false, b, false, -0.25, c)
         val afterOne = workspace.available(left) + if (right == left) 0 else workspace.available(right)
-        repeat(3) { engine.gemm(0.875, a, false, b, false, -0.25, c, workspace) }
+        repeat(3) { engine.withWorkspace(workspace).gemm(0.875, a, false, b, false, -0.25, c) }
 
         assertEquals(2, afterOne, "a blocked product did not borrow a panel for each operand")
         assertEquals(

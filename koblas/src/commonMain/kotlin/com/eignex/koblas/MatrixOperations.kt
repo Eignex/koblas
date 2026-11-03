@@ -37,9 +37,9 @@ public fun KoblasEngine.gemm(alpha: Double, a: Matrix, transposeA: Boolean, b: M
 /**
  * Writes a generic product through this engine into addressed dense storage. Validation precedes all
  * writes; zero alpha and empty depth read no inputs, and zero beta reads no destination values.
- * [workspace] lends logical alias snapshots, sparse scratch and custom operand normalization.
+ * Reusable scratch supplies logical alias snapshots, sparse scratch and custom operand normalization.
  */
-@Suppress("LongParameterList") // BLAS operands, flags and workspace
+@Suppress("LongParameterList") // BLAS operands, flags and scratch
 public fun KoblasEngine.gemm(
     alpha: Double,
     a: Matrix,
@@ -48,59 +48,56 @@ public fun KoblasEngine.gemm(
     transposeB: Boolean,
     beta: Double,
     c: DenseMatrixRegion,
-    workspace: Workspace? = null,
-): Unit = productInto(alpha, a, transposeA, b, transposeB, beta, c, workspace)
+): Unit = productInto(alpha, a, transposeA, b, transposeB, beta, c)
 
 /** TRSV over readable dense, sparse or custom operands, using this engine. */
-@Suppress("LongParameterList") // triangle flags and workspace
+@Suppress("LongParameterList") // triangle flags and scratch
 public fun KoblasEngine.trsv(
     a: Matrix,
     x: DoubleArray,
     lower: Boolean,
     transpose: Boolean = false,
     unitDiag: Boolean = false,
-    workspace: Workspace? = null,
 ) {
     requireTriangularVectorOperands(a, x.size, "trsv")
     val sparse = storedCsc(a)
     if (sparse != null) {
-        sparseTrsv(sparse, x, lower, transpose, unitDiag, workspace)
+        sparseTrsv(sparse, x, lower, transpose, unitDiag)
     } else {
         triangleOperand(
-            workspace,
+            arrays,
             a,
             lower,
             unitDiag,
-        ) { dense -> denseTrsv(dense, x, lower, transpose, unitDiag, workspace) }
+        ) { dense -> denseTrsv(dense, x, lower, transpose, unitDiag) }
     }
 }
 
 /** TRMV over readable dense, sparse or custom operands, using this engine. */
-@Suppress("LongParameterList") // triangle flags and workspace
+@Suppress("LongParameterList") // triangle flags and scratch
 public fun KoblasEngine.trmv(
     a: Matrix,
     x: DoubleArray,
     lower: Boolean,
     transpose: Boolean = false,
     unitDiag: Boolean = false,
-    workspace: Workspace? = null,
 ) {
     requireTriangularVectorOperands(a, x.size, "trmv")
     val sparse = storedCsc(a)
     if (sparse != null) {
-        sparseTrmv(sparse, x, lower, transpose, unitDiag, workspace)
+        sparseTrmv(sparse, x, lower, transpose, unitDiag)
     } else {
         triangleOperand(
-            workspace,
+            arrays,
             a,
             lower,
             unitDiag,
-        ) { dense -> denseTrmv(dense, x, lower, transpose, unitDiag, workspace) }
+        ) { dense -> denseTrmv(dense, x, lower, transpose, unitDiag) }
     }
 }
 
 /** TRSM over readable dense, sparse or custom operands, using this engine. */
-@Suppress("LongParameterList") // triangle flags and workspace
+@Suppress("LongParameterList") // triangle flags and scratch
 public fun KoblasEngine.trsm(
     a: Matrix,
     b: DenseMatrixRegion,
@@ -109,7 +106,6 @@ public fun KoblasEngine.trsm(
     unitDiag: Boolean = false,
     right: Boolean = false,
     alpha: Double = 1.0,
-    workspace: Workspace? = null,
 ) {
     requireTriangularMatrixOperands(a, b, right, "trsm")
     if (alpha == 0.0 || b.rows == 0 || b.cols == 0) {
@@ -118,19 +114,19 @@ public fun KoblasEngine.trsm(
     }
     val sparse = storedCsc(a)
     if (sparse != null) {
-        sparseTrsm(sparse, b, lower, transpose, unitDiag, right, alpha, workspace)
+        sparseTrsm(sparse, b, lower, transpose, unitDiag, right, alpha)
     } else {
         triangleOperand(
-            workspace,
+            arrays,
             a,
             lower,
             unitDiag,
-        ) { dense -> denseTrsm(dense, b, lower, transpose, unitDiag, right, alpha, workspace) }
+        ) { dense -> denseTrsm(dense, b, lower, transpose, unitDiag, right, alpha) }
     }
 }
 
 /** TRMM over readable dense, sparse or custom operands, using this engine. */
-@Suppress("LongParameterList") // triangle flags and workspace
+@Suppress("LongParameterList") // triangle flags and scratch
 public fun KoblasEngine.trmm(
     a: Matrix,
     b: DenseMatrixRegion,
@@ -139,7 +135,6 @@ public fun KoblasEngine.trmm(
     unitDiag: Boolean = false,
     right: Boolean = false,
     alpha: Double = 1.0,
-    workspace: Workspace? = null,
 ) {
     requireTriangularMatrixOperands(a, b, right, "trmm")
     if (alpha == 0.0 || b.rows == 0 || b.cols == 0) {
@@ -148,14 +143,14 @@ public fun KoblasEngine.trmm(
     }
     val sparse = storedCsc(a)
     if (sparse != null) {
-        sparseTrmm(sparse, b, lower, transpose, unitDiag, right, alpha, workspace)
+        sparseTrmm(sparse, b, lower, transpose, unitDiag, right, alpha)
     } else {
         triangleOperand(
-            workspace,
+            arrays,
             a,
             lower,
             unitDiag,
-        ) { dense -> denseTrmm(dense, b, lower, transpose, unitDiag, right, alpha, workspace) }
+        ) { dense -> denseTrmm(dense, b, lower, transpose, unitDiag, right, alpha) }
     }
 }
 
@@ -209,7 +204,7 @@ private fun KoblasEngine.denseProduct(
     transposeB: Boolean,
 ): DenseMatrix {
     val result = DenseMatrix.zero(if (transposeA) a.cols else a.rows, if (transposeB) b.rows else b.cols)
-    productInto(alpha, a, transposeA, b, transposeB, 0.0, result, null)
+    productInto(alpha, a, transposeA, b, transposeB, 0.0, result)
     return result
 }
 
@@ -222,7 +217,6 @@ internal fun KoblasEngine.productInto(
     transposeB: Boolean,
     beta: Double,
     c: DenseMatrixRegion,
-    workspace: Workspace?,
 ) {
     requireGemmOperands(a, transposeA, b, transposeB, c)
     if (c.rows == 0 || c.cols == 0) return
@@ -233,26 +227,26 @@ internal fun KoblasEngine.productInto(
     dispatchProduct(
         a,
         b,
-        sparsePair = { left, right -> sparseGemm(alpha, left, transposeA, right, transposeB, beta, c, workspace) },
+        sparsePair = { left, right -> sparseGemm(alpha, left, transposeA, right, transposeB, beta, c) },
         sparseLeft = { left ->
-            denseOperand(workspace, b) { right ->
-                sparseGemm(alpha, left, transposeA, right, transposeB, beta, c, right = false, workspace = workspace)
+            denseOperand(arrays, b) { right ->
+                sparseGemm(alpha, left, transposeA, right, transposeB, beta, c, right = false)
             }
         },
         sparseRight = { right ->
-            denseOperand(workspace, a) { left ->
-                sparseGemm(alpha, right, transposeB, left, transposeA, beta, c, right = true, workspace = workspace)
+            denseOperand(arrays, a) { left ->
+                sparseGemm(alpha, right, transposeB, left, transposeA, beta, c, right = true)
             }
         },
         densePair = {
-            denseOperand(workspace, a) { left ->
+            denseOperand(arrays, a) { left ->
                 if (a === b) {
-                    denseGemm(alpha, left, transposeA, left, transposeB, beta, c, workspace)
+                    denseGemm(alpha, left, transposeA, left, transposeB, beta, c)
                 } else {
                     denseOperand(
-                        workspace,
+                        arrays,
                         b,
-                    ) { right -> denseGemm(alpha, left, transposeA, right, transposeB, beta, c, workspace) }
+                    ) { right -> denseGemm(alpha, left, transposeA, right, transposeB, beta, c) }
                 }
             }
         },

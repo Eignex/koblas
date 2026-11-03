@@ -6,6 +6,7 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
+import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.internal.portable.dense.*
 import com.eignex.koblas.internal.portable.dense.euclideanNorm
@@ -34,10 +35,10 @@ public fun KoblasEngine.gemm(a: SparseMatrix, b: SparseMatrix): SparseMatrix = p
  * store leaves [y] untouched even where [x] holds an infinity. A stored zero does form its product.
  *
  * [x] and [a]'s coefficients may share [y]'s buffer and are snapshotted before [y] is scaled, with
- * [workspace] lending the snapshot. A structural array is never a destination, so an aliased sparse
+ * scratch supplying the snapshot. A structural array is never a destination, so an aliased sparse
  * operand shares it and only its coefficients are copied.
  */
-@Suppress("LongParameterList") // the BLAS dgemv signature plus the workspace
+@Suppress("LongParameterList") // the BLAS dgemv signature
 public fun KoblasEngine.gemv(
     alpha: Double,
     a: SparseMatrix,
@@ -45,7 +46,6 @@ public fun KoblasEngine.gemv(
     beta: Double,
     y: DoubleArray,
     transpose: Boolean = false,
-    workspace: Workspace? = null,
 ) {
     requireGemvOperands(a, transpose, x.size, y.size)
     // Zero alpha or zero extent reads neither operand; only destination scaling remains.
@@ -54,8 +54,8 @@ public fun KoblasEngine.gemv(
         return
     }
     // Snapshot aliased operands before destination scaling overwrites their coefficients.
-    staged(workspace, x, x === y) { stableX ->
-        staged(workspace, a, a.values === y) { stableA ->
+    staged(arrays, x, x === y) { stableX ->
+        staged(arrays, a, a.values === y) { stableA ->
             portableSparseGemv(alpha, stableA, stableX, beta, y, transpose)
         }
     }
@@ -75,7 +75,7 @@ public fun KoblasEngine.transpose(a: SparseMatrix): SparseMatrix = transposeCsc(
  * [lower] or upper stored triangle is read; the other triangle and implicit zeros are ignored. A stored
  * off-diagonal entry contributes to both mirrored positions. `alpha == 0.0` reads neither [a] nor [x],
  * and `beta == 0.0` overwrites [y] without reading it. Aliasing [x] with [y], or [a]'s values with [y],
- * is supported through the staging [gemv] describes, which [workspace] lends.
+ * is supported through the staging [gemv] describes.
  */
 @Suppress("LongParameterList")
 public fun KoblasEngine.symv(
@@ -85,15 +85,14 @@ public fun KoblasEngine.symv(
     beta: Double,
     y: DoubleArray,
     lower: Boolean = true,
-    workspace: Workspace? = null,
 ) {
     requireSymvOperands(a, x.size, y.size)
     if (alpha == 0.0) {
         applyBeta(this, y, 0, y.size, beta)
         return
     }
-    staged(workspace, x, x === y) { stableX ->
-        staged(workspace, a, a.values === y) { stableA ->
+    staged(arrays, x, x === y) { stableX ->
+        staged(arrays, a, a.values === y) { stableA ->
             portableSparseSymv(alpha, stableA, stableX, beta, y, lower)
         }
     }
@@ -102,8 +101,7 @@ public fun KoblasEngine.symv(
 /**
  * `C = alpha · A · B + beta · C`, or `C = alpha · B · A + beta · C` when [right], interpreting square
  * sparse [a] as symmetric from exactly its selected [lower] or upper triangle. `alpha == 0.0` reads
- * neither input; `beta == 0.0` does not read [c]. Shared input and destination buffers are staged, with
- * [workspace] reused when supplied.
+ * neither input; `beta == 0.0` does not read [c]. Shared input and destination buffers are staged.
  *
  * Which operand [alpha] is folded into, and the order the terms of one entry are summed in, are the
  * implementation's, as in every product here.
@@ -117,7 +115,6 @@ public fun KoblasEngine.symm(
     c: DenseMatrixRegion,
     lower: Boolean = true,
     right: Boolean = false,
-    workspace: Workspace? = null,
 ) {
     requireSymmOperands(a, b, c, right)
     // Return before staging or loans: an empty axis may be paired with an enormous one.
@@ -126,13 +123,13 @@ public fun KoblasEngine.symm(
         scaleRegion(c, beta, vectors = this)
         return
     }
-    staged(workspace, a, a.values === c.values) { stableA ->
-        stagedRegion(workspace, b, c) { stableB ->
+    staged(arrays, a, a.values === c.values) { stableA ->
+        stagedRegion(arrays, b, c) { stableB ->
             scaleRegion(c, beta, vectors = this)
             if (right) {
                 multiplySymmetricFromTheRight(this, alpha, stableA, stableB, c, lower)
             } else {
-                multiplySymmetricFromTheLeft(this, alpha, stableA, stableB, c, lower, workspace)
+                multiplySymmetricFromTheLeft(this, alpha, stableA, stableB, c, lower, arrays)
             }
         }
     }
@@ -149,20 +146,19 @@ public fun KoblasEngine.symm(
  * zeros from forming `0 · infinity` against a stored coefficient.
  *
  * The substitution overwrites [x] as it goes, so coefficients sharing that buffer are snapshotted before
- * the first write and [workspace] lends the snapshot.
+ * the first write.
  */
-@Suppress("LongParameterList") // the BLAS dtrsv signature plus the workspace
+@Suppress("LongParameterList") // the BLAS dtrsv signature
 public fun KoblasEngine.trsv(
     a: SparseMatrix,
     x: DoubleArray,
     lower: Boolean,
     transpose: Boolean = false,
     unitDiag: Boolean = false,
-    workspace: Workspace? = null,
 ) {
     requireTriangularVectorOperands(a, x.size, "trsv")
     // Snapshot an aliased triangle before substitution overwrites coefficients needed by later columns.
-    staged(workspace, a, a.values === x) { stable ->
+    staged(arrays, a, a.values === x) { stable ->
         trsvCore(stable, x, lower, transpose, unitDiag)
     }
 }
@@ -174,17 +170,16 @@ public fun KoblasEngine.trsv(
  * Unlike [trsv], this performs no division and therefore has no singularity behavior: a missing diagonal
  * is simply zero. The destination may share [a]'s value buffer, staged as in [trsv].
  */
-@Suppress("LongParameterList") // the BLAS dtrmv signature plus the workspace
+@Suppress("LongParameterList") // the BLAS dtrmv signature
 public fun KoblasEngine.trmv(
     a: SparseMatrix,
     x: DoubleArray,
     lower: Boolean,
     transpose: Boolean = false,
     unitDiag: Boolean = false,
-    workspace: Workspace? = null,
 ) {
     requireTriangularVectorOperands(a, x.size, "trmv")
-    staged(workspace, a, a.values === x) { stable ->
+    staged(arrays, a, a.values === x) { stable ->
         trmvCore(stable, x, lower, transpose, unitDiag)
     }
 }
@@ -200,7 +195,7 @@ public fun KoblasEngine.trmv(
  * [right] is here for the reason `dtrsm` has a side and `dgemm` does not. `dgemm` needs none because its
  * operands are the same kind and a caller picks which is which; here [a] is distinguished by being the
  * sparse one and cannot be swapped, so without a side the product of a dense matrix by a sparse one is
- * only reachable by transposing the result. [workspace] reuses dense staging and transpose scratch.
+ * only reachable by transposing the result.
  */
 @Suppress("LongParameterList") // the BLAS dgemm signature, plus the side the sparse operand sits on
 public fun KoblasEngine.gemm(
@@ -212,7 +207,6 @@ public fun KoblasEngine.gemm(
     beta: Double,
     c: DenseMatrixRegion,
     right: Boolean = false,
-    workspace: Workspace? = null,
 ) {
     // Right-side multiplication uses the same derivation with operands reversed.
     if (right) {
@@ -232,16 +226,16 @@ public fun KoblasEngine.gemm(
         scaleRegion(c, beta, vectors = this)
         return
     }
-    staged(workspace, a, a.values === c.values) { stableA ->
-        stagedRegion(workspace, b, c) { stableB ->
+    staged(arrays, a, a.values === c.values) { stableA ->
+        stagedRegion(arrays, b, c) { stableB ->
             scaleRegion(c, beta, vectors = this)
             if (right) {
                 multiplyFromTheRight(
-                    this, alpha, stableA, transposeA, stableB, transposeB, c, m, workspace,
+                    this, alpha, stableA, transposeA, stableB, transposeB, c, m, arrays,
                 )
             } else {
                 multiplyFromTheLeft(
-                    this, alpha, stableA, transposeA, stableB, transposeB, c, m, n, k, workspace,
+                    this, alpha, stableA, transposeA, stableB, transposeB, c, m, n, k, arrays,
                 )
             }
         }
@@ -277,7 +271,7 @@ public fun KoblasEngine.gemm(
  * Direct dense-destination `C = alpha · op(A) · op(B) + beta · C` for two sparse operands. No sparse
  * intermediate is created and implicit sparse zeros are not evaluated. `alpha == 0.0` reads neither
  * sparse operand's values; `beta == 0.0` does not read [c]. Sparse value buffers shared with [c] are
- * staged using [workspace].
+ * staged using reusable scratch.
  */
 @Suppress("LongParameterList")
 public fun KoblasEngine.gemm(
@@ -288,7 +282,6 @@ public fun KoblasEngine.gemm(
     transposeB: Boolean,
     beta: Double,
     c: DenseMatrixRegion,
-    workspace: Workspace? = null,
 ) {
     requireGemmOperands(a, transposeA, b, transposeB, c)
     if (alpha == 0.0) {
@@ -300,8 +293,8 @@ public fun KoblasEngine.gemm(
         scaleRegion(c, beta, vectors = this)
         return
     }
-    staged(workspace, a, a.values === c.values) { stableA ->
-        staged(workspace, b, b.values === c.values) { stableB ->
+    staged(arrays, a, a.values === c.values) { stableA ->
+        staged(arrays, b, b.values === c.values) { stableB ->
             val left = oriented(stableA, transposeA, true)
             val right = oriented(stableB, transposeB, true)
             scaleRegion(c, beta, vectors = this)
@@ -322,7 +315,6 @@ public fun KoblasEngine.syrk(
     beta: Double,
     c: DenseMatrixRegion,
     lower: Boolean = true,
-    workspace: Workspace? = null,
 ) {
     val n = if (transpose) a.cols else a.rows
     requireSyrkOperands(a, transpose, c)
@@ -335,9 +327,9 @@ public fun KoblasEngine.syrk(
         scaleRegion(c, beta, lower)
         return
     }
-    staged(workspace, a, a.values === c.values) { stableA ->
+    staged(arrays, a, a.values === c.values) { stableA ->
         scaleRegion(c, beta, lower)
-        withSymmetricRankScratch(workspace, n, stableA.rows, stableA.nnz) {
+        withSymmetricRankScratch(arrays, n, stableA.rows, stableA.nnz) {
                 sums,
                 touchedAt,
                 touched,
@@ -420,7 +412,7 @@ public fun KoblasEngine.addScaled(alpha: Double, a: SparseMatrix, transposeA: Bo
 /**
  * `B = alpha · op(T)⁻¹ · B` in place, or `B = alpha · B · op(T)⁻¹` when [right] (Sparse BLAS `ussm`).
  * The triangle flags follow [trsv]; the right-hand sides are the columns of [b] from the left and its
- * rows from the right. [workspace] reuses the diagonal and right-hand-side panel scratch.
+ * rows from the right.
  * A missing diagonal entry behaves as zero, and singularity is not reported, as in dense `dtrsm`.
  */
 @Suppress("LongParameterList") // the BLAS dtrsm signature
@@ -432,7 +424,6 @@ public fun KoblasEngine.trsm(
     unitDiag: Boolean = false,
     right: Boolean = false,
     alpha: Double = 1.0,
-    workspace: Workspace? = null,
 ) {
     requireTriangularMatrixOperands(a, b, right, "trsm")
     val n = a.rows
@@ -444,16 +435,16 @@ public fun KoblasEngine.trsm(
     val rightHandSides = if (right) b.rows else b.cols
     if (rightHandSides == 0) return
     // Snapshot an aliased triangle before alpha scales the right-hand sides and changes its coefficients.
-    staged(workspace, a, a.values === b.values) { triangle ->
+    staged(arrays, a, a.values === b.values) { triangle ->
         scaleRegion(b, alpha, vectors = this)
         if (right) {
-            withExplicitDiagonal(triangle, n, unitDiag, workspace) { diagonal ->
+            withExplicitDiagonal(triangle, n, unitDiag, arrays) { diagonal ->
                 trsmRightCore(this, triangle, b, lower, !transpose, diagonal)
             }
         } else {
-            withExplicitDiagonal(triangle, n, unitDiag, workspace) { diagonal ->
+            withExplicitDiagonal(triangle, n, unitDiag, arrays) { diagonal ->
                 triangularLeftCore(
-                    this, true, triangle, b, lower, transpose, unitDiag, diagonal, workspace,
+                    this, true, triangle, b, lower, transpose, unitDiag, diagonal, arrays,
                 )
             }
         }
@@ -474,7 +465,6 @@ public fun KoblasEngine.trmm(
     unitDiag: Boolean = false,
     right: Boolean = false,
     alpha: Double = 1.0,
-    workspace: Workspace? = null,
 ) {
     requireTriangularMatrixOperands(a, b, right, "trmm")
     val n = a.rows
@@ -485,15 +475,15 @@ public fun KoblasEngine.trmm(
     if (n == 0) return
     val rightHandSides = if (right) b.rows else b.cols
     if (rightHandSides == 0) return
-    staged(workspace, a, a.values === b.values) { triangle ->
+    staged(arrays, a, a.values === b.values) { triangle ->
         scaleRegion(b, alpha, vectors = this)
         // Unlike trsm, trmm reads the diagonal once per right-hand side.
-        withExplicitDiagonal(triangle, n, unitDiag, workspace) { diagonal ->
+        withExplicitDiagonal(triangle, n, unitDiag, arrays) { diagonal ->
             if (right) {
                 trmmRightCore(this, triangle, b, lower, transpose, unitDiag, diagonal)
             } else {
                 triangularLeftCore(
-                    this, false, triangle, b, lower, transpose, unitDiag, diagonal, workspace,
+                    this, false, triangle, b, lower, transpose, unitDiag, diagonal, arrays,
                 )
             }
         }

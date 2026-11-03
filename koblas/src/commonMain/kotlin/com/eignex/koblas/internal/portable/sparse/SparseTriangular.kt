@@ -3,11 +3,10 @@
 package com.eignex.koblas.internal.portable.sparse
 
 import com.eignex.koblas.*
-import com.eignex.koblas.borrow
 import com.eignex.koblas.dense.*
+import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.internal.operands.staged
-import com.eignex.koblas.internal.portable.dense.borrowOptional
 import com.eignex.koblas.internal.portable.dense.forEachPanel
 import com.eignex.koblas.internal.sparse.*
 import com.eignex.koblas.sparse.*
@@ -46,18 +45,18 @@ internal fun triangularRhsPlan(kernels: KoblasEngine, order: Int, sides: Int, en
         reduction = transpose,
     )
 
-/** Runs [block] with the diagonal of [a] borrowed from [workspace], or null when [unitDiag] takes it as 1. */
+/** Runs [block] with the diagonal of [a] borrowed from reusable scratch, or null when [unitDiag] takes it as 1. */
 internal inline fun withExplicitDiagonal(
     a: SparseMatrix,
     n: Int,
     unitDiag: Boolean,
-    workspace: Workspace?,
+    arrays: ArraySupplier?,
     crossinline block: (DoubleArray?) -> Unit,
 ) {
     if (unitDiag) {
         block(null)
     } else {
-        workspace.borrow(n) { diagonal ->
+        arrays.borrow(n) { diagonal ->
             for (j in 0 until n) diagonal[j] = a[j, j]
             block(diagonal)
         }
@@ -87,7 +86,7 @@ internal fun triangularLeftCore(
     transpose: Boolean,
     unitDiag: Boolean,
     diagonal: DoubleArray?,
-    workspace: Workspace?,
+    arrays: ArraySupplier?,
 ) {
     val n = a.rows
     val bd = b.values
@@ -99,8 +98,8 @@ internal fun triangularLeftCore(
     val width = rhsWidth(plan)
     val staged = rhsStaged(plan)
     // Scatter scratch holds values and live flags. Single-right-hand-side groups need no panel loan.
-    workspace.borrowOptional(if (width > 1 && sides > 1) 2 * width else 0) { work ->
-        workspace.borrowOptional(if (staged) width * n else 0) { panel ->
+    arrays.borrowOptional(if (width > 1 && sides > 1) 2 * width else 0) { work ->
+        arrays.borrowOptional(if (staged) width * n else 0) { panel ->
             forEachPanel(sides, width) { columnStart, actual ->
                 val dense = if (staged) panel else bd
                 val offset = if (staged) 0 else b.offset + columnStart * b.leadingDimension

@@ -4,6 +4,7 @@ import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.testutil.allocation.bytesPerIteration
+import com.eignex.koblas.workspace.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -138,10 +139,10 @@ class AllocationStorageTest {
         val strided = StridedVector(buffer, 0, n, 2)
         val destination = DenseVector.wrap(DoubleArray(n))
         val workspace = Workspace()
-        koblas.gemv(1e-12, a, strided, 1.0, destination, workspace = workspace)
+        koblas.withWorkspace(workspace).gemv(1e-12, a, strided, 1.0, destination)
 
         val gathered = bytesPerIteration(1_000, FLOOR_BYTES) {
-            koblas.gemv(1e-12, a, strided, 1.0, destination, workspace = workspace)
+            koblas.withWorkspace(workspace).gemv(1e-12, a, strided, 1.0, destination)
             destination
         }
 

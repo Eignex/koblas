@@ -13,6 +13,7 @@ import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.randomVector
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.wellConditioned
+import com.eignex.koblas.workspace.*
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -229,12 +230,12 @@ class HostDenseAgreementTest {
             val expectedProduct = DenseMatrix.wrap(ORDER, ORDER, square.values.copyOf())
             ReferenceBlas.gemm(ALPHA, separate, false, separate, false, BETA, expectedProduct)
             val product = DenseMatrix.wrap(ORDER, ORDER, square.values.copyOf())
-            blas.gemm(ALPHA, product, false, product, false, BETA, product, workspace)
+            blas.withWorkspace(workspace).gemm(ALPHA, product, false, product, false, BETA, product)
 
             val expectedSolve = DenseMatrix.wrap(ORDER, ORDER, square.values.copyOf())
             ReferenceBlas.trsm(separate, expectedSolve, lower = true, alpha = ALPHA)
             val solve = DenseMatrix.wrap(ORDER, ORDER, square.values.copyOf())
-            blas.trsm(solve, solve, lower = true, alpha = ALPHA, workspace = workspace)
+            blas.withWorkspace(workspace).trsm(solve, solve, lower = true, alpha = ALPHA)
 
             val vector = square.values
             val expectedGemv = DoubleArray(ORDER)

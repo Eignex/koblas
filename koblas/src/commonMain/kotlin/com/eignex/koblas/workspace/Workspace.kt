@@ -1,4 +1,7 @@
-package com.eignex.koblas
+package com.eignex.koblas.workspace
+
+import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.engine.*
 
 /**
  * Reusable scratch for alias-safe matrix operations.
@@ -14,22 +17,20 @@ package com.eignex.koblas
 public class Workspace {
     private val doubles = PooledBuffers<DoubleArray>()
     private val indices = PooledBuffers<IntArray>()
+    private val engines = ArrayList<BufferedEngine>()
 
-    @PublishedApi
-    @kotlin.jvm.JvmSynthetic
-    internal fun take(size: Int): DoubleArray = doubles.take(size, ::DoubleArray)
+    internal val arrays: ArraySupplier = object : ArraySupplier {
+        override fun take(size: Int): DoubleArray = doubles.take(size, ::DoubleArray)
+        override fun takeI32(size: Int): IntArray = indices.take(size, ::IntArray)
+        override fun release(buffer: DoubleArray): Unit = doubles.release(buffer)
+        override fun release(buffer: IntArray): Unit = indices.release(buffer)
+    }
 
-    @PublishedApi
-    @kotlin.jvm.JvmSynthetic
-    internal fun release(buffer: DoubleArray): Unit = doubles.release(buffer)
-
-    @PublishedApi
-    @kotlin.jvm.JvmSynthetic
-    internal fun takeI32(size: Int): IntArray = indices.take(size, ::IntArray)
-
-    @PublishedApi
-    @kotlin.jvm.JvmSynthetic
-    internal fun release(buffer: IntArray): Unit = indices.release(buffer)
+    internal fun bind(engine: KoblasEngine): KoblasEngine {
+        val arithmetic = engine.arithmeticEngine
+        for (i in engines.indices) if (engines[i].arithmetic === arithmetic) return engines[i]
+        return BufferedEngine(arithmetic, arrays).also { engines += it }
+    }
 
     /** Idle floating-point buffers of [size]; an implementation diagnostic tests read to see reuse happen. */
     internal fun available(size: Int): Int = doubles.available(size)
@@ -42,34 +43,6 @@ public class Workspace {
 
     /** Distinct idle index lengths retained; the counterpart of [idleLengths]. */
     internal fun idleI32Lengths(): Int = indices.idleLengths()
-}
-
-/**
- * Borrows a vector of [size] for [block], allocating one when there is no workspace to lend it.
- *
- * The buffer is returned in `finally`, including when a kernel throws. The nullable receiver supports
- * optional workspaces; JVM signatures cannot distinguish overloads by receiver nullability.
- * Inlining lets callers compose algorithms with bounded scratch without allocating a lambda.
- */
-@kotlin.jvm.JvmSynthetic
-public inline fun <T> Workspace?.borrow(size: Int, block: (DoubleArray) -> T): T {
-    val buffer = this?.take(size) ?: DoubleArray(size)
-    try {
-        return block(buffer)
-    } finally {
-        this?.release(buffer)
-    }
-}
-
-/** Index counterpart of [borrow]. */
-@kotlin.jvm.JvmSynthetic
-public inline fun <T> Workspace?.borrowI32(size: Int, block: (IntArray) -> T): T {
-    val buffer = this?.takeI32(size) ?: IntArray(size)
-    try {
-        return block(buffer)
-    } finally {
-        this?.release(buffer)
-    }
 }
 
 /**

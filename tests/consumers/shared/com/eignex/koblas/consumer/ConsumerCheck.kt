@@ -1,5 +1,7 @@
 package com.eignex.koblas.consumer
 
+import com.eignex.koblas.workspace.*
+
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
@@ -32,9 +34,9 @@ object ConsumerCheck {
                 val gram = DenseMatrix.zero(cols, cols)
                 val expectedGram = referenceProduct(a, a, transposeA = true)
                 repeat(8) {
-                    engine.gemv(1.0, a, x, 0.0, y, workspace = workspace)
-                    engine.gemv(1.0, a, y, 0.0, transposed, transpose = true, workspace = workspace)
-                    engine.gemm(1.0, a, true, a, false, 0.0, gram, workspace)
+                    engine.withWorkspace(workspace).gemv(1.0, a, x, 0.0, y)
+                    engine.withWorkspace(workspace).gemv(1.0, a, y, 0.0, transposed, transpose = true)
+                    engine.withWorkspace(workspace).gemm(1.0, a, true, a, false, 0.0, gram)
                     assertAgreesWithReference(expectedY, y)
                     assertAgreesWithReference(expectedTransposed, transposed)
                     assertAgreesWithReference(expectedGram.values, gram.values)
@@ -43,7 +45,7 @@ object ConsumerCheck {
             val matrix = DenseMatrix.wrap(2, 2, doubleArrayOf(2.0, 3.0, 5.0, 7.0))
             val storage = doubleArrayOf(2.0, 3.0)
             val expected = referenceGemv(matrix, storage.copyOf())
-            engine.gemv(1.0, matrix, storage, 0.0, storage, workspace = workspace)
+            engine.withWorkspace(workspace).gemv(1.0, matrix, storage, 0.0, storage)
             assertAgreesWithReference(expected, storage)
             val source = SparseMatrix.ofTriplets(2, 2, intArrayOf(0, 1), intArrayOf(0, 1), doubleArrayOf(2.0, 3.0))
             val sparse: Matrix = source
@@ -51,7 +53,7 @@ object ConsumerCheck {
             val parent = DenseMatrix.wrap(6, 6, DoubleArray(36) { -99.0 })
             val destination = parent.view(2, 3, 2, 2)
             val expectedProduct = referenceProduct(DenseMatrix.ofRows(source.toArray()), identity as DenseMatrix)
-            engine.gemm(1.0, sparse, false, identity, false, 0.0, destination, workspace)
+            engine.withWorkspace(workspace).gemm(1.0, sparse, false, identity, false, 0.0, destination)
             for (j in 0 until 6) for (i in 0 until 6) {
                 val expectedEntry = if (i in 2..3 && j in 3..4) expectedProduct[i - 2, j - 3] else -99.0
                 assertAgreesWithReference(doubleArrayOf(expectedEntry), doubleArrayOf(parent[i, j]))
@@ -59,7 +61,7 @@ object ConsumerCheck {
             val reversed = StridedVector(doubleArrayOf(3.0, 0.0, 2.0), 2, 2, -2)
             val output = DoubleArray(5) { -99.0 }
             val outputView = StridedVector(output, 3, 2, -2)
-            engine.gemv(1.0, matrix, reversed, 0.0, outputView, workspace = workspace)
+            engine.withWorkspace(workspace).gemv(1.0, matrix, reversed, 0.0, outputView)
             val expectedStrided = referenceGemv(matrix, reversed.toDoubleArray())
             assertAgreesWithReference(doubleArrayOf(-99.0, expectedStrided[1], -99.0, expectedStrided[0], -99.0), output)
         }

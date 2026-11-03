@@ -5,6 +5,7 @@ import com.eignex.koblas.engine.*
 import com.eignex.koblas.engine.Vendor
 import com.eignex.koblas.internal.portable.PortableEngine
 import com.eignex.koblas.sparse.*
+import com.eignex.koblas.workspace.*
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -64,7 +65,7 @@ class DenseMatrixViewTest {
                 val expected = copy(c)
                 ReferenceBlas.gemm(0.875, copy(a), ta, copy(b), tb, -0.25, expected)
 
-                blas.gemm(0.875, a, ta, b, tb, -0.25, c, Workspace())
+                blas.withWorkspace(Workspace()).gemm(0.875, a, ta, b, tb, -0.25, c)
 
                 assertRegionAgreesWithReference(expected, c, before)
             }
@@ -85,7 +86,7 @@ class DenseMatrixViewTest {
                     val expected = copy(c)
                     ReferenceBlas.gemm(0.875, copy(a), ta, copy(b), tb, -0.25, expected)
 
-                    blas.gemm(0.875, a, ta, b, tb, -0.25, c, Workspace())
+                    blas.withWorkspace(Workspace()).gemm(0.875, a, ta, b, tb, -0.25, c)
 
                     assertRegionAgreesWithReference(expected, c, before)
                 }
@@ -114,7 +115,7 @@ class DenseMatrixViewTest {
                 val expected = copy(c)
                 ReferenceBlas.gemm(0.875, copy(a), ta, copy(b), tb, -0.25, expected)
 
-                blas.gemm(0.875, a, ta, b, tb, -0.25, c, Workspace())
+                blas.withWorkspace(Workspace()).gemm(0.875, a, ta, b, tb, -0.25, c)
 
                 assertRegionAgreesWithReference(expected, c, before)
             }
@@ -130,7 +131,7 @@ class DenseMatrixViewTest {
         val before = c.values.copyOf()
         ReferenceBlas.gemm(1.0, copy(a), false, copy(b), false, 0.0, expected)
 
-        blas.gemm(1.0, a, false, b, false, 0.0, c, Workspace())
+        blas.withWorkspace(Workspace()).gemm(1.0, a, false, b, false, 0.0, c)
 
         assertRegionAgreesWithReference(expected, c, before)
     }
@@ -145,7 +146,7 @@ class DenseMatrixViewTest {
                 val before = c.values.copyOf()
                 ReferenceBlas.syrk(-1.0, copy(a), transpose, 0.5, expected, lower)
 
-                blas.syrk(-1.0, a, transpose, 0.5, c, lower, Workspace())
+                blas.withWorkspace(Workspace()).syrk(-1.0, a, transpose, 0.5, c, lower)
 
                 assertRegionAgreesWithReference(expected, c, before)
             }
@@ -164,7 +165,7 @@ class DenseMatrixViewTest {
                         val before = b.values.copyOf()
                         ReferenceBlas.trsm(copy(a), expected, lower, transpose, unit, right, 0.875)
 
-                        blas.trsm(a, b, lower, transpose, unit, right, 0.875, Workspace())
+                        blas.withWorkspace(Workspace()).trsm(a, b, lower, transpose, unit, right, 0.875)
 
                         assertRegionAgreesWithReference(expected, b, before)
                     }
@@ -192,9 +193,9 @@ class DenseMatrixViewTest {
             ReferenceBlas.trsv(copy(a), expectedX, lower, unitDiag = true)
             ReferenceBlas.syrk(-1.0, copy(panel), false, 1.0, expectedC, lower)
 
-            blas.trsm(a, b, lower, unitDiag = true, workspace = Workspace())
-            blas.trsv(a, x, lower, unitDiag = true, workspace = Workspace())
-            blas.syrk(-1.0, panel, false, 1.0, c, lower, Workspace())
+            blas.withWorkspace(Workspace()).trsm(a, b, lower, unitDiag = true)
+            blas.withWorkspace(Workspace()).trsv(a, x, lower, unitDiag = true)
+            blas.withWorkspace(Workspace()).syrk(-1.0, panel, false, 1.0, c, lower)
 
             assertRegionAgreesWithReference(expectedB, b, beforeB)
             assertClose(expectedX, x, "unit diagonal trsv")
@@ -227,7 +228,7 @@ class DenseMatrixViewTest {
                     val expected = actual.copyOf()
                     ReferenceBlas.trsv(copy(a), expected, lower, transpose, unit)
 
-                    blas.trsv(a, actual, lower, transpose, unit, Workspace())
+                    blas.withWorkspace(Workspace()).trsv(a, actual, lower, transpose, unit)
 
                     assertClose(expected, actual, "view vector")
                 }
@@ -247,7 +248,7 @@ class DenseMatrixViewTest {
                 val expected = copy(c)
                 ReferenceBlas.gemm(0.875, copy(a), ta, copy(b), tb, -0.25, expected)
 
-                blas.gemm(0.875, a, ta, b, tb, -0.25, c, Workspace())
+                blas.withWorkspace(Workspace()).gemm(0.875, a, ta, b, tb, -0.25, c)
 
                 assertRegionAgreesWithReference(expected, c, before)
             }
@@ -264,7 +265,7 @@ class DenseMatrixViewTest {
         val workspace = Workspace()
         ReferenceBlas.syrk(-1.0, copy(a), false, 1.0, expected)
 
-        blas.syrk(-1.0, a, false, 1.0, c, workspace = workspace)
+        blas.withWorkspace(workspace).syrk(-1.0, a, false, 1.0, c)
 
         assertRegionAgreesWithReference(expected, c, before)
         assertEquals(0, workspace.available(a.rows * a.cols))
@@ -284,11 +285,11 @@ class DenseMatrixViewTest {
         ReferenceBlas.trsm(copy(triangle), expectedBeside, lower = true)
         val before = parent.values.copyOf()
 
-        blas.syrk(-1.0, panel, false, 1.0, trailing, workspace = Workspace())
-        blas.gemm(0.5, panel, false, beside, false, 1.0, trailing, Workspace())
+        blas.withWorkspace(Workspace()).syrk(-1.0, panel, false, 1.0, trailing)
+        blas.withWorkspace(Workspace()).gemm(0.5, panel, false, beside, false, 1.0, trailing)
         assertRegionAgreesWithReference(expectedTrailing, trailing, before)
         val afterProducts = parent.values.copyOf()
-        blas.trsm(triangle, beside, lower = true, workspace = Workspace())
+        blas.withWorkspace(Workspace()).trsm(triangle, beside, lower = true)
 
         assertRegionAgreesWithReference(expectedBeside, beside, afterProducts)
     }
@@ -302,11 +303,11 @@ class DenseMatrixViewTest {
         val expected = DenseMatrix.zero(4)
         val workspace = Workspace()
 
-        blas.gemm(0.0, a, false, b, false, 0.0, c, workspace)
+        blas.withWorkspace(workspace).gemm(0.0, a, false, b, false, 0.0, c)
 
         assertRegionAgreesWithReference(expected, c, before)
         assertEquals(0, workspace.available(16))
-        blas.trsm(a, c, lower = true, alpha = 0.0, workspace = workspace)
+        blas.withWorkspace(workspace).trsm(a, c, lower = true, alpha = 0.0)
         assertRegionAgreesWithReference(expected, c, before)
     }
 
@@ -334,7 +335,7 @@ class DenseMatrixViewTest {
                 val before = parent.values.copyOf()
                 ReferenceBlas.trsm(copy(a), expected, lower, right = right)
 
-                blas.trsm(a, b, lower, right = right, workspace = Workspace())
+                blas.withWorkspace(Workspace()).trsm(a, b, lower, right = right)
 
                 assertRegionAgreesWithReference(expected, b, before)
             }
@@ -352,7 +353,7 @@ class DenseMatrixViewTest {
                 val before = parent.values.copyOf()
                 ReferenceBlas.syrk(-1.0, copy(a), transpose, 1.0, expected, lower)
 
-                blas.syrk(-1.0, a, transpose, 1.0, c, lower, Workspace())
+                blas.withWorkspace(Workspace()).syrk(-1.0, a, transpose, 1.0, c, lower)
 
                 assertRegionAgreesWithReference(expected, c, before)
             }
@@ -366,7 +367,7 @@ class DenseMatrixViewTest {
         val expected = actual.copyOf()
         ReferenceBlas.gemv(0.875, copy(a), doubleArrayOf(2.0), -0.25, expected)
 
-        blas.gemv(0.875, a, doubleArrayOf(2.0), -0.25, actual, workspace = Workspace())
+        blas.withWorkspace(Workspace()).gemv(0.875, a, doubleArrayOf(2.0), -0.25, actual)
 
         assertClose(expected, actual, "aliased region gemv")
     }

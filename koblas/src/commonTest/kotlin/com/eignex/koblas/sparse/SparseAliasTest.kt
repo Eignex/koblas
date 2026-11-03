@@ -4,6 +4,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
+import com.eignex.koblas.workspace.*
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 
@@ -102,14 +103,13 @@ class SparseAliasTest {
                 )
 
                 val shared = SparseMatrix.wrap(2, 2, intArrayOf(0, 2, 4), intArrayOf(0, 1, 0, 1), values.copyOf())
-                koblas.trsm(
+                koblas.withWorkspace(Workspace()).trsm(
                     shared,
                     DenseMatrix.wrap(2, 2, shared.values),
                     lower = true,
                     transpose = transpose,
                     unitDiag = unitDiag,
                     alpha = 2.0,
-                    workspace = Workspace(),
                 )
 
                 assertContentEquals(
@@ -171,24 +171,22 @@ class SparseAliasTest {
                         val shared = filledTriangle(lower, coefficients)
                         val block = DenseMatrix.wrap(rows, columns, shared.values)
                         if (solve) {
-                            koblas.trsm(
+                            koblas.withWorkspace(Workspace()).trsm(
                                 shared,
                                 block,
                                 lower,
                                 transpose,
                                 right = right,
                                 alpha = -0.75,
-                                workspace = Workspace(),
                             )
                         } else {
-                            koblas.trmm(
+                            koblas.withWorkspace(Workspace()).trmm(
                                 shared,
                                 block,
                                 lower,
                                 transpose,
                                 right = right,
                                 alpha = -0.75,
-                                workspace = Workspace(),
                             )
                         }
 

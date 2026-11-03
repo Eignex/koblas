@@ -3,10 +3,9 @@
 package com.eignex.koblas.internal.portable.sparse
 
 import com.eignex.koblas.*
-import com.eignex.koblas.borrow
+import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.internal.operands.staged
-import com.eignex.koblas.internal.portable.dense.borrowOptional
 import com.eignex.koblas.internal.portable.dense.forEachPanel
 import com.eignex.koblas.internal.sparse.*
 import kotlin.math.min
@@ -16,7 +15,7 @@ import kotlin.math.min
  *
  * A ceiling over the backend's recommendation rather than the width itself: how many right-hand sides a
  * panel wants is the backend's question, since it is the one with the body, and how much of a dense
- * block may be copied into a workspace buffer while one sparse column is walked is the scheduling's.
+ * block may be copied into a scratch buffer while one sparse column is walked is the scheduling's.
  * Where the recommendation is below this, this changes nothing.
  */
 private const val CONTIGUOUS_RHS_PANEL: Int = 64
@@ -198,7 +197,7 @@ internal fun multiplyFromTheLeft(
     m: Int,
     n: Int,
     k: Int,
-    workspace: Workspace?,
+    arrays: ArraySupplier?,
 ) {
     // Return before staging or traversing: an empty axis may be paired with an enormous one.
     if (m == 0 || n == 0 || k == 0) return
@@ -208,9 +207,9 @@ internal fun multiplyFromTheLeft(
     val plan = productRhsPlan(kernels, m, n, k, a.nnz, transposeA, transposeB)
     val width = rhsWidth(plan)
     val staged = rhsStaged(plan)
-    // Single-right-hand-side groups reach no panel; avoid retaining unused scratch in the workspace.
-    workspace.borrowOptional(if (width > 1 && n > 1) width else 0) { work ->
-        workspace.borrowOptional(if (staged) width * (if (transposeA) k else m) else 0) { panel ->
+    // Single-right-hand-side groups reach no panel; avoid retaining unused scratch in the arrays.
+    arrays.borrowOptional(if (width > 1 && n > 1) width else 0) { work ->
+        arrays.borrowOptional(if (staged) width * (if (transposeA) k else m) else 0) { panel ->
             forEachPanel(n, width) { columnStart, actual ->
                 if (transposeA) {
                     gatherPanel(
@@ -364,7 +363,7 @@ internal fun multiplySymmetricFromTheLeft(
     b: DenseMatrixRegion,
     c: DenseMatrixRegion,
     lower: Boolean,
-    workspace: Workspace?,
+    arrays: ArraySupplier?,
 ) {
     val n = a.rows
     val sides = b.cols
@@ -374,8 +373,8 @@ internal fun multiplySymmetricFromTheLeft(
     val width = rhsWidth(plan)
     val staged = rhsStaged(plan)
     val panelSize = if (staged) width * n else 0
-    workspace.borrowOptional(panelSize) { source ->
-        workspace.borrowOptional(panelSize) { destination ->
+    arrays.borrowOptional(panelSize) { source ->
+        arrays.borrowOptional(panelSize) { destination ->
             forEachPanel(sides, width) { columnStart, actual ->
                 val sourceValues = if (staged) source else b.values
                 val into = if (staged) destination else c.values
@@ -446,10 +445,10 @@ internal fun multiplyFromTheRight(
     transposeB: Boolean,
     c: DenseMatrixRegion,
     m: Int,
-    workspace: Workspace?,
+    arrays: ArraySupplier?,
 ) {
     if (transposeB) {
-        workspace.borrow(DenseMatrix.entryCount(b.rows, b.cols)) { packed ->
+        arrays.borrow(DenseMatrix.entryCount(b.rows, b.cols)) { packed ->
             for (j in 0 until b.cols) {
                 for (i in 0 until b.rows) packed[j + i * b.cols] = b.values[b.offset + i + j * b.leadingDimension]
             }

@@ -12,6 +12,7 @@ import com.eignex.koblas.internal.portable.dense.TRIANGULAR_DIAGONAL_BLOCK
 import com.eignex.koblas.poisonedTriangle
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.sparse.*
+import com.eignex.koblas.workspace.*
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -188,9 +189,9 @@ class TriangularSchedulingTest {
             val aliased = triangle.copyOf()
 
             if (solve) {
-                blas.trsm(aliased, aliased, lower = true, alpha = ALPHA, workspace = workspace)
+                blas.withWorkspace(workspace).trsm(aliased, aliased, lower = true, alpha = ALPHA)
             } else {
-                blas.trmm(aliased, aliased, lower = true, alpha = ALPHA, workspace = workspace)
+                blas.withWorkspace(workspace).trmm(aliased, aliased, lower = true, alpha = ALPHA)
             }
 
             assertClose(expected.values, aliased.values, "aliased triangle solve=$solve", SOLVE_TOLERANCE)
@@ -228,16 +229,16 @@ class TriangularSchedulingTest {
         val b = randomMatrix(order, 1, rng)
 
         if (solve) {
-            blas.trsm(triangle, b, lower = true, workspace = workspace)
+            blas.withWorkspace(workspace).trsm(triangle, b, lower = true)
         } else {
-            blas.trmm(triangle, b, lower = true, workspace = workspace)
+            blas.withWorkspace(workspace).trmm(triangle, b, lower = true)
         }
         val afterOne = workspace.idleLengths()
         repeat(3) {
             if (solve) {
-                blas.trsm(triangle, b, lower = true, workspace = workspace)
+                blas.withWorkspace(workspace).trsm(triangle, b, lower = true)
             } else {
-                blas.trmm(triangle, b, lower = true, workspace = workspace)
+                blas.withWorkspace(workspace).trmm(triangle, b, lower = true)
             }
         }
 
@@ -272,9 +273,9 @@ class TriangularSchedulingTest {
         val b = randomMatrix(order, 1, rng)
         val c = randomMatrix(order, 1, rng)
 
-        blas.symm(ALPHA, a, b, -0.25, c, lower = true, workspace = workspace)
+        blas.withWorkspace(workspace).symm(ALPHA, a, b, -0.25, c, lower = true)
         val afterOne = workspace.idleLengths()
-        repeat(3) { blas.symm(ALPHA, a, b, -0.25, c, lower = true, workspace = workspace) }
+        repeat(3) { blas.withWorkspace(workspace).symm(ALPHA, a, b, -0.25, c, lower = true) }
 
         assertTrue(afterOne > 0, "a symmetric product over ${order / SYMMETRIC_BLOCK} blocks borrowed nothing")
         assertTrue(afterOne <= MAX_IDLE_LENGTHS, "symm left $afterOne lengths behind")
