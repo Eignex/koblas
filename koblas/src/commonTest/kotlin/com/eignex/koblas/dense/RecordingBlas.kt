@@ -6,7 +6,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.engine.ThreadEvidence
 import com.eignex.koblas.engine.Vendor
-import com.eignex.koblas.internal.operands.*
+import com.eignex.koblas.internal.host.HostBlas
 
 /** The routine that reached the host and the matrices it was handed, so tests can tell caller storage from copies. */
 internal class BlasCall(val operation: EngineImplementation, val matrices: List<DenseMatrixRegion> = emptyList()) {
@@ -26,7 +26,7 @@ internal open class RecordingBlas(
     override val implementations: Set<EngineImplementation> = EngineImplementation.entries.filter {
         it.entryPoint.isNotEmpty()
     }.toSet(),
-) : EngineKernels {
+) : HostBlas() {
     override val vendor: Vendor get() = Vendor.OpenBlas
     override val name: String get() = vendor.vendorName.lowercase()
     private val recorded = mutableListOf<BlasCall>()
@@ -104,117 +104,48 @@ internal open class RecordingBlas(
         xStride: Int,
         yStride: Int,
     ) = record(EngineImplementation.Rot)
-    // Whole routines run inside the shared preparation, as a vendor binding's do, so what is recorded is what a
-    // library would receive: the caller's storage, or a staged copy where an input shares the destination.
+    // The shared host base checks and stages each routine, so what is recorded is what a library would receive:
+    // the caller's storage, or a staged copy where an input shares the destination.
 
-    override fun gemv(
+    override fun cblasGemv(
         alpha: Double,
         a: DenseMatrixRegion,
-        x: DoubleArray,
-        xOffset: Int,
-        xStride: Int,
+        transposeA: Boolean,
+        x: DenseVector,
         beta: Double,
-        y: DoubleArray,
-        yOffset: Int,
-        yStride: Int,
-        transpose: Boolean,
-        scratch: Scratch?,
-    ) = prepareGemv(this, alpha, a, x, xOffset, xStride, beta, y, yOffset, yStride, transpose, scratch?.arrays) {
-            sa,
-            _,
-            _,
-            _,
-        ->
-        record(EngineImplementation.Gemv, sa)
-    }
+        y: DenseVector,
+    ) = record(EngineImplementation.Gemv, a)
 
-    override fun symv(
+    override fun cblasSymv(
         alpha: Double,
         a: DenseMatrixRegion,
-        x: DoubleArray,
-        xOffset: Int,
-        xStride: Int,
+        structure: MatrixStructure,
+        x: DenseVector,
         beta: Double,
-        y: DoubleArray,
-        yOffset: Int,
-        yStride: Int,
-        lower: Boolean,
-        scratch: Scratch?,
-    ) = prepareSymv(this, alpha, a, x, xOffset, xStride, beta, y, yOffset, yStride, lower, scratch?.arrays) {
-            sa,
-            _,
-            _,
-            _,
-        ->
-        record(EngineImplementation.Symv, sa)
-    }
+        y: DenseVector,
+    ) = record(EngineImplementation.Symv, a)
 
-    override fun ger(
-        alpha: Double,
-        x: DoubleArray,
-        xOffset: Int,
-        xStride: Int,
-        y: DoubleArray,
-        yOffset: Int,
-        yStride: Int,
-        a: DenseMatrixRegion,
-        scratch: Scratch?,
-    ) = prepareGer(alpha, x, xOffset, xStride, y, yOffset, yStride, a, scratch?.arrays) { _, _, _, _, _, _ ->
+    override fun cblasGer(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrixRegion) =
         record(EngineImplementation.Ger, a)
-    }
 
-    override fun syr(
+    override fun cblasSyr(alpha: Double, x: DenseVector, a: DenseMatrixRegion, structure: MatrixStructure) =
+        record(EngineImplementation.Syr, a)
+
+    override fun cblasSyr2(
         alpha: Double,
-        x: DoubleArray,
-        xOffset: Int,
-        xStride: Int,
+        x: DenseVector,
+        y: DenseVector,
         a: DenseMatrixRegion,
-        lower: Boolean,
-        scratch: Scratch?,
-    ) = prepareSyr(alpha, x, xOffset, xStride, a, scratch?.arrays) { _, _, _ -> record(EngineImplementation.Syr, a) }
+        structure: MatrixStructure,
+    ) = record(EngineImplementation.Syr2, a)
 
-    override fun syr2(
-        alpha: Double,
-        x: DoubleArray,
-        xOffset: Int,
-        xStride: Int,
-        y: DoubleArray,
-        yOffset: Int,
-        yStride: Int,
-        a: DenseMatrixRegion,
-        lower: Boolean,
-        scratch: Scratch?,
-    ) = prepareSyr2(alpha, x, xOffset, xStride, y, yOffset, yStride, a, scratch?.arrays) { _, _, _, _, _, _ ->
-        record(EngineImplementation.Syr2, a)
-    }
+    override fun cblasTrsv(a: DenseMatrixRegion, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) =
+        record(EngineImplementation.Trsv, a)
 
-    override fun trsv(
-        a: DenseMatrixRegion,
-        x: DoubleArray,
-        xOffset: Int,
-        xStride: Int,
-        lower: Boolean,
-        transpose: Boolean,
-        unitDiag: Boolean,
-        scratch: Scratch?,
-    ) = prepareTriangularVector(a, x, xOffset, xStride, lower, unitDiag, "trsv", scratch?.arrays) { sa ->
-        record(EngineImplementation.Trsv, sa)
-    }
+    override fun cblasTrmv(a: DenseMatrixRegion, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) =
+        record(EngineImplementation.Trmv, a)
 
-    override fun trmv(
-        a: DenseMatrixRegion,
-        x: DoubleArray,
-        xOffset: Int,
-        xStride: Int,
-        lower: Boolean,
-        transpose: Boolean,
-        unitDiag: Boolean,
-        scratch: Scratch?,
-    ) = prepareTriangularVector(a, x, xOffset, xStride, lower, unitDiag, "trmv", scratch?.arrays) { sa ->
-        record(EngineImplementation.Trmv, sa)
-    }
-
-    override fun gemm(
+    override fun cblasGemm(
         alpha: Double,
         a: DenseMatrixRegion,
         transposeA: Boolean,
@@ -222,82 +153,9 @@ internal open class RecordingBlas(
         transposeB: Boolean,
         beta: Double,
         c: DenseMatrixRegion,
-        scratch: Scratch?,
-    ) = prepareGemm(alpha, a, transposeA, b, transposeB, beta, c, scratch?.arrays) { sa, sb, _ ->
-        record(EngineImplementation.Gemm, sa, sb, c)
-    }
+    ) = record(EngineImplementation.Gemm, a, b, c)
 
-    override fun symm(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        b: DenseMatrixRegion,
-        beta: Double,
-        c: DenseMatrixRegion,
-        lower: Boolean,
-        right: Boolean,
-        scratch: Scratch?,
-    ) = prepareSymm(this, alpha, a, b, beta, c, lower, right, scratch?.arrays) { sa, sb ->
-        record(EngineImplementation.Symm, sa, sb, c)
-    }
-
-    override fun syrk(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        transpose: Boolean,
-        beta: Double,
-        c: DenseMatrixRegion,
-        lower: Boolean,
-        scratch: Scratch?,
-    ) = prepareSyrk(
-        alpha,
-        a,
-        transpose,
-        beta,
-        c,
-        lower,
-        scratch?.arrays,
-    ) { sa -> record(EngineImplementation.Syrk, sa, c) }
-
-    override fun syr2k(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        b: DenseMatrixRegion,
-        transpose: Boolean,
-        beta: Double,
-        c: DenseMatrixRegion,
-        lower: Boolean,
-        scratch: Scratch?,
-    ) = prepareSyr2k(alpha, a, b, transpose, beta, c, lower, scratch?.arrays) { sa, sb ->
-        record(EngineImplementation.Syr2k, sa, sb, c)
-    }
-
-    override fun trsm(
-        a: DenseMatrixRegion,
-        b: DenseMatrixRegion,
-        lower: Boolean,
-        transpose: Boolean,
-        unitDiag: Boolean,
-        right: Boolean,
-        alpha: Double,
-        scratch: Scratch?,
-    ) = prepareTriangularMatrix(a, b, lower, unitDiag, right, alpha, "trsm", scratch?.arrays) { sa ->
-        record(EngineImplementation.Trsm, sa, b)
-    }
-
-    override fun trmm(
-        a: DenseMatrixRegion,
-        b: DenseMatrixRegion,
-        lower: Boolean,
-        transpose: Boolean,
-        unitDiag: Boolean,
-        right: Boolean,
-        alpha: Double,
-        scratch: Scratch?,
-    ) = prepareTriangularMatrix(a, b, lower, unitDiag, right, alpha, "trmm", scratch?.arrays) { sa ->
-        record(EngineImplementation.Trmm, sa, b)
-    }
-
-    override fun gemmt(
+    override fun cblasGemmt(
         alpha: Double,
         a: DenseMatrixRegion,
         transposeA: Boolean,
@@ -305,9 +163,53 @@ internal open class RecordingBlas(
         transposeB: Boolean,
         beta: Double,
         c: DenseMatrixRegion,
-        lower: Boolean,
-        scratch: Scratch?,
-    ) = prepareGemmt(alpha, a, transposeA, b, transposeB, beta, c, lower, scratch?.arrays) { sa, sb ->
-        record(EngineImplementation.Gemmt, sa, sb, c)
-    }
+        structure: MatrixStructure,
+    ) = record(EngineImplementation.Gemmt, a, b, c)
+
+    override fun cblasSymm(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        structure: MatrixStructure,
+        b: DenseMatrixRegion,
+        beta: Double,
+        c: DenseMatrixRegion,
+        rightSide: Boolean,
+    ) = record(EngineImplementation.Symm, a, b, c)
+
+    override fun cblasSyrk(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        transposeA: Boolean,
+        beta: Double,
+        c: DenseMatrixRegion,
+        structure: MatrixStructure,
+    ) = record(EngineImplementation.Syrk, a, c)
+
+    override fun cblasSyr2k(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        b: DenseMatrixRegion,
+        transposeA: Boolean,
+        beta: Double,
+        c: DenseMatrixRegion,
+        structure: MatrixStructure,
+    ) = record(EngineImplementation.Syr2k, a, b, c)
+
+    override fun cblasTrmm(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        structure: MatrixStructure,
+        transposeA: Boolean,
+        b: DenseMatrixRegion,
+        rightSide: Boolean,
+    ) = record(EngineImplementation.Trmm, a, b)
+
+    override fun cblasTrsm(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        structure: MatrixStructure,
+        transposeA: Boolean,
+        b: DenseMatrixRegion,
+        rightSide: Boolean,
+    ) = record(EngineImplementation.Trsm, a, b)
 }

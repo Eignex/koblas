@@ -2,6 +2,7 @@ package com.eignex.koblas.internal.portable.sparse
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
+import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.internal.sparse.*
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.sparse.*
@@ -330,3 +331,68 @@ private class SupportBuilder(initialCapacity: Long) {
         const val MAX_SUPPORT = Int.MAX_VALUE.toLong()
     }
 }
+
+/** Fresh CSC `alpha · op(A) + B` over the structural union of both patterns. */
+internal fun sparseAddScaled(alpha: Double, a: SparseMatrix, transposeA: Boolean, b: SparseMatrix): SparseMatrix {
+    val rows = if (transposeA) a.cols else a.rows
+    val cols = if (transposeA) a.rows else a.cols
+    requireSameShape(rows, cols, b, "addScaled")
+    if (a.nnz == 0 && b.nnz == 0) return emptySparse(rows, cols, "addScaled")
+    val left = oriented(a, transposeA, alpha != 0.0)
+    // An identical pattern needs neither a structural merge nor room for a second copy of every entry.
+    // Different patterns usually disagree at an early row, before every column pointer needs comparing.
+    if (left.rowIndices.contentEquals(b.rowIndices) && left.colPointers.contentEquals(b.colPointers)) {
+        val values = if (alpha == 0.0) {
+            b.values.copyOf()
+        } else {
+            DoubleArray(left.nnz) { alpha * left.values[it] + b.values[it] }
+        }
+        return SparseMatrix.wrapTrusted(rows, cols, left.copyColumnPointers(), left.copyRowIndices(), values)
+    }
+    val union = left.nnz.toLong() + b.nnz
+    requireShape(
+        union <= Int.MAX_VALUE,
+    ) { "scaled addition needs $union stored entries, more than one array can hold" }
+    val pointers = IntArray(left.cols + 1)
+    val rowIndices = IntArray(union.toInt())
+    val values = DoubleArray(rowIndices.size)
+    var count = 0
+    for (column in 0 until left.cols) {
+        count += SparseAccumulationKernels.mergeScaledColumns(
+            alpha,
+            left.rowIndices,
+            left.values,
+            left.colPointers[column],
+            left.colPointers[column + 1],
+            b.rowIndices,
+            b.values,
+            b.colPointers[column],
+            b.colPointers[column + 1],
+            rowIndices,
+            values,
+            count,
+        )
+        pointers[column + 1] = count
+    }
+    return SparseMatrix.wrapTrusted(
+        left.rows,
+        left.cols,
+        pointers,
+        if (count == rowIndices.size) rowIndices else rowIndices.copyOf(count),
+        if (count == values.size) values else values.copyOf(count),
+    )
+}
+
+/**
+ * A CSC result of this shape with nothing stored, for a call whose operands reach no position. [what] names the
+ * operation in the one error this raises, a column count no array of pointers can hold.
+ */
+internal fun emptySparse(rows: Int, cols: Int, what: String): SparseMatrix =
+    SparseMatrix.wrapTrusted(rows, cols, IntArray(pointerLength(cols, what)), IntArray(0), DoubleArray(0))
+
+/**
+ * [a] in the requested orientation, materializing a transpose only where one is asked for. A zero alpha
+ * discovers the same structure without reading coefficients, so a transpose for it copies none.
+ */
+internal fun oriented(a: SparseMatrix, transpose: Boolean, readValues: Boolean): SparseMatrix =
+    if (transpose) transposeCsc(a, readValues) else a

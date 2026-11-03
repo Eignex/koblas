@@ -54,6 +54,15 @@ internal fun KoblasEngine.wholeCallFor(
     return provider.takeIf { it !== PortableEngine && operation in it.implementations }
 }
 
+/** The engine a whole call on this one is handed to, or null when this engine runs the shared schedule itself. */
+internal fun KoblasEngine.routedWholeCall(
+    operation: EngineImplementation,
+    rows: Int,
+    columns: Int,
+    depth: Int,
+    borrowed: Boolean,
+): KoblasEngine? = wholeCallFor(operation, rows, columns, depth, borrowed)?.takeIf { it !== this }
+
 internal fun KoblasEngine.implementationFor(
     operation: EngineImplementation,
     length: Int,

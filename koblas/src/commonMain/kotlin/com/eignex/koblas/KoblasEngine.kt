@@ -4,9 +4,12 @@
 
 package com.eignex.koblas
 
+import com.eignex.koblas.dense.triangle
 import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.internal.portable.dense.*
 import com.eignex.koblas.internal.portable.sparse.*
+import com.eignex.koblas.internal.sparse.withSymmetricRankScratch
 
 /**
  * Dense and sparse BLAS through one immutable engine.
@@ -230,7 +233,23 @@ public interface KoblasEngine {
         yStride: Int,
         transpose: Boolean = false,
         scratch: Scratch? = null,
-    ): Unit = scheduledGemv(alpha, a, x, xOffset, xStride, beta, y, yOffset, yStride, transpose, scratch?.arrays)
+    ) {
+        val operation = if (transpose) EngineImplementation.GemvTransposed else EngineImplementation.Gemv
+        val routed = routedWholeCall(operation, a.rows, a.cols, 1, a !is DenseMatrix)
+        if (routed !=
+            null
+        ) {
+            return routed.gemv(alpha, a, x, xOffset, xStride, beta, y, yOffset, yStride, transpose, scratch)
+        }
+        prepareMatrixVector(this, alpha, a, transpose, x, xOffset, xStride, beta, y, yOffset, yStride, null, scratch?.arrays) {
+                sa,
+                sx,
+                so,
+                ss,
+            ->
+            portableGemv(alpha, sa, sx, so, ss, beta, y, yOffset, yStride, transpose)
+        }
+    }
 
     /**
      * `y = alpha · A · x + beta · y` for a symmetric `A` (BLAS `dsymv`), read from its [lower] or upper triangle,
@@ -248,7 +267,19 @@ public interface KoblasEngine {
         yStride: Int,
         lower: Boolean = true,
         scratch: Scratch? = null,
-    ): Unit = scheduledSymv(alpha, a, x, xOffset, xStride, beta, y, yOffset, yStride, lower, scratch?.arrays)
+    ) {
+        val routed = routedWholeCall(EngineImplementation.Symv, a.rows, a.cols, 1, a !is DenseMatrix)
+        if (routed != null) return routed.symv(alpha, a, x, xOffset, xStride, beta, y, yOffset, yStride, lower, scratch)
+        requireSquare(a, "symv")
+        prepareMatrixVector(this, alpha, a, false, x, xOffset, xStride, beta, y, yOffset, yStride, lower, scratch?.arrays) {
+                sa,
+                sx,
+                so,
+                ss,
+            ->
+            portableSymv(alpha, sa, sx, so, ss, beta, y, yOffset, yStride, lower)
+        }
+    }
 
     /** `A = A + alpha · x · yᵀ` (BLAS `dger`). A vector sharing `A`'s storage is snapshotted. */
     public fun ger(
@@ -261,7 +292,20 @@ public interface KoblasEngine {
         yStride: Int,
         a: DenseMatrixRegion,
         scratch: Scratch? = null,
-    ): Unit = scheduledGer(alpha, x, xOffset, xStride, y, yOffset, yStride, a, scratch?.arrays)
+    ) {
+        val routed = routedWholeCall(EngineImplementation.Ger, a.rows, a.cols, 1, a !is DenseMatrix)
+        if (routed != null) return routed.ger(alpha, x, xOffset, xStride, y, yOffset, yStride, a, scratch)
+        prepareRankUpdate(alpha, x, xOffset, xStride, y, yOffset, yStride, a, scratch?.arrays) {
+                sx,
+                xo,
+                xs,
+                sy,
+                yo,
+                ys,
+            ->
+            portableGer(alpha, sx, xo, xs, sy, yo, ys, a, a.offset, a.rows, a.cols)
+        }
+    }
 
     /** `A = A + alpha · x · xᵀ` (BLAS `dsyr`), writing only the [lower] or upper triangle. Overlap follows [ger]. */
     public fun syr(
@@ -272,7 +316,14 @@ public interface KoblasEngine {
         a: DenseMatrixRegion,
         lower: Boolean = true,
         scratch: Scratch? = null,
-    ): Unit = scheduledSyr(alpha, x, xOffset, xStride, a, lower, scratch?.arrays)
+    ) {
+        val routed = routedWholeCall(EngineImplementation.Syr, a.rows, a.rows, 1, a !is DenseMatrix)
+        if (routed != null) return routed.syr(alpha, x, xOffset, xStride, a, lower, scratch)
+        requireSquare(a, "syr")
+        prepareRankUpdate(alpha, x, xOffset, xStride, x, xOffset, xStride, a, scratch?.arrays) { sx, xo, xs, _, _, _ ->
+            portableSyr(alpha, sx, xo, xs, a, lower)
+        }
+    }
 
     /** `A = A + alpha · (x · yᵀ + y · xᵀ)` (BLAS `dsyr2`), writing only the [lower] or upper triangle. */
     public fun syr2(
@@ -286,7 +337,21 @@ public interface KoblasEngine {
         a: DenseMatrixRegion,
         lower: Boolean = true,
         scratch: Scratch? = null,
-    ): Unit = scheduledSyr2(alpha, x, xOffset, xStride, y, yOffset, yStride, a, lower, scratch?.arrays)
+    ) {
+        val routed = routedWholeCall(EngineImplementation.Syr2, a.rows, a.rows, 1, a !is DenseMatrix)
+        if (routed != null) return routed.syr2(alpha, x, xOffset, xStride, y, yOffset, yStride, a, lower, scratch)
+        requireSquare(a, "syr2")
+        prepareRankUpdate(alpha, x, xOffset, xStride, y, yOffset, yStride, a, scratch?.arrays) {
+                sx,
+                xo,
+                xs,
+                sy,
+                yo,
+                ys,
+            ->
+            portableSyr2(alpha, sx, xo, xs, sy, yo, ys, a, lower)
+        }
+    }
 
     /**
      * Solve `op(T) · x = b` in place (BLAS `dtrsv`) for the [lower] or upper triangle of the square [a], `op`
@@ -306,7 +371,14 @@ public interface KoblasEngine {
         transpose: Boolean = false,
         unitDiag: Boolean = false,
         scratch: Scratch? = null,
-    ): Unit = scheduledTrsv(a, x, xOffset, xStride, lower, transpose, unitDiag, scratch?.arrays)
+    ) {
+        val operation = if (transpose) EngineImplementation.TrsvTransposed else EngineImplementation.Trsv
+        val routed = routedWholeCall(operation, a.rows, a.rows, 1, a !is DenseMatrix)
+        if (routed != null) return routed.trsv(a, x, xOffset, xStride, lower, transpose, unitDiag, scratch)
+        prepareTriangularVector(a, x, xOffset, xStride, lower, unitDiag, "trsv", scratch?.arrays) { sa ->
+            portableTrsv(sa, x, xOffset, xStride, lower, transpose, unitDiag)
+        }
+    }
 
     /** `x = op(T) · x` in place (BLAS `dtrmv`), with the flags and overlap of [trsv]. */
     public fun trmv(
@@ -318,7 +390,14 @@ public interface KoblasEngine {
         transpose: Boolean = false,
         unitDiag: Boolean = false,
         scratch: Scratch? = null,
-    ): Unit = scheduledTrmv(a, x, xOffset, xStride, lower, transpose, unitDiag, scratch?.arrays)
+    ) {
+        val operation = if (transpose) EngineImplementation.TrmvTransposed else EngineImplementation.Trmv
+        val routed = routedWholeCall(operation, a.rows, a.rows, 1, a !is DenseMatrix)
+        if (routed != null) return routed.trmv(a, x, xOffset, xStride, lower, transpose, unitDiag, scratch)
+        prepareTriangularVector(a, x, xOffset, xStride, lower, unitDiag, "trmv", scratch?.arrays) { sa ->
+            portableTrmv(sa, x, xOffset, xStride, lower, transpose, unitDiag)
+        }
+    }
 
     /**
      * `C = alpha · op(A) · op(B) + beta · C` (BLAS `dgemm`), with shapes `op(A): m×k`, `op(B): k×n`, `C: m×n`.
@@ -339,7 +418,17 @@ public interface KoblasEngine {
         beta: Double,
         c: DenseMatrixRegion,
         scratch: Scratch? = null,
-    ): Unit = scheduledGemm(alpha, a, transposeA, b, transposeB, beta, c, scratch?.arrays)
+    ) {
+        val depth = if (transposeA) a.rows else a.cols
+        val borrowed = a !is DenseMatrix || b !is DenseMatrix || c !is DenseMatrix
+        val routed = routedWholeCall(EngineImplementation.Gemm, c.rows, c.cols, depth, borrowed)
+        if (routed != null) return routed.gemm(alpha, a, transposeA, b, transposeB, beta, c, scratch)
+        requireGemmOperands(a, transposeA, b, transposeB, c)
+        val arrays = scratch?.arrays
+        prepareProduct(alpha, a, b, beta, c, depth, null, null, null, arrays) { sa, sb ->
+            portableGemm(alpha, sa, transposeA, sb, transposeB, beta, c, depth, arrays)
+        }
+    }
 
     /**
      * `C = alpha · op(A) · op(B) + beta · C` in only the selected triangle (Netlib `GEMMTR`, commonly exposed as
@@ -356,7 +445,17 @@ public interface KoblasEngine {
         c: DenseMatrixRegion,
         lower: Boolean = true,
         scratch: Scratch? = null,
-    ): Unit = scheduledGemmt(alpha, a, transposeA, b, transposeB, beta, c, lower, scratch?.arrays)
+    ) {
+        val depth = if (transposeA) a.rows else a.cols
+        val borrowed = a !is DenseMatrix || b !is DenseMatrix || c !is DenseMatrix
+        val routed = routedWholeCall(EngineImplementation.Gemmt, c.rows, c.cols, depth, borrowed)
+        if (routed != null) return routed.gemmt(alpha, a, transposeA, b, transposeB, beta, c, lower, scratch)
+        requireGemmtOperands(a, transposeA, b, transposeB, c)
+        val arrays = scratch?.arrays
+        prepareProduct(alpha, a, b, beta, c, depth, lower, null, null, arrays) { sa, sb ->
+            portableGemmt(alpha, sa, transposeA, sb, transposeB, beta, c, lower, arrays)
+        }
+    }
 
     /**
      * `C = alpha · A · B + beta · C`, or `C = alpha · B · A + beta · C` when [right] (BLAS `dsymm`). Only the
@@ -371,7 +470,18 @@ public interface KoblasEngine {
         lower: Boolean = true,
         right: Boolean = false,
         scratch: Scratch? = null,
-    ): Unit = scheduledSymm(alpha, a, b, beta, c, lower, right, scratch?.arrays)
+    ) {
+        val borrowed = a !is DenseMatrix || b !is DenseMatrix || c !is DenseMatrix
+        val routed = routedWholeCall(EngineImplementation.Symm, c.rows, c.cols, a.rows, borrowed)
+        if (routed != null) return routed.symm(alpha, a, b, beta, c, lower, right, scratch)
+        requireSymmOperands(a, b, c, right)
+        val arrays = scratch?.arrays
+        // One operand serving both sides needs a full snapshot, since the second reads the triangle the first skips.
+        val aTriangle = if (sameRegion(a, b)) null else lower
+        prepareProduct(alpha, a, b, beta, c, a.rows, null, aTriangle, this, arrays) { sa, sb ->
+            portableSymm(alpha, sa, sb, beta, c, lower, right, arrays)
+        }
+    }
 
     /**
      * `C = alpha · A·Aᵀ + beta · C`, or `alpha · Aᵀ·A + beta · C` when [transpose] (BLAS `dsyrk`). Only the
@@ -386,7 +496,22 @@ public interface KoblasEngine {
         c: DenseMatrixRegion,
         lower: Boolean = true,
         scratch: Scratch? = null,
-    ): Unit = scheduledSyrk(alpha, a, transpose, beta, c, lower, scratch?.arrays)
+    ) {
+        val depth = if (transpose) a.rows else a.cols
+        val routed = routedWholeCall(
+            EngineImplementation.Syrk,
+            c.rows,
+            c.cols,
+            depth,
+            a !is DenseMatrix || c !is DenseMatrix,
+        )
+        if (routed != null) return routed.syrk(alpha, a, transpose, beta, c, lower, scratch)
+        requireSyrkOperands(a, transpose, c)
+        val arrays = scratch?.arrays
+        prepareProduct(alpha, a, a, beta, c, depth, lower, null, null, arrays) { sa, _ ->
+            portableSyrk(alpha, sa, transpose, beta, c, lower, arrays)
+        }
+    }
 
     /**
      * `C = alpha · (op(A) · op(B)ᵀ + op(B) · op(A)ᵀ) + beta · C` (BLAS `dsyr2k`), where `op` transposes when
@@ -402,7 +527,17 @@ public interface KoblasEngine {
         c: DenseMatrixRegion,
         lower: Boolean = true,
         scratch: Scratch? = null,
-    ): Unit = scheduledSyr2k(alpha, a, b, transpose, beta, c, lower, scratch?.arrays)
+    ) {
+        val depth = if (transpose) a.rows else a.cols
+        val borrowed = a !is DenseMatrix || b !is DenseMatrix || c !is DenseMatrix
+        val routed = routedWholeCall(EngineImplementation.Syr2k, c.rows, c.cols, depth, borrowed)
+        if (routed != null) return routed.syr2k(alpha, a, b, transpose, beta, c, lower, scratch)
+        requireSyr2kOperands(a, b, transpose, c)
+        val arrays = scratch?.arrays
+        prepareProduct(alpha, a, b, beta, c, depth, lower, null, null, arrays) { sa, sb ->
+            portableSyr2k(alpha, sa, sb, transpose, beta, c, lower, arrays)
+        }
+    }
 
     /**
      * `B = alpha · op(T)⁻¹ · B` in place, or `B = alpha · B · op(T)⁻¹` when [right] (BLAS `dtrsm`). Flags follow
@@ -417,7 +552,20 @@ public interface KoblasEngine {
         right: Boolean = false,
         alpha: Double = 1.0,
         scratch: Scratch? = null,
-    ): Unit = scheduledTriangularMatrix(a, b, lower, transpose, unitDiag, right, alpha, solve = true, scratch?.arrays)
+    ) {
+        val routed = routedWholeCall(
+            EngineImplementation.Trsm,
+            b.rows,
+            b.cols,
+            a.rows,
+            a !is DenseMatrix || b !is DenseMatrix,
+        )
+        if (routed != null) return routed.trsm(a, b, lower, transpose, unitDiag, right, alpha, scratch)
+        val arrays = scratch?.arrays
+        prepareTriangularMatrix(a, b, lower, unitDiag, right, alpha, "trsm", arrays) { sa ->
+            portableTriangularMatrix(alpha, sa, triangle(lower, unitDiag), transpose, b, right, true, arrays)
+        }
+    }
 
     /** `B = alpha · op(T) · B`, or `B = alpha · B · op(T)` when [right] (BLAS `dtrmm`), the counterpart of [trsm]. */
     public fun trmm(
@@ -429,7 +577,20 @@ public interface KoblasEngine {
         right: Boolean = false,
         alpha: Double = 1.0,
         scratch: Scratch? = null,
-    ): Unit = scheduledTriangularMatrix(a, b, lower, transpose, unitDiag, right, alpha, solve = false, scratch?.arrays)
+    ) {
+        val routed = routedWholeCall(
+            EngineImplementation.Trmm,
+            b.rows,
+            b.cols,
+            a.rows,
+            a !is DenseMatrix || b !is DenseMatrix,
+        )
+        if (routed != null) return routed.trmm(a, b, lower, transpose, unitDiag, right, alpha, scratch)
+        val arrays = scratch?.arrays
+        prepareTriangularMatrix(a, b, lower, unitDiag, right, alpha, "trmm", arrays) { sa ->
+            portableTriangularMatrix(alpha, sa, triangle(lower, unitDiag), transpose, b, right, false, arrays)
+        }
+    }
 
     /**
      * In-place `y = alpha · op(A) · x + beta · y` for a sparse [a], where `op(A)` is `Aᵀ` when [transpose]. A zero
@@ -447,7 +608,20 @@ public interface KoblasEngine {
         y: DoubleArray,
         transpose: Boolean = false,
         scratch: Scratch? = null,
-    ): Unit = scheduledSparseGemv(alpha, a, x, beta, y, transpose, scratch?.arrays)
+    ) {
+        requireGemvOperands(a, transpose, x.size, y.size)
+        // Zero alpha or zero extent reads neither operand; only destination scaling remains.
+        if (alpha == 0.0 || a.rows == 0 || a.cols == 0) return applyBeta(this, y, 0, y.size, beta)
+        val arrays = scratch?.arrays
+        // Snapshot aliased operands before destination scaling overwrites their coefficients.
+        staged(arrays, x, x === y) { stableX ->
+            staged(
+                arrays,
+                a,
+                a.values === y,
+            ) { stableA -> portableSparseGemv(alpha, stableA, stableX, beta, y, transpose) }
+        }
+    }
 
     /**
      * `y = alpha · A · x + beta · y` for a square sparse [a] interpreted as symmetric. Exactly the selected
@@ -462,7 +636,14 @@ public interface KoblasEngine {
         y: DoubleArray,
         lower: Boolean = true,
         scratch: Scratch? = null,
-    ): Unit = scheduledSparseSymv(alpha, a, x, beta, y, lower, scratch?.arrays)
+    ) {
+        requireSymvOperands(a, x.size, y.size)
+        if (alpha == 0.0) return applyBeta(this, y, 0, y.size, beta)
+        val arrays = scratch?.arrays
+        staged(arrays, x, x === y) { stableX ->
+            staged(arrays, a, a.values === y) { stableA -> portableSparseSymv(alpha, stableA, stableX, beta, y, lower) }
+        }
+    }
 
     /**
      * `C = alpha · A · B + beta · C`, or `C = alpha · B · A + beta · C` when [right], interpreting the square
@@ -478,7 +659,23 @@ public interface KoblasEngine {
         lower: Boolean = true,
         right: Boolean = false,
         scratch: Scratch? = null,
-    ): Unit = scheduledSparseSymm(alpha, a, b, beta, c, lower, right, scratch?.arrays)
+    ) {
+        requireSymmOperands(a, b, c, right)
+        // Return before staging or loans: an empty axis may be paired with an enormous one.
+        if (c.rows == 0 || c.cols == 0) return
+        if (alpha == 0.0) return scaleRegion(c, beta, vectors = this)
+        val arrays = scratch?.arrays
+        staged(arrays, a, a.values === c.values) { stableA ->
+            stagedRegion(arrays, b, c) { stableB ->
+                scaleRegion(c, beta, vectors = this)
+                if (right) {
+                    multiplySymmetricFromTheRight(this, alpha, stableA, stableB, c, lower)
+                } else {
+                    multiplySymmetricFromTheLeft(this, alpha, stableA, stableB, c, lower, arrays)
+                }
+            }
+        }
+    }
 
     /**
      * Solve `op(T) · x = b` in place for a sparse triangle, with the flags of the dense [trsv]. A missing diagonal
@@ -492,7 +689,11 @@ public interface KoblasEngine {
         transpose: Boolean = false,
         unitDiag: Boolean = false,
         scratch: Scratch? = null,
-    ): Unit = scheduledSparseTrsv(a, x, lower, transpose, unitDiag, scratch?.arrays)
+    ) {
+        requireTriangularVectorOperands(a, x.size, "trsv")
+        // Snapshot an aliased triangle before substitution overwrites coefficients needed by later columns.
+        staged(scratch?.arrays, a, a.values === x) { stable -> trsvCore(stable, x, lower, transpose, unitDiag) }
+    }
 
     /** `x = op(T) · x` in place for a sparse triangle. A missing diagonal entry is simply zero. */
     public fun trmv(
@@ -502,7 +703,10 @@ public interface KoblasEngine {
         transpose: Boolean = false,
         unitDiag: Boolean = false,
         scratch: Scratch? = null,
-    ): Unit = scheduledSparseTrmv(a, x, lower, transpose, unitDiag, scratch?.arrays)
+    ) {
+        requireTriangularVectorOperands(a, x.size, "trmv")
+        staged(scratch?.arrays, a, a.values === x) { stable -> trmvCore(stable, x, lower, transpose, unitDiag) }
+    }
 
     /**
      * `C = alpha · op(A) · op(B) + beta · C` (Sparse BLAS `usmm`) for a sparse [a] against a dense [b], or
@@ -521,7 +725,34 @@ public interface KoblasEngine {
         c: DenseMatrixRegion,
         right: Boolean = false,
         scratch: Scratch? = null,
-    ): Unit = scheduledSparseDenseGemm(alpha, a, transposeA, b, transposeB, beta, c, right, scratch?.arrays)
+    ) {
+        // Right-side multiplication uses the same derivation with operands reversed.
+        if (right) {
+            requireGemmOperands(
+                b,
+                transposeB,
+                a,
+                transposeA,
+                c,
+            )
+        } else {
+            requireGemmOperands(a, transposeA, b, transposeB, c)
+        }
+        if (c.rows == 0 || c.cols == 0) return
+        if (alpha == 0.0) return scaleRegion(c, beta, vectors = this)
+        val depth = if (right) (if (transposeB) b.rows else b.cols) else (if (transposeA) a.rows else a.cols)
+        val arrays = scratch?.arrays
+        staged(arrays, a, a.values === c.values) { stableA ->
+            stagedRegion(arrays, b, c) { stableB ->
+                scaleRegion(c, beta, vectors = this)
+                if (right) {
+                    multiplyFromTheRight(this, alpha, stableA, transposeA, stableB, transposeB, c, c.rows, arrays)
+                } else {
+                    multiplyFromTheLeft(this, alpha, stableA, transposeA, stableB, transposeB, c, c.rows, c.cols, depth, arrays)
+                }
+            }
+        }
+    }
 
     /**
      * Fresh CSC `alpha · op(A) · op(B)`. Product support is discovered from stored positions, including explicit
@@ -534,7 +765,15 @@ public interface KoblasEngine {
         transposeA: Boolean,
         b: SparseMatrix,
         transposeB: Boolean,
-    ): SparseMatrix = scheduledSparseProduct(alpha, a, transposeA, b, transposeB)
+    ): SparseMatrix {
+        requireProductOperands(a, transposeA, b, transposeB, "gemm")
+        val rows = if (transposeA) a.cols else a.rows
+        val cols = if (transposeB) b.rows else b.cols
+        // Return before orienting: transpose pointers are row-indexed and may exceed array limits even when the
+        // product is empty.
+        if (a.nnz == 0 || b.nnz == 0 || rows == 0 || cols == 0) return emptySparse(rows, cols, "gemm")
+        return multiplySparse(oriented(a, transposeA, alpha != 0.0), oriented(b, transposeB, alpha != 0.0), alpha)
+    }
 
     /**
      * Dense-destination `C = alpha · op(A) · op(B) + beta · C` for two sparse operands. No sparse intermediate is
@@ -550,7 +789,20 @@ public interface KoblasEngine {
         beta: Double,
         c: DenseMatrixRegion,
         scratch: Scratch? = null,
-    ): Unit = scheduledSparseProductInto(alpha, a, transposeA, b, transposeB, beta, c, scratch?.arrays)
+    ) {
+        requireGemmOperands(a, transposeA, b, transposeB, c)
+        // Only destination scaling remains; avoid row-indexed orientation scratch.
+        if (alpha == 0.0 || a.nnz == 0 || b.nnz == 0) return scaleRegion(c, beta, vectors = this)
+        val arrays = scratch?.arrays
+        staged(arrays, a, a.values === c.values) { stableA ->
+            staged(arrays, b, b.values === c.values) { stableB ->
+                val left = oriented(stableA, transposeA, true)
+                val right = oriented(stableB, transposeB, true)
+                scaleRegion(c, beta, vectors = this)
+                multiplySparseInto(alpha, left, right, c)
+            }
+        }
+    }
 
     /**
      * Dense selected-triangle `C = alpha · op(A) · op(A)ᵀ + beta · C` for a sparse [a]. Only the [lower] or upper
@@ -564,7 +816,30 @@ public interface KoblasEngine {
         c: DenseMatrixRegion,
         lower: Boolean = true,
         scratch: Scratch? = null,
-    ): Unit = scheduledSparseSyrk(alpha, a, transpose, beta, c, lower, scratch?.arrays)
+    ) {
+        val n = if (transpose) a.cols else a.rows
+        requireSyrkOperands(a, transpose, c)
+        // An empty pattern needs only triangle scaling, avoiding potentially oversized row-indexed adjacency.
+        if (alpha == 0.0 || a.nnz == 0 || n == 0) return scaleRegion(c, beta, lower)
+        val arrays = scratch?.arrays
+        staged(arrays, a, a.values === c.values) { stableA ->
+            scaleRegion(c, beta, lower)
+            withSymmetricRankScratch(arrays, n, stableA.rows, stableA.nnz) {
+                    sums,
+                    touchedAt,
+                    touched,
+                    rowPointers,
+                    adjacentColumns,
+                    adjacentPositions,
+                    rowCursor,
+                ->
+                symmetricRankInto(
+                    alpha, stableA, transpose, c, lower, sums, touchedAt, touched,
+                    rowPointers, adjacentColumns, adjacentPositions, rowCursor,
+                )
+            }
+        }
+    }
 
     /**
      * Fresh CSC selected triangle of `op(A) · op(A)ᵀ`. Stored-product support and cancellations are retained, rows
@@ -578,7 +853,7 @@ public interface KoblasEngine {
      * and positions only `A` stores when [alpha] is zero, in which case `A`'s values are not read.
      */
     public fun addScaled(alpha: Double, a: SparseMatrix, transposeA: Boolean, b: SparseMatrix): SparseMatrix =
-        scheduledSparseAddScaled(alpha, a, transposeA, b)
+        sparseAddScaled(alpha, a, transposeA, b)
 
     /**
      * `B = alpha · op(T)⁻¹ · B` in place, or `B = alpha · B · op(T)⁻¹` when [right] (Sparse BLAS `ussm`), with the
@@ -594,7 +869,7 @@ public interface KoblasEngine {
         right: Boolean = false,
         alpha: Double = 1.0,
         scratch: Scratch? = null,
-    ): Unit = scheduledSparseTrsm(a, b, lower, transpose, unitDiag, right, alpha, scratch?.arrays)
+    ): Unit = sparseTriangularMatrix(a, b, lower, transpose, unitDiag, right, alpha, solve = true, scratch?.arrays)
 
     /**
      * `B = alpha · op(T) · B` in place, or `B = alpha · B · op(T)` when [right]. Zero or missing diagonal entries
@@ -610,5 +885,5 @@ public interface KoblasEngine {
         right: Boolean = false,
         alpha: Double = 1.0,
         scratch: Scratch? = null,
-    ): Unit = scheduledSparseTrmm(a, b, lower, transpose, unitDiag, right, alpha, scratch?.arrays)
+    ): Unit = sparseTriangularMatrix(a, b, lower, transpose, unitDiag, right, alpha, solve = false, scratch?.arrays)
 }
