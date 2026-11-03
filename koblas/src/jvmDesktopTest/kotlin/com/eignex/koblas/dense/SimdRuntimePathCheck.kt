@@ -4,6 +4,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.jvm25.simd.SIMD_SPECIES
+import com.eignex.koblas.internal.jvm25.simd.SimdOpsTest
 import com.eignex.koblas.internal.jvm25.simd.assertHardwareFmaAgreesWithVm
 import com.eignex.koblas.internal.jvm25.simd.hardwareFusedMultiplyAdd
 import com.eignex.koblas.internal.portable.PortableEngine
@@ -11,8 +12,6 @@ import com.eignex.koblas.poisonedTriangle
 import com.eignex.koblas.sparse.*
 import kotlin.random.Random
 import kotlin.test.assertEquals
-
-private val selectedBackend = BuiltinEngines.simd ?: PortableEngine
 
 /**
  * Runs the panel, product and diagonal substitution contracts on this JVM's species and multiply-add.
@@ -71,7 +70,7 @@ internal object SimdRuntimePathCheck {
         }
         assertTriangularKernelsAgreeWithReference(triangles, lanes)
         assertSingleSideAgreesWithReference(triangles, lanes)
-        assertSparseDotAgreesWithReference()
+        assertSparseDotAgreesWithReference(engine)
         println("panel, tile and substitution conformance passed at $lanes lanes with fma=$hardwareFusedMultiplyAdd")
     }
 
@@ -216,7 +215,7 @@ internal object SimdRuntimePathCheck {
     }
 
     /** The exact indexed composition, whose vector body only two lanes reach, against the scalar loop. */
-    private fun assertSparseDotAgreesWithReference() {
+    private fun assertSparseDotAgreesWithReference(engine: KoblasEngine) {
         val rng = Random(20261101)
         for (count in intArrayOf(1, 2, 3, 7, 32, 33, 257)) {
             val indices = IntArray(count + 2) { 3 * it + 1 }
@@ -224,9 +223,9 @@ internal object SimdRuntimePathCheck {
             val dense = DoubleArray(3 * count + 8) { rng.nextDouble(-1.0, 1.0) }
 
             val expected = PortableEngine.dotDense(indices, 1, values, 2, count, dense)
-            val actual = selectedBackend.dotDense(indices, 1, values, 2, count, dense)
+            val actual = engine.dotDense(indices, 1, values, 2, count, dense)
 
-            assertClose(expected, actual, "sparse dot count=$count engine=${selectedBackend.name}")
+            assertClose(expected, actual, "sparse dot count=$count engine=${engine.name}")
         }
     }
 }

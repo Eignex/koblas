@@ -56,12 +56,15 @@ public fun KoblasEngine.gemm(
     }
     when {
         a is SparseMatrix && b is SparseMatrix -> sparseGemm(alpha, a, transposeA, b, transposeB, beta, c)
+
         a is SparseMatrix -> denseOperand(arrays, b) { right ->
             sparseGemm(alpha, a, transposeA, right, transposeB, beta, c, right = false)
         }
+
         b is SparseMatrix -> denseOperand(arrays, a) { left ->
             sparseGemm(alpha, b, transposeB, left, transposeA, beta, c, right = true)
         }
+
         else -> denseOperand(arrays, a) { left ->
             if (a === b) {
                 denseGemm(alpha, left, transposeA, left, transposeB, beta, c)

@@ -7,16 +7,12 @@ import com.eignex.koblas.engine.*
 
 // Recording diagonal substitutions checks routes against executed blocks while retaining their arithmetic.
 
-/** One diagonal block a triangular routine substituted, as the window and strides it was handed. */
+/** One diagonal block a triangular routine substituted, as the window and the direction it was handed. */
 internal class DiagonalCall(
     val start: Int,
     val size: Int,
     val transposed: Boolean,
     val lower: Boolean,
-    val unitDiag: Boolean,
-    val orderStride: Int,
-    val rhsStride: Int,
-    val sides: Int,
     val solve: Boolean,
 )
 
@@ -54,7 +50,7 @@ internal class RecordingTriangles(private val delegate: KoblasEngine) : KoblasEn
         tOffset: Int,
     ) {
         blocks.add(
-            DiagonalCall(start, size, transposed, lower, unitDiag, orderStride, rhsStride, sides, solve = true),
+            DiagonalCall(start, size, transposed, lower, solve = true),
         )
         delegate.diagonalSolve(
             t, n, start, size, transposed, lower, unitDiag, x, xOffset, orderStride, rhsStride, sides, tOffset,
@@ -77,7 +73,7 @@ internal class RecordingTriangles(private val delegate: KoblasEngine) : KoblasEn
         tOffset: Int,
     ) {
         blocks.add(
-            DiagonalCall(start, size, transposed, lower, unitDiag, orderStride, rhsStride, sides, solve = false),
+            DiagonalCall(start, size, transposed, lower, solve = false),
         )
         delegate.diagonalMultiply(
             t, n, start, size, transposed, lower, unitDiag, x, xOffset, orderStride, rhsStride, sides, tOffset,

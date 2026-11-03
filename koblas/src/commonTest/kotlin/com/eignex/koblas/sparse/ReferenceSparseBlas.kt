@@ -4,7 +4,6 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.internal.portable.dense.selectedTriangle
 
 /**
  * Independent sparse oracle using stored coordinates from [SparseMatrix.forEachInColumn].
@@ -14,10 +13,10 @@ import com.eignex.koblas.internal.portable.dense.selectedTriangle
 internal object ReferenceSparseBlas {
 
     /** One stored coordinate of a sparse operand. */
-    data class Entry(val row: Int, val col: Int, val value: Double)
+    private data class Entry(val row: Int, val col: Int, val value: Double)
 
     /** Every stored coordinate of [a], in ascending column then row order. */
-    fun entries(a: SparseMatrix): List<Entry> = buildList {
+    private fun entries(a: SparseMatrix): List<Entry> = buildList {
         for (j in 0 until a.cols) a.forEachInColumn(j) { i, v -> add(Entry(i, j, v)) }
     }
 

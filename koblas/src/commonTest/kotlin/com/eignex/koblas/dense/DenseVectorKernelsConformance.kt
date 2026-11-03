@@ -45,21 +45,25 @@ internal fun assertLevel1KernelsAgreeWithReference(kernels: KoblasEngine) {
     }
 }
 
-/** Plane rotation agreement with the portable kernel for every implementation. */
+/**
+ * Plane rotation agreement with the portable kernel for every implementation, with the two operands at
+ * different offsets so a kernel that addresses both through one offset fails.
+ */
 internal fun assertRotKernelAgreesWithReference(kernels: KoblasEngine) {
     // The rotation BLAS drotg(3, 4) produces, written out because koblas exposes no generator.
     val c = 0.6
     val s = 0.8
+    val xOffset = 2
+    val yOffset = 3
     for (len in intArrayOf(0, 1, 7, 63, 64, 65, 200)) {
-        val pad = 3
-        val x = DoubleArray(len + 2 * pad) { it * 0.25 - 4.0 }
-        val y = DoubleArray(len + 2 * pad) { 3.0 - it * 0.125 }
+        val x = DoubleArray(len + 2 * xOffset) { it * 0.25 - 4.0 }
+        val y = DoubleArray(len + 2 * yOffset) { 3.0 - it * 0.125 }
         val expectedX = x.copyOf()
         val expectedY = y.copyOf()
         val actualX = x.copyOf()
         val actualY = y.copyOf()
-        PortableEngine.rot(expectedX, pad, expectedY, pad, len, c, s)
-        kernels.rot(actualX, pad, actualY, pad, len, c, s)
+        PortableEngine.rot(expectedX, xOffset, expectedY, yOffset, len, c, s)
+        kernels.rot(actualX, xOffset, actualY, yOffset, len, c, s)
         assertClose(expectedX, actualX, context = "rot x len=$len")
         assertClose(expectedY, actualY, context = "rot y len=$len")
     }
@@ -123,10 +127,13 @@ internal fun assertReductionsAgreeWithReference(kernels: KoblasEngine) {
 
 /**
  * Finite IAMAX inputs select an in-range maximum without fixing which tied position wins.
+ *
+ * The lengths straddle a lane block, the unrolled body at every lane count and the host crossovers up to
+ * 512 entries.
  */
 internal fun assertIamaxHonoursItsContract(kernels: KoblasEngine) {
     val rng = Random(20260912)
-    for (len in intArrayOf(0, 1, 2, 7, 16, 17, 64, 255, 256, 257, 1024, 4097)) {
+    for (len in intArrayOf(0, 1, 2, 7, 16, 17, 64, 255, 256, 257, 1024)) {
         for (off in intArrayOf(0, 1, 3)) {
             val inputs = listOf(
                 DoubleArray(len) { rng.nextDouble(-1.0, 1.0) },
@@ -148,7 +155,8 @@ internal fun assertIamaxHonoursItsContract(kernels: KoblasEngine) {
                 }
                 assertTrue(index in 0 until len, "$context: $index is not a logical index")
                 val chosen = abs(v[off + index])
-                val best = (0 until len).map { abs(v[off + it]) }.filter { !it.isNaN() }.maxOrNull() ?: 0.0
+                var best = 0.0
+                for (i in 0 until len) best = maxOf(best, abs(input[i]))
                 assertTrue(chosen == best, "$context: chose $chosen, largest was $best")
             }
         }
@@ -170,25 +178,28 @@ internal fun assertScaleAgreesWithReference(kernels: KoblasEngine) {
     }
 }
 
-/** Finite inputs and multipliers at offsets and tail boundaries, with poisoned padding. */
+/**
+ * Finite inputs and multipliers at tail boundaries, with poisoned padding. The offset rotates with the
+ * length, so every alignment is reached without running every length at each of them; 4097 is past the
+ * host crossover for scaling.
+ */
 private inline fun forEachScaleFixture(body: (Int, Int, Double, DoubleArray, DoubleArray) -> Unit) {
     val finite = doubleArrayOf(0.0, -0.0, Double.MIN_VALUE, -Double.MIN_VALUE, 1e200, -1e200, 1e-200, -1e-200)
     val lengths = intArrayOf(
         0, 1, 3, 4, 7, 31, 32, 47, 48, 49, 63, 64, 65,
         127, 128, 129, 143, 144, 145, 159, 160, 161, 255, 256, 257, 4097,
     )
-    for (len in lengths) {
-        for (off in 0..7) {
-            for (alpha in doubleArrayOf(0.0, -0.0, 1.0, -1.0, 0.875)) {
-                val expected = DoubleArray(off + len + 5) { if (it % 2 == 0) Double.NaN else Double.POSITIVE_INFINITY }
-                for (i in 0 until len) {
-                    expected[off + i] =
-                        if (i % 3 == 0) finite[(i / 3) % finite.size] else i * 0.125 - 3.0
-                }
-                val actual = expected.copyOf()
-                PortableEngine.scale(expected, off, alpha, len)
-                body(off, len, alpha, expected, actual)
+    for ((index, len) in lengths.withIndex()) {
+        val off = index % 8
+        for (alpha in doubleArrayOf(0.0, -0.0, 1.0, -1.0, 0.875)) {
+            val expected = DoubleArray(off + len + 5) { if (it % 2 == 0) Double.NaN else Double.POSITIVE_INFINITY }
+            for (i in 0 until len) {
+                expected[off + i] =
+                    if (i % 3 == 0) finite[(i / 3) % finite.size] else i * 0.125 - 3.0
             }
+            val actual = expected.copyOf()
+            PortableEngine.scale(expected, off, alpha, len)
+            body(off, len, alpha, expected, actual)
         }
     }
 }

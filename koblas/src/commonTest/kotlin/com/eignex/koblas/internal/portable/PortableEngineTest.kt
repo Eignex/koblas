@@ -14,9 +14,14 @@ class PortableEngineTest {
         val b = randomMatrix(4, 4, rng)
         val poison = DenseMatrix.wrap(4, 4, DoubleArray(16) { Double.NaN })
         for (operation in listOf(Gemm, Gemmt, Symm, Syrk, Syr2k, Trmm, Trsm)) {
-            for (lower in listOf(false, true)) {
-                for (transpose in listOf(false, true)) {
-                    for (right in listOf(false, true)) {
+            // Each operation varies only the flags it reads: a general product has no triangle, a symmetric
+            // product no transpose, and only the symmetric and triangular products have a side.
+            val lowers = if (operation == Gemm) listOf(false) else listOf(false, true)
+            val transposes = if (operation == Symm) listOf(false) else listOf(false, true)
+            val rights = if (operation in listOf(Symm, Trmm, Trsm)) listOf(false, true) else listOf(false)
+            for (lower in lowers) {
+                for (transpose in transposes) {
+                    for (right in rights) {
                         for (alpha in listOf(0.0, 0.75)) {
                             val expected = randomMatrix(6, 6, rng)
                             val actual = expected.copyOf()

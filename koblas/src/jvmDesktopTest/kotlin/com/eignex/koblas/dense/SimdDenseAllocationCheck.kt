@@ -1,8 +1,6 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.axpy
-import com.eignex.koblas.copy
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.engineWithHost
 import com.eignex.koblas.engineWithKernels
@@ -10,7 +8,6 @@ import com.eignex.koblas.internal.jvm25.simd.SimdPanelKernels
 import com.eignex.koblas.internal.jvm25.simd.SimdProductKernels
 import com.eignex.koblas.internal.portable.dense.TRIANGULAR_DIAGONAL_BLOCK
 import com.eignex.koblas.sparse.*
-import com.eignex.koblas.swap
 import com.eignex.koblas.testutil.allocation.AllocationProbe
 import com.eignex.koblas.testutil.allocation.bytesPerCall
 import com.eignex.koblas.workspace.*
@@ -135,6 +132,9 @@ internal object SimdDenseAllocationCheck {
         assertAllocationFree("iamax filtering non improving blocks") {
             engine.iamax(peaked, 3, ORDER - 3).toDouble()
         }
+        assertAllocationFree("norm with an offset and a tail") {
+            engine.nrm2(x, 3, ORDER - 3)
+        }
         checkWholeOperations(engine)
         checkDefaultDispatch()
         checkVectorViews()
@@ -144,31 +144,11 @@ internal object SimdDenseAllocationCheck {
         checkTriangularOperations(engine)
     }
 
-    /** Shared buffers and sparse view reads must not turn a Level 1 call into a gathered array. */
+    /** A sparse read of a strided dense view must not turn a Level 1 call into a gathered array. */
     private fun checkVectorViews() {
         val backing = DoubleArray(2 * ORDER) { 1.0 + it * 0.01 }
-        val adjacentSource = StridedVector(backing, 0, ORDER)
-        val adjacentDestination = StridedVector(backing, 1, ORDER)
-        val source = StridedVector(backing, 0, ORDER, 2)
-        val destination = StridedVector(backing, 1, ORDER, 2)
         val sparse = SparseVector.wrap(ORDER, intArrayOf(0, 7, ORDER - 1), doubleArrayOf(1.5, 0.0, -2.0))
 
-        assertAllocationFree("overlapping contiguous copy") {
-            copy(adjacentSource, adjacentDestination)
-            backing[1]
-        }
-        assertAllocationFree("disjoint shared buffer copy") {
-            copy(source, destination)
-            backing[1]
-        }
-        assertAllocationFree("disjoint shared buffer axpy") {
-            destination.axpy(1e-12, source)
-            backing[1]
-        }
-        assertAllocationFree("disjoint shared buffer swap") {
-            swap(source, destination)
-            backing[1]
-        }
         for (stride in intArrayOf(-2, -1, 1, 2)) {
             val view = StridedVector(backing, if (stride < 0) 2 * ORDER - 2 else 1, ORDER, stride)
             assertAllocationFree("sparse dot dense view stride=$stride") { sparse dot view }

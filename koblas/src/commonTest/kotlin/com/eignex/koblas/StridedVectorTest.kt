@@ -1,22 +1,21 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.*
-import com.eignex.koblas.internal.portable.PortableEngine
-import com.eignex.koblas.sparse.*
-import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.fail
 
 class StridedVectorTest {
+    // Strides of equal and unequal magnitude in both directions, origins inside and at the end of the buffer,
+    // and empty, singleton and longer views reach every branch of the overlap test.
     @Test
     fun `overlap agrees with physical index intersection`() {
         val backing = DoubleArray(8)
         val views = buildList {
-            for (stride in intArrayOf(-3, -2, -1, 1, 2, 3)) {
-                for (offset in 0..backing.size) {
-                    for (size in 0..4) {
+            for (stride in intArrayOf(-2, -1, 1, 2, 3)) {
+                for (offset in intArrayOf(0, 1, 4, backing.size)) {
+                    for (size in intArrayOf(0, 1, 2, 4)) {
                         val last = offset + (size - 1) * stride
                         if (size == 0 || (offset in backing.indices && last in backing.indices)) {
                             add(StridedVector(backing, offset, size, stride))
@@ -31,7 +30,7 @@ class StridedVectorTest {
             for (j in views.indices) {
                 val expected = addressed[i].any { it in addressed[j] }
 
-                assertEquals(expected, views[i].overlaps(views[j]), "${views[i]} against ${views[j]}")
+                if (views[i].overlaps(views[j]) != expected) fail("${views[i]} against ${views[j]}: expected $expected")
             }
         }
     }
@@ -112,30 +111,6 @@ class StridedVectorTest {
         assertFailsWith<IllegalArgumentException> { StridedVector(DoubleArray(3), 0, 2, 0) }
     }
 
-    @Test
-    fun `dot reads the logical entries of borrowed slices`() {
-        val backing = DoubleArray(8) { it + 1.0 }
-        val even = StridedVector(backing, 0, 4, 2)
-        val odd = StridedVector(backing, 1, 4, 2)
-        val expected = PortableEngine.dot(backing, 0, backing, 1, 4, 2, 2)
-
-        val actual = even dot odd
-
-        assertClose(expected, actual, "borrowed dot")
-    }
-
-    @Test
-    fun `scaling a borrowed slice leaves other entries untouched`() {
-        val backing = DoubleArray(8) { it + 1.0 }
-        val even = StridedVector(backing, 0, 4, 2)
-        val expected = backing.copyOf()
-        PortableEngine.scale(expected, 0, 2.0, 4, 2)
-
-        even.scale(2.0)
-
-        assertContentEquals(expected, backing)
-    }
-
     // Building the result from the buffer alone would move the window silently: every entry read would still
     // be in range and no call would fail, the answer would just be about different numbers.
     @Test
@@ -145,35 +120,5 @@ class StridedVectorTest {
 
         assertContentEquals(doubleArrayOf(2.0, 4.0, 6.0, 8.0), outer.asView().toDoubleArray())
         assertContentEquals(doubleArrayOf(4.0, 8.0), outer.view(offset = 1, size = 2, stride = 2).toDoubleArray())
-    }
-
-    // `rot` takes a view of each operand before rotating, so a view that forgot its receiver would rotate the
-    // padding and report nothing. The run vectorises everywhere, and that kernel fuses its multiply and add,
-    // so only the padding is compared exactly.
-    @Test
-    fun `a rotation over strided operands touches only the entries they address`() {
-        val rng = Random(20260916)
-        val n = 8
-        val pad = 2
-        val xs = randomVector(pad + n + pad, rng)
-        val ys = randomVector(pad + n + pad, rng)
-        val x0 = xs.copyOf()
-        val y0 = ys.copyOf()
-        val expectedX = xs.copyOf()
-        val expectedY = ys.copyOf()
-        PortableEngine.rot(expectedX, pad, expectedY, pad, n, 0.6, 0.8)
-
-        // Typed as the shape that routes through asView, which is the overload that has to compose windows.
-        val x: DenseVector = StridedVector(xs, pad, n)
-        val y: DenseVector = StridedVector(ys, pad, n)
-
-        rot(x, y, c = 0.6, s = 0.8)
-
-        assertClose(expectedX, xs, "rotation x backing")
-        assertClose(expectedY, ys, "rotation y backing")
-        for (i in listOf(0, 1, pad + n, pad + n + 1)) {
-            assertEquals(x0[i], xs[i], "x padding at $i")
-            assertEquals(y0[i], ys[i], "y padding at $i")
-        }
     }
 }

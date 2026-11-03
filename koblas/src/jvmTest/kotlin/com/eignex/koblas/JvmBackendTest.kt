@@ -1,8 +1,13 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.engine.Vendor
+import com.eignex.koblas.workspace.*
+import org.junit.Assume
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -18,10 +23,33 @@ class JvmBackendTest {
 
     @Test
     fun `baseline runtime selects scalar without opening a host library`() {
-        if (Runtime.version().feature() >= 25) return
+        Assume.assumeTrue("the desktop section replaces the baseline from Java 25", Runtime.version().feature() < 25)
 
         assertSame(BuiltinEngines.scalar, koblas)
         assertNull(BuiltinEngines.simd)
         assertNull(Vendor.entries.firstNotNullOfOrNull { BuiltinEngines.vendor(it) })
+    }
+
+    // An installed host takes whole products from the default, which must not change the tile the owned
+    // product kernels block around.
+    @Test
+    fun `the default keeps the owned product tile with an installed host`() {
+        val exact = BuiltinEngines.simd ?: BuiltinEngines.scalar
+
+        assertEquals(exact.productProvider.tileRows, koblas.productProvider.tileRows)
+        assertEquals(exact.productProvider.tileColumns, koblas.productProvider.tileColumns)
+    }
+
+    @Test
+    fun `an eligible default product preserves an aliased input buffer`() {
+        val order = 128
+        val a = DenseMatrix.wrap(order, order, DoubleArray(order * order) { (it % 19 - 9) / 17.0 })
+        val b = DenseMatrix.wrap(order, order, DoubleArray(order * order) { (it % 13 - 6) / 11.0 })
+        val expected = DenseMatrix.wrap(order, order, a.values.copyOf())
+        ReferenceBlas.gemm(0.875, a, false, b, true, -0.25, expected)
+
+        koblas.withWorkspace(Workspace()).gemm(0.875, a, false, b, true, -0.25, a)
+
+        assertClose(expected.values, a.values, "aliased default host product")
     }
 }

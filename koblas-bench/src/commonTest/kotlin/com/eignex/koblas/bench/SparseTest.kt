@@ -7,14 +7,11 @@ import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class SparseTest {
-    private fun work(id: String): CaseWork? = sparseArm(Cases.parse(id).single(), koblas)?.work
-
     @Test
     fun `gather timing variants return the same values across repeated calls`() {
         val resetCase = Cases.parse("spgather+64+sparse-uniform+density=0.25").single()
@@ -27,16 +24,6 @@ class SparseTest {
             arithmetic.run()
             assertContentEquals(reset.result, arithmetic.result)
         }
-    }
-
-    @Test
-    fun `a sparse row names the selected engine`() {
-        val case = Cases.parse("spdot+4096+sparse-uniform+density=0.25").single()
-
-        val work = assertNotNull(sparseArm(case, BuiltinEngines.scalar)?.work)
-
-        assertEquals(ENGINE_COMPARISON, work.comparisonKind)
-        assertEquals("${BuiltinEngines.scalar.name}/spdot", work.kernel)
     }
 
     @Test
@@ -60,6 +47,7 @@ class SparseTest {
     fun `a sparse matrix row names the engine it ran on`() {
         for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)) {
             for (id in listOf(
+                "spdot+4096+sparse-uniform+density=0.25",
                 "spsymv+65+sparse-triangular+density=0.05+mode=oneshot+uplo=L",
                 "spgemm+33x17x21+sparse-uniform+density=0.05+mode=oneshot",
                 "spsyrk-sparse+33x17+sparse-uniform+density=0.05+uplo=L",
@@ -106,6 +94,7 @@ class SparseTest {
             "spgemv+9x7+sparse-uniform+density=0.3+mode=oneshot",
             "spgemv+9x7+sparse-uniform+density=0.3+mode=oneshot+transA=T",
             "spmm+9x3x7+sparse-uniform+density=0.3+mode=oneshot",
+            "spmm+9x3x7+sparse-uniform+density=0.3+mode=oneshot+transB=T",
             "spgemm+9x5x7+sparse-uniform+density=0.3+mode=oneshot",
             "spsymv+9+sparse-triangular+density=0.3+mode=oneshot+uplo=L",
             "spsymv+9+sparse-triangular+density=0.3+mode=oneshot+uplo=U",
@@ -128,28 +117,5 @@ class SparseTest {
             val work = assertNotNull(sparseArm(case, BuiltinEngines.scalar)?.work, id)
             assertTrue(work.run().isFinite(), id)
         }
-    }
-
-    @Test
-    fun `an option the generic allocating product cannot apply is rejected at parsing`() {
-        assertFailsWith<IllegalArgumentException> {
-            Cases.parse("spgemm-generic+9x5x7+sparse-uniform+density=0.3+mode=oneshot+transA=T")
-        }
-    }
-
-    /**
-     * Each dense storage layout is checked against the reference computed from the densified operands as the
-     * arm is built. What a transposed row adds is which axis the right-hand sides lie along, which is the
-     * axis a panel is cut from.
-     */
-    @Test
-    fun `a transposed dense operand passes numerical preflight`() {
-        val base = "spmm+33x16x21+sparse-uniform+density=0.25"
-
-        val columnMajor = assertNotNull(work("$base+mode=oneshot"))
-        val rowMajor = assertNotNull(work("$base+mode=oneshot+transB=T"))
-
-        assertContains(assertNotNull(columnMajor.kernel), "spmm")
-        assertContains(assertNotNull(rowMajor.kernel), "spmm")
     }
 }

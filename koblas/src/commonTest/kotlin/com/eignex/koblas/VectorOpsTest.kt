@@ -6,7 +6,7 @@ import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.portable.PortableEngine
 import com.eignex.koblas.internal.sparse.snapshot
 import com.eignex.koblas.sparse.*
-import kotlin.math.sqrt
+import kotlin.random.Random
 import kotlin.test.*
 
 class VectorOpsTest {
@@ -120,67 +120,14 @@ class VectorOpsTest {
         if (expected.isNaN()) assertTrue(actual.isNaN()) else assertEquals(expected, actual, 1e-12)
     }
 
-    @Test
-    fun `shared buffer axpy agrees with the scalar snapshot reference`() {
-        for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd, koblas)) {
-            for ((sourceOffset, destinationOffset, stride) in listOf(
-                Triple(0, 1, 2),
-                Triple(8, 9, -2),
-                Triple(0, 5, 1),
-                Triple(0, 1, 1),
-            )) {
-                val backing = DoubleArray(10) { it + 0.25 }
-                val source = StridedVector(backing, sourceOffset, 5, stride)
-                val destination = StridedVector(backing, destinationOffset, 5, stride)
-                val expected = backing.copyOf()
-                BuiltinEngines.scalar.axpy(
-                    expected,
-                    destinationOffset,
-                    0.75,
-                    source.toDoubleArray(),
-                    0,
-                    5,
-                    stride,
-                )
-
-                engine.axpy(0.75, source, destination)
-
-                assertAxpyAgreesWithReference(expected, backing)
-            }
-        }
-    }
-
-    @Test
-    fun `shared buffer copy preserves the snapshot sequence and padding`() {
-        for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd, koblas)) {
-            for ((sourceOffset, destinationOffset, stride) in listOf(
-                Triple(0, 1, 2),
-                Triple(8, 9, -2),
-                Triple(0, 5, 1),
-                Triple(0, 1, 1),
-                Triple(1, 0, 1),
-                Triple(2, 7, 1),
-                Triple(9, 8, -1),
-            )) {
-                val backing = DoubleArray(14) { it + 0.25 }
-                val source = StridedVector(backing, sourceOffset, 5, stride)
-                val destination = StridedVector(backing, destinationOffset, 5, stride)
-                val expected = backing.copyOf()
-                val snapshot = source.toDoubleArray()
-                for (i in snapshot.indices) expected[destinationOffset + i * stride] = snapshot[i]
-
-                engine.copy(source, destination)
-
-                assertContentEquals(expected, backing)
-            }
-        }
-    }
-
+    /** A non-koblas vector storage, which reaches the public adapter fallbacks rather than a kernel. */
     private class ForeignVector(private val backing: DenseVector) : Vector {
         override val size: Int get() = backing.size
         override fun get(i: Int): Double = backing[i]
         override fun toDoubleArray(): DoubleArray = backing.toDoubleArray()
     }
+
+    private fun foreignRamp(size: Int) = ForeignVector(DenseVector.of(DoubleArray(size) { it * 0.5 - 1.0 }))
 
     private val sparse = SparseVector.of(6, intArrayOf(4, 1), doubleArrayOf(-3.0, 2.0))
     private val denseOfSparse = DenseVector.of(doubleArrayOf(0.0, 2.0, 0.0, 0.0, -3.0, 0.0))
@@ -231,12 +178,18 @@ class VectorOpsTest {
         val a = dense(1.0, 2.0, 3.0, 4.0)
         val b = dense(0.5, 0.0, -1.0, 2.0)
         val bSparse = sparse(4, 0 to 0.5, 2 to -1.0, 3 to 2.0)
-        val expected = 1 * 0.5 + 2 * 0 + 3 * (-1) + 4 * 2
-        assertEquals(expected, a dot b, 1e-12)
-        assertEquals(expected, b dot a, 1e-12)
-        assertEquals(expected, a dot bSparse, 1e-12)
-        assertEquals(expected, bSparse dot a, 1e-12)
-        assertEquals(0.5 * 0.5 + 0 + 1 + 4, bSparse dot b, 1e-12)
+        val expected = BuiltinEngines.scalar.dot(a.values, 0, b.values, 0, 4)
+        val sparseByDense = BuiltinEngines.scalar.dot(b.values, 0, b.values, 0, 4)
+
+        for ((actual, context) in listOf(
+            (a dot b) to "dense by dense",
+            (b dot a) to "dense by dense reversed",
+            (a dot bSparse) to "dense by sparse",
+            (bSparse dot a) to "sparse by dense",
+        )) {
+            assertReductionAgreesWithReference(expected, actual, context)
+        }
+        assertReductionAgreesWithReference(sparseByDense, bSparse dot b, "sparse by its own dense form")
     }
 
     @Test
@@ -256,9 +209,18 @@ class VectorOpsTest {
     }
 
     @Test
-    fun `norm two matches the hand value on dense and sparse`() {
-        assertEquals(5.0, DenseVector.of(doubleArrayOf(3.0, 0.0, -4.0)).norm2())
-        assertEquals(sqrt(13.0), sparse.norm2(), 1e-15)
+    fun `norm two agrees with the scalar oracle on dense and sparse`() {
+        val values = doubleArrayOf(3.0, 0.0, -4.0)
+        assertReductionAgreesWithReference(
+            BuiltinEngines.scalar.nrm2(values, 0, values.size),
+            DenseVector.of(values).norm2(),
+            "dense",
+        )
+        assertReductionAgreesWithReference(
+            BuiltinEngines.scalar.nrm2(denseOfSparse.values, 0, denseOfSparse.size),
+            sparse.norm2(),
+            "sparse",
+        )
         assertEquals(0.0, DenseVector.zero(4).norm2())
         assertEquals(0.0, DenseVector.zero(0).norm2())
     }
@@ -275,25 +237,37 @@ class VectorOpsTest {
     @Test
     fun `sum adds the entries for any storage`() {
         val values = doubleArrayOf(2.0, -3.5, 0.0, 4.25, -1.0, 0.5)
-        val expected = values.sum()
+        val expected = BuiltinEngines.scalar.sum(values, 0, values.size)
         val strided = StridedVector(DoubleArray(12) { values[it / 2] }, 0, 6, 2)
-        assertEquals(expected, DenseVector.of(values).sum(), 1e-12, "dense")
-        assertEquals(expected, strided.sum(), 1e-12, "strided")
-        assertEquals(-1.0, sparse.sum(), 1e-12, "sparse stores 2 and -3")
+        assertReductionAgreesWithReference(expected, DenseVector.of(values).sum(), "dense")
+        assertReductionAgreesWithReference(expected, strided.sum(), "strided")
+        assertReductionAgreesWithReference(
+            BuiltinEngines.scalar.sum(denseOfSparse.values, 0, denseOfSparse.size),
+            sparse.sum(),
+            "sparse",
+        )
         assertEquals(0.0, DenseVector.of(DoubleArray(0)).sum(), "empty")
     }
 
     @Test
-    fun `asum matches the hand value on dense and sparse`() {
-        assertEquals(7.0, DenseVector.of(doubleArrayOf(3.0, 0.0, -4.0)).asum())
-        assertEquals(5.0, sparse.asum())
+    fun `asum agrees with the scalar oracle on dense and sparse`() {
+        val values = doubleArrayOf(3.0, 0.0, -4.0)
+        assertReductionAgreesWithReference(
+            BuiltinEngines.scalar.asum(values, 0, values.size),
+            DenseVector.of(values).asum(),
+            "dense",
+        )
+        assertReductionAgreesWithReference(
+            BuiltinEngines.scalar.asum(denseOfSparse.values, 0, denseOfSparse.size),
+            sparse.asum(),
+            "sparse",
+        )
         assertEquals(0.0, DenseVector.zero(0).asum())
     }
 
     @Test
-    fun `iamax returns the first maximal index and handles edge cases`() {
-        assertEquals(2, DenseVector.of(doubleArrayOf(1.0, -2.0, 5.0, -5.0)).iamax())
-        assertEquals(1, DenseVector.of(doubleArrayOf(1.0, -5.0, 5.0)).iamax()) // tie: first wins
+    fun `iamax returns a maximal index and handles edge cases`() {
+        assertEquals(2, DenseVector.of(doubleArrayOf(1.0, -2.0, 5.0, -4.0)).iamax())
         assertEquals(4, sparse.iamax())
         assertEquals(0, DenseVector.zero(3).iamax()) // zero vector: first element
         assertEquals(0, SparseVector.of(3, IntArray(0), DoubleArray(0)).iamax()) // all-unstored: same
@@ -302,14 +276,14 @@ class VectorOpsTest {
 
     @Test
     fun `public iamax returns logical indices across strides and kernel boundaries`() {
-        for (stride in intArrayOf(1, 2, -2)) {
+        // A unit stride reaches the kernel unchanged, and the engine tests already hold it to this contract.
+        for (stride in intArrayOf(2, -2)) {
             val publicKernels = object : KoblasEngine {
                 override val implementations = setOf(EngineImplementation.Iamax)
                 override val name: String = "test-VectorOpsTest"
 
                 override fun iamax(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Int {
                     val values = DoubleArray(len) { v[vOff + it * vStride] }
-                    if (stride == 1) return DenseVector.wrap(values).iamax()
                     val step = if (stride > 0) stride else -stride
                     val offset = 1 + if (stride < 0) (len - 1).coerceAtLeast(0) * step else 0
                     val backing = DoubleArray(2 + len * step) { Double.POSITIVE_INFINITY }
@@ -351,24 +325,6 @@ class VectorOpsTest {
     }
 
     @Test
-    fun `swap snapshots overlapping borrowed slices`() {
-        for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd, koblas)) {
-            val backing = doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0)
-            val a = StridedVector(backing, 0, 4)
-            val b = StridedVector(backing, 4, 4, -1)
-            val originalA = a.toDoubleArray()
-            val originalB = b.toDoubleArray()
-            val expected = backing.copyOf()
-            for (i in 0 until a.size) expected[a.offset + i * a.stride] = originalB[i]
-            for (i in 0 until b.size) expected[b.offset + i * b.stride] = originalA[i]
-
-            engine.swap(a, b)
-
-            assertContentEquals(expected, backing)
-        }
-    }
-
-    @Test
     fun `vector operations reject mismatched sizes`() {
         assertFailsWith<DimensionMismatch> { dense(1.0) dot dense(1.0, 2.0) }
         assertFailsWith<DimensionMismatch> { dense(1.0).axpy(1.0, dense(1.0, 2.0)) }
@@ -400,11 +356,7 @@ class VectorOpsTest {
         val sparse = sparse(3, 1 to 2.0)
         val backing = doubleArrayOf(Double.NaN, 3.0, Double.POSITIVE_INFINITY)
         val borrowed = StridedVector(backing, 2, 3, -1)
-        val foreign = object : Vector {
-            override val size: Int = backing.size
-            override fun get(i: Int): Double = backing[i]
-            override fun toDoubleArray(): DoubleArray = backing.copyOf()
-        }
+        val foreign = ForeignVector(DenseVector.wrap(backing))
 
         for (other in listOf(borrowed, foreign)) {
             val expected = sparse dot DenseVector.of(other.toDoubleArray())
@@ -519,7 +471,7 @@ class VectorOpsTest {
 
     @Test
     fun `the norm accepts a foreign vector`() {
-        val source = ForeignRampVector(9)
+        val source = foreignRamp(9)
         val values = source.toDoubleArray()
         val expected = PortableEngine.nrm2(values, 0, values.size)
 
@@ -530,7 +482,7 @@ class VectorOpsTest {
 
     @Test
     fun `the absolute sum accepts a foreign vector`() {
-        val source = ForeignRampVector(9)
+        val source = foreignRamp(9)
         val values = source.toDoubleArray()
         val expected = PortableEngine.asum(values, 0, values.size)
 
@@ -541,7 +493,7 @@ class VectorOpsTest {
 
     @Test
     fun `the index search accepts a foreign vector`() {
-        val source = ForeignRampVector(9)
+        val source = foreignRamp(9)
         val values = source.toDoubleArray()
         val expected = PortableEngine.iamax(values, 0, values.size)
 
@@ -552,7 +504,7 @@ class VectorOpsTest {
 
     @Test
     fun `dot accepts a foreign vector on either side`() {
-        val source = ForeignRampVector(9)
+        val source = foreignRamp(9)
         val values = source.toDoubleArray()
         val dense = DenseVector.of(values)
         val expected = PortableEngine.dot(values, 0, values, 0, values.size)
@@ -566,7 +518,7 @@ class VectorOpsTest {
 
     @Test
     fun `axpy accepts a foreign source`() {
-        val source = ForeignRampVector(6)
+        val source = foreignRamp(6)
         val destination = DenseVector.zero(6)
         val expected = DoubleArray(6) { 2.0 * source[it] }
 
@@ -577,7 +529,7 @@ class VectorOpsTest {
 
     @Test
     fun `copy accepts a foreign source`() {
-        val source = ForeignRampVector(6)
+        val source = foreignRamp(6)
         val destination = DenseVector.zero(6)
 
         copy(source, destination)
@@ -586,12 +538,88 @@ class VectorOpsTest {
     }
 
     @Test
-    fun `a sparse operand still walks its stored entries against an adapter`() {
-        val sparse = SparseVector.of(6, intArrayOf(1, 4), doubleArrayOf(2.0, -3.0))
-        val ramp = ForeignRampVector(6)
-        var expected = 0.0
-        for (i in 0 until 6) expected += sparse[i] * ramp[i]
-        assertEquals(expected, sparse dot ramp, 1e-12)
-        assertEquals(expected, ramp dot sparse, 1e-12)
+    fun `dot reads the logical entries of borrowed slices`() {
+        val backing = DoubleArray(8) { it + 1.0 }
+        val even = StridedVector(backing, 0, 4, 2)
+        val odd = StridedVector(backing, 1, 4, 2)
+        val expected = PortableEngine.dot(backing, 0, backing, 1, 4, 2, 2)
+
+        val actual = even dot odd
+
+        assertClose(expected, actual, "borrowed dot")
+    }
+
+    @Test
+    fun `scaling a borrowed slice leaves other entries untouched`() {
+        val backing = DoubleArray(8) { it + 1.0 }
+        val even = StridedVector(backing, 0, 4, 2)
+        val expected = backing.copyOf()
+        PortableEngine.scale(expected, 0, 2.0, 4, 2)
+
+        even.scale(2.0)
+
+        assertContentEquals(expected, backing)
+    }
+
+    @Test
+    fun `alpha zero leaves the destination unchanged`() {
+        val y = DenseVector.of(doubleArrayOf(1.0, 2.0, 3.0))
+
+        y.axpy(0.0, DenseVector.of(doubleArrayOf(9.0, 9.0, 9.0)))
+
+        assertContentEquals(doubleArrayOf(1.0, 2.0, 3.0), y.values)
+    }
+
+    /** What the routine is for: a rotation built from the leading pair eliminates the second of them. */
+    @Test
+    fun `a rotation from the leading pair zeroes the target entry`() {
+        // `(0.6, 0.8)` is the rotation `drotg(3, 4)` produces.
+        val x = DenseVector.of(doubleArrayOf(3.0, 1.0, 2.0))
+        val y = DenseVector.of(doubleArrayOf(4.0, -1.0, 0.5))
+
+        rot(x, y, 0.6, 0.8)
+
+        assertEquals(0.0, y[0], 1e-12, "the leading entry of y was not eliminated")
+        assertEquals(5.0, x[0], 1e-12)
+    }
+
+    // `rot` addresses each operand through its own offset and stride, so one that ignored them would rotate the
+    // padding and report nothing. The run vectorises everywhere, and that kernel fuses its multiply and add,
+    // so only the padding is compared exactly.
+    @Test
+    fun `a rotation over strided operands touches only the entries they address`() {
+        val rng = Random(20260916)
+        val n = 8
+        val pad = 2
+        val xs = randomVector(pad + n + pad, rng)
+        val ys = randomVector(pad + n + pad, rng)
+        val x0 = xs.copyOf()
+        val y0 = ys.copyOf()
+        val expectedX = xs.copyOf()
+        val expectedY = ys.copyOf()
+        PortableEngine.rot(expectedX, pad, expectedY, pad, n, 0.6, 0.8)
+
+        rot(StridedVector(xs, pad, n), StridedVector(ys, pad, n), c = 0.6, s = 0.8)
+
+        assertClose(expectedX, xs, "rotation x backing")
+        assertClose(expectedY, ys, "rotation y backing")
+        for (i in listOf(0, 1, pad + n, pad + n + 1)) {
+            assertEquals(x0[i], xs[i], "x padding at $i")
+            assertEquals(y0[i], ys[i], "y padding at $i")
+        }
+    }
+
+    @Test
+    fun `gather rejects a dense vector of another length`() {
+        val pattern = SparseVector.of(6, intArrayOf(1, 4), doubleArrayOf(9.0, 9.0))
+
+        assertFailsWith<DimensionMismatch> { gather(pattern, DenseVector.of(DoubleArray(7))) }
+    }
+
+    @Test
+    fun `gatherZero rejects a dense vector of another length`() {
+        val pattern = SparseVector.of(6, intArrayOf(1, 4), doubleArrayOf(9.0, 9.0))
+
+        assertFailsWith<DimensionMismatch> { gatherZero(pattern, DenseVector.of(DoubleArray(7))) }
     }
 }

@@ -7,6 +7,7 @@ import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.jvm25.host.JvmVendorBlas
 import com.eignex.koblas.internal.jvm25.host.JvmVendorLibrary
+import com.eignex.koblas.internal.jvm25.host.assertAgreesWithReference
 import com.eignex.koblas.internal.jvm25.host.windowsLibraryLookup
 import com.eignex.koblas.internal.portable.PortableEngine
 import com.eignex.koblas.sparse.*
