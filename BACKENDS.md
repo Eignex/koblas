@@ -51,14 +51,5 @@ val engine = BuiltinEngines.configured(profile)
 
 Use `KoblasEngine.combine(profile, providers...)` for custom providers. A custom profile's applicability
 can be checked with `profile.appliesTo(runtime, hostPlatform())`; include SIMD rules explicitly when wanted.
-
-All implementations share `KoblasEngine` and declare positive `EngineImplementation` sets. Composition
-selects arithmetic through profile rules; shared operations handle validation, aliases and scheduling.
-Portable Levels 1–3 live under `internal/portable/dense/` and `internal/portable/sparse/`; vendor engines
-remain independent.
-
-## Recalculate profiles
-
-The [benchmark workflow](koblas-bench/REFERENCE.md#recalculate-routing-profiles) captures paired workloads,
-emits Kotlin configuration and validates rebuilt profiles on disjoint holdouts. Recalculation is explicit;
-application startup only selects a prebuilt profile. Keep reports and measurement data outside the repository.
+Profiles are recalculated explicitly through the [benchmark workflow](koblas-bench/REFERENCE.md#recalculate-routing-profiles);
+application startup only selects a prebuilt one.

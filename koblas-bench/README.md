@@ -32,13 +32,6 @@ Vendor names are `openblas`, `onemkl`, `aocl`, `armpl` and `accelerate`; choose 
 For example, `--libraries onemkl --targets jvm-simd,onemkl-jvm` compares JVM SIMD with the JVM oneMKL
 binding. Target availability and Native cross-compilation are covered in the [reference](REFERENCE.md).
 
-Prepared lab captures on Linux and macOS reuse unchanged file checksums under the existing private
-`LAB_WORKSPACE_CACHE` directory. Every fingerprint still enumerates and sorts its current files and
-emits the same SHA-256 lines. Reuse requires a reliable filesystem, file identity, change time,
-modification time and size; fresh reads check metadata before and after hashing. Receipts include a
-payload checksum and use at most 64 MiB including replacement files. Unsupported filesystems or
-unavailable receipts read the bytes. A missing prepared helper falls back to complete fresh hashing.
-
 ## Read the results
 
 Captures write one CSV per target plus `metadata.txt` into the chosen output directory. Repeated

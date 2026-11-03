@@ -71,10 +71,9 @@ repeat(1_000) {
 
 With beta set to zero, each call replaces the result; setting it to one accumulates into the result.
 Transpose flags let you multiply by a transposed operand without creating a separate transposed matrix.
-`withWorkspace` preserves the engine’s arithmetic and routing while reusing alias snapshots, packed
-panels and sparse scratch. It does not remove allocations from expressions that return new results or
-from sparse operations that build a new storage pattern. Concurrent calls need separate destinations
-and workspaces.
+`withWorkspace` keeps the engine's arithmetic and reuses its temporary buffers. It does not remove
+allocations from expressions that return new results or from sparse operations that build a new storage
+pattern. Concurrent calls need separate destinations and workspaces.
 
 You can also reuse storage you already have. The wrapping factories share the supplied array without
 copying it. Dense matrix storage is column-major: elements in a column are adjacent, and `a[i, j]`
@@ -95,8 +94,7 @@ have their own overlap rules.
 
 Operations follow the usual BLAS numerical contracts. Different engines can round results differently;
 bit-for-bit agreement is not promised. Shapes and arguments are validated, but routines do not scan
-matrices for singularity or poor conditioning. Koblas supplies BLAS operations; factorizations and
-general solvers belong in the calling library.
+matrices for singularity or poor conditioning.
 
 ## Java and mobile projects
 
