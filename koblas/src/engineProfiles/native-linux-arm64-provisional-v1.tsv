@@ -1,5 +1,0 @@
-koblas-profile-v3	native-linux-arm64-provisional-v1	native	Linux	Arm64	*	*	*	BACKENDS.md	Provisional estimates; replace with measured configurations before merge
-openblas	Nrm2,Iamax	256	2147483647	0	2147483647	0	2147483647	0	*	*
-openblas	Dot,Asum,Axpy,Scale,Swap,Rot	128	2147483647	0	2147483647	0	2147483647	0	*	*
-openblas	Syr,Trmv,TrmvTransposed,Trsv,TrsvTransposed,Gemmt,Syrk,Trmm,Trsm	0	2147483647	0	2147483647	0	2147483647	4096	*	*
-openblas	Gemv,GemvTransposed,Symv,Ger,Syr2,Gemm,Symm,Syr2k	0	2147483647	0	2147483647	0	2147483647	2048	*	*

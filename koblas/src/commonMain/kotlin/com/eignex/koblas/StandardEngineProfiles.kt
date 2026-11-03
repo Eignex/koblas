@@ -2,7 +2,7 @@ package com.eignex.koblas
 
 import com.eignex.koblas.vendor.*
 
-/** Complete platform compositions with provisional vendor cutoffs awaiting pre-merge calibration. */
+/** Complete target configurations with measured profiles and documented best-effort preferences. */
 public object StandardEngineProfiles {
     private val portable = EngineProfile("portable", emptyList())
     private val profiles by lazy { standardProfileData.map(EngineProfile::parse) }

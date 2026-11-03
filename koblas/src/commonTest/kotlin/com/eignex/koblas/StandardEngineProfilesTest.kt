@@ -6,6 +6,24 @@ import kotlin.test.*
 
 class StandardEngineProfilesTest {
     @Test
+    fun `measured sve profiles match their width and other widths borrow explicit estimates`() {
+        for (runtime in EngineRuntime.entries) {
+            val measured = StandardEngineProfiles.forTarget(
+                runtime,
+                HostPlatform(OperatingSystem.Linux, Architecture.Arm64, cpuClass = CpuClass.Sve, sveVectorBits = 256),
+            )
+            val estimate = StandardEngineProfiles.forTarget(
+                runtime,
+                HostPlatform(OperatingSystem.Linux, Architecture.Arm64, cpuClass = CpuClass.Sve, sveVectorBits = 512),
+            )
+
+            assertEquals(CpuClass.Sve, measured.target?.cpuClass)
+            assertEquals(256, measured.target?.sveVectorBits)
+            assertTrue(estimate.evidence.startsWith("Unmeasured best effort"))
+        }
+    }
+
+    @Test
     fun `target profiles route through available permitted platform vendors`() {
         for ((os, arch, candidates) in listOf(
             Triple(OperatingSystem.MacOs, Architecture.Arm64, setOf(Vendor.Accelerate)),

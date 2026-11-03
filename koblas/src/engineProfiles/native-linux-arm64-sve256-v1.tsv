@@ -1,0 +1,13 @@
+koblas-profile-v3	native-openblas-b888483a0ca5	native	Linux	Arm64	*	Sve	256	https://lab.eignex.com/jobs/10628	see evidence.json for paired measurements and hashes
+openblas	Asum	1024	2147483647	0	2147483647	0	2147483647	0	true	*
+openblas	Axpy,Rot,Swap	6291456	2147483647	0	2147483647	0	2147483647	0	true	*
+openblas	Dot	8388608	8388608	0	2147483647	0	2147483647	0	false	*
+openblas	Dot	64	2147483647	0	2147483647	0	2147483647	0	true	*
+openblas	Gemm,Gemmt,Symm,Syr2k,Syrk,Trmm,Trsm	8	2147483647	8	2147483647	8	2147483647	512	*	false
+openblas	Gemm	16	2147483647	16	2147483647	16	2147483647	65536	*	true
+openblas	Gemv,GemvTransposed,Ger	16	2147483647	16	2147483647	0	2147483647	1024	*	false
+openblas	Iamax	256	2147483647	0	2147483647	0	2147483647	0	false	*
+openblas	Iamax	96	2147483647	0	2147483647	0	2147483647	0	true	*
+openblas	Nrm2,Scale	256	2147483647	0	2147483647	0	2147483647	0	true	*
+openblas	Symv,Syr,Trmv,TrmvTransposed,Trsv,TrsvTransposed	32	2147483647	32	2147483647	0	2147483647	1024	*	false
+openblas	Syr2	16	2147483647	16	2147483647	0	2147483647	256	*	false
