@@ -9,17 +9,9 @@ temporary=$(mktemp -d "$directory/prepare.XXXXXX")
 trap 'rm -rf "$temporary"' EXIT
 package=intel-oneapi-mkl-core-2026.1-2026.1.0-236_amd64.deb
 expected=3b230c02fc0ac44f8f71062c20cd883b37c6c1e00940dc0a7f13b02d9c47bd93
-python3 - "$temporary/$package" "$expected" <<'PY'
-import hashlib
-from pathlib import Path
-import sys
-import urllib.request
-
-package = Path(sys.argv[1])
-urllib.request.urlretrieve("https://apt.repos.intel.com/oneapi/pool/main/" + package.name, package)
-if hashlib.sha256(package.read_bytes()).hexdigest() != sys.argv[2]:
-    raise RuntimeError("oneMKL reference package checksum mismatch")
-PY
+curl --fail --location --retry 3 --output "$temporary/$package" \
+  "https://apt.repos.intel.com/oneapi/pool/main/$package"
+printf '%s  %s\n' "$expected" "$temporary/$package" | sha256sum --check -
 dpkg-deb --extract "$temporary/$package" "$temporary/extracted"
 rm -rf "$directory/lib"
 mv "$temporary/extracted/opt/intel/oneapi/mkl/2026.1/lib" "$directory/lib"
