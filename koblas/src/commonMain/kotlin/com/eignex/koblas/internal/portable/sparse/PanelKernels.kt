@@ -6,10 +6,17 @@ import com.eignex.koblas.internal.portable.dense.PANEL_NARROW_GROUP
 
 internal fun sparseColumnUpdate(
     alpha: Double,
-    a: DoubleArray, aOffset: Int, rowStride: Int, indexStride: Int,
+    a: DoubleArray,
+    aOffset: Int,
+    rowStride: Int,
+    indexStride: Int,
     indices: IntArray,
-    values: DoubleArray, fromIndex: Int, columns: Int, rows: Int,
-    y: DoubleArray, yOffset: Int,
+    values: DoubleArray,
+    fromIndex: Int,
+    columns: Int,
+    rows: Int,
+    y: DoubleArray,
+    yOffset: Int,
 ) {
     if (rows <= 0 || columns <= 0) return
     var c = 0
@@ -39,10 +46,17 @@ internal fun sparseColumnUpdate(
 
 internal fun sparseRankUpdate(
     alpha: Double,
-    a: DoubleArray, aOffset: Int, rowStride: Int, indexStride: Int,
+    a: DoubleArray,
+    aOffset: Int,
+    rowStride: Int,
+    indexStride: Int,
     indices: IntArray,
-    values: DoubleArray, fromIndex: Int, columns: Int, rows: Int,
-    x: DoubleArray, xOffset: Int,
+    values: DoubleArray,
+    fromIndex: Int,
+    columns: Int,
+    rows: Int,
+    x: DoubleArray,
+    xOffset: Int,
 ) {
     if (rows <= 0 || columns <= 0) return
     var c = 0
@@ -75,10 +89,21 @@ internal fun sparseRankUpdate(
 internal fun sparseCoupledUpdate(
     alpha: Double,
     a: DoubleArray,
-    b: DoubleArray, offset: Int, rowStride: Int, indexStride: Int,
+    b: DoubleArray,
+    offset: Int,
+    rowStride: Int,
+    indexStride: Int,
     indices: IntArray,
-    values: DoubleArray, fromIndex: Int, columns: Int, rows: Int, pivot: Int,
-    sums: DoubleArray, sumOffset: Int, excluded: Int, destinationOffset: Int, destinationRowStride: Int,
+    values: DoubleArray,
+    fromIndex: Int,
+    columns: Int,
+    rows: Int,
+    pivot: Int,
+    sums: DoubleArray,
+    sumOffset: Int,
+    excluded: Int,
+    destinationOffset: Int,
+    destinationRowStride: Int,
     destinationIndexStride: Int,
 ) {
     if (rows <= 0 || columns <= 0) return

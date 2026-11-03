@@ -4,9 +4,19 @@ package com.eignex.koblas.internal.portable.dense
 
 internal fun scalarProductBlock(
     alpha: Double,
-    packedA: DoubleArray, aOffset: Int, aGroupStride: Int,
-    packedB: DoubleArray, bOffset: Int, bGroupStride: Int, rows: Int, columns: Int, depth: Int, beta: Double,
-    c: DoubleArray, cOffset: Int, ldc: Int,
+    packedA: DoubleArray,
+    aOffset: Int,
+    aGroupStride: Int,
+    packedB: DoubleArray,
+    bOffset: Int,
+    bGroupStride: Int,
+    rows: Int,
+    columns: Int,
+    depth: Int,
+    beta: Double,
+    c: DoubleArray,
+    cOffset: Int,
+    ldc: Int,
 ) {
     if (rows <= 0 || columns <= 0) return
     scaleProductWindow(beta, c, cOffset, ldc, rows, columns)
@@ -37,9 +47,16 @@ internal fun scalarProductBlock(
  */
 private fun productTile(
     depth: Int,
-    a: DoubleArray, aOffset: Int,
-    b: DoubleArray, bOffset: Int, alpha: Double,
-    c: DoubleArray, cOffset: Int, ldc: Int, presentRows: Int, presentColumns: Int,
+    a: DoubleArray,
+    aOffset: Int,
+    b: DoubleArray,
+    bOffset: Int,
+    alpha: Double,
+    c: DoubleArray,
+    cOffset: Int,
+    ldc: Int,
+    presentRows: Int,
+    presentColumns: Int,
 ) {
     var c00 = 0.0
     var c10 = 0.0
@@ -96,7 +113,14 @@ private fun productTile(
 }
 
 private fun productStoreColumn(
-    c: DoubleArray, at: Int, presentRows: Int, alpha: Double, v0: Double, v1: Double, v2: Double, v3: Double,
+    c: DoubleArray,
+    at: Int,
+    presentRows: Int,
+    alpha: Double,
+    v0: Double,
+    v1: Double,
+    v2: Double,
+    v3: Double,
 ) {
     c[at] += alpha * v0
     if (presentRows > 1) c[at + 1] += alpha * v1

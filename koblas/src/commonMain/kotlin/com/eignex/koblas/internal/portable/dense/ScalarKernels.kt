@@ -101,8 +101,15 @@ internal fun scalarScale(v: DoubleArray, vOff: Int, vStride: Int, alpha: Double,
 /** Apply the plane rotation `(c, s, -s, c)` to [len] elements of each run, loading each pair before storing. */
 @Suppress("LongParameterList") // two runs plus the rotation
 internal fun scalarRot(
-    x: DoubleArray, xOff: Int,
-    y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double, xStride: Int, yStride: Int,
+    x: DoubleArray,
+    xOff: Int,
+    y: DoubleArray,
+    yOff: Int,
+    len: Int,
+    c: Double,
+    s: Double,
+    xStride: Int,
+    yStride: Int,
 ) {
     if (xStride == 1 && yStride == 1) {
         for (i in 0 until len) {
@@ -123,10 +130,7 @@ internal fun scalarRot(
 
 /** Copy a vector window, preserving its logical strides. */
 @Suppress("LongParameterList")
-internal fun scalarCopy(
-    a: DoubleArray, aOff: Int,
-    b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int,
-) {
+internal fun scalarCopy(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) {
     if (aStride == 1 && bStride == 1) {
         a.copyInto(b, bOff, aOff, aOff + len)
     } else {
@@ -142,8 +146,12 @@ internal fun scalarDivide(v: DoubleArray, offset: Int, length: Int, divisor: Dou
 /** A stored sparse coefficient participates even when it is zero. */
 @Suppress("LongParameterList") // Two contiguous windows and their coefficient.
 internal fun scalarEvaluatedAxpy(
-    y: DoubleArray, yOffset: Int, alpha: Double,
-    x: DoubleArray, xOffset: Int, length: Int,
+    y: DoubleArray,
+    yOffset: Int,
+    alpha: Double,
+    x: DoubleArray,
+    xOffset: Int,
+    length: Int,
 ) {
     for (i in 0 until length) y[yOffset + i] += alpha * x[xOffset + i]
 }

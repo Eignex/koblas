@@ -205,8 +205,15 @@ internal fun trsvCore(
 @Suppress("LongParameterList") // A CSC column slice and its masked destination panel.
 internal fun sparseMaskedTriangularScatter(
     solve: Boolean,
-    rowIndices: IntArray, values: DoubleArray, start: Int, end: Int,
-    dense: DoubleArray, offset: Int, indexStride: Int, rhsStride: Int, width: Int,
+    rowIndices: IntArray,
+    values: DoubleArray,
+    start: Int,
+    end: Int,
+    dense: DoubleArray,
+    offset: Int,
+    indexStride: Int,
+    rhsStride: Int,
+    width: Int,
     work: DoubleArray,
 ) {
     for (position in start until end) {

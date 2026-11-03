@@ -7,8 +7,11 @@ import com.eignex.koblas.internal.portable.dense.rescaledEuclideanNorm
 import kotlin.math.sqrt
 
 internal fun indexedDotDense(
-    indices: IntArray, indexOffset: Int,
-    values: DoubleArray, valueOffset: Int, count: Int,
+    indices: IntArray,
+    indexOffset: Int,
+    values: DoubleArray,
+    valueOffset: Int,
+    count: Int,
     dense: DoubleArray,
 ): Double {
     var sum = 0.0
@@ -17,10 +20,16 @@ internal fun indexedDotDense(
 }
 
 internal fun indexedDotSparse(
-    xIndices: IntArray, xIndexOffset: Int,
-    xValues: DoubleArray, xValueOffset: Int, xCount: Int,
-    yIndices: IntArray, yIndexOffset: Int,
-    yValues: DoubleArray, yValueOffset: Int, yCount: Int,
+    xIndices: IntArray,
+    xIndexOffset: Int,
+    xValues: DoubleArray,
+    xValueOffset: Int,
+    xCount: Int,
+    yIndices: IntArray,
+    yIndexOffset: Int,
+    yValues: DoubleArray,
+    yValueOffset: Int,
+    yCount: Int,
 ): Double {
     var sum = 0.0
     var a = 0
@@ -44,32 +53,45 @@ internal fun indexedDotSparse(
 }
 
 internal fun indexedAxpy(
-    indices: IntArray, indexOffset: Int,
-    values: DoubleArray, valueOffset: Int, count: Int, alpha: Double,
+    indices: IntArray,
+    indexOffset: Int,
+    values: DoubleArray,
+    valueOffset: Int,
+    count: Int,
+    alpha: Double,
     destination: DoubleArray,
 ) {
     for (k in 0 until count) destination[indices[indexOffset + k]] += alpha * values[valueOffset + k]
 }
 
 internal fun indexedScatter(
-    indices: IntArray, indexOffset: Int,
-    values: DoubleArray, valueOffset: Int, count: Int,
+    indices: IntArray,
+    indexOffset: Int,
+    values: DoubleArray,
+    valueOffset: Int,
+    count: Int,
     destination: DoubleArray,
 ) {
     for (k in 0 until count) destination[indices[indexOffset + k]] = values[valueOffset + k]
 }
 
 internal fun indexedGather(
-    indices: IntArray, indexOffset: Int,
-    values: DoubleArray, valueOffset: Int, count: Int,
+    indices: IntArray,
+    indexOffset: Int,
+    values: DoubleArray,
+    valueOffset: Int,
+    count: Int,
     source: DoubleArray,
 ) {
     for (k in 0 until count) values[valueOffset + k] = source[indices[indexOffset + k]]
 }
 
 internal fun indexedGatherZero(
-    indices: IntArray, indexOffset: Int,
-    values: DoubleArray, valueOffset: Int, count: Int,
+    indices: IntArray,
+    indexOffset: Int,
+    values: DoubleArray,
+    valueOffset: Int,
+    count: Int,
     source: DoubleArray,
 ) {
     for (k in 0 until count) {

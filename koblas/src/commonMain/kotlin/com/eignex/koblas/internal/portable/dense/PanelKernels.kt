@@ -4,9 +4,18 @@ package com.eignex.koblas.internal.portable.dense
 
 internal fun scalarMultiDot(
     alpha: Double,
-    a: DoubleArray, aOffset: Int, lda: Int,
-    x: DoubleArray, xOffset: Int, xStride: Int, rows: Int, columns: Int, beta: Double,
-    y: DoubleArray, yOffset: Int, yStride: Int,
+    a: DoubleArray,
+    aOffset: Int,
+    lda: Int,
+    x: DoubleArray,
+    xOffset: Int,
+    xStride: Int,
+    rows: Int,
+    columns: Int,
+    beta: Double,
+    y: DoubleArray,
+    yOffset: Int,
+    yStride: Int,
 ) {
     var c = 0
     while (c + PANEL_WIDE_GROUP <= columns) {
@@ -23,9 +32,18 @@ internal fun scalarMultiDot(
 
 /** One walk of the shared vector feeds four independent sums. */
 private fun panelDotFour(
-    a: DoubleArray, aOffset: Int, lda: Int,
-    x: DoubleArray, xOffset: Int, xStride: Int, rows: Int, alpha: Double, beta: Double,
-    y: DoubleArray, yOffset: Int, yStride: Int,
+    a: DoubleArray,
+    aOffset: Int,
+    lda: Int,
+    x: DoubleArray,
+    xOffset: Int,
+    xStride: Int,
+    rows: Int,
+    alpha: Double,
+    beta: Double,
+    y: DoubleArray,
+    yOffset: Int,
+    yStride: Int,
 ) {
     var s0 = 0.0
     var s1 = 0.0
@@ -46,10 +64,7 @@ private fun panelDotFour(
     panelStore(y, yOffset + 3 * yStride, alpha, s3, beta)
 }
 
-private fun panelDotOne(
-    a: DoubleArray, aOffset: Int,
-    x: DoubleArray, xOffset: Int, xStride: Int, rows: Int,
-): Double {
+private fun panelDotOne(a: DoubleArray, aOffset: Int, x: DoubleArray, xOffset: Int, xStride: Int, rows: Int): Double {
     var sum = 0.0
     var at = xOffset
     for (i in 0 until rows) {
@@ -66,9 +81,17 @@ private fun panelStore(y: DoubleArray, at: Int, alpha: Double, sum: Double, beta
 
 internal fun scalarColumnUpdate(
     alpha: Double,
-    a: DoubleArray, aOffset: Int, lda: Int,
-    x: DoubleArray, xOffset: Int, xStride: Int, rows: Int, columns: Int,
-    y: DoubleArray, yOffset: Int, yStride: Int,
+    a: DoubleArray,
+    aOffset: Int,
+    lda: Int,
+    x: DoubleArray,
+    xOffset: Int,
+    xStride: Int,
+    rows: Int,
+    columns: Int,
+    y: DoubleArray,
+    yOffset: Int,
+    yStride: Int,
 ) {
     if (rows <= 0 || columns <= 0) return
     var c = 0
@@ -99,11 +122,23 @@ internal fun scalarColumnUpdate(
 
 internal fun scalarCoupledUpdateDot(
     alpha: Double,
-    a: DoubleArray, aOffset: Int, lda: Int,
-    x: DoubleArray, xOffset: Int, rows: Int, columns: Int,
-    y: DoubleArray, yOffset: Int,
-    coefficients: DoubleArray, coefficientOffset: Int,
-    sums: DoubleArray, sumOffset: Int, xStride: Int, yStride: Int, coefficientStride: Int, sumStride: Int,
+    a: DoubleArray,
+    aOffset: Int,
+    lda: Int,
+    x: DoubleArray,
+    xOffset: Int,
+    rows: Int,
+    columns: Int,
+    y: DoubleArray,
+    yOffset: Int,
+    coefficients: DoubleArray,
+    coefficientOffset: Int,
+    sums: DoubleArray,
+    sumOffset: Int,
+    xStride: Int,
+    yStride: Int,
+    coefficientStride: Int,
+    sumStride: Int,
 ) {
     if (rows <= 0 || columns <= 0) return
     var c = 0
@@ -141,9 +176,17 @@ internal fun scalarCoupledUpdateDot(
 
 internal fun scalarRankUpdate(
     alpha: Double,
-    a: DoubleArray, aOffset: Int, lda: Int,
-    x: DoubleArray, xOffset: Int, xStride: Int, rows: Int, columns: Int,
-    coefficients: DoubleArray, coefficientOffset: Int, coefficientStride: Int,
+    a: DoubleArray,
+    aOffset: Int,
+    lda: Int,
+    x: DoubleArray,
+    xOffset: Int,
+    xStride: Int,
+    rows: Int,
+    columns: Int,
+    coefficients: DoubleArray,
+    coefficientOffset: Int,
+    coefficientStride: Int,
 ) {
     if (rows <= 0 || columns <= 0) return
     var c = 0
@@ -174,11 +217,23 @@ internal fun scalarRankUpdate(
 
 internal fun scalarRankTwoUpdate(
     alpha: Double,
-    a: DoubleArray, aOffset: Int, lda: Int,
-    x: DoubleArray, xOffset: Int, xStride: Int,
-    y: DoubleArray, yOffset: Int, yStride: Int, rows: Int, columns: Int,
-    u: DoubleArray, uOffset: Int, uStride: Int,
-    v: DoubleArray, vOffset: Int, vStride: Int,
+    a: DoubleArray,
+    aOffset: Int,
+    lda: Int,
+    x: DoubleArray,
+    xOffset: Int,
+    xStride: Int,
+    y: DoubleArray,
+    yOffset: Int,
+    yStride: Int,
+    rows: Int,
+    columns: Int,
+    u: DoubleArray,
+    uOffset: Int,
+    uStride: Int,
+    v: DoubleArray,
+    vOffset: Int,
+    vStride: Int,
 ) {
     if (rows <= 0 || columns <= 0) return
     for (c in 0 until columns) {

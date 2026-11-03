@@ -5,8 +5,19 @@ package com.eignex.koblas.internal.portable.dense
 import com.eignex.koblas.internal.dense.triangleEntry
 
 internal fun scalarDiagonalSolve(
-    t: DoubleArray, n: Int, start: Int, size: Int, transposed: Boolean, lower: Boolean, unitDiag: Boolean,
-    x: DoubleArray, xOffset: Int, orderStride: Int, rhsStride: Int, sides: Int, tOffset: Int,
+    t: DoubleArray,
+    n: Int,
+    start: Int,
+    size: Int,
+    transposed: Boolean,
+    lower: Boolean,
+    unitDiag: Boolean,
+    x: DoubleArray,
+    xOffset: Int,
+    orderStride: Int,
+    rhsStride: Int,
+    sides: Int,
+    tOffset: Int,
 ) {
     if (size <= 0 || sides <= 0) return
     if (sides == 1) {
@@ -30,8 +41,19 @@ internal fun scalarDiagonalSolve(
 }
 
 internal fun scalarDiagonalMultiply(
-    t: DoubleArray, n: Int, start: Int, size: Int, transposed: Boolean, lower: Boolean, unitDiag: Boolean,
-    x: DoubleArray, xOffset: Int, orderStride: Int, rhsStride: Int, sides: Int, tOffset: Int,
+    t: DoubleArray,
+    n: Int,
+    start: Int,
+    size: Int,
+    transposed: Boolean,
+    lower: Boolean,
+    unitDiag: Boolean,
+    x: DoubleArray,
+    xOffset: Int,
+    orderStride: Int,
+    rhsStride: Int,
+    sides: Int,
+    tOffset: Int,
 ) {
     if (size <= 0 || sides <= 0) return
     if (sides == 1) {
@@ -61,8 +83,17 @@ internal fun scalarDiagonalMultiply(
  * [triangleEntry] in dot order, which strides across columns on an untransposed block.
  */
 private fun singleSolve(
-    t: DoubleArray, n: Int, start: Int, size: Int, transposed: Boolean, lower: Boolean, unitDiag: Boolean,
-    x: DoubleArray, xOffset: Int, stride: Int, tOffset: Int,
+    t: DoubleArray,
+    n: Int,
+    start: Int,
+    size: Int,
+    transposed: Boolean,
+    lower: Boolean,
+    unitDiag: Boolean,
+    x: DoubleArray,
+    xOffset: Int,
+    stride: Int,
+    tOffset: Int,
 ) {
     val base = tOffset + start + start * n
     // M(p, q) is at base + p * rowStep + q * columnStep.
@@ -91,8 +122,17 @@ private fun singleSolve(
 
 /** The multiply counterpart of [singleSolve], in the order that keeps each input until its last use. */
 private fun singleMultiply(
-    t: DoubleArray, n: Int, start: Int, size: Int, transposed: Boolean, lower: Boolean, unitDiag: Boolean,
-    x: DoubleArray, xOffset: Int, stride: Int, tOffset: Int,
+    t: DoubleArray,
+    n: Int,
+    start: Int,
+    size: Int,
+    transposed: Boolean,
+    lower: Boolean,
+    unitDiag: Boolean,
+    x: DoubleArray,
+    xOffset: Int,
+    stride: Int,
+    tOffset: Int,
 ) {
     val base = tOffset + start + start * n
     val rowStep = if (transposed) n else 1
