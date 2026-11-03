@@ -101,8 +101,6 @@ val generateCalibrationGrids = tasks.register<Exec>("generateCalibrationGrids") 
         project.file("tune-engine.py"), "--write-cases", output.get().asFile)
 }
 
-tasks.register("prepareLabCalibration") { dependsOn("prepareLabComparison", generateCalibrationGrids) }
-
 private fun benchmarkArguments(mode: String, jmh: Boolean): List<String> = listOf(
     "--mode=$mode",
     "--operation=${providers.gradleProperty("bench.operation").orElse("all").get()}",
@@ -158,8 +156,8 @@ val hostTarget = when {
     else -> null
 }
 
-tasks.register("prepareLabComparison") {
-    dependsOn("prepareLabBenchmark", "prepareLabVendor")
+tasks.register("prepareLabCalibration") {
+    dependsOn("prepareLabBenchmark", "prepareLabVendor", generateCalibrationGrids)
     hostTarget?.let { dependsOn("linkReleaseExecutable$it") }
 }
 

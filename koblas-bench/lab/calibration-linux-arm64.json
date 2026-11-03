@@ -3,5 +3,9 @@
   "classpath": ["koblas-bench/build/lab/classes", "koblas-bench/build/lab/lib/*"],
   "buildTasks": [":koblas-bench:prepareLabBenchmark", ":koblas-bench:generateCalibrationGrids", ":koblas-bench:linkReleaseExecutableLinuxArm64"],
   "jvmArgs": ["-Xmx256m"],
-  "runtime": {"java": 25}
+  "runtime": {"java": 25},
+  "preparation": {
+    "requiredTags": ["platform:linux", "arch:x86_64"],
+    "target": {"os": "linux", "arch": "arm64"}
+  }
 }

@@ -107,7 +107,9 @@ The [calibration manifest](lab/calibration.json) prepares the same generated gri
 `native-training.txt` or `native-holdout.txt` for Native. `native-tail.txt` supplements identical measured
 sources; changed measured sources also need the repeated `anchors.txt` evidence before pooling captures.
 Use [the macOS manifest](lab/calibration-macos.json) for Accelerate so preparation builds on a compatible
-Mac. Native executables are frozen inputs built once during preparation; measured rows never invoke Gradle.
+Mac. The [Linux ARM64 manifest](lab/calibration-linux-arm64.json) declares x64 preparation and ARM64
+build outputs, so the lab hands the cross-built executable to compatible ARM workers.
+Native executables are frozen inputs built once during preparation; measured rows never invoke Gradle.
 Each workload has its own paired case, uses the lab's normal CPU accounting and 2 GiB, and runs without
 CPU affinity pinning. Placement chooses compatible hardware automatically. `native-timing.txt` is a small
 subset for comparing timing protocols before changing measurement settings.
@@ -144,11 +146,9 @@ coprocessor exemption.
 
 ### Prepared vendor comparisons
 
-[The vendor comparison manifest](lab/vendor-comparison.json) builds the Native executable and pins the
-oneMKL reference during preparation. [The macOS manifest](lab/vendor-comparison-macos.json) prepares
-Accelerate comparisons on a compatible Mac. [The Linux ARM64 manifest](lab/vendor-comparison-linux-arm64.json)
-cross-builds the executable during preparation, since Kotlin/Native has no Linux ARM64 compiler host.
-Use it with OpenBLAS and `arch=arm64`; execution rows select compatible ARM workers automatically.
+The same calibration manifests prepare vendor comparisons: Linux x64 pins the oneMKL reference,
+macOS supplies Accelerate, and Linux ARM64 cross-builds on x64 because Kotlin/Native has no ARM compiler host.
+Use the ARM manifest with OpenBLAS and `arch=arm64`; execution rows select compatible ARM workers automatically.
 Timed workers use these frozen inputs without invoking
 Gradle or downloading vendor packages. JVM-only arms need no Native executable input.
 
