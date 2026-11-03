@@ -1,6 +1,7 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.*
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.sparse.*
 import kotlin.test.*
 
 class MatrixTest {

@@ -1,5 +1,7 @@
 package com.eignex.koblas.bench
 
+import com.eignex.koblas.engine.*
+
 import com.eignex.koblas.*
 
 /** Reject engines that do not supply the requested vendor entry point. */

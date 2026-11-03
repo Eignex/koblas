@@ -2,7 +2,6 @@
 
 package com.eignex.koblas.internal.host
 
-import com.eignex.koblas.vendor.*
 import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.CFunction
 import kotlinx.cinterop.COpaquePointer

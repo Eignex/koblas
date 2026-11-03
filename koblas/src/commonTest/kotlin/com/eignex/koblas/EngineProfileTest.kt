@@ -1,6 +1,11 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.ReferenceBlas
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.portable.PortableEngine
+import com.eignex.koblas.matrix.*
+import com.eignex.koblas.sparse.*
 import com.eignex.koblas.vendor.*
 import kotlin.test.*
 
@@ -199,33 +204,6 @@ class EngineProfileTest {
     }
 
     @Test
-    fun `generated profile parsing preserves bounded routing preferences`() {
-        val text = "koblas-profile-v3\ttest\tnative\tLinux\tX86_64\tmeasured cpu\tAvx512\t*\tcapture\tevidence\n" +
-            "portable\tDot\t4\t8\t0\t2147483647\t0\t2147483647\t0\ttrue\t*\n"
-        val profile = EngineProfile.parse(text)
-        val rule = profile.rules.single()
-
-        assertEquals(EngineRuntime.Native, profile.runtime)
-        assertEquals("measured cpu", profile.target?.cpuModel)
-        assertEquals(CpuClass.Avx512, profile.target?.cpuClass)
-        assertTrue(rule.matches(4, 1, 1, true, false))
-        assertTrue(rule.matches(8, 1, 1, true, false))
-        assertFalse(rule.matches(3, 1, 1, true, false))
-        assertFalse(rule.matches(9, 1, 1, true, false))
-        assertFalse(rule.matches(4, 1, 1, false, false))
-        for ((before, after) in listOf(
-            "\tnative\t" to "\tunknown\t",
-            "Avx512" to "Unknown",
-            "koblas-profile-v3" to "koblas-profile-v2",
-            "portable\tDot" to "portable\tUnknown",
-            "\t4\t8\t" to "\t8\t4\t",
-            "\t4\t8\t" to "\t-1\t8\t",
-        )) {
-            assertFailsWith<IllegalArgumentException> { EngineProfile.parse(text.replace(before, after)) }
-        }
-    }
-
-    @Test
     fun `profiles require their measured instruction class`() {
         val profile = EngineProfile(
             "measured",
@@ -251,8 +229,12 @@ class EngineProfileTest {
 
     @Test
     fun `SVE profiles require and match their measured vector width`() {
-        val text = "koblas-profile-v3\tsve\tjvm\tLinux\tArm64\t*\tSve\t256\tcapture\tevidence\n"
-        val profile = EngineProfile.parse(text)
+        val profile = EngineProfile(
+            "sve",
+            emptyList(),
+            EngineRuntime.Jvm,
+            HostPlatform(OperatingSystem.Linux, Architecture.Arm64, cpuClass = CpuClass.Sve, sveVectorBits = 256),
+        )
 
         for (bits in listOf(null, 128, 256, 512)) {
             val host = HostPlatform(
@@ -263,8 +245,19 @@ class EngineProfileTest {
             )
             assertEquals(bits == 256, profile.appliesTo(EngineRuntime.Jvm, host))
         }
-        for (invalid in listOf("*", "0", "64", "129", "4096")) {
-            assertFailsWith<IllegalArgumentException> { EngineProfile.parse(text.replace("\t256\t", "\t$invalid\t")) }
+        for (invalid in listOf(null, 0, 64, 129, 4096)) {
+            assertFailsWith<IllegalArgumentException> {
+                EngineProfile(
+                    "invalid",
+                    emptyList(),
+                    target = HostPlatform(
+                        OperatingSystem.Linux,
+                        Architecture.Arm64,
+                        cpuClass = CpuClass.Sve,
+                        sveVectorBits = invalid,
+                    ),
+                )
+            }
         }
     }
 

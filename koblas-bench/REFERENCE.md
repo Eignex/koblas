@@ -91,9 +91,7 @@ A request identifies `repository: "Eignex/koblas"` and supplies:
 ```
 
 Pass this object as `bench`. Each selected workload becomes one paired case; paths are relative to the repository.
-The optional `profile` parameter names a source-relative configuration file, frozen with role `profile`
-and exported as `KOBLAS_BENCH_ENGINE_PROFILE` for default-engine arms. One adapter handles owned and vendor
-captures, with `vendor`, `platform` and `arch` selecting compatible placement. It uses 2 GiB per case,
+Default arms use the compiled Kotlin profile. One adapter handles owned and vendor captures, with `vendor`, `platform` and `arch` selecting compatible placement. It uses 2 GiB per case,
 a 512 MiB JVM heap and serial GC; `samples`, `warmups`, `target-ms`, `forks` and `rounds` set the timing
 protocol. `jvm-options`, `profile-gc` and `smoke` are explicit options. Direct captures retain the CLI's
 other controls. The adapter owns the output directory and retains logs and partial results on failure.

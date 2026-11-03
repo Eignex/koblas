@@ -2,6 +2,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.dense.PRODUCT_BLOCK_COLUMNS
 import com.eignex.koblas.internal.dense.PRODUCT_BLOCK_DEPTH
 import com.eignex.koblas.internal.dense.PRODUCT_BLOCK_ROWS
@@ -10,8 +11,11 @@ import com.eignex.koblas.internal.dense.productBlockColumns
 import com.eignex.koblas.internal.dense.productBlockDepth
 import com.eignex.koblas.internal.dense.productBlockRows
 import com.eignex.koblas.internal.dense.scratchCapacity
+import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.internal.operands.staged
+import com.eignex.koblas.matrix.*
 import com.eignex.koblas.randomMatrix
+import com.eignex.koblas.sparse.*
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals

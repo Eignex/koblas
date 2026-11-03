@@ -3,6 +3,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.copyOf
+import com.eignex.koblas.engine.*
 import com.eignex.koblas.engineWithKernels
 import com.eignex.koblas.internal.dense.OutputTriangle
 import com.eignex.koblas.internal.dense.PORTABLE_PRODUCT_TILE
@@ -10,8 +11,11 @@ import com.eignex.koblas.internal.dense.PRODUCT_BLOCK_DEPTH
 import com.eignex.koblas.internal.dense.SYMMETRIC_BLOCK
 import com.eignex.koblas.internal.dense.outsideTriangle
 import com.eignex.koblas.internal.dense.productWindow
+import com.eignex.koblas.internal.portable.PortableEngine
+import com.eignex.koblas.matrix.*
 import com.eignex.koblas.poisonedSymmetric
 import com.eignex.koblas.randomMatrix
+import com.eignex.koblas.sparse.*
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals

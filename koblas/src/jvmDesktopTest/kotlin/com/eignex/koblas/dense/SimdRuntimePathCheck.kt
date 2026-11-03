@@ -2,10 +2,13 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.jvm25.simd.SIMD_SPECIES
+import com.eignex.koblas.internal.jvm25.simd.assertHardwareFmaAgreesWithVm
 import com.eignex.koblas.internal.jvm25.simd.hardwareFusedMultiplyAdd
-import com.eignex.koblas.internal.numeric.assertHardwareFmaAgreesWithVm
+import com.eignex.koblas.internal.portable.PortableEngine
 import com.eignex.koblas.poisonedTriangle
+import com.eignex.koblas.sparse.*
 import kotlin.random.Random
 import kotlin.test.assertEquals
 

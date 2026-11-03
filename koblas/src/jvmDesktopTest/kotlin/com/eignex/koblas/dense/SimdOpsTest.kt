@@ -2,7 +2,10 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.jvm25.simd.SimdOps
+import com.eignex.koblas.internal.portable.PortableEngine
+import com.eignex.koblas.sparse.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

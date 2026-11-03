@@ -1,5 +1,11 @@
 package com.eignex.koblas.bench
 
+import com.eignex.koblas.matrix.*
+
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.sparse.*
+
 import com.eignex.koblas.*
 import java.nio.file.Files
 import kotlin.test.Test

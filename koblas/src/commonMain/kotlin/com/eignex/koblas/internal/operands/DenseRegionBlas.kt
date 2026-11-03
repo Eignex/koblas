@@ -5,8 +5,6 @@ package com.eignex.koblas.internal.operands
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.internal.dense.applyBeta
-import com.eignex.koblas.sparse.*
-import com.eignex.koblas.vendor.*
 
 /** Snapshots a region only when it shares the destination buffer. */
 internal inline fun <T> stagedRegion(

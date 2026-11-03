@@ -1,6 +1,8 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.EngineProfile
+import com.eignex.koblas.*
+import com.eignex.koblas.dense.*
+
 import com.eignex.koblas.vendor.Vendor
 import com.eignex.lab.bench.*
 import com.eignex.lab.bench.BenchCase as LabCase
@@ -21,7 +23,7 @@ internal object KoblasLabSuite : BenchSuite {
     private const val ROW = "row"
     private val vendors = Vendor.entries.associateBy { it.vendorName.lowercase() }
     private val parameters = setOf("vendor", "arch", "platform", "operation", "cases", "samples", "warmups",
-        "target-ms", "forks", "rounds", "targets", "profile-gc", "jvm-options", "profile", "smoke")
+        "target-ms", "forks", "rounds", "targets", "profile-gc", "jvm-options", "smoke")
     private val owned = setOf("jvm-scalar", "jvm-simd", "jvm-default", "native", "native-default")
 
     override fun describe() = BenchDescriptor("koblas-bench", "Prepared paired JVM and Native workloads")
@@ -58,7 +60,6 @@ internal object KoblasLabSuite : BenchSuite {
         if (vendor == Vendor.OneMkl && platform == "linux") {
             inputs += BenchInput("koblas-bench/build/vendor-reference", role = "vendor")
         }
-        p["profile"]?.let { inputs += BenchInput(it, role = "profile") }
         val rows = Files.readAllLines(repositoryRoot().resolve(cases)).map(String::trim)
             .filter { it.isNotEmpty() && !it.startsWith('#') }
             .map { line -> Cases.parse(line).single() to line }
@@ -101,12 +102,6 @@ internal object KoblasLabSuite : BenchSuite {
             "KOBLAS_BENCH_PROFILE_GC" to (case.parameters["profile-gc"] ?: "false"),
         )
         case.parameters["jvm-options"]?.let { environment["JAVA_TOOL_OPTIONS"] = it }
-        case.parameters["profile"]?.let { path ->
-            require(case.inputs.any { it.path == path && it.root == BenchInputRoot.SOURCE && it.role == "profile" })
-            val file = root.resolve(path)
-            EngineProfile.parse(Files.readString(file))
-            environment["KOBLAS_BENCH_ENGINE_PROFILE"] = file.toString()
-        }
         case.inputs.singleOrNull { it.role == "vendor" }?.let { input ->
             require(input.root == BenchInputRoot.SOURCE)
             val directory = root.resolve(input.path)

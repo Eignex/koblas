@@ -1,5 +1,10 @@
 package com.eignex.koblas.bench
 
+import com.eignex.koblas.matrix.*
+
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.sparse.*
+
 import com.eignex.koblas.*
 
 /** An addressed product, including reset and checks over every borrowed backing-buffer entry. */

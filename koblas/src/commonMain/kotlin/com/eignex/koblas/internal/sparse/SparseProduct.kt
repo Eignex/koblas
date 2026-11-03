@@ -4,7 +4,6 @@ import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.sparse.*
-import com.eignex.koblas.vendor.*
 
 /**
  * Rows of range per row touched, below which a discovered column is swept into order rather than sorted.

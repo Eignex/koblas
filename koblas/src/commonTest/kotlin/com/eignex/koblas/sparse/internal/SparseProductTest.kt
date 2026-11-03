@@ -3,9 +3,13 @@ package com.eignex.koblas.sparse.internal
 import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.copyOf
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.sparse.sweepsTouchedRows
+import com.eignex.koblas.matrix.*
 import com.eignex.koblas.partialPanelWidth
 import com.eignex.koblas.randomMatrix
+import com.eignex.koblas.sparse.*
 import com.eignex.koblas.sparse.ReferenceSparseBlas
 import com.eignex.koblas.times
 import kotlin.random.Random

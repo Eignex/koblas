@@ -1,5 +1,10 @@
 package com.eignex.koblas;
 
+import com.eignex.koblas.engine.BuiltinEngines;
+import com.eignex.koblas.engine.Engines;
+import static com.eignex.koblas.dense.DenseBlas.*;
+import static com.eignex.koblas.sparse.SparseBlas.*;
+
 final class JavaInteropSmoke {
     private JavaInteropSmoke() {}
 
@@ -17,7 +22,7 @@ final class JavaInteropSmoke {
         assertEquals(34.0, Koblas.dot(vector, vector));
 
         DenseVector destination = DenseVector.wrap(new double[2]);
-        Koblas.gemv(Koblas.getDefault(), 1.0, matrix, vector, 0.0, destination, false, null);
+        gemv(Engines.getDefault(), 1.0, matrix, vector, 0.0, destination, false, null);
         assertArrayEquals(result.toDoubleArray(), destination.toDoubleArray());
         assertEquals(8.0, Koblas.asum(vector));
 
@@ -33,26 +38,26 @@ final class JavaInteropSmoke {
             new double[] {2.0, 3.0}
         );
         double[] scattered = new double[2];
-        Koblas.scatter(Koblas.getDefault(), Koblas.column(sparse, 0), scattered);
+        scatter(Engines.getDefault(), Koblas.column(sparse, 0), scattered);
         assertArrayEquals(new double[] {2.0, 0.0}, scattered);
 
         double[] gemvResult = new double[2];
-        Koblas.gemv(Koblas.getDefault(), 1.0, sparse, new double[] {4.0, 5.0}, 0.0, gemvResult, false, null);
+        gemv(Engines.getDefault(), 1.0, sparse, new double[] {4.0, 5.0}, 0.0, gemvResult, false, null);
         assertArrayEquals(new double[] {8.0, 15.0}, gemvResult);
-        assertArrayEquals(new double[] {8.0, 15.0}, Koblas.gemv(Koblas.getDefault(), sparse, new double[] {4.0, 5.0}, false));
+        assertArrayEquals(new double[] {8.0, 15.0}, gemv(Engines.getDefault(), sparse, new double[] {4.0, 5.0}, false));
 
         KoblasEngine engine = BuiltinEngines.getScalar();
         DenseMatrixRegion outputRegion = DenseMatrix.zero(5, 5).view(1, 1, 2, 2);
-        Koblas.gemm(engine, 1.0, (Matrix) sparse, false, (Matrix) identity, false, 0.0, outputRegion, new Workspace());
+        com.eignex.koblas.matrix.Koblas.gemm(engine, 1.0, (Matrix) sparse, false, (Matrix) identity, false, 0.0, outputRegion, new Workspace());
         assertEquals(2.0, outputRegion.get(0, 0));
         assertEquals(3.0, outputRegion.get(1, 1));
-        Koblas.trmm(engine, sparse, outputRegion, true, false, true, false, 1.0, new Workspace());
+        trmm(engine, sparse, outputRegion, true, false, true, false, 1.0, new Workspace());
         assertEquals(2.0, outputRegion.get(0, 0));
 
         DenseVector reverseInput = new StridedVector(new double[] {5.0, 0.0, 3.0}, 2, 2, -2);
         double[] outputBuffer = new double[] {-7.0, -7.0, -7.0, -7.0, -7.0};
         DenseVector reverseOutput = new StridedVector(outputBuffer, 3, 2, -2);
-        Koblas.gemv(engine, 1.0, matrix, reverseInput, 0.0, reverseOutput, false, null);
+        gemv(engine, 1.0, matrix, reverseInput, 0.0, reverseOutput, false, null);
         assertArrayEquals(new double[] {-7.0, 18.0, -7.0, 11.0, -7.0}, outputBuffer);
 
         DenseVector rotatedX = DenseVector.of(new double[] {3.0});
@@ -61,7 +66,7 @@ final class JavaInteropSmoke {
         Koblas.rot(rotatedX, rotatedY, 0.6, 0.8);
         assertEquals(5.0, rotatedX.get(0));
 
-        if (Koblas.getDefault() == null || BuiltinEngines.getScalar() == null) {
+        if (Engines.getDefault() == null || BuiltinEngines.getScalar() == null) {
             throw new AssertionError("Java engine accessors must return engines");
         }
     }

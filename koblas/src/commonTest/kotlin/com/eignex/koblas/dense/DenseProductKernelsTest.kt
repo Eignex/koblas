@@ -1,5 +1,6 @@
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.matrix.*
 import kotlin.test.Test
 import kotlin.test.assertTrue
 

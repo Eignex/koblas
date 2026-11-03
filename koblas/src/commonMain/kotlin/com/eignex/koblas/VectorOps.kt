@@ -4,8 +4,12 @@
 
 package com.eignex.koblas
 
-import com.eignex.koblas.internal.numeric.euclideanNorm
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.internal.operands.sameVectorMapping
+import com.eignex.koblas.internal.portable.dense.euclideanNorm
+import com.eignex.koblas.sparse.*
 import kotlin.math.abs
 
 /**

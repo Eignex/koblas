@@ -1,5 +1,8 @@
 package com.eignex.koblas.bench
 
+import com.eignex.koblas.*
+import com.eignex.koblas.dense.*
+
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path

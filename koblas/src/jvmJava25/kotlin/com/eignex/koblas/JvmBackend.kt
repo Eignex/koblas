@@ -1,5 +1,6 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.jvm25.host.JvmVendorBlas
 import com.eignex.koblas.internal.jvm25.host.JvmVendorLibrary
 import com.eignex.koblas.internal.jvm25.simd.SimdPanelKernels

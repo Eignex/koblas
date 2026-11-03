@@ -1,12 +1,10 @@
 package com.eignex.koblas.internal.sparse
 
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.*
+import com.eignex.koblas.engine.*
 import com.eignex.koblas.forEachStored
 import com.eignex.koblas.requireIndex
 import com.eignex.koblas.requireShape
-import com.eignex.koblas.sparse.*
-import com.eignex.koblas.vendor.*
 
 /**
  * [a] with every column [replacements] names replaced by the vector it maps to, in one pass.

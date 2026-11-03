@@ -66,6 +66,7 @@ kotlin {
         jvmMain.dependencies {
             implementation(project(":koblas-bench:jmh"))
             implementation("com.eignex:lab-bench:$labBenchVersion")
+            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.12.0")
         }
     }
 }
@@ -91,16 +92,6 @@ dependencies {
     add("jvmMainAnnotationProcessor", project(":koblas-bench:jmh"))
 }
 
-val generateCalibrationGrids = tasks.register<Exec>("generateCalibrationGrids") {
-    val output = layout.buildDirectory.dir("calibration")
-    inputs.files("tune-engine.py", "tuning_capture.py", "cases-addressed.txt")
-    outputs.dir(output)
-    workingDir(rootProject.projectDir)
-    commandLine(providers.environmentVariable("KOBLAS_PYTHON").getOrElse(
-        if (System.getProperty("os.name").startsWith("Windows")) "python" else "python3"),
-        project.file("tune-engine.py"), "--write-cases", output.get().asFile)
-}
-
 private fun benchmarkArguments(mode: String, jmh: Boolean): List<String> = listOf(
     "--mode=$mode",
     "--operation=${providers.gradleProperty("bench.operation").orElse("all").get()}",
@@ -113,6 +104,27 @@ private fun benchmarkArguments(mode: String, jmh: Boolean): List<String> = listO
 ) + if (jmh) listOf("--forks=${providers.gradleProperty("bench.forks").orElse("2").get()}") else emptyList()
 
 val jvmCompilation = (kotlin.targets.getByName("jvm") as KotlinJvmTarget).compilations.getByName("main")
+val generateCalibrationGrids = tasks.register<JavaExec>("generateCalibrationGrids") {
+    dependsOn(jvmCompilation.compileTaskProvider)
+    val output = layout.buildDirectory.dir("calibration")
+    inputs.files(jvmCompilation.output.allOutputs, "cases-addressed.txt")
+    outputs.dir(output)
+    classpath(jvmCompilation.output.allOutputs, configurations.getByName("jvmRuntimeClasspath"))
+    mainClass.set("com.eignex.koblas.bench.EngineTuning")
+    workingDir(rootProject.projectDir)
+    args("--write-cases", output.get().asFile)
+}
+
+tasks.register<JavaExec>("tuneEngine") {
+    dependsOn("prepareLabBenchmark")
+    group = "benchmark"
+    description = "Recalculates Kotlin routing profiles from paired captures. Pass options with --args."
+    dependsOn(jvmCompilation.compileTaskProvider)
+    classpath(jvmCompilation.output.allOutputs, configurations.getByName("jvmRuntimeClasspath"))
+    mainClass.set("com.eignex.koblas.bench.EngineTuning")
+    workingDir(rootProject.projectDir)
+}
+
 val benchmarkJavaVersion = providers.gradleProperty("bench.javaVersion").orElse("25")
 val benchmarkJvmVendor = providers.gradleProperty("bench.javaVendor")
 val expectedBenchmarkJavaHome = providers.gradleProperty("bench.expectedJavaHome")

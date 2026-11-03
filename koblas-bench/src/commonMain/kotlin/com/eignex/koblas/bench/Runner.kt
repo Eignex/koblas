@@ -1,5 +1,7 @@
 package com.eignex.koblas.bench
 
+import com.eignex.koblas.engine.*
+
 import com.eignex.koblas.*
 import com.eignex.koblas.vendor.hostPlatform
 import kotlin.math.max
@@ -9,13 +11,6 @@ internal expect fun readTextFile(path: String): String
 internal expect fun writeTextFile(path: String, text: String)
 internal expect fun resolveEngine(mode: String): Pair<KoblasEngine, String>
 internal expect fun runtimeIdentity(): String
-internal expect fun engineProfilePath(): String?
-/** A generated profile is exercised as an explicit combined engine, with binding costs inside the timed call. */
-internal fun profileEngine(runtime: EngineRuntime): KoblasEngine? = engineProfilePath()?.let { path ->
-    val profile = EngineProfile.parse(readTextFile(path))
-    require(profile.appliesTo(runtime, hostPlatform())) { "Profile ${profile.name} does not apply to this target" }
-    BuiltinEngines.configured(profile)
-}
 
 private val clockOrigin = TimeSource.Monotonic.markNow()
 internal fun nanoTime(): Long = clockOrigin.elapsedNow().inWholeNanoseconds

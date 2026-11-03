@@ -2,6 +2,8 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.engine.*
 import com.eignex.koblas.randomVector
 import kotlin.math.abs
 import kotlin.math.sqrt

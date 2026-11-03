@@ -1,6 +1,6 @@
 package com.eignex.koblas.vendor
 
-import com.eignex.koblas.*
+import com.eignex.koblas.engine.*
 
 /**
  * Whether the single compute thread the binding requires was confirmed against the library itself.

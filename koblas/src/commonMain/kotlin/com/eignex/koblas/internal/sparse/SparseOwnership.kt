@@ -3,9 +3,6 @@ package com.eignex.koblas.internal.sparse
 import com.eignex.koblas.*
 import com.eignex.koblas.borrow
 import com.eignex.koblas.borrowI32
-import com.eignex.koblas.dense.*
-import com.eignex.koblas.sparse.*
-import com.eignex.koblas.vendor.*
 
 /**
  * Borrows the complete rank-update scratch set as one exception-safe inline scope. No holder object is

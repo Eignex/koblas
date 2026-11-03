@@ -1,6 +1,8 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.portable.PortableEngine
 
 /** Runs [body] against every product backend this platform has, which is what decides the block geometry. */
 internal fun withProducts(body: (KoblasEngine) -> Unit) {

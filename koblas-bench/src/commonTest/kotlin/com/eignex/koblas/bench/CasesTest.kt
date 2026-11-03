@@ -1,5 +1,11 @@
 package com.eignex.koblas.bench
 
+import com.eignex.koblas.matrix.*
+
+import com.eignex.koblas.*
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.sparse.*
+
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -121,7 +127,6 @@ class CasesTest {
         assertEquals(expected, actual)
         assertFailsWith<IllegalArgumentException> { Cases.parse("$canonical\n$reordered") }
     }
-
 
     /**
      * The support distribution is a fixture fact, so it is rejected where it means nothing rather than being

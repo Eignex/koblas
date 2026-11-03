@@ -1,6 +1,10 @@
 package com.eignex.koblas.vendor
 
 import com.eignex.koblas.*
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.matrix.*
+import com.eignex.koblas.sparse.*
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals

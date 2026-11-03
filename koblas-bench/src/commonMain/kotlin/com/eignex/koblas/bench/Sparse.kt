@@ -1,5 +1,11 @@
 package com.eignex.koblas.bench
 
+import com.eignex.koblas.matrix.*
+
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.sparse.*
+
 import com.eignex.koblas.*
 import com.eignex.koblas.sparse.SparsePrimitives
 
@@ -487,7 +493,6 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
         else -> null
     }
 }
-
 
 /** A timed row for a sparse matrix call on [engine], refused when one of the case's extents is empty. */
 private fun publish(

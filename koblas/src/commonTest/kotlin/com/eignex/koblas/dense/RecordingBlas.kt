@@ -3,6 +3,8 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.sparse.*
 import com.eignex.koblas.vendor.ThreadEvidence
 import com.eignex.koblas.vendor.Vendor
 

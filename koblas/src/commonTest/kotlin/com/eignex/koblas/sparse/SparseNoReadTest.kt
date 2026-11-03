@@ -1,8 +1,9 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
-import com.eignex.koblas.syr
-import com.eignex.koblas.syr2
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.sparse.syr
+import com.eignex.koblas.sparse.syr2
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals

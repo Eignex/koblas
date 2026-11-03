@@ -15,16 +15,18 @@ first_allowed_cpu() {
 
 fingerprint_paths() {
   local kind=$1 source_kind=$2 path directory
-  if [[ $kind == sources && $source_kind == git ]]; then
-    git ls-files -z | while IFS= read -r -d '' path; do printf '%s\n' "$path"; done
-  elif [[ $kind == sources ]]; then
-    find . -type d \( -name .git -o -name .gradle -o -name .kotlin -o -name .idea -o -name build -o -name node_modules \) \
-      -prune -o \( -type f -o -type l \) -print | sed 's|^./||'
-  else
-    for directory in koblas/build/libs koblas-bench/build/classes koblas-bench/build/bin koblas-bench/jmh/build/libs; do
-      if [[ -d $directory ]]; then find "$directory" \( -type f -o -type l \); fi
-    done
-  fi | LC_ALL=C sort
+  {
+    if [[ $kind == sources && $source_kind == git ]]; then
+      git ls-files -z | while IFS= read -r -d '' path; do printf '%s\n' "$path"; done
+    elif [[ $kind == sources ]]; then
+      find . -type d \( -name .git -o -name .gradle -o -name .kotlin -o -name .idea -o -name build -o -name node_modules \) \
+        -prune -o \( -type f -o -type l \) -print | sed 's|^./||'
+    else
+      for directory in koblas/build/libs koblas-bench/build/classes koblas-bench/build/bin koblas-bench/jmh/build/libs; do
+        if [[ -d $directory ]]; then find "$directory" \( -type f -o -type l \); fi
+      done
+    fi
+  } | LC_ALL=C sort
 }
 
 fingerprint() (

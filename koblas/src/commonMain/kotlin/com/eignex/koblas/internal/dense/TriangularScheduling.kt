@@ -4,8 +4,8 @@ package com.eignex.koblas.internal.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
+import com.eignex.koblas.engine.*
 import com.eignex.koblas.sparse.*
-import com.eignex.koblas.vendor.*
 
 /*
  * Shared scheduling for `B = alpha · op(T)⁻¹ · B` and `B = alpha · op(T) · B`, from either side.

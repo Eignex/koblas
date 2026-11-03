@@ -3,12 +3,14 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.*
 import com.eignex.koblas.axpy
 import com.eignex.koblas.copy
-import com.eignex.koblas.dot
+import com.eignex.koblas.engine.*
 import com.eignex.koblas.engineWithHost
 import com.eignex.koblas.engineWithKernels
 import com.eignex.koblas.internal.dense.TRIANGULAR_DIAGONAL_BLOCK
 import com.eignex.koblas.internal.jvm25.simd.SimdPanelKernels
 import com.eignex.koblas.internal.jvm25.simd.SimdProductKernels
+import com.eignex.koblas.matrix.*
+import com.eignex.koblas.sparse.*
 import com.eignex.koblas.swap
 import com.eignex.koblas.testutil.allocation.AllocationProbe
 import com.eignex.koblas.testutil.allocation.bytesPerCall

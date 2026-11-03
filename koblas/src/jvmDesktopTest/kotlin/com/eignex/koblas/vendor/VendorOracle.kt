@@ -2,6 +2,8 @@ package com.eignex.koblas.vendor
 
 import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.engine.*
 import kotlin.math.abs
 import kotlin.test.assertTrue
 import kotlin.test.fail

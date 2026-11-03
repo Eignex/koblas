@@ -3,9 +3,7 @@
 package com.eignex.koblas.internal.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.*
-import com.eignex.koblas.sparse.*
-import com.eignex.koblas.vendor.*
+import com.eignex.koblas.internal.portable.PortableEngine
 
 /** Side of the square tile [PortableEngine] holds. Changing it means writing a different kernel. */
 internal const val PORTABLE_PRODUCT_TILE: Int = 4

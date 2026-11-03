@@ -1,6 +1,8 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.portable.PortableEngine
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertFailsWith

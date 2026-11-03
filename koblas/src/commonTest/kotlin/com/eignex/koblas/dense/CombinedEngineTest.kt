@@ -2,8 +2,13 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.engine.*
 import com.eignex.koblas.engineWithHost
 import com.eignex.koblas.engineWithKernels
+import com.eignex.koblas.internal.operands.*
+import com.eignex.koblas.internal.portable.PortableEngine
+import com.eignex.koblas.matrix.*
+import com.eignex.koblas.sparse.*
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals

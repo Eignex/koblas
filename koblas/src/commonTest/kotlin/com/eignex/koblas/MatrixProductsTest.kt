@@ -1,5 +1,9 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.matrix.*
+import com.eignex.koblas.sparse.*
 import com.eignex.koblas.sparse.ReferenceSparseBlas
 import kotlin.random.Random
 import kotlin.test.Test

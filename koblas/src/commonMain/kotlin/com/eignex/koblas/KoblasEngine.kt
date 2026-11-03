@@ -5,8 +5,9 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.dense.*
+import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.configuration.*
-import com.eignex.koblas.internal.dense.*
+import com.eignex.koblas.sparse.*
 import com.eignex.koblas.vendor.*
 
 /**

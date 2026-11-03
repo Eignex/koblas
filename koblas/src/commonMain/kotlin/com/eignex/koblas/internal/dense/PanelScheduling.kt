@@ -1,9 +1,6 @@
 package com.eignex.koblas.internal.dense
 
-import com.eignex.koblas.*
-import com.eignex.koblas.dense.*
-import com.eignex.koblas.sparse.*
-import com.eignex.koblas.vendor.*
+import com.eignex.koblas.KoblasEngine
 
 /**
  * Visits [columns] in groups of at most [group], clamped to at least one.

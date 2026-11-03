@@ -1,7 +1,12 @@
 package com.eignex.koblas.vendor
 
 import com.eignex.koblas.*
+import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.ReferenceBlas
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.portable.PortableEngine
+import com.eignex.koblas.matrix.*
+import com.eignex.koblas.sparse.*
 import java.util.concurrent.Callable
 import java.util.concurrent.CyclicBarrier
 import java.util.concurrent.Executors

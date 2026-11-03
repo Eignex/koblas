@@ -2,6 +2,8 @@
 
 package com.eignex.koblas.bench
 
+import com.eignex.koblas.engine.*
+
 import com.eignex.koblas.*
 import com.eignex.koblas.vendor.hostPlatform
 import com.eignex.koblas.vendor.OperatingSystem
@@ -39,13 +41,11 @@ internal actual fun resolveEngine(mode: String): Pair<KoblasEngine, String> {
     require(mode == "native" || mode == "native-default") {
         "Native runner requires --mode=native or --mode=native-default"
     }
-    val engine = if (mode == "native-default") profileEngine(EngineRuntime.Native) ?: koblas else BuiltinEngines.scalar
+    val engine = if (mode == "native-default") koblas else BuiltinEngines.scalar
     return engine to engineIdentity(mode, engine)
 }
 
 internal actual fun runtimeIdentity(): String = "kotlin-native-${KotlinVersion.CURRENT}"
-
-internal actual fun engineProfilePath(): String? = getenv("KOBLAS_BENCH_ENGINE_PROFILE")?.toKString()
 
 internal actual fun RoutingKey.provider(engine: KoblasEngine): String =
     engine.providerFor(operation, rows, columns, depth, contiguous, borrowed)

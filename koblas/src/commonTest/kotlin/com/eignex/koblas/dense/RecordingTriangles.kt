@@ -3,6 +3,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
+import com.eignex.koblas.engine.*
 
 // Recording diagonal substitutions checks routes against executed blocks while retaining their arithmetic.
 

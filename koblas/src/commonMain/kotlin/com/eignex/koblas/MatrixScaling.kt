@@ -4,6 +4,7 @@
 
 package com.eignex.koblas
 
+import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.MatrixStructure
 
 /**

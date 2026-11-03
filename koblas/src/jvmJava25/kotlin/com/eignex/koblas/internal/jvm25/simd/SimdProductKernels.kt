@@ -3,11 +3,9 @@
 package com.eignex.koblas.internal.jvm25.simd
 
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.*
+import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.dense.packsProductByWork
 import com.eignex.koblas.internal.dense.scaleProductWindow
-import com.eignex.koblas.sparse.*
-import com.eignex.koblas.vendor.*
 import jdk.incubator.vector.DoubleVector
 
 /**

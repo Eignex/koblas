@@ -1,6 +1,7 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.*
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.portable.PortableEngine
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals

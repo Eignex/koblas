@@ -102,11 +102,11 @@ bounded shape/layout regions. For an explicit profile, check `profile.appliesTo(
 Measured profiles can require a CPU instruction class (`Avx2`, `Avx512`, `Arm64` or `Sve`) independently of an exact model.
 SVE profiles also require their measured active vector width. Native reads `PR_SVE_GET_VL`; JVM reads
 HotSpot's active `UseSVE`/`MaxVectorSize` settings, including on the scalar arm without the Vector API.
-Unknown or different widths do not match. The tab-separated profile format is v3; earlier formats are rejected.
+Unknown or different widths do not match.
 Standard selection borrows compatible preferences within the same runtime when no target profile matches,
 and labels the result `best-effort-*` with its donor names. Unsupported vendors are excluded.
-To load a recalculated profile, pass its text to `EngineProfile.parse`; the library performs no file I/O.
-Standard configurations live under `koblas/src/engineProfiles/` and are embedded during compilation.
+Standard profiles are typed Kotlin declarations in `engine/TargetProfiles.kt`; the library has no profile parser.
+Portable arithmetic lives in `internal/portable/`, with dense and sparse schedules in their respective packages.
 `BuiltinEngines.configured` resolves named libraries and uses exactly the profile's preferences.
 Include owned SIMD rules explicitly when wanted. Missing optional libraries fall through; unknown source identifiers are rejected. Use
 `KoblasEngine.combine(profile, providers...)` for explicit custom providers or scalar-only composition.
@@ -120,42 +120,26 @@ portable coverage. The composer binds each arithmetic family once; shared schedu
 Recalculate a profile explicitly on the intended host:
 
 ```bash
-python3 koblas-bench/tune-engine.py --capture --runtime native --backend onemkl \
-  --backend openblas \
-  --output /tmp/native-onemkl-profile
+./gradlew :koblas-bench:prepareLabCalibration :koblas-bench:tuneEngine \
+  --args="--capture --runtime native --backend onemkl --backend openblas --cpu * --native-executable koblas-bench/build/bin/linuxX64/releaseExecutable/koblas-bench.kexe --output /tmp/native-profile"
 ```
 
-Use `--runtime jvm` for transfer-inclusive JVM tuning and repeat `--backend` for each vendor.
-The workflow compares paired portable, SIMD and vendor arms, emits `profile.tsv`, and checks the combined
-engine on disjoint holdouts. Review the emitted thresholds as broad routing preferences; avoid fitting
-individual noisy sizes. Replace the target's file under `koblas/src/engineProfiles/` to update the default.
+The Kotlin tool emits `Profile.kt` and external evidence. Use its declaration in the target's standard
+configuration, rebuild, and capture disjoint holdouts using the ordinary `native-default` or `jvm-default` arm.
+Use `--runtime jvm` for transfer-inclusive tuning, or repeat `--results PATH` instead of `--capture` to refit
+fetched lab jobs; retain `lab show ID` and `lab execution ID` snapshots beside their results.
+`--fallback aocl=openblas` and `--fallback armpl=openblas` explicitly mark unmeasured vendor estimates.
 
-Existing lab captures can be refitted without another measurement run:
+Check the rebuilt composition using its recorded generated profile name:
 
 ```bash
-lab fetch ID /tmp/calibration
-lab show ID > /tmp/calibration/lab-job.json
-lab execution ID > /tmp/calibration/lab-execution.json
-python3 koblas-bench/tune-engine.py --results /tmp/calibration --runtime native \
-  --backend onemkl --backend openblas --cpu '*' --cpu-class Avx2 \
-  --output /tmp/native-profile
+./gradlew :koblas-bench:tuneEngine \
+  --args="--validate-results /tmp/holdouts --training /tmp/native-profile --runtime native --output /tmp/validated-profile"
 ```
 
-Repeat `--results PATH` for supplemental captures of the same measured code. Keep runtime, vendor,
-thread and timing settings consistent; model-independent SVE profiles also require `--sve-vector-bits`.
-Use `--fallback aocl=openblas` or `--fallback armpl=openblas` for explicitly unmeasured vendor estimates.
-Run holdouts with `KOBLAS_BENCH_ENGINE_PROFILE=/absolute/path/profile.tsv` on the `native-default` or
-`jvm-default` benchmark arm, then check their results:
-
-```bash
-python3 koblas-bench/tune-engine.py --validate-results /tmp/holdouts \
-  --profile /tmp/native-profile/profile.tsv --output /tmp/validated-profile
-```
-
-Validation reports selected providers and paired ratios, rejecting missing cases and median regressions
-above 5%; inspect noise and reset-dominated controls when reviewing results. `--validation-cases PATH`
-selects an explicit disjoint case list. Keep generated evidence, reports and result data outside the
-repository; only routing configurations belong in the source tree.
+Validation checks the compiled profile identity, disjoint cases, provider reach and paired ratios.
+`--validation-cases PATH` selects an explicit holdout list; `generateCalibrationGrids` emits the standard grids.
+Reports and measurement data stay outside the repository. Thresholds are broad routing preferences.
 
 See the [API overview](koblas/module.md) for explicit engines and bindings, or the
 [usage guide](USAGE.md) for array, workspace and view examples.

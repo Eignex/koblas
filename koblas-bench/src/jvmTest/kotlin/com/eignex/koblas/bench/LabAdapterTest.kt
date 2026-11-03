@@ -26,14 +26,6 @@ class LabAdapterTest {
         } finally { Files.delete(file) }
     }
 
-    @Test fun `explicit profiles are declared inputs of every comparison row`() {
-        val cases = KoblasLabSuite.plan(BenchRequest(mapOf("vendor" to "openblas", "arch" to "arm64",
-            "targets" to "jvm-simd,jvm-default", "profile" to "profiles/target.tsv")))
-
-        assertTrue(cases.all { case -> case.inputs.any { it.role == "profile" && it.path == "profiles/target.tsv" } })
-        assertTrue(cases.all { case -> case.inputs.none { it.role == "executable" } })
-    }
-
     @Test fun `vendors select their compatible hosts`() {
         for ((vendor, arch, platform) in listOf(Triple("openblas", "x86_64", "linux"),
             Triple("openblas", "arm64", "linux"), Triple("onemkl", "x86_64", "linux"),
@@ -58,7 +50,7 @@ class LabAdapterTest {
     }
 
     @Test fun `requests reject reserved rows and nonportable input paths`() {
-        for (parameters in listOf(mapOf("row" to "dot+4+uniform")) + listOf("cases", "profile").flatMap { key ->
+        for (parameters in listOf(mapOf("row" to "dot+4+uniform")) + listOf("cases").flatMap { key ->
             listOf("/tmp/cases", "../cases", "a/../cases", "a\\cases", "C:cases").map { mapOf(key to it) }
         }) {
             assertFailsWith<IllegalArgumentException> { KoblasLabSuite.plan(BenchRequest(parameters)) }
@@ -89,14 +81,11 @@ class LabAdapterTest {
         assertTrue(native.all { case -> case.inputs.any { it.path.endsWith("mingwX64/releaseExecutable/koblas-bench.exe") } })
     }
 
-    @Test fun `prepared capture retains partial outputs and receives its frozen profile`() {
+    @Test fun `prepared capture retains partial outputs`() {
         for ((complete, exit) in listOf(true to 0, false to 0, true to 7)) {
             val root = Files.createTempDirectory("koblas-lab-adapter")
             try {
                 val repository = Files.createDirectories(root.resolve("repository/koblas-bench")).parent
-                Files.createDirectories(repository.resolve("profiles"))
-                Files.writeString(repository.resolve("profiles/target.tsv"),
-                    "koblas-profile-v3\tfixture\t*\t*\t*\t*\t*\t*\tfixture\ttest\n")
                 Files.writeString(repository.resolve("koblas-bench/capture-report.sh"), """
                     #!/usr/bin/env bash
                     set -eu
@@ -111,28 +100,22 @@ class LabAdapterTest {
                     done
                     mkdir "${'$'}output"
                     printf '%s\n' "${'$'}{original[@]}" > "${'$'}output/arguments.txt"
-                    printf '%s\n' "${'$'}KOBLAS_BENCH_ENGINE_PROFILE" > "${'$'}output/profile.txt"
                     cp "${'$'}cases" "${'$'}output/cases.txt"
                     printf 'case,ns\nfixture,12\n' > "${'$'}output/jvm-scalar.csv"
                     printf 'status=${if (complete) "complete" else "incomplete"}\n' > "${'$'}output/metadata.txt"
                     echo retained-log
                     exit $exit
                 """.trimIndent() + "\n")
-                val case = KoblasLabSuite.plan(BenchRequest(mapOf("targets" to "jvm-scalar", "operation" to "dot",
-                    "profile" to "profiles/target.tsv"))).first()
+                val case = KoblasLabSuite.plan(BenchRequest(mapOf("targets" to "jvm-scalar", "operation" to "dot"))).first()
 
                 val result = KoblasLabSuite.run(case, BenchContext(root.resolve("out"), worktree = repository))
 
                 assertEquals(if (complete && exit == 0) BenchStatus.SUCCESS else BenchStatus.FAILED, result.status)
                 assertTrue(result.artifacts.any { it.path == "report/jvm-scalar.csv" })
                 assertTrue(Files.readString(root.resolve("out/capture.log")).contains("retained-log"))
-                assertEquals(repository.resolve("profiles/target.tsv").toString(), Files.readString(root.resolve("out/report/profile.txt")).trim())
                 assertEquals(case.parameters.getValue("row"), Files.readString(root.resolve("out/report/cases.txt")).trim())
                 val arguments = Files.readAllLines(root.resolve("out/report/arguments.txt"))
                 assertTrue("--prepared" in arguments && "--retain-incomplete" in arguments)
-                assertFailsWith<IllegalArgumentException> {
-                    KoblasLabSuite.run(case.copy(inputs = emptyList()), BenchContext(root.resolve("forged"), worktree = repository))
-                }
             } finally { root.toFile().deleteRecursively() }
         }
     }

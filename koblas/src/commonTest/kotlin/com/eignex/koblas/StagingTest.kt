@@ -1,5 +1,7 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.internal.operands.staged
 import kotlin.test.Test
 import kotlin.test.assertContentEquals

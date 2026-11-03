@@ -2,8 +2,8 @@ package com.eignex.koblas.internal.sparse
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
+import com.eignex.koblas.engine.*
 import com.eignex.koblas.sparse.*
-import com.eignex.koblas.vendor.*
 
 /**
  * Dense right-hand sides to visit per walk of a sparse column, for a destination of [columns] of them.

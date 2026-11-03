@@ -1,5 +1,8 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.portable.PortableEngine
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals

@@ -4,7 +4,6 @@ import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.MatrixStructure
 import com.eignex.koblas.sparse.*
-import com.eignex.koblas.vendor.*
 import kotlin.math.abs
 
 /**

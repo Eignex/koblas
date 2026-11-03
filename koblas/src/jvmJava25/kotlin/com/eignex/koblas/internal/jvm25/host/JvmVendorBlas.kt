@@ -5,6 +5,7 @@ package com.eignex.koblas.internal.jvm25.host
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.MatrixStructure
+import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.host.Cblas
 import com.eignex.koblas.internal.host.diagFor
 import com.eignex.koblas.internal.host.positiveIncrement

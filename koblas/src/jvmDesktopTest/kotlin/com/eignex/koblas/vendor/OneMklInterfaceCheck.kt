@@ -2,10 +2,15 @@ package com.eignex.koblas.vendor
 
 import com.eignex.koblas.*
 import com.eignex.koblas.copyOf
+import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.ReferenceBlas
+import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.jvm25.host.JvmVendorBlas
 import com.eignex.koblas.internal.jvm25.host.JvmVendorLibrary
 import com.eignex.koblas.internal.jvm25.host.windowsLibraryLookup
+import com.eignex.koblas.internal.portable.PortableEngine
+import com.eignex.koblas.matrix.*
+import com.eignex.koblas.sparse.*
 import java.lang.foreign.Arena
 import java.lang.foreign.FunctionDescriptor
 import java.lang.foreign.Linker

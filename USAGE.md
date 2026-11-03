@@ -14,6 +14,8 @@ Create a matrix from rows and a vector from a one-dimensional array:
 
 ```kotlin
 import com.eignex.koblas.*
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.engine.*
 
 val a = DenseMatrix.ofRows(arrayOf(
     doubleArrayOf(2.0, 1.0),
@@ -95,20 +97,22 @@ general solvers belong in the calling library.
 
 ## Java and mobile projects
 
-From Java, factories are static methods, Kotlin operators and extensions are exposed through Koblas, and
-`Koblas.getDefault()` is the default engine:
+From Java, factories are static methods and container conveniences use `Koblas`.
+Dense operations use `DenseBlas`, with `Engines.getDefault()` selecting the default engine:
 
 ```java
 import com.eignex.koblas.DenseMatrix;
 import com.eignex.koblas.DenseVector;
 import com.eignex.koblas.Koblas;
+import com.eignex.koblas.dense.DenseBlas;
+import com.eignex.koblas.engine.Engines;
 
 DenseMatrix a = DenseMatrix.ofRows(new double[][] {{2.0, 1.0}, {1.0, 3.0}});
 DenseVector x = DenseVector.of(new double[] {3.0, 5.0});
 DenseVector y = Koblas.multiply(a, x);
 
 DenseVector destination = DenseVector.wrap(new double[a.getRows()]);
-Koblas.getDefault().gemv(1.0, a, x, 0.0, destination, false, null);
+DenseBlas.gemv(Engines.getDefault(), 1.0, a, x, 0.0, destination, false, null);
 ```
 
 Android uses the same dependency as desktop JVM projects, with Java 17 bytecode support in your Android

@@ -4,13 +4,10 @@ package com.eignex.koblas.internal.sparse
 
 import com.eignex.koblas.*
 import com.eignex.koblas.borrow
-import com.eignex.koblas.dense.*
 import com.eignex.koblas.internal.dense.borrowOptional
 import com.eignex.koblas.internal.dense.forEachPanel
+import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.internal.operands.staged
-import com.eignex.koblas.internal.sparse.*
-import com.eignex.koblas.sparse.*
-import com.eignex.koblas.vendor.*
 import kotlin.math.min
 
 /**

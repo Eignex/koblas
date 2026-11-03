@@ -2,8 +2,6 @@ package com.eignex.koblas.internal.operands
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.sparse.*
-import com.eignex.koblas.vendor.*
 
 /* Alias snapshots use workspace loans; callers decide which operands need staging.
  * Sparse snapshots share read-only structure and copy only values.

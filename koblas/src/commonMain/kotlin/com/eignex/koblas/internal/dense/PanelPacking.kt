@@ -5,7 +5,6 @@ package com.eignex.koblas.internal.dense
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.sparse.*
-import com.eignex.koblas.vendor.*
 
 /**
  * Copies the `rows` by `depth` window of `op(A)` starting at ([rowStart], [depthStart]) into left groups.

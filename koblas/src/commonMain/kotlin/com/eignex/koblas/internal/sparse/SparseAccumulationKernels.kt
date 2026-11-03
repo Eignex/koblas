@@ -3,9 +3,6 @@
 package com.eignex.koblas.internal.sparse
 
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.*
-import com.eignex.koblas.sparse.*
-import com.eignex.koblas.vendor.*
 
 /**
  * Portable numerical leaves for the sparse accumulation contracts the matrix algorithms share.

@@ -1,5 +1,9 @@
 package com.eignex.koblas.bench
 
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.sparse.*
+
 import com.eignex.koblas.*
 import kotlin.test.Test
 import kotlin.test.assertEquals

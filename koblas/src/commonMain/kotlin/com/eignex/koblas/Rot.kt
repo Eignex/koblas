@@ -3,6 +3,9 @@
 
 package com.eignex.koblas
 
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.engine.*
+
 /**
  * Apply a plane rotation (BLAS `drot`). Each pair `(x_i, y_i)` becomes `(c*x_i + s*y_i, c*y_i - s*x_i)`,
  * so both [x] and [y] are overwritten in place. Negative strides are supported. Overlapping inputs are

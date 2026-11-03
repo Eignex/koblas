@@ -1,6 +1,6 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.*
+import com.eignex.koblas.engine.*
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.assertEquals

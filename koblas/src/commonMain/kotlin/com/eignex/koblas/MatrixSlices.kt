@@ -4,6 +4,10 @@
 
 package com.eignex.koblas
 
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.sparse.*
+
 /** Column `j` as a fresh vector, copied rather than viewed. */
 public fun DenseMatrix.column(j: Int): DenseVector {
     requireIndex(j in 0 until cols) { "column $j outside [0,$cols)" }

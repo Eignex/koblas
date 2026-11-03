@@ -1,5 +1,7 @@
 package com.eignex.koblas.bench
 
+import com.eignex.koblas.engine.*
+
 import com.eignex.koblas.*
 import java.nio.file.Files
 import java.nio.file.Path
@@ -20,15 +22,13 @@ internal actual fun resolveEngine(mode: String): Pair<KoblasEngine, String> {
         }
         // What an ordinary caller gets, which is a policy rather than an exact arm: its panels and kernels
         // are whatever this platform selected, and the engine name in each row says which those are.
-        "jvm-default" -> profileEngine(EngineRuntime.Jvm) ?: koblas
+        "jvm-default" -> koblas
         else -> error("unknown JVM mode $mode")
     }
     return engine to engineIdentity(mode, engine)
 }
 
 internal actual fun runtimeIdentity(): String = "kotlin-${KotlinVersion.CURRENT}/jvm/${System.getProperty("java.vendor")}/${System.getProperty("java.version")}".replace(',', '_')
-
-internal actual fun engineProfilePath(): String? = System.getenv("KOBLAS_BENCH_ENGINE_PROFILE")
 
 internal actual fun RoutingKey.provider(engine: KoblasEngine): String =
     engine.providerFor(operation, rows, columns, depth, contiguous, borrowed)
