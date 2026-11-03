@@ -79,6 +79,8 @@ internal fun planRightHandSides(
     if (!kernels.sparsePrefersAdjacentSides(adjacent, entries, reduction)) return strided
     // Pack only when the accelerated arithmetic outweighs the copy.
     if (entries.toLong() < STAGED_RHS_CROSSOVER.toLong() * copiedPerSide) return strided
+    // A staged panel is one array, and the copied extent bounds its length from above.
+    if (adjacent * copiedPerSide > Int.MAX_VALUE) return strided
     return -adjacent
 }
 

@@ -133,7 +133,7 @@ class JvmVendorBlasTest {
         assertEquals(0.0, blas.dot(empty, empty))
         assertEquals(0.0, blas.nrm2(empty))
         assertEquals(0.0, blas.asum(empty))
-        assertEquals(0, blas.iamax(empty))
+        assertEquals(-1, blas.iamax(empty))
     }
 
     @Test

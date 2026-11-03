@@ -16,6 +16,7 @@ import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 // Whether a call stages is the backend's own answer, so a runtime with no vector backend would never stage
@@ -293,6 +294,25 @@ class SparseDenseProductTest {
         }
     }
 
+    // Dense enough to pass the copy-cost rule, but the widest panel over this depth needs more than one array.
+    @Test
+    fun `a panel no array can hold is not staged`() {
+        val wide = engineWithKernels(panels = WidePanels)
+        val depth = Int.MAX_VALUE / 4
+
+        val plan = productRhsPlan(
+            wide,
+            1,
+            WidePanels.GROUP,
+            depth,
+            Int.MAX_VALUE,
+            transposeSparse = true,
+            transposeDense = false,
+        )
+
+        assertFalse(rhsStaged(plan))
+    }
+
     // A stored infinity against a dense zero and a stored zero against a dense infinity are both NaN.
     @Test
     fun `a sparse dense product forms the product of every stored entry`() {
@@ -384,4 +404,12 @@ class SparseDenseProductTest {
         /** Wider than the grouping, so a call cuts more than one group and leaves a short last one. */
         const val SIDES = 5
     }
+}
+
+/** [AdjacentPreferringPanels] at the widest group the staging rule admits, wider than any copy-cost ratio. */
+private object WidePanels : KoblasEngine by AdjacentPreferringPanels {
+    const val GROUP = 64
+
+    override fun executionGroup(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean): Int =
+        if (columns <= 0) 1 else minOf(GROUP, columns)
 }

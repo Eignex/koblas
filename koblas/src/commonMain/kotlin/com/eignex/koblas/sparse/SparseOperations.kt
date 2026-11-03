@@ -408,7 +408,9 @@ public fun KoblasEngine.addScaled(alpha: Double, a: SparseMatrix, transposeA: Bo
  * `B = alpha · op(T)⁻¹ · B` in place, or `B = alpha · B · op(T)⁻¹` when [right] (Sparse BLAS `ussm`).
  * The triangle flags follow [trsv]; the right-hand sides are the columns of [b] from the left and its
  * rows from the right.
- * A missing diagonal entry behaves as zero, and singularity is not reported, as in dense `dtrsm`.
+ * A missing diagonal entry behaves as zero, and singularity is not reported, as in dense `dtrsm`. From the right a
+ * stored zero off the diagonal is skipped, as reference `dtrsm` skips a zero coefficient, so an infinity in [b] it
+ * would have multiplied stays an infinity.
  */
 @Suppress("LongParameterList") // the BLAS dtrsm signature
 public fun KoblasEngine.trsm(
@@ -449,7 +451,8 @@ public fun KoblasEngine.trsm(
 /**
  * `B = alpha · op(T) · B` in place, or `B = alpha · B · op(T)` when [right] (BLAS `dtrmm`). The triangle
  * flags follow [trmv]. This is multiplication rather than a solve, so zero or missing diagonal entries
- * participate normally and are never treated as singular. The destination may share [a]'s value buffer.
+ * participate normally and are never treated as singular. From the right a stored zero off the diagonal is skipped,
+ * as reference `dtrmm` skips a zero coefficient. The destination may share [a]'s value buffer.
  */
 @Suppress("LongParameterList") // the BLAS dtrmm signature
 public fun KoblasEngine.trmm(

@@ -162,6 +162,15 @@ class DenseOperationsTest {
     }
 
     @Test
+    fun `iamax over an empty vector reports no index`() = withRegionEngines { blas ->
+        val empty = DenseVector.zero(0)
+
+        val index = blas.iamax(empty)
+
+        assertEquals(-1, index)
+    }
+
+    @Test
     fun `matrix vector calls over no columns scale the output`() = withRegionEngines { blas ->
         val a = paddedRegion(4, 0)
         val actual = doubleArrayOf(1.0, -2.0, 3.0, -4.0)

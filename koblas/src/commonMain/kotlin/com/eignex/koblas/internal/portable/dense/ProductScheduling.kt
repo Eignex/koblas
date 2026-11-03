@@ -80,6 +80,14 @@ internal fun productWindow(
     arrays: ArraySupplier?,
 ) {
     if (m <= 0 || n <= 0) return
+    if (k <= 0) {
+        // Neither path has a depth step to apply beta on, so an empty product scales the selected entries here.
+        for (j in 0 until n) {
+            val at = cOffset + selectedRow(j, m, selected) + j * ldc
+            applyBeta(engine, c, at, selectedRows(j, m, selected), beta)
+        }
+        return
+    }
     // A selected triangle uses the rectangular crossover over its actual extents: reducing the depth to stand
     // for discarded triangle work would distort what a backend decides from.
     val kernels = engine.productProvider
