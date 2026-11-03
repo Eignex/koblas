@@ -1,6 +1,6 @@
 @file:Suppress("LongParameterList") // a product carries both operands, both transpose flags and three extents
 
-package com.eignex.koblas.internal.dense
+package com.eignex.koblas.internal.portable.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.borrow

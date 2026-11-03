@@ -1,4 +1,4 @@
-package com.eignex.koblas.internal.dense
+package com.eignex.koblas.internal.operands
 
 import com.eignex.koblas.*
 

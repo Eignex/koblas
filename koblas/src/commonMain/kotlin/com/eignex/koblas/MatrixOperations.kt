@@ -2,15 +2,14 @@
 @file:kotlin.jvm.JvmName("Koblas")
 @file:kotlin.jvm.JvmMultifileClass
 
-package com.eignex.koblas.matrix
+package com.eignex.koblas
 
-import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
-import com.eignex.koblas.internal.dense.triangleOperand
 import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.internal.operands.denseOperand
 import com.eignex.koblas.internal.operands.scaleRegion
+import com.eignex.koblas.internal.operands.triangleOperand
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.dense.gemm as denseGemm
 import com.eignex.koblas.dense.trmm as denseTrmm

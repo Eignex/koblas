@@ -2,18 +2,17 @@
 
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.engine.*
-
 import com.eignex.koblas.*
-import com.eignex.koblas.vendor.hostPlatform
+import com.eignex.koblas.engine.*
 import com.eignex.koblas.vendor.OperatingSystem
+import com.eignex.koblas.vendor.hostPlatform
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.toKString
-import platform.posix.getenv
 import platform.posix.EOF
 import platform.posix.fclose
 import platform.posix.fgetc
 import platform.posix.fputs
+import platform.posix.getenv
 
 internal actual fun readTextFile(path: String): String = memScoped {
     val file = openTextFile(path, "rb") ?: error("cannot open $path")

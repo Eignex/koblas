@@ -1,14 +1,14 @@
 @file:Suppress("VariableNaming", "FunctionParameterNaming") // math convention: single-letter A, B, C
 
-package com.eignex.koblas.internal.sparse
+package com.eignex.koblas.internal.portable.sparse
 
 import com.eignex.koblas.*
 import com.eignex.koblas.borrow
-import com.eignex.koblas.internal.dense.borrowOptional
-import com.eignex.koblas.internal.dense.forEachPanel
 import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.internal.operands.staged
-import com.eignex.koblas.internal.portable.sparse.*
+import com.eignex.koblas.internal.portable.dense.borrowOptional
+import com.eignex.koblas.internal.portable.dense.forEachPanel
+import com.eignex.koblas.internal.sparse.*
 import kotlin.math.min
 
 /**
@@ -485,6 +485,32 @@ internal fun multiplyFromTheRightColumns(
         kernels.sparseRightProductColumn(
             alpha, column, a.rowIndices, a.values, from, to, transposeA,
             b, leadingDimension, c, rows, bOffset, cOffset, ldc,
+        )
+    }
+}
+
+/** A sparse symmetric operand on the right updates whole contiguous dense columns. */
+@Suppress("LongParameterList") // Two operands, a destination and the stored triangle.
+internal fun multiplySymmetricFromTheRight(
+    engine: KoblasEngine,
+    alpha: Double,
+    a: SparseMatrix,
+    b: DenseMatrixRegion,
+    c: DenseMatrixRegion,
+    lower: Boolean,
+) {
+    for (column in 0 until a.cols) {
+        engine.sparseSymmetricRightColumn(
+            alpha,
+            column,
+            a.rowIndices,
+            a.values,
+            a.colPointers[column],
+            a.colPointers[column + 1],
+            b.values,
+            c.values,
+            b.rows,
+            lower, b.offset, b.leadingDimension, c.offset, c.leadingDimension,
         )
     }
 }

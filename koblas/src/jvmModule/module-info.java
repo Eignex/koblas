@@ -9,7 +9,6 @@ module com.eignex.koblas {
     exports com.eignex.koblas;
     exports com.eignex.koblas.engine;
     exports com.eignex.koblas.dense;
-    exports com.eignex.koblas.matrix;
     exports com.eignex.koblas.sparse;
     exports com.eignex.koblas.vendor;
 }

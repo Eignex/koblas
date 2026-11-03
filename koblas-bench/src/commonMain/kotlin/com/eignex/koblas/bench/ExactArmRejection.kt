@@ -1,8 +1,7 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.engine.*
-
 import com.eignex.koblas.*
+import com.eignex.koblas.engine.*
 
 /** Reject engines that do not supply the requested vendor entry point. */
 internal fun exactArmRejection(

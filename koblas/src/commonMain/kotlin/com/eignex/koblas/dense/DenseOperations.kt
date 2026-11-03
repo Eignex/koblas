@@ -7,11 +7,11 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.configuration.*
-import com.eignex.koblas.internal.dense.*
 import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.internal.portable.PortableEngine
+import com.eignex.koblas.internal.portable.dense.*
+import com.eignex.koblas.internal.portable.sparse.*
 import com.eignex.koblas.internal.sparse.*
-import com.eignex.koblas.matrix.*
 import com.eignex.koblas.sparse.*
 
 /** `xᵀ · y`. */
@@ -124,7 +124,7 @@ public fun KoblasEngine.gemv(
     if (implementation != null) {
         implementation.computeGemv(alpha, a, transpose, DenseVector.wrap(x), beta, DenseVector.wrap(y))
     } else {
-        gemvCore(alpha, a, x, 0, 1, beta, y, 0, 1, transpose)
+        portableGemv(alpha, a, x, 0, 1, beta, y, 0, 1, transpose)
     }
 }
 
@@ -163,50 +163,11 @@ public fun KoblasEngine.gemv(
             if (implementation != null) {
                 implementation.computeGemv(alpha, stableA, transpose, stableX, beta, y)
             } else {
-                gemvCore(
+                portableGemv(
                     alpha, stableA, stableX.values, stableX.offset, stableX.stride, beta, y.values,
                     y.offset, y.stride, transpose,
                 )
             }
-        }
-    }
-}
-
-private fun KoblasEngine.gemvCore(
-    alpha: Double,
-    a: DenseMatrixRegion,
-    x: DoubleArray,
-    xOffset: Int,
-    xStride: Int,
-    beta: Double,
-    y: DoubleArray,
-    yOffset: Int,
-    yStride: Int,
-    transpose: Boolean,
-) {
-    val panels = panelProvider
-    val rows = a.rows
-    if (transpose) {
-        forEachPanel(
-            a.cols,
-            panels.executionGroup(PanelWork.MultiDot, rows, a.cols, xStride == 1),
-        ) { start, width ->
-            panels.multiDot(
-                alpha, a.values, a.offset + start * a.leadingDimension, a.leadingDimension, x,
-                xOffset, xStride, rows, width, beta, y,
-                yOffset + start * yStride, yStride,
-            )
-        }
-    } else {
-        applyBeta(this, y, yOffset, rows, beta, yStride)
-        forEachPanel(
-            a.cols,
-            panels.executionGroup(PanelWork.ColumnUpdate, rows, a.cols, yStride == 1),
-        ) { start, width ->
-            panels.columnUpdate(
-                alpha, a.values, a.offset + start * a.leadingDimension, a.leadingDimension, x,
-                xOffset + start * xStride, xStride, rows, width, y, yOffset, yStride,
-            )
         }
     }
 }
@@ -273,50 +234,9 @@ public fun KoblasEngine.gemm(
                 implementation.computeGemm(alpha, sa, transposeA, sb, transposeB, beta, c)
                 return@stagedRegion
             }
-            gemmCore(alpha, sa, transposeA, sb, transposeB, beta, c, depth, workspace)
+            portableGemm(alpha, sa, transposeA, sb, transposeB, beta, c, depth, workspace)
         }
     }
-}
-
-/**
- * The product itself, over operands already staged against an overlap with the destination.
- *
- * Which path runs is the extents' answer rather than the engine's. A destination with one column or one
- * row is a matrix-vector product, so it runs as [gemv] arithmetic over the operand that is a matrix: the
- * product schedule would otherwise make a separate panel call for every destination column, which on a
- * single row is one call per entry. A single entry is a dot product either way and stays on the schedule,
- * which measured slightly ahead of the matrix-vector form for a long shared dimension.
- */
-private fun KoblasEngine.gemmCore(
-    alpha: Double,
-    a: DenseMatrixRegion,
-    transposeA: Boolean,
-    b: DenseMatrixRegion,
-    transposeB: Boolean,
-    beta: Double,
-    c: DenseMatrixRegion,
-    depth: Int,
-    workspace: Workspace?,
-) {
-    if (c.cols == 1 && c.rows > 1) {
-        // The column of op(B) is a stored column, or a stored row when B is transposed.
-        gemvCore(
-            alpha, a, b.values, b.offset, if (transposeB) b.leadingDimension else 1,
-            beta, c.values, c.offset, 1, transposeA,
-        )
-        return
-    }
-    if (c.rows == 1 && c.cols > 1) {
-        // The destination row is op(B)ᵀ times the row of op(A), a stored column when A is transposed.
-        gemvCore(
-            alpha, b, a.values, a.offset, if (transposeA) 1 else a.leadingDimension,
-            beta, c.values, c.offset, c.leadingDimension, !transposeB,
-        )
-        return
-    }
-    productWindow(
-        this, alpha, a.values, a.offset, a.leadingDimension, transposeA, b.values, b.offset, b.leadingDimension, transposeB, beta, c.values, c.offset, c.leadingDimension, c.rows, c.cols, depth, OutputTriangle.Full, workspace,
-    )
 }
 
 /**
@@ -368,13 +288,7 @@ public fun KoblasEngine.gemmt(
                 )
                 return@stagedRegion
             }
-            productWindow(
-                this, alpha, sa.values, sa.offset, sa.leadingDimension, transposeA, sb.values, sb.offset, sb.leadingDimension, transposeB, beta, c.values, c.offset, c.leadingDimension, c.rows, c.cols, depth,
-                selectedTriangle(
-                    lower,
-                ),
-                workspace,
-            )
+            portableGemmt(alpha, sa, transposeA, sb, transposeB, beta, c, lower, workspace)
         }
     }
 }
@@ -404,7 +318,7 @@ public fun KoblasEngine.symv(
     if (implementation != null) {
         implementation.computeSymv(alpha, a, symmetricStructure(lower), DenseVector.wrap(x), beta, DenseVector.wrap(y))
     } else {
-        symvCore(alpha, a, x, 0, 1, beta, y, 0, 1, lower)
+        portableSymv(alpha, a, x, 0, 1, beta, y, 0, 1, lower)
     }
 }
 
@@ -433,76 +347,9 @@ public fun KoblasEngine.symv(
             if (implementation != null) {
                 implementation.computeSymv(alpha, sa, symmetricStructure(lower), xv, beta, y)
             } else {
-                symvCore(alpha, sa, xv.values, xv.offset, xv.stride, beta, y.values, y.offset, y.stride, lower)
+                portableSymv(alpha, sa, xv.values, xv.offset, xv.stride, beta, y.values, y.offset, y.stride, lower)
             }
         }
-    }
-}
-
-@Suppress("LongParameterList") // the operands, their snapshots and the BLAS dsymv scalars
-private fun KoblasEngine.symvCore(
-    alpha: Double,
-    a: DenseMatrixRegion,
-    x: DoubleArray,
-    xOffset: Int,
-    xStride: Int,
-    beta: Double,
-    y: DoubleArray,
-    yOffset: Int,
-    yStride: Int,
-    lower: Boolean,
-) {
-    val panels = panelProvider
-    val n = a.rows
-    applyBeta(this, y, yOffset, a.rows, beta, yStride)
-    val group = panels.executionGroup(PanelWork.CoupledDotUpdate, n, n, xStride == 1 && yStride == 1)
-    forEachTrianglePanel(n, group, lower, fromDiagonal = false) { start, width, window, rows ->
-        symmetricCorner(alpha, a, x, xOffset, xStride, y, yOffset, yStride, start, width, lower)
-        if (rows > 0) {
-            panels.coupledUpdateDot(
-                alpha, a.values, a.offset + window + start * a.leadingDimension, a.leadingDimension, x,
-                xOffset + window * xStride, rows, width, y, yOffset + window * yStride, x,
-                xOffset + start * xStride, y, yOffset + start * yStride, xStride, yStride,
-                xStride, yStride,
-            )
-        }
-    }
-}
-
-/**
- * The square block where a group's own columns and rows meet, which the shared window cannot reach.
- *
- * Every stored position in it contributes twice, once down its column and once along the mirrored row,
- * except the diagonal which is its own mirror. The arithmetic is the panel's, written out: a coefficient
- * scaled by alpha multiplies down, and the reduction is scaled by alpha on its way into the destination.
- */
-private fun KoblasEngine.symmetricCorner(
-    alpha: Double,
-    a: DenseMatrixRegion,
-    x: DoubleArray,
-    xOffset: Int,
-    xStride: Int,
-    y: DoubleArray,
-    yOffset: Int,
-    yStride: Int,
-    start: Int,
-    width: Int,
-    lower: Boolean,
-) {
-    val lda = a.leadingDimension
-    for (c in start until start + width) {
-        val coefficient = alpha * x[xOffset + c * xStride]
-        val diagonal = a.values[a.offset + c + c * lda]
-        var mirrored = 0.0
-        // Only the stored positions of this column, so no test per entry; the mirrored row sums once.
-        val first = if (lower) c + 1 else start
-        val last = if (lower) start + width else c
-        for (i in first until last) {
-            val value = a.values[a.offset + i + c * lda]
-            y[yOffset + i * yStride] += coefficient * value
-            mirrored += value * x[xOffset + i * xStride]
-        }
-        y[yOffset + c * yStride] += coefficient * diagonal + alpha * mirrored
     }
 }
 
@@ -538,11 +385,7 @@ public fun KoblasEngine.symm(
                 implementation.computeSymm(alpha, sa, symmetricStructure(lower), sb, beta, c, rightSide = right)
                 return@stagedRegion
             }
-            // Scale once because multiple symmetric windows accumulate into each destination entry.
-            scaleRegion(c, beta, vectors = this)
-            symmetricProduct(
-                this, alpha, sa.values, a.rows, lower, sb.values, sb.leadingDimension, c.values, c.leadingDimension, c.rows, c.cols, right, workspace, sa.offset, sa.leadingDimension, sb.offset, c.offset,
-            )
+            portableSymm(alpha, sa, sb, beta, c, lower, right, workspace)
         }
     }
 }
@@ -582,13 +425,7 @@ public fun KoblasEngine.syrk(
             implementation.computeSyrk(alpha, sa, transpose, beta, c, symmetricStructure(lower))
             return@stagedRegion
         }
-        productWindow(
-            this, alpha, sa.values, sa.offset, sa.leadingDimension, transpose, sa.values, sa.offset, sa.leadingDimension, !transpose, beta, c.values, c.offset, c.leadingDimension, c.rows, c.cols, depth,
-            selectedTriangle(
-                lower,
-            ),
-            workspace,
-        )
+        portableSyrk(alpha, sa, transpose, beta, c, lower, workspace)
     }
 }
 
@@ -642,7 +479,6 @@ private fun KoblasEngine.productTriangle(
         scaleRegion(c, beta, lower)
         return
     }
-    val selected = selectedTriangle(lower)
     val implementation = wholeCallFor(
         EngineImplementation.Syr2k,
         c.rows,
@@ -656,12 +492,7 @@ private fun KoblasEngine.productTriangle(
                 implementation.computeSyr2k(alpha, sa, sb, transpose, beta, c, symmetricStructure(lower))
                 return@stagedRegion
             }
-            productWindow(
-                this, alpha, sa.values, sa.offset, sa.leadingDimension, transpose, sb.values, sb.offset, sb.leadingDimension, !transpose, beta, c.values, c.offset, c.leadingDimension, c.rows, c.cols, depth, selected, workspace,
-            )
-            productWindow(
-                this, alpha, sb.values, sb.offset, sb.leadingDimension, transpose, sa.values, sa.offset, sa.leadingDimension, !transpose, 1.0, c.values, c.offset, c.leadingDimension, c.rows, c.cols, depth, selected, workspace,
-            )
+            portableSyr2k(alpha, sa, sb, transpose, beta, c, lower, workspace)
         }
     }
 }
@@ -683,35 +514,9 @@ public fun KoblasEngine.ger(
             implementation.computeGer(alpha, sx, sy, a)
             return@stagedVectors
         }
-        gerCore(
+        portableGer(
             alpha, sx.values, sx.offset, sx.stride, sy.values, sy.offset, sy.stride,
             a, a.offset, a.rows, a.cols,
-        )
-    }
-}
-
-private fun KoblasEngine.gerCore(
-    alpha: Double,
-    sx: DoubleArray,
-    sxOffset: Int,
-    sxStride: Int,
-    sy: DoubleArray,
-    syOffset: Int,
-    syStride: Int,
-    a: DenseMatrixRegion,
-    aOffset: Int,
-    rows: Int,
-    columns: Int,
-) {
-    val panels = panelProvider
-    forEachPanel(
-        columns,
-        panels.executionGroup(PanelWork.RankUpdate, rows, columns, sxStride == 1),
-    ) { start, width ->
-        panels.rankUpdate(
-            alpha, a.values, aOffset + start * a.leadingDimension, a.leadingDimension,
-            sx, sxOffset, sxStride, rows, width,
-            sy, syOffset + start * syStride, syStride,
         )
     }
 }
@@ -735,7 +540,7 @@ public fun KoblasEngine.ger(
     if (implementation != null) {
         implementation.computeGer(alpha, DenseVector.wrap(x), DenseVector.wrap(y), a)
     } else {
-        gerCore(alpha, x, 0, 1, y, 0, 1, a, a.offset, a.rows, a.cols)
+        portableGer(alpha, x, 0, 1, y, 0, 1, a, a.offset, a.rows, a.cols)
     }
 }
 
@@ -774,13 +579,13 @@ public fun KoblasEngine.ger(
             StridedVector(y, yOffset, columns, 1),
             window,
         ) { sx, sy ->
-            gerCore(
+            portableGer(
                 alpha, sx.values, sx.offset, sx.stride, sy.values, sy.offset, sy.stride,
                 window, window.offset, rows, columns,
             )
         }
     } else {
-        gerCore(
+        portableGer(
             alpha, x, xOffset, 1, y, yOffset, 1, a,
             a.offset + rowOffset + columnOffset * a.leadingDimension, rows, columns,
         )
@@ -807,28 +612,7 @@ public fun KoblasEngine.syr(
             implementation.computeSyr(alpha, sx, a, symmetricStructure(lower))
             return@staged
         }
-        val panels = panelProvider
-        val xv = sx.values
-        val origin = sx.offset
-        val step = sx.stride
-        val group = panels.executionGroup(PanelWork.RankUpdate, n, n, sx.stride == 1)
-        forEachTrianglePanel(n, group, lower, fromDiagonal = true) { start, width, window, rows ->
-            // Only the diagonal corner has differing stored rows; the remaining window is shared by the group.
-            val cornerFirst = if (lower) start else start + 1
-            val cornerLast = if (lower) start + width - 1 else start + width
-            for (c in start until start + width) {
-                val coefficient = alpha * xv[origin + c * step]
-                for (i in cornerFirst until cornerLast) {
-                    if (if (lower) i < c else i > c) continue
-                    a.values[a.offset + i + c * a.leadingDimension] += coefficient * xv[origin + i * step]
-                }
-            }
-            panels.rankUpdate(
-                alpha, a.values, a.offset + window + start * a.leadingDimension, a.leadingDimension, xv,
-                origin + window * step, step, rows, width,
-                xv, origin + start * step, step,
-            )
-        }
+        portableSyr(alpha, sx, a, lower)
     }
 }
 
@@ -852,39 +636,7 @@ public fun KoblasEngine.syr2(
             implementation.computeSyr2(alpha, sx, sy, a, symmetricStructure(lower))
             return@stagedVectors
         }
-        syr2Core(alpha, sx, sy, a, lower)
-    }
-}
-
-private fun KoblasEngine.syr2Core(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrixRegion, lower: Boolean) {
-    val panels = panelProvider
-    val n = a.rows
-    val xv = x.values
-    val yv = y.values
-    val xOrigin = x.offset
-    val xStep = x.stride
-    val yOrigin = y.offset
-    val yStep = y.stride
-    val lda = a.leadingDimension
-    val group = panels.executionGroup(PanelWork.RankUpdate, n, n, xStep == 1 && yStep == 1)
-    forEachTrianglePanel(n, group, lower, fromDiagonal = true) { start, width, window, rows ->
-        // Only the diagonal corner has differing stored rows; the remaining window is shared by the group.
-        val cornerFirst = if (lower) start else start + 1
-        val cornerLast = if (lower) start + width - 1 else start + width
-        for (c in start until start + width) {
-            val xc = xv[xOrigin + c * xStep]
-            val yc = yv[yOrigin + c * yStep]
-            for (i in cornerFirst until cornerLast) {
-                if (if (lower) i < c else i > c) continue
-                a.values[a.offset + i + c * lda] +=
-                    alpha * (xv[xOrigin + i * xStep] * yc + yv[yOrigin + i * yStep] * xc)
-            }
-        }
-        panels.rankTwoUpdate(
-            alpha, a.values, a.offset + window + start * lda, lda,
-            xv, xOrigin + window * xStep, xStep, yv, yOrigin + window * yStep, yStep, rows, width,
-            yv, yOrigin + start * yStep, yStep, xv, xOrigin + start * xStep, xStep,
-        )
+        portableSyr2(alpha, sx, sy, a, lower)
     }
 }
 
@@ -913,7 +665,7 @@ public fun KoblasEngine.trsv(
     if (implementation != null) {
         implementation.computeTrsv(a, triangle(lower, unitDiag), transpose, DenseVector.wrap(x))
     } else {
-        trsvCore(a, x, 0, 1, lower, transpose, unitDiag)
+        portableTrsv(a, x, 0, 1, lower, transpose, unitDiag)
     }
 }
 
@@ -950,54 +702,7 @@ public fun KoblasEngine.trsv(
             implementation.computeTrsv(sa, triangle(lower, unitDiag), transpose, x)
             return@stagedRegion
         }
-        trsvCore(sa, x.values, x.offset, x.stride, lower, transpose, unitDiag)
-    }
-}
-
-/**
- * Solve `op(T) · x = b` in place, one stored column at a time.
- *
- * Untransposed, a finished entry is divided by its diagonal and then removed from every entry that
- * depends on it, which is one column update. Transposed, an entry is finished by reducing the column
- * against the entries already done, which is one multi-dot. Either way the dependency order is the
- * substitution's and cannot be grouped away; what a panel covers is the independent arithmetic within
- * one step.
- */
-private fun KoblasEngine.trsvCore(
-    a: DenseMatrixRegion,
-    x: DoubleArray,
-    xOffset: Int,
-    xStride: Int,
-    lower: Boolean,
-    transpose: Boolean,
-    unitDiag: Boolean,
-) {
-    val panels = panelProvider
-    val triangles = triangularProvider
-    val n = a.rows
-    val lda = a.leadingDimension
-    val ascending = lower != transpose
-    forEachTriangularBlock(n, ascending) { start, end ->
-        // The rest of the stored triangle beside this block: below it when lower, above it when upper.
-        val outside = if (lower) end else 0
-        val outsideRows = if (lower) n - end else start
-        val block = a.offset + outside + start * lda
-        if (transpose && outsideRows > 0) {
-            panels.multiDot(
-                -1.0, a.values, block, lda, x, xOffset + outside * xStride, xStride, outsideRows, end - start,
-                1.0, x, xOffset + start * xStride, xStride,
-            )
-        }
-        triangles.diagonalSolve(
-            a.values, lda, start, end - start, transpose, lower != transpose, unitDiag,
-            x, xOffset + start * xStride, xStride, 1, 1, a.offset,
-        )
-        if (!transpose && outsideRows > 0) {
-            panels.columnUpdate(
-                -1.0, a.values, block, lda, x, xOffset + start * xStride, xStride, outsideRows, end - start,
-                x, xOffset + outside * xStride, xStride,
-            )
-        }
+        portableTrsv(sa, x.values, x.offset, x.stride, lower, transpose, unitDiag)
     }
 }
 
@@ -1026,7 +731,7 @@ public fun KoblasEngine.trmv(
     if (implementation != null) {
         implementation.computeTrmv(a, triangle(lower, unitDiag), transpose, DenseVector.wrap(x))
     } else {
-        trmvCore(a, x, 0, 1, lower, transpose, unitDiag)
+        portableTrmv(a, x, 0, 1, lower, transpose, unitDiag)
     }
 }
 
@@ -1055,46 +760,7 @@ public fun KoblasEngine.trmv(
             implementation.computeTrmv(sa, triangle(lower, unitDiag), transpose, x)
             return@stagedRegion
         }
-        trmvCore(sa, x.values, x.offset, x.stride, lower, transpose, unitDiag)
-    }
-}
-
-private fun KoblasEngine.trmvCore(
-    a: DenseMatrixRegion,
-    x: DoubleArray,
-    xOffset: Int,
-    xStride: Int,
-    lower: Boolean,
-    transpose: Boolean,
-    unitDiag: Boolean,
-) {
-    val panels = panelProvider
-    val triangles = triangularProvider
-    val n = a.rows
-    val lda = a.leadingDimension
-    // Traverse in opposite directions for transpose variants to preserve values until their last use.
-    val ascending = transpose == lower
-    forEachTriangularBlock(n, ascending) { start, end ->
-        // The rest of the stored triangle beside this block: below it when lower, above it when upper.
-        val outside = if (lower) end else 0
-        val outsideRows = if (lower) n - end else start
-        val block = a.offset + outside + start * lda
-        if (!transpose && outsideRows > 0) {
-            panels.columnUpdate(
-                1.0, a.values, block, lda, x, xOffset + start * xStride, xStride, outsideRows, end - start,
-                x, xOffset + outside * xStride, xStride,
-            )
-        }
-        triangles.diagonalMultiply(
-            a.values, lda, start, end - start, transpose, lower != transpose, unitDiag,
-            x, xOffset + start * xStride, xStride, 1, 1, a.offset,
-        )
-        if (transpose && outsideRows > 0) {
-            panels.multiDot(
-                1.0, a.values, block, lda, x, xOffset + outside * xStride, xStride, outsideRows, end - start,
-                1.0, x, xOffset + start * xStride, xStride,
-            )
-        }
+        portableTrmv(sa, x.values, x.offset, x.stride, lower, transpose, unitDiag)
     }
 }
 
@@ -1171,9 +837,7 @@ private fun KoblasEngine.triangularMatrix(
             }
             return@stagedRegion
         }
-        triangularMatrix(
-            this, sa.values, order, b.values, b.leadingDimension, sides, lower, transpose, unitDiag, right, alpha, solve, workspace, sa.offset, sa.leadingDimension, b.offset,
-        )
+        portableTriangularMatrix(alpha, sa, triangle(lower, unitDiag), transpose, b, right, solve, workspace)
     }
 }
 

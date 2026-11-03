@@ -10,12 +10,12 @@ import com.eignex.koblas.engineWithKernels
 import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.internal.operands.staged
 import com.eignex.koblas.internal.portable.PortableEngine
+import com.eignex.koblas.internal.portable.sparse.*
+import com.eignex.koblas.internal.portable.sparse.productRhsPlan
+import com.eignex.koblas.internal.portable.sparse.rhsStaged
+import com.eignex.koblas.internal.portable.sparse.symmetricRhsPlan
+import com.eignex.koblas.internal.portable.sparse.triangularRhsPlan
 import com.eignex.koblas.internal.sparse.*
-import com.eignex.koblas.internal.sparse.productRhsPlan
-import com.eignex.koblas.internal.sparse.rhsStaged
-import com.eignex.koblas.internal.sparse.symmetricRhsPlan
-import com.eignex.koblas.internal.sparse.triangularRhsPlan
-import com.eignex.koblas.matrix.*
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals

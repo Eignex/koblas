@@ -6,7 +6,6 @@ import com.eignex.koblas.engine.*
 import com.eignex.koblas.engineWithHost
 import com.eignex.koblas.engineWithKernels
 import com.eignex.koblas.internal.portable.PortableEngine
-import com.eignex.koblas.matrix.*
 import com.eignex.koblas.poisonedSymmetric
 import com.eignex.koblas.poisonedTriangle
 import com.eignex.koblas.randomMatrix

@@ -1,6 +1,6 @@
 @file:Suppress("LongParameterList") // a symmetric product carries both operands, the side and the triangle
 
-package com.eignex.koblas.internal.dense
+package com.eignex.koblas.internal.portable.dense
 
 import com.eignex.koblas.*
 

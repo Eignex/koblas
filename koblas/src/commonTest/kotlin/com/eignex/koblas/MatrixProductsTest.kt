@@ -2,7 +2,6 @@ package com.eignex.koblas
 
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
-import com.eignex.koblas.matrix.*
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.sparse.ReferenceSparseBlas
 import kotlin.random.Random
@@ -11,6 +10,8 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.fail
+import com.eignex.koblas.dense.gemm as denseGemm
+import com.eignex.koblas.sparse.gemm as sparseGemm
 
 class MatrixProductsTest {
 
@@ -72,17 +73,17 @@ class MatrixProductsTest {
         val sparseRight = sparseOf(3, 5, rng)
 
         assertClose(
-            koblas.gemm(denseLeft, denseRight),
+            koblas.denseGemm(denseLeft, denseRight),
             koblas.gemm(denseLeft as Matrix, denseRight) as DenseMatrix,
             "dense by dense",
         )
         assertClose(
-            koblas.gemm(sparseLeft, denseRight),
+            koblas.sparseGemm(sparseLeft, denseRight),
             koblas.gemm(sparseLeft as Matrix, denseRight) as DenseMatrix,
             "sparse by dense",
         )
         val mirrored = DenseMatrix.zero(4, 5)
-        koblas.gemm(1.0, sparseRight, false, denseLeft, false, 0.0, mirrored, right = true)
+        koblas.sparseGemm(1.0, sparseRight, false, denseLeft, false, 0.0, mirrored, right = true)
         assertClose(mirrored, koblas.gemm(denseLeft as Matrix, sparseRight) as DenseMatrix, "dense by sparse")
 
         assertEquals(
@@ -114,7 +115,7 @@ class MatrixProductsTest {
                 val mirroredExpected = randomMatrix(5, 3, rng)
                 val mirroredActual = DenseMatrix.wrap(5, 3, mirroredExpected.values.copyOf())
 
-                koblas.gemm(
+                koblas.sparseGemm(
                     0.75,
                     rightSparse,
                     transposeOther,
@@ -237,7 +238,7 @@ class MatrixProductsTest {
         val sparse = sparseOf(2, 4, rng)
 
         val expected = DenseMatrix.zero(3, 4)
-        koblas.gemm(1.0, sparse, false, backing, false, 0.0, expected, right = true)
+        koblas.sparseGemm(1.0, sparse, false, backing, false, 0.0, expected, right = true)
         val actual = DenseMatrix.zero(3, 4)
         koblas.gemm(1.0, foreign, false, sparse, false, 0.0, actual)
 

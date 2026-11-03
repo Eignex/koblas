@@ -4,7 +4,6 @@ import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.engine.*
-import com.eignex.koblas.matrix.*
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 

@@ -1,9 +1,9 @@
 @file:Suppress("VariableNaming", "FunctionParameterNaming") // math convention: single-letter matrices
 
-package com.eignex.koblas.internal.sparse
+package com.eignex.koblas.internal.portable.sparse
 
 import com.eignex.koblas.*
-import com.eignex.koblas.internal.portable.sparse.*
+import com.eignex.koblas.internal.sparse.*
 import com.eignex.koblas.requireShape
 
 /*

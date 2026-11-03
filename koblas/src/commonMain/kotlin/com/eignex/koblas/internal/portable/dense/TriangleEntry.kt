@@ -1,4 +1,4 @@
-package com.eignex.koblas.internal.dense
+package com.eignex.koblas.internal.portable.dense
 
 /** `M(p, q)` for a diagonal block starting at [start], which is the entry a substitution reads. */
 internal fun triangleEntry(

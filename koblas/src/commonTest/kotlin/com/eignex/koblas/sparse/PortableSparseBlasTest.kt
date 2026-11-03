@@ -6,7 +6,6 @@ import com.eignex.koblas.copyOf
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.sparse.withSymmetricRankScratch
-import com.eignex.koblas.matrix.*
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals

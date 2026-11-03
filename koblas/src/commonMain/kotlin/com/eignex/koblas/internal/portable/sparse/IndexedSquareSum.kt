@@ -1,5 +1,7 @@
 package com.eignex.koblas.internal.portable.sparse
 
+import com.eignex.koblas.internal.sparse.*
+
 internal fun indexedSquareSum(indices: IntArray, indexOffset: Int, count: Int, values: DoubleArray): Double {
     // Independent sums avoid serialising every indexed load behind one addition chain.
     var squares = 0.0

@@ -3,8 +3,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.internal.dense.triangularMatrix
-import com.eignex.koblas.matrix.*
+import com.eignex.koblas.internal.portable.dense.triangularMatrix
 import com.eignex.koblas.sparse.*
 
 /**

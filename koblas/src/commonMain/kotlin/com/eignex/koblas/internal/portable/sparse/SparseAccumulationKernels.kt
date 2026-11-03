@@ -2,7 +2,8 @@
 
 package com.eignex.koblas.internal.portable.sparse
 
-import com.eignex.koblas.internal.sparse.sweepsTouchedRows
+import com.eignex.koblas.internal.portable.sparse.sweepsTouchedRows
+import com.eignex.koblas.internal.sparse.*
 
 /**
  * Portable numerical leaves for the sparse accumulation contracts the matrix algorithms share.

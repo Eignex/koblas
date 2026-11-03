@@ -4,7 +4,6 @@ import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.copyOf
 import com.eignex.koblas.internal.operands.*
-import com.eignex.koblas.matrix.*
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.randomVector
 import com.eignex.koblas.sparse.*

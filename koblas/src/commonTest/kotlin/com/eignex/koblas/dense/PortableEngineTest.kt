@@ -8,7 +8,6 @@ import com.eignex.koblas.copyOf
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.engineWithKernels
 import com.eignex.koblas.internal.portable.PortableEngine
-import com.eignex.koblas.matrix.*
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.randomVector
 import com.eignex.koblas.sparse.*

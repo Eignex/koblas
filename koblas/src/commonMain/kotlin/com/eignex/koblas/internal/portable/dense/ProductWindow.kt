@@ -1,6 +1,6 @@
 @file:Suppress("LongParameterList") // a product block carries two packed panels, its extents and its scaling
 
-package com.eignex.koblas.internal.dense
+package com.eignex.koblas.internal.portable.dense
 
 /**
  * Whether copying both operands into tiles pays for itself at these extents.

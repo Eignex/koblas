@@ -48,7 +48,7 @@ final class JavaInteropSmoke {
 
         KoblasEngine engine = BuiltinEngines.getScalar();
         DenseMatrixRegion outputRegion = DenseMatrix.zero(5, 5).view(1, 1, 2, 2);
-        com.eignex.koblas.matrix.Koblas.gemm(engine, 1.0, (Matrix) sparse, false, (Matrix) identity, false, 0.0, outputRegion, new Workspace());
+        com.eignex.koblas.Koblas.gemm(engine, 1.0, (Matrix) sparse, false, (Matrix) identity, false, 0.0, outputRegion, new Workspace());
         assertEquals(2.0, outputRegion.get(0, 0));
         assertEquals(3.0, outputRegion.get(1, 1));
         trmm(engine, sparse, outputRegion, true, false, true, false, 1.0, new Workspace());

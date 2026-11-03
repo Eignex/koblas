@@ -4,6 +4,7 @@ package com.eignex.koblas.internal.portable.sparse
 
 import com.eignex.koblas.internal.portable.dense.MIN_NORMAL
 import com.eignex.koblas.internal.portable.dense.rescaledEuclideanNorm
+import com.eignex.koblas.internal.sparse.*
 import kotlin.math.sqrt
 
 internal fun indexedDotDense(

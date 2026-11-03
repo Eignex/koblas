@@ -6,12 +6,11 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.internal.dense.*
 import com.eignex.koblas.internal.operands.*
+import com.eignex.koblas.internal.portable.dense.*
 import com.eignex.koblas.internal.portable.dense.euclideanNorm
 import com.eignex.koblas.internal.portable.sparse.*
 import com.eignex.koblas.internal.sparse.*
-import com.eignex.koblas.matrix.*
 
 /** Fresh dense product using portable CSC traversal and this engine's arithmetic. */
 public fun KoblasEngine.gemm(a: SparseMatrix, b: DenseMatrixRegion): DenseMatrix =
@@ -57,49 +56,7 @@ public fun KoblasEngine.gemv(
     // Snapshot aliased operands before destination scaling overwrites their coefficients.
     staged(workspace, x, x === y) { stableX ->
         staged(workspace, a, a.values === y) { stableA ->
-            gemvCore(alpha, stableA, stableX, beta, y, transpose)
-        }
-    }
-}
-
-@Suppress("LongParameterList") // the BLAS dgemv signature, over the snapshots taken for it
-private fun KoblasEngine.gemvCore(
-    alpha: Double,
-    stableA: SparseMatrix,
-    stableX: DoubleArray,
-    beta: Double,
-    y: DoubleArray,
-    transpose: Boolean,
-) {
-    applyBeta(this, y, 0, y.size, beta)
-    if (transpose) {
-        for (j in 0 until stableA.cols) {
-            val start = stableA.colPointers[j]
-            val end = stableA.colPointers[j + 1]
-            if (start == end) continue
-            val sum = this.dotDense(
-                stableA.rowIndices,
-                start,
-                stableA.values,
-                start,
-                end - start,
-                stableX,
-            )
-            y[j] += alpha * sum
-        }
-    } else {
-        for (j in 0 until stableA.cols) {
-            val xj = alpha * stableX[j]
-            val start = stableA.colPointers[j]
-            this.axpy(
-                stableA.rowIndices,
-                start,
-                stableA.values,
-                start,
-                stableA.colPointers[j + 1] - start,
-                xj,
-                y,
-            )
+            portableSparseGemv(alpha, stableA, stableX, beta, y, transpose)
         }
     }
 }
@@ -137,20 +94,7 @@ public fun KoblasEngine.symv(
     }
     staged(workspace, x, x === y) { stableX ->
         staged(workspace, a, a.values === y) { stableA ->
-            applyBeta(this, y, 0, y.size, beta)
-            for (column in 0 until stableA.cols) {
-                sparseSymmetricVectorColumn(
-                    alpha,
-                    column,
-                    stableA.rowIndices,
-                    stableA.values,
-                    stableA.colPointers[column],
-                    stableA.colPointers[column + 1],
-                    stableX,
-                    y,
-                    lower,
-                )
-            }
+            portableSparseSymv(alpha, stableA, stableX, beta, y, lower)
         }
     }
 }
@@ -186,20 +130,7 @@ public fun KoblasEngine.symm(
         stagedRegion(workspace, b, c) { stableB ->
             scaleRegion(c, beta, vectors = this)
             if (right) {
-                for (column in 0 until stableA.cols) {
-                    this.sparseSymmetricRightColumn(
-                        alpha,
-                        column,
-                        stableA.rowIndices,
-                        stableA.values,
-                        stableA.colPointers[column],
-                        stableA.colPointers[column + 1],
-                        stableB.values,
-                        c.values,
-                        stableB.rows,
-                        lower, stableB.offset, stableB.leadingDimension, c.offset, c.leadingDimension,
-                    )
-                }
+                multiplySymmetricFromTheRight(this, alpha, stableA, stableB, c, lower)
             } else {
                 multiplySymmetricFromTheLeft(this, alpha, stableA, stableB, c, lower, workspace)
             }

@@ -1,6 +1,7 @@
 package com.eignex.koblas.internal.sparse
 
 import com.eignex.koblas.*
+import com.eignex.koblas.internal.portable.sparse.*
 
 /**
  * The CSC transpose, which is also the CSC-to-CSR conversion. Explicitly stored zeros survive, since the

@@ -1,9 +1,9 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.engine.*
-import kotlin.test.*
 import java.nio.file.Files
 import java.nio.file.Path
+import kotlin.test.*
 
 class EngineTuningTest {
     @Test fun `generated grids are unique disjoint and parseable`() {

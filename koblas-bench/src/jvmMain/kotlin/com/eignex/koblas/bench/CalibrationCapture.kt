@@ -2,12 +2,11 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.*
-
 import com.eignex.koblas.engine.EngineImplementation
-import kotlinx.serialization.json.*
 import java.nio.file.Files
 import java.nio.file.Path
 import java.security.MessageDigest
+import kotlinx.serialization.json.*
 
 internal fun digest(path: Path): String = MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(path))
     .joinToString("") { "%02x".format(it) }

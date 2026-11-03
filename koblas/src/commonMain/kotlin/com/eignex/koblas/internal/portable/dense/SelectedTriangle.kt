@@ -1,4 +1,4 @@
-package com.eignex.koblas.internal.dense
+package com.eignex.koblas.internal.portable.dense
 
 /** The part of a square destination a selected-triangle routine writes. */
 internal fun selectedTriangle(lower: Boolean): OutputTriangle =

@@ -2,7 +2,7 @@
 
 package com.eignex.koblas.internal.portable.dense
 
-import com.eignex.koblas.internal.dense.triangleEntry
+import com.eignex.koblas.internal.portable.dense.triangleEntry
 
 internal fun scalarDiagonalSolve(
     t: DoubleArray,

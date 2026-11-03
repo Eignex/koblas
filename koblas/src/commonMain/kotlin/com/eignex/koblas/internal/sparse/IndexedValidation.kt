@@ -1,6 +1,7 @@
 package com.eignex.koblas.internal.sparse
 
 import com.eignex.koblas.*
+import com.eignex.koblas.internal.portable.sparse.*
 
 internal fun validateColumnDot(matrix: SparseMatrix, column: Int, dense: DoubleArray) {
     requireIndex(column in 0 until matrix.cols) { "column $column is outside [0, ${matrix.cols})" }

@@ -4,8 +4,7 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.internal.dense.selectedTriangle
-import com.eignex.koblas.matrix.*
+import com.eignex.koblas.internal.portable.dense.selectedTriangle
 
 /**
  * Independent sparse oracle using stored coordinates from [SparseMatrix.forEachInColumn].

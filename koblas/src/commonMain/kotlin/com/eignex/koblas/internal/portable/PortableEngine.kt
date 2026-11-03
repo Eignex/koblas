@@ -2,18 +2,19 @@
 
 package com.eignex.koblas.internal.portable
 
-import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.*
+import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.EngineImplementation
 import com.eignex.koblas.engine.PanelWork
-import com.eignex.koblas.internal.dense.packsProductByWork
 import com.eignex.koblas.internal.portable.dense.*
+import com.eignex.koblas.internal.portable.dense.packsProductByWork
 import com.eignex.koblas.internal.portable.sparse.*
 
 /** Complete portable arithmetic, independent of every accelerated provider. */
 internal object PortableEngine : KoblasEngine {
     override val name: String = "scalar"
     override val id: String = "portable"
-    override val implementations = EngineImplementation.entries.filterNot { it.matrix }.toSet()
+    override val implementations = EngineImplementation.entries.toSet()
 
     override fun dot(
         a: DoubleArray,
@@ -373,4 +374,119 @@ internal object PortableEngine : KoblasEngine {
     ) = scalarDiagonalMultiply(
         t, n, start, size, transposed, lower, unitDiag, x, xOffset, orderStride, rhsStride, sides, tOffset,
     )
+
+    override fun computeGemv(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        transposeA: Boolean,
+        x: DenseVector,
+        beta: Double,
+        y: DenseVector,
+    ): Unit = portableGemv(alpha, a, x.values, x.offset, x.stride, beta, y.values, y.offset, y.stride, transposeA)
+
+    override fun computeSymv(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        structure: MatrixStructure,
+        x: DenseVector,
+        beta: Double,
+        y: DenseVector,
+    ): Unit =
+        portableSymv(alpha, a, x.values, x.offset, x.stride, beta, y.values, y.offset, y.stride, structure.isLower)
+
+    override fun computeGer(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrixRegion): Unit =
+        portableGer(alpha, x.values, x.offset, x.stride, y.values, y.offset, y.stride, a, a.offset, a.rows, a.cols)
+
+    override fun computeSyr(alpha: Double, x: DenseVector, a: DenseMatrixRegion, structure: MatrixStructure): Unit =
+        portableSyr(alpha, x, a, structure.isLower)
+
+    override fun computeSyr2(
+        alpha: Double,
+        x: DenseVector,
+        y: DenseVector,
+        a: DenseMatrixRegion,
+        structure: MatrixStructure,
+    ): Unit = portableSyr2(alpha, x, y, a, structure.isLower)
+
+    override fun computeTrsv(
+        a: DenseMatrixRegion,
+        structure: MatrixStructure,
+        transposeA: Boolean,
+        x: DenseVector,
+    ): Unit = portableTrsv(a, x.values, x.offset, x.stride, structure.isLower, transposeA, structure.isUnitDiagonal)
+
+    override fun computeTrmv(
+        a: DenseMatrixRegion,
+        structure: MatrixStructure,
+        transposeA: Boolean,
+        x: DenseVector,
+    ): Unit = portableTrmv(a, x.values, x.offset, x.stride, structure.isLower, transposeA, structure.isUnitDiagonal)
+
+    override fun computeGemm(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        transposeA: Boolean,
+        b: DenseMatrixRegion,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrixRegion,
+    ): Unit = portableGemm(alpha, a, transposeA, b, transposeB, beta, c, if (transposeA) a.rows else a.cols, null)
+
+    override fun computeSymm(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        structure: MatrixStructure,
+        b: DenseMatrixRegion,
+        beta: Double,
+        c: DenseMatrixRegion,
+        rightSide: Boolean,
+    ): Unit = portableSymm(alpha, a, b, beta, c, structure.isLower, rightSide, null)
+
+    override fun computeSyrk(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        transposeA: Boolean,
+        beta: Double,
+        c: DenseMatrixRegion,
+        structure: MatrixStructure,
+    ): Unit = portableSyrk(alpha, a, transposeA, beta, c, structure.isLower, null)
+
+    override fun computeSyr2k(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        b: DenseMatrixRegion,
+        transposeA: Boolean,
+        beta: Double,
+        c: DenseMatrixRegion,
+        structure: MatrixStructure,
+    ): Unit = portableSyr2k(alpha, a, b, transposeA, beta, c, structure.isLower, null)
+
+    override fun computeTrmm(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        structure: MatrixStructure,
+        transposeA: Boolean,
+        b: DenseMatrixRegion,
+        rightSide: Boolean,
+    ): Unit = portableTriangularMatrix(alpha, a, structure, transposeA, b, rightSide, false, null)
+
+    override fun computeTrsm(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        structure: MatrixStructure,
+        transposeA: Boolean,
+        b: DenseMatrixRegion,
+        rightSide: Boolean,
+    ): Unit = portableTriangularMatrix(alpha, a, structure, transposeA, b, rightSide, true, null)
+
+    override fun computeGemmt(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        transposeA: Boolean,
+        b: DenseMatrixRegion,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrixRegion,
+        structure: MatrixStructure,
+    ): Unit = portableGemmt(alpha, a, transposeA, b, transposeB, beta, c, structure.isLower, null)
 }

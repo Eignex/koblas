@@ -37,7 +37,7 @@ Owning dense and sparse containers, borrowed vector views, [Workspace] and high-
 Ordinary use needs only `com.eignex.koblas.*`; [Matrix] and [Vector] are read-only contracts custom types can
 implement. Dense matrices are column-major and sparse matrices are validated CSC.
 
-[KoblasEngine.gemm][com.eignex.koblas.matrix.gemm] and the `*` operator dispatch on runtime storage with dense or sparse operands on
+[KoblasEngine.gemm][com.eignex.koblas.gemm] and the `*` operator dispatch on runtime storage with dense or sparse operands on
 either side. Two sparse operands produce CSC storage; other built-in pairings produce dense storage. No sparse
 operand is densified to reach a kernel. Operators use the default engine.
 Dense operations and mixed CSC products address [DenseMatrixRegion] directly, including padded views.

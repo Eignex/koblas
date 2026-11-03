@@ -4,10 +4,10 @@ import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.portable.PortableEngine
-import com.eignex.koblas.matrix.*
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.vendor.*
 import kotlin.test.*
+import com.eignex.koblas.dense.gemm as denseGemm
 
 class EngineProfileTest {
     private fun assertAgreesWithReference(expected: DoubleArray, actual: DoubleArray) =
@@ -329,11 +329,11 @@ class EngineProfileTest {
         val values = doubleArrayOf(2.0, 3.0)
         val destination = DoubleArray(2)
         val matrix = DenseMatrix.wrap(2, 2, doubleArrayOf(1.0, 2.0, 3.0, 4.0))
-        val expectedProduct = BuiltinEngines.scalar.gemm(matrix, matrix)
+        val expectedProduct = BuiltinEngines.scalar.denseGemm(matrix, matrix)
 
         assertEquals(PortableEngine.dot(values, 0, values, 0, 2), nested.dot(values, 0, values, 0, 2))
         engine.axpy(destination, 1.0, intArrayOf(0, 1), 0, values, 0, 2)
-        val actualProduct = engine.gemm(matrix, matrix)
+        val actualProduct = engine.denseGemm(matrix, matrix)
 
         assertContentEquals(values, destination)
         assertAgreesWithReference(expectedProduct.values, actualProduct.values)

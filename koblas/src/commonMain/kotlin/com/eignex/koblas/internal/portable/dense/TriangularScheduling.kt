@@ -1,6 +1,6 @@
 @file:Suppress("LongParameterList") // a triangular matrix call carries its triangle, its block and four flags
 
-package com.eignex.koblas.internal.dense
+package com.eignex.koblas.internal.portable.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*

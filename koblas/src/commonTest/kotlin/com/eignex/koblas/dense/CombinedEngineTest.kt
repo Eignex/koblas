@@ -7,7 +7,6 @@ import com.eignex.koblas.engineWithHost
 import com.eignex.koblas.engineWithKernels
 import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.internal.portable.PortableEngine
-import com.eignex.koblas.matrix.*
 import com.eignex.koblas.sparse.*
 import kotlin.test.Test
 import kotlin.test.assertContentEquals

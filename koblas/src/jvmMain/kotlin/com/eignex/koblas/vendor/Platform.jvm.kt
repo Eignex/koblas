@@ -1,7 +1,6 @@
 package com.eignex.koblas.vendor
 
 import com.eignex.koblas.*
-import com.eignex.koblas.matrix.*
 import com.sun.management.HotSpotDiagnosticMXBean
 import java.io.File
 import java.lang.management.ManagementFactory

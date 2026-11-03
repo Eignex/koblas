@@ -1,8 +1,7 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.dense.*
-
 import com.eignex.koblas.*
+import com.eignex.koblas.dense.*
 
 /** Reused, disjoint inputs for a sequence of rank updates with successively shorter trailing supports. */
 internal class ShrinkingRankUpdate(val order: Int) {

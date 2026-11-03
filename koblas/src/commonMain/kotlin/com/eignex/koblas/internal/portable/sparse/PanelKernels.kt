@@ -3,6 +3,7 @@
 package com.eignex.koblas.internal.portable.sparse
 
 import com.eignex.koblas.internal.portable.dense.PANEL_NARROW_GROUP
+import com.eignex.koblas.internal.sparse.*
 
 internal fun sparseColumnUpdate(
     alpha: Double,

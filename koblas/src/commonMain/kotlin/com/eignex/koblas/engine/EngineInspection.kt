@@ -2,6 +2,7 @@ package com.eignex.koblas.engine
 
 import com.eignex.koblas.*
 import com.eignex.koblas.internal.configuration.CombinedEngine
+import com.eignex.koblas.internal.portable.PortableEngine
 
 /** Leaf providers in routing order, including their own capabilities and host provenance. */
 public val KoblasEngine.providers: List<KoblasEngine> get() =
@@ -39,7 +40,8 @@ internal fun KoblasEngine.wholeCallFor(
 ): KoblasEngine? {
     val provider = (this as? CombinedEngine)?.routing
         ?.select(operation, rows, columns, depth, borrowed = borrowed) ?: this
-    return provider.takeIf { operation in it.implementations }
+    // Portable schedules retain the caller's selected kernels and workspace without allocating vector views.
+    return provider.takeIf { it !== PortableEngine && operation in it.implementations }
 }
 
 internal fun KoblasEngine.implementationFor(
