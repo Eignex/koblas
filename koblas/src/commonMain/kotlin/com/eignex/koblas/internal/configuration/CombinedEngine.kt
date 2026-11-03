@@ -22,25 +22,22 @@ internal class CompiledRouting(profile: EngineProfile, engines: List<KoblasEngin
     }
 
     /** Fold all vector-invariant shape/work constraints before arithmetic reaches a length check. */
-    fun compileLength(operation: EngineImplementation): LengthDispatch? {
-        var result: LengthDispatch? = null
-        for ((rule, backend) in routes[operation.ordinal].reversed()) {
-            val minimum = backend.minimumLength(operation)
-            val lower = maxOf(rule.rows.first, minimum, rule.work.coerceAtMost(Int.MAX_VALUE.toLong()).toInt())
+    fun compileLength(operation: EngineImplementation): LengthDispatch {
+        val windows = routes[operation.ordinal].mapNotNull { (rule, backend) ->
+            val lower = maxOf(
+                rule.rows.first,
+                backend.minimumLength(operation),
+                rule.work.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+            )
             val strided = !backend.requiresUnitStride(operation)
             val mask = (if (rule.matches(lower, 1, 1, true, false)) 1 else 0) or
                 (if (strided && rule.matches(lower, 1, 1, false, false)) 2 else 0)
-            if (mask != 0) {
-                result = LengthDispatch(
-                    backend,
-                    lower,
-                    rule.rows.last,
-                    mask,
-                    result,
-                )
-            }
+            if (mask == 0) null else backend to intArrayOf(lower, rule.rows.last, mask)
         }
-        return result
+        return LengthDispatch(
+            windows.map { it.first }.toTypedArray(),
+            windows.flatMap { it.second.asList() }.toIntArray(),
+        )
     }
 
     fun select(
@@ -63,28 +60,25 @@ internal class CompiledRouting(profile: EngineProfile, engines: List<KoblasEngin
     }
 }
 
-/** Primitive length and layout checks over the backends bound to one operation. */
-internal class LengthDispatch(
-    val backend: KoblasEngine,
-    val minimum: Int,
-    val maximum: Int,
-    val layouts: Int,
-    val fallback: LengthDispatch?,
-)
+/** Primitive length and layout bounds, in profile order, beside their bound providers. */
+internal class LengthDispatch(val backends: Array<KoblasEngine>, val windows: IntArray) {
+    val minimum = windows.indices.step(3).minOfOrNull { windows[it] } ?: Int.MAX_VALUE
+}
 
 /** Inline both calls so the portable fallback has a statically known receiver. */
-private inline fun <R> LengthDispatch?.withBackend(
+private inline fun <R> LengthDispatch.withBackend(
     length: Int,
     contiguous: Boolean = true,
     action: (KoblasEngine) -> R,
 ): R {
+    if (length < minimum) return action(PortableEngine)
     val layout = if (contiguous) 1 else 2
-    var route = this
-    while (route != null) {
-        if (length >= route.minimum && length <= route.maximum && route.layouts and layout != 0) {
-            return action(route.backend)
+    var index = 0
+    while (index < windows.size) {
+        if (length >= windows[index] && length <= windows[index + 1] && windows[index + 2] and layout != 0) {
+            return action(backends[index / 3])
         }
-        route = route.fallback
+        index += 3
     }
     return action(PortableEngine)
 }
