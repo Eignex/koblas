@@ -11,7 +11,6 @@ import com.eignex.koblas.partialPanelWidth
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.sparse.ReferenceSparseBlas
-import com.eignex.koblas.workspace.*
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -52,8 +51,7 @@ class SparseDenseProductTest {
                     ReferenceSparseBlas.gemm(0.75, a, transposeA, b, transposeB, -0.5, expected, right)
 
                     val actual = c.copyOf()
-                    koblas.withWorkspace(Workspace())
-                        .gemm(0.75, a, transposeA, b, transposeB, -0.5, actual, right = right)
+                    koblas.gemm(0.75, a, transposeA, b, transposeB, -0.5, actual, right = right, scratch = Scratch())
 
                     assertClose(expected, actual, "right=$right transposeA=$transposeA transposeB=$transposeB")
                 }
@@ -90,7 +88,7 @@ class SparseDenseProductTest {
 
                         for ((name, engine) in sparsePanelEngines()) {
                             val actual = DenseMatrix.wrap(order, sides, initial.copyOf())
-                            engine.withWorkspace(Workspace()).gemm(alpha, a, true, b, transposeB, beta, actual)
+                            engine.gemm(alpha, a, true, b, transposeB, beta, actual, scratch = Scratch())
 
                             assertContentEquals(
                                 expected.values,
@@ -120,11 +118,13 @@ class SparseDenseProductTest {
                 val expected = c0.copyOf()
                 ReferenceSparseBlas.gemm(ALPHA, a, transposeA, b, transposeB, BETA, expected)
                 val stagedResult = c0.copyOf()
-                staging.withWorkspace(Workspace())
-                    .gemm(ALPHA, a, transposeA, b, transposeB, BETA, stagedResult, right = false)
+                staging.gemm(
+                    ALPHA, a, transposeA, b, transposeB, BETA, stagedResult, right = false, scratch = Scratch(),
+                )
                 val plainResult = c0.copyOf()
-                plain.withWorkspace(Workspace())
-                    .gemm(ALPHA, a, transposeA, b, transposeB, BETA, plainResult, right = false)
+                plain.gemm(
+                    ALPHA, a, transposeA, b, transposeB, BETA, plainResult, right = false, scratch = Scratch(),
+                )
 
                 // A transposed operand against a transposed dense block already has its right-hand sides
                 // adjacent, so that one pair takes the adjacent body with no copy at all.
@@ -156,9 +156,9 @@ class SparseDenseProductTest {
                 "the symmetric fixture did not stage at lower=$lower",
             )
             val staged = c0.copyOf()
-            staging.withWorkspace(Workspace()).symm(ALPHA, a, b, BETA, staged, lower, right = false)
+            staging.symm(ALPHA, a, b, BETA, staged, lower, right = false, scratch = Scratch())
             val unstaged = c0.copyOf()
-            plain.withWorkspace(Workspace()).symm(ALPHA, a, b, BETA, unstaged, lower, right = false)
+            plain.symm(ALPHA, a, b, BETA, unstaged, lower, right = false, scratch = Scratch())
 
             assertClose(expected.values, staged.values, "staged symmetric product lower=$lower")
             assertClose(unstaged.values, staged.values, "staged against unstaged lower=$lower")
@@ -174,17 +174,22 @@ class SparseDenseProductTest {
         val shared = randomMatrix(order, SIDES, rng)
 
         val expectedProduct = shared.copyOf()
-        plain.withWorkspace(Workspace())
-            .gemm(ALPHA, a, false, shared.copyOf(), false, BETA, expectedProduct, right = false)
+        plain.gemm(ALPHA, a, false, shared.copyOf(), false, BETA, expectedProduct, right = false, scratch = Scratch())
         val aliasedProduct = shared.copyOf()
-        staging.withWorkspace(Workspace())
-            .gemm(ALPHA, a, false, aliasedProduct, false, BETA, aliasedProduct, right = false)
+        staging.gemm(ALPHA, a, false, aliasedProduct, false, BETA, aliasedProduct, right = false, scratch = Scratch())
         val expectedSymmetric = shared.copyOf()
-        plain.withWorkspace(Workspace())
-            .symm(ALPHA, a, shared.copyOf(), BETA, expectedSymmetric, lower = true, right = false)
+        plain.symm(ALPHA, a, shared.copyOf(), BETA, expectedSymmetric, lower = true, right = false, scratch = Scratch())
         val aliasedSymmetric = shared.copyOf()
-        staging.withWorkspace(Workspace())
-            .symm(ALPHA, a, aliasedSymmetric, BETA, aliasedSymmetric, lower = true, right = false)
+        staging.symm(
+            ALPHA,
+            a,
+            aliasedSymmetric,
+            BETA,
+            aliasedSymmetric,
+            lower = true,
+            right = false,
+            scratch = Scratch(),
+        )
 
         assertClose(expectedProduct.values, aliasedProduct.values, "a staged product against its own source")
         assertClose(
@@ -206,7 +211,7 @@ class SparseDenseProductTest {
         val c = randomMatrix(m, SIDES, rng)
         for (side in 0 until SIDES) c.values[EMPTY_ROW + side * m] = -0.0
 
-        staging.withWorkspace(Workspace()).gemm(ALPHA, a, false, b, false, 1.0, c, right = false)
+        staging.gemm(ALPHA, a, false, b, false, 1.0, c, right = false, scratch = Scratch())
 
         for (side in 0 until SIDES) {
             val at = EMPTY_ROW + side * m
@@ -222,11 +227,11 @@ class SparseDenseProductTest {
         val a = denseEnough(ORDER, DEPTH, rng)
         val b = randomMatrix(DEPTH, SIDES, rng)
         val c = randomMatrix(ORDER, SIDES, rng)
-        val workspace = Workspace()
+        val workspace = Scratch()
 
-        staging.withWorkspace(workspace).gemm(ALPHA, a, false, b, false, BETA, c, right = false)
+        staging.gemm(ALPHA, a, false, b, false, BETA, c, right = false, scratch = workspace)
         val afterFirst = workspace.idleLengths()
-        repeat(4) { staging.withWorkspace(workspace).gemm(ALPHA, a, false, b, false, BETA, c, right = false) }
+        repeat(4) { staging.gemm(ALPHA, a, false, b, false, BETA, c, right = false, scratch = workspace) }
 
         assertTrue(afterFirst > 0, "a staged call borrowed nothing at all")
         assertEquals(afterFirst, workspace.idleLengths(), "a repeated staged call asked for new lengths")
@@ -259,8 +264,7 @@ class SparseDenseProductTest {
                 val b = DenseMatrix.wrap(1, sides, DoubleArray(sides) { 3.0 })
                 val c = DenseMatrix.wrap(1, sides, DoubleArray(sides))
 
-                engine.withWorkspace(null)
-                    .symm(Double.POSITIVE_INFINITY, a, b, 0.0, c, lower = true, right = false)
+                engine.symm(Double.POSITIVE_INFINITY, a, b, 0.0, c, lower = true, right = false)
 
                 for (side in 0 until sides) {
                     assertEquals(
@@ -283,7 +287,7 @@ class SparseDenseProductTest {
                 val b = DenseMatrix.wrap(2, sides, DoubleArray(2 * sides))
                 val c = DenseMatrix.wrap(2, sides, DoubleArray(2 * sides) { -0.0 })
 
-                engine.withWorkspace(null).symm(1.0, a, b, 1.0, c, lower = true, right = false)
+                engine.symm(1.0, a, b, 1.0, c, lower = true, right = false)
 
                 for (side in 0 until sides) {
                     val at = side * 2
@@ -407,7 +411,7 @@ class SparseDenseProductTest {
 }
 
 /** [AdjacentPreferringPanels] at the widest group the staging rule admits, wider than any copy-cost ratio. */
-private object WidePanels : KoblasEngine by AdjacentPreferringPanels {
+private object WidePanels : EngineKernels by AdjacentPreferringPanels {
     const val GROUP = 64
 
     override fun executionGroup(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean): Int =

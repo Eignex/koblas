@@ -18,7 +18,7 @@ import kotlin.test.assertTrue
  * on a runtime without the module is a linkage error before any test body runs.
  */
 class SimdPanelKernelsTest {
-    private val kernels: KoblasEngine? = BuiltinEngines.simd?.panelProvider
+    private val kernels: EngineKernels? = BuiltinEngines.simd?.panelProvider
 
     @Test
     fun `long column updates agree with the scalar oracle`() {
@@ -136,7 +136,7 @@ class SimdPanelKernelsTest {
     /** The species this backend resolved, read back from the name it publishes. */
     private fun lanes(): Int = checkNotNull(BuiltinEngines.simd).providers.first {
         EngineImplementation.Dot in it.implementations
-    }.minimumLength(EngineImplementation.Dot)
+    }.let { it as EngineKernels }.minimumLength(EngineImplementation.Dot)
 
     private fun vectorised() = PanelWork.entries
 

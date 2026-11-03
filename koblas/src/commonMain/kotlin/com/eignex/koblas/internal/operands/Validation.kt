@@ -161,3 +161,19 @@ internal fun requireTriangularMatrixOperands(a: Matrix, b: Matrix, rightSide: Bo
         "$what: triangle order ${a.rows} does not match the ${if (rightSide) "columns" else "rows"} of B, $order"
     }
 }
+
+/**
+ * A vector window of [count] entries from [offset], [stride] apart, which a routine reads or writes as
+ * `values[offset + i * stride]`. Both ends are checked, so a negative stride is accepted when it stays inside.
+ */
+internal fun requireVectorWindow(bufferSize: Int, offset: Int, count: Int, stride: Int, what: String) {
+    requireShape(count >= 0) { "$what: negative length $count" }
+    require(stride != 0) { "$what: stride must not be zero" }
+    if (count == 0) return
+    val last = offset.toLong() + (count - 1).toLong() * stride
+    val first = minOf(offset.toLong(), last)
+    val end = maxOf(offset.toLong(), last)
+    requireShape(first >= 0 && end < bufferSize) {
+        "$what: $count entries from $offset with stride $stride address [$first, $end] outside length $bufferSize"
+    }
+}

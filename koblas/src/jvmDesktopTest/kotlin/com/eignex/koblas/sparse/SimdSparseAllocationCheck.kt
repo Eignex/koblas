@@ -5,7 +5,6 @@ import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.testutil.allocation.AllocationProbe
 import com.eignex.koblas.testutil.allocation.bytesPerCall
-import com.eignex.koblas.workspace.*
 
 /**
  * Runs indexed Level 1, panel and whole-operation allocation checks in an uninstrumented JVM.
@@ -161,7 +160,7 @@ internal object SimdSparseAllocationCheck {
         val cWide = DenseMatrix.wrap(SIDES, ORDER, DoubleArray(ORDER * SIDES))
         val x = DoubleArray(ORDER) { 1.0 + (it % 5) * 0.5 }
         val y = DoubleArray(ORDER)
-        val workspace = Workspace()
+        val workspace = Scratch()
 
         for (transposeA in booleanArrayOf(false, true)) {
             for (transposeB in booleanArrayOf(false, true)) {
@@ -171,20 +170,20 @@ internal object SimdSparseAllocationCheck {
                     OPERATION_WARMUP,
                     OPERATION_ITERATIONS,
                 ) {
-                    engine.withWorkspace(workspace).gemm(0.875, a, transposeA, operand, transposeB, -0.25, c, false)
+                    engine.gemm(0.875, a, transposeA, operand, transposeB, -0.25, c, false, scratch = workspace)
                     c.values[0]
                 }
             }
         }
         assertAllocationFree("sparse product from the right", OPERATION_WARMUP, OPERATION_ITERATIONS) {
-            engine.withWorkspace(workspace).gemm(0.875, a, false, wide, false, -0.25, cWide, true)
+            engine.gemm(0.875, a, false, wide, false, -0.25, cWide, true, scratch = workspace)
             cWide.values[0]
         }
         for (right in booleanArrayOf(false, true)) {
             val operand = if (right) wide else b
             val destination = if (right) cWide else c
             assertAllocationFree("symmetric product right=$right", OPERATION_WARMUP, OPERATION_ITERATIONS) {
-                engine.withWorkspace(workspace).symm(0.875, triangle, operand, -0.25, destination, true, right)
+                engine.symm(0.875, triangle, operand, -0.25, destination, true, right, scratch = workspace)
                 destination.values[0]
             }
             for (transpose in booleanArrayOf(false, true)) {
@@ -193,7 +192,7 @@ internal object SimdSparseAllocationCheck {
                     OPERATION_WARMUP,
                     OPERATION_ITERATIONS,
                 ) {
-                    engine.withWorkspace(workspace).trsm(triangle, operand, true, transpose, false, right, 0.875)
+                    engine.trsm(triangle, operand, true, transpose, false, right, 0.875, scratch = workspace)
                     operand.values[0]
                 }
                 assertAllocationFree(
@@ -201,7 +200,7 @@ internal object SimdSparseAllocationCheck {
                     OPERATION_WARMUP,
                     OPERATION_ITERATIONS,
                 ) {
-                    engine.withWorkspace(workspace).trmm(triangle, operand, true, transpose, false, right, 0.875)
+                    engine.trmm(triangle, operand, true, transpose, false, right, 0.875, scratch = workspace)
                     operand.values[0]
                 }
             }
@@ -217,7 +216,7 @@ internal object SimdSparseAllocationCheck {
             y[0]
         }
         assertAllocationFree("sparse rank update into a dense triangle", OPERATION_WARMUP, OPERATION_ITERATIONS) {
-            engine.withWorkspace(workspace).syrk(0.875, a, false, -0.25, square, true)
+            engine.syrk(0.875, a, false, -0.25, square, true, scratch = workspace)
             square.values[0]
         }
         checkGenericDispatch(a, b, wide, c, cWide, workspace)
@@ -234,14 +233,14 @@ internal object SimdSparseAllocationCheck {
         wide: Matrix,
         c: DenseMatrix,
         cWide: DenseMatrix,
-        workspace: Workspace,
+        workspace: Scratch,
     ) {
         assertAllocationFree("generic product with a sparse left operand", OPERATION_WARMUP, OPERATION_ITERATIONS) {
-            koblas.withWorkspace(workspace).gemm(0.875, a, false, b, false, -0.25, c)
+            koblas.gemm(0.875, a, false, b, false, -0.25, c, scratch = workspace)
             c.values[0]
         }
         assertAllocationFree("generic product with a sparse right operand", OPERATION_WARMUP, OPERATION_ITERATIONS) {
-            koblas.withWorkspace(workspace).gemm(0.875, wide, false, a, false, -0.25, cWide)
+            koblas.gemm(0.875, wide, false, a, false, -0.25, cWide, scratch = workspace)
             cWide.values[0]
         }
     }

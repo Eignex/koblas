@@ -12,7 +12,7 @@ import com.eignex.koblas.internal.portable.PortableEngine
  * Its group of three is deliberately not a lane count and not a power of two, so a call cuts groups the
  * shipped backends never would.
  */
-internal object AdjacentPreferringPanels : KoblasEngine by PortableEngine {
+internal object AdjacentPreferringPanels : EngineKernels by PortableEngine {
     private const val GROUP = 3
 
     override val implementations = setOf(EngineImplementation.Panels)

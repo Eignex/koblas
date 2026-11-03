@@ -4,20 +4,23 @@
 
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
-import com.eignex.koblas.sparse.*
+import com.eignex.koblas.internal.portable.dense.*
+import com.eignex.koblas.internal.portable.sparse.*
 
 /**
- * One immutable contract for portable, SIMD, vendor and combined dense and sparse BLAS.
+ * Dense and sparse BLAS through one immutable engine.
  *
- * Providers implement only the parts they supply and declare [implementations]. Unsupported methods
- * fail without calling another provider; [combine] explicitly composes complete coverage. [BuiltinEngines] selects exact
- * engines, while [koblas] selects its standard platform configuration once.
+ * Each BLAS routine is one member. The portable engine runs the shared schedule over its own kernels; a
+ * composed engine such as [koblas] routes each call to the provider its profile selects and otherwise runs the
+ * same schedule over its own kernels; a vendor engine from [BuiltinEngines.vendor] calls its library for the
+ * routines it exports and fails for the rest. [BuiltinEngines] names exact engines, while [koblas] selects its
+ * standard platform configuration once.
  *
- * Matrix and container operations validate shapes, preserve BLAS no-read rules and stage supported aliases.
- * Primitive array windows require valid offsets, lengths and strides; callers stage destructive overlaps.
- * Rounding, reduction order and unspecified exceptional results belong to the selected arithmetic.
+ * Level 2 and 3 routines validate shapes, preserve BLAS no-read rules and snapshot an input that shares the
+ * destination's storage, borrowing from a [Scratch] when one is given. Level 1 members address primitive array
+ * windows that must be valid; callers stage destructive overlaps. Rounding, reduction order and unspecified
+ * exceptional results belong to the selected arithmetic.
  */
 public interface KoblasEngine {
 
@@ -41,15 +44,6 @@ public interface KoblasEngine {
 
     /** Evidence for the host library's compute thread count. */
     public val threadEvidence: ThreadEvidence get() = ThreadEvidence.Unconfirmed
-
-    /** Whether attribution can depend on the values processed by this contribution. */
-    public fun dynamicAttribution(implementation: EngineImplementation): Boolean = false
-
-    /** Whether this contribution requires unit strides. */
-    public fun requiresUnitStride(implementation: EngineImplementation): Boolean = false
-
-    /** Smallest run the contribution can execute. The composer checks it before calling the provider. */
-    public fun minimumLength(implementation: EngineImplementation): Int = 0
 
     /** Returns `sum(a[aOff + i] * b[bOff + i])` over [len] entries, or zero for an empty run. */
     public fun dot(
@@ -216,467 +210,127 @@ public interface KoblasEngine {
         unsupported()
 
     /**
-     * How many columns of [work] this engine recommends processing together, for a panel of [rows] by
-     * [columns].
+     * `y = alpha · op(A) · x + beta · y` (BLAS `dgemv`), with `op(A)` being `Aᵀ` when [transpose]. `x` is the
+     * [xStride]-spaced window of [x] from [xOffset], and `y` likewise; a negative stride walks backwards from its
+     * offset, which is the window's first entry.
      *
-     * Always at least one and never more than [columns] when [columns] is positive. The answer is a local
-     * tuning choice made from the resolved vector width and small measured rules, and it is not a lane count:
-     * a group of four columns and four lanes are different numbers that happen to agree on some machines.
-     *
-     * [contiguous] is part of the question for the same reason it is part of [implementationFor]'s: an engine
-     * whose body over adjacent entries is a different body may want a different amount of work in it. A
-     * caller that will hand over a strided window has to say so, or it is given a recommendation for a body
-     * it is not going to reach. A scheduling of its own may then take less than what was recommended, for a
-     * cache or a workspace it is keeping within; passing less is always correct.
+     * A zero [alpha] or an empty `A` reads neither `A` nor `x`, and a zero [beta] overwrites `y` without reading
+     * it. An operand sharing `y`'s storage is snapshotted, from [scratch] when one is given, before the first
+     * write.
      */
-    public fun executionGroup(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean = true): Int = unsupported()
-
-    /**
-     * Whether a panel of these extents is worth copying into adjacent rows before it is handed over.
-     *
-     * A caller that can copy a strided window into adjacent storage needs to know whether the copy buys
-     * anything before it pays for it, and the answer is the engine's, because only the engine knows what
-     * its body does with the two layouts. A portable body reads one entry at a time either way and says no
-     * at every extent. A vector body says yes where the panel is wide enough that the arithmetic it gains
-     * outweighs a pass over the data, which is not the same width as the one where its body starts running:
-     * one lane block is a single vector operation per column, and a copy is not repaid by that.
-     *
-     * This is a recommendation about copying rather than a claim about which body runs, and the two are
-     * asked separately. Where it is true, [implementationFor] also names a different body for the two
-     * layouts; where it is false the body may still differ, and the caller has simply been told not to pay
-     * for the difference.
-     */
-    public fun prefersContiguous(work: PanelWork, rows: Int, columns: Int): Boolean = unsupported()
-
-    /**
-     * `y(c) = alpha · Σ a(i, c) · x(i) + beta · y(c)` for each of [columns] columns.
-     *
-     * The destination is [columns] entries from [yOffset], spaced [yStride] apart. A zero [beta] overwrites
-     * without reading what is there, as every BLAS routine carrying one does. With no rows every sum is
-     * empty and so zero, and each output is still written from that and whatever [beta] contributes; with no
-     * columns nothing happens at all.
-     */
-    public fun multiDot(
+    public fun gemv(
         alpha: Double,
-        a: DoubleArray,
-        aOffset: Int,
-        lda: Int,
+        a: DenseMatrixRegion,
         x: DoubleArray,
         xOffset: Int,
         xStride: Int,
-        rows: Int,
-        columns: Int,
         beta: Double,
         y: DoubleArray,
         yOffset: Int,
         yStride: Int,
-    ): Unit = unsupported()
+        transpose: Boolean = false,
+        scratch: Scratch? = null,
+    ): Unit = scheduledGemv(alpha, a, x, xOffset, xStride, beta, y, yOffset, yStride, transpose, scratch?.arrays)
 
     /**
-     * `y(i) += Σ (alpha · x(c)) · a(i, c)` over [rows] destination entries and [columns] panel columns.
-     *
-     * Scaling and reduction grouping may vary between implementations; grouping does not promise identical
-     * rounding or exceptional results.
+     * `y = alpha · A · x + beta · y` for a symmetric `A` (BLAS `dsymv`), read from its [lower] or upper triangle,
+     * diagonal included. Windows, zero multipliers and overlap follow [gemv].
      */
-    public fun columnUpdate(
+    public fun symv(
         alpha: Double,
-        a: DoubleArray,
-        aOffset: Int,
-        lda: Int,
+        a: DenseMatrixRegion,
         x: DoubleArray,
         xOffset: Int,
         xStride: Int,
-        rows: Int,
-        columns: Int,
-        y: DoubleArray,
-        yOffset: Int,
-        yStride: Int,
-    ): Unit = unsupported()
-
-    /**
-     * One pass over a panel that both updates a destination window and reduces the panel against a vector.
-     *
-     * `y(i) += Σ (alpha · coefficients(c)) · a(i, c)` over the [rows] entries of the window, and
-     * `sums(c) += alpha · Σ a(i, c) · x(i)` for each column. This is a symmetric traversal's second half
-     * removed: the stored triangle is read once and serves both the column below the diagonal and the row
-     * to its left.
-     *
-     * [sums] is the caller's, which is where several results go rather than into a returned object. Its
-     * window must not overlap [y]'s, which for a symmetric traversal it never does: the reduction lands on
-     * the diagonal side of the rows the update wrote. Nor may [x]'s window overlap [y]'s, because an
-     * implementation is free to read each `x(i)` before or after it writes `y(i)`.
-     */
-    public fun coupledUpdateDot(
-        alpha: Double,
-        a: DoubleArray,
-        aOffset: Int,
-        lda: Int,
-        x: DoubleArray,
-        xOffset: Int,
-        rows: Int,
-        columns: Int,
-        y: DoubleArray,
-        yOffset: Int,
-        coefficients: DoubleArray,
-        coefficientOffset: Int,
-        sums: DoubleArray,
-        sumOffset: Int,
-        xStride: Int = 1,
-        yStride: Int = 1,
-        coefficientStride: Int = 1,
-        sumStride: Int = 1,
-    ): Unit = unsupported()
-
-    /**
-     * `a(i, c) += (alpha · coefficients(c)) · x(i)`, the rank-one update of a panel of destination columns.
-     *
-     * The destination is the panel here and [x] is the source window, which is the opposite direction from
-     * [columnUpdate] and the reason it is its own entry rather than that one with the arguments swapped.
-     */
-    public fun rankUpdate(
-        alpha: Double,
-        a: DoubleArray,
-        aOffset: Int,
-        lda: Int,
-        x: DoubleArray,
-        xOffset: Int,
-        xStride: Int,
-        rows: Int,
-        columns: Int,
-        coefficients: DoubleArray,
-        coefficientOffset: Int,
-        coefficientStride: Int,
-    ): Unit = unsupported()
-
-    /**
-     * `a(i, c) += alpha · (x(i) · u(c) + y(i) · v(c))`, the symmetric rank-two update of a panel.
-     *
-     * Two [rankUpdate] calls compute the same thing, and that is what this does unless an engine overrides it.
-     * One pass loads and stores each destination entry once instead of twice, which is the limit a narrow
-     * vector unit reaches first.
-     */
-    public fun rankTwoUpdate(
-        alpha: Double,
-        a: DoubleArray,
-        aOffset: Int,
-        lda: Int,
-        x: DoubleArray,
-        xOffset: Int,
-        xStride: Int,
-        y: DoubleArray,
-        yOffset: Int,
-        yStride: Int,
-        rows: Int,
-        columns: Int,
-        u: DoubleArray,
-        uOffset: Int,
-        uStride: Int,
-        v: DoubleArray,
-        vOffset: Int,
-        vStride: Int,
-    ): Unit = unsupported()
-
-    /**
-     * `y(i) += Σ (alpha · values(c)) · a(i, indices(c))` over a panel whose columns an index array selects.
-     *
-     * The sparse counterpart of [columnUpdate], and the shape a sparse column takes when its dense operand
-     * carries several right-hand sides. [rows] is the group of right-hand sides, which is the axis with no
-     * dependences between its entries and therefore the one an engine may vectorise; [columns] is how many
-     * stored entries the column contributes, read as `indices` and `values` from [fromIndex] onward.
-     *
-     * An entry of the panel is at `aOffset + i · rowStride + indices(c) · indexStride`, which is two strides
-     * rather than a leading dimension because either axis may be the contiguous one. A dense block in
-     * column-major storage has its right-hand sides a leading dimension apart, and one staged into
-     * right-hand-side-major order has them adjacent; the arithmetic is the same and only the strides differ.
-     * [implementationFor] answers which body a given panel reaches, and a caller that wants the vector one
-     * has to make [rowStride] one for it.
-     *
-     * The destination is [rows] adjacent entries from [yOffset] and is accumulated into. Each indexed stored
-     * position participates, including a stored zero; absent positions are never evaluated. This sparse
-     * structural rule also applies to [indexedRankUpdate] and [indexedCoupledUpdate], independently of the
-     * zero-coefficient latitude of dense updates.
-     */
-    public fun indexedColumnUpdate(
-        alpha: Double,
-        a: DoubleArray,
-        aOffset: Int,
-        rowStride: Int,
-        indexStride: Int,
-        indices: IntArray,
-        values: DoubleArray,
-        fromIndex: Int,
-        columns: Int,
-        rows: Int,
-        y: DoubleArray,
-        yOffset: Int,
-    ): Unit = unsupported()
-
-    /**
-     * `a(i, indices(c)) += (alpha · values(c)) · x(i)`, the indexed counterpart of [rankUpdate].
-     *
-     * The destination is the panel and [x] is the source window of [rows] adjacent entries, addressed as
-     * [indexedColumnUpdate] describes.
-     *
-     * Every logical entry this call writes must have an address of its own. Two things are needed for that
-     * and the caller owns both: the selected positions must be distinct, which a validated CSC column's
-     * ascending row indices are, and the two strides must describe a panel that does not fold onto itself,
-     * which they fail to do where a stride is zero or where one is a multiple of the other inside the
-     * extents in play. An engine may hold several entries in registers at once, so two logical entries
-     * sharing an address would lose an update rather than apply both. This is the one precondition these two
-     * leaves do not share: a reduction may read a position twice, a scatter may not write one twice.
-     *
-     * These internal primitive windows are trusted; validation belongs to the common matrix entry points. A public matrix call passes windows of its
-     * own storage, where the strides come from a layout that already holds.
-     */
-    public fun indexedRankUpdate(
-        alpha: Double,
-        a: DoubleArray,
-        aOffset: Int,
-        rowStride: Int,
-        indexStride: Int,
-        indices: IntArray,
-        values: DoubleArray,
-        fromIndex: Int,
-        columns: Int,
-        rows: Int,
-        x: DoubleArray,
-        xOffset: Int,
-    ): Unit = unsupported()
-
-    /**
-     * One pass over an indexed panel that both scatters into the positions it selects and reduces them.
-     *
-     * For every position `c` of the run, with `t = alpha · values(c)`:
-     * `a(i, indices(c)) += t · b[pivot + i · rowStride]`, and `sums(i) += t · b(i, indices(c))` unless `c`
-     * is [excluded].
-     *
-     * This is [indexedRankUpdate] and [indexedColumnUpdate] over one walk of the same run, and the indexed
-     * counterpart of [coupledUpdateDot]. It is here for the same reason that one is: a symmetric traversal
-     * stores one triangle, every stored entry serves the column it sits in and the row it mirrors into, and
-     * reading it once is half the index work of reading it twice. One multiplier serves both halves, so a
-     * caller applies its own scaling through [alpha] rather than pre-scaling one side of the pair.
-     *
-     * Both halves read [b]: the scattered one reads the [rows] entries from [pivot] spaced [rowStride]
-     * apart, which is one indexed column of the same window, and the reduced one reads the column each
-     * position selects. A caller therefore hands over no coefficients of its own, because gathering that
-     * column into a scratch first would be a pass over it per column of the sparse operand.
-     *
-     * [a] and [b] are windows of the same shape addressed alike, from [offset] with the two strides
-     * [indexedColumnUpdate] describes; a symmetric product passes its destination and its source, which are
-     * different arrays. The reduction lands in [rows] entries from [sumOffset] spaced [rowStride] apart.
-     * This window may coincide with one indexed column of [a], with each reduction entry overlapping only
-     * the scatter entry for the same logical right-hand side; an overlap between different right-hand sides
-     * is unsupported. Where both updates target the same entry, the scatter is applied before the reduction
-     * for each stored position. All source windows remain disjoint from both destination windows.
-     *
-     * [excluded] is a position relative to this run, in `0 until columns`, whose product is scattered but
-     * not reduced; `-1` excludes none. The column of [b] it selects is not read, though [pivot] still is,
-     * because the scatter runs at that position like any other. A symmetric column excludes its own diagonal
-     * because that contribution is already scattered into the pivot row.
-     *
-     * Stored positions participate even when their values are zero. The reduction accumulates into its
-     * destination; term grouping and rounding may vary subject to the overlap rule above.
-     */
-    @Suppress("LongParameterList") // the panel, its two windows, the run, and both results
-    public fun indexedCoupledUpdate(
-        alpha: Double,
-        a: DoubleArray,
-        b: DoubleArray,
-        offset: Int,
-        rowStride: Int,
-        indexStride: Int,
-        indices: IntArray,
-        values: DoubleArray,
-        fromIndex: Int,
-        columns: Int,
-        rows: Int,
-        pivot: Int,
-        sums: DoubleArray,
-        sumOffset: Int,
-        excluded: Int,
-        destinationOffset: Int = offset,
-        destinationRowStride: Int = rowStride,
-        destinationIndexStride: Int = indexStride,
-    ): Unit = unsupported()
-
-    /**
-     * Destination rows one register tile accumulates, which is the group a left panel is packed in.
-     *
-     * Positive and fixed for the life of an implementation.
-     */
-    public val tileRows: Int get() = unsupported()
-
-    /** Destination columns one register tile accumulates, which is the group a right panel is packed in. */
-    public val tileColumns: Int get() = unsupported()
-
-    /**
-     * Whether a product of these logical extents is worth packing into this engine's tiles at all.
-     *
-     * Packing costs a pass over both operands and buys contiguous, tile-shaped reads for the whole product.
-     * The arithmetic grows with `rows · columns · depth` and the copy with `rows · depth + depth · columns`,
-     * so a product with any small extent pays for a copy it cannot amortise, and a matrix-vector shaped call
-     * pays for one it can never amortise at all. Where this answers false the caller runs the product as
-     * panel work over the operands where they are, which is what avoids copying both of them into tiles. It
-     * is not a promise that nothing is copied: that path may still gather one strided coefficient column,
-     * borrow a destination column to accumulate into, and stage an operand that shares the destination.
-     *
-     * The crossover is local: a tile that finishes more arithmetic per loaded value pays off a copy sooner.
-     */
-    public fun packsProduct(rows: Int, columns: Int, depth: Int): Boolean = unsupported()
-
-    /**
-     * `C = alpha · A · B + beta · C` over one `rows` by `columns` window, accumulating `depth` steps.
-     *
-     * [packedA] holds the left operand in [tileRows]-wide groups and [packedB] the right in
-     * [tileColumns]-wide ones. Within a group, depth steps are adjacent blocks of that width, so entry
-     * `(i, p)` of the left operand sits at `aOffset + (i / tileRows) · aGroupStride + p · tileRows +
-     * i % tileRows`, and entry `(p, j)` of the right at `bOffset + (j / tileColumns) · bGroupStride +
-     * p · tileColumns + j % tileColumns`.
-     *
-     * The group strides are `depth · tileRows` and `depth · tileColumns` for transient panels.
-     *
-     * The destination window starts at [cOffset] with columns [ldc] apart. With no rows or no columns
-     * nothing happens and nothing is read. With no depth the product is empty, so the window becomes
-     * `beta · C` and neither packed panel is read.
-     */
-    public fun productBlock(
-        alpha: Double,
-        packedA: DoubleArray,
-        aOffset: Int,
-        aGroupStride: Int,
-        packedB: DoubleArray,
-        bOffset: Int,
-        bGroupStride: Int,
-        rows: Int,
-        columns: Int,
-        depth: Int,
         beta: Double,
-        c: DoubleArray,
-        cOffset: Int,
-        ldc: Int,
-    ): Unit = unsupported()
+        y: DoubleArray,
+        yOffset: Int,
+        yStride: Int,
+        lower: Boolean = true,
+        scratch: Scratch? = null,
+    ): Unit = scheduledSymv(alpha, a, x, xOffset, xStride, beta, y, yOffset, yStride, lower, scratch?.arrays)
+
+    /** `A = A + alpha · x · yᵀ` (BLAS `dger`). A vector sharing `A`'s storage is snapshotted. */
+    public fun ger(
+        alpha: Double,
+        x: DoubleArray,
+        xOffset: Int,
+        xStride: Int,
+        y: DoubleArray,
+        yOffset: Int,
+        yStride: Int,
+        a: DenseMatrixRegion,
+        scratch: Scratch? = null,
+    ): Unit = scheduledGer(alpha, x, xOffset, xStride, y, yOffset, yStride, a, scratch?.arrays)
+
+    /** `A = A + alpha · x · xᵀ` (BLAS `dsyr`), writing only the [lower] or upper triangle. Overlap follows [ger]. */
+    public fun syr(
+        alpha: Double,
+        x: DoubleArray,
+        xOffset: Int,
+        xStride: Int,
+        a: DenseMatrixRegion,
+        lower: Boolean = true,
+        scratch: Scratch? = null,
+    ): Unit = scheduledSyr(alpha, x, xOffset, xStride, a, lower, scratch?.arrays)
+
+    /** `A = A + alpha · (x · yᵀ + y · xᵀ)` (BLAS `dsyr2`), writing only the [lower] or upper triangle. */
+    public fun syr2(
+        alpha: Double,
+        x: DoubleArray,
+        xOffset: Int,
+        xStride: Int,
+        y: DoubleArray,
+        yOffset: Int,
+        yStride: Int,
+        a: DenseMatrixRegion,
+        lower: Boolean = true,
+        scratch: Scratch? = null,
+    ): Unit = scheduledSyr2(alpha, x, xOffset, xStride, y, yOffset, yStride, a, lower, scratch?.arrays)
 
     /**
-     * How many right-hand sides this engine recommends substituting at once, for a block of [order] steps
-     * over [sides] of them.
+     * Solve `op(T) · x = b` in place (BLAS `dtrsv`) for the [lower] or upper triangle of the square [a], `op`
+     * transposing when [transpose] and [unitDiag] taking the diagonal as 1. The window of [x] carries `b` in and
+     * `x` out.
      *
-     * Always at least one and never more than [sides] when that is positive. It is a grouping and not a lane
-     * count, and it is independent of the register tile, the panel grouping and the diagonal block the
-     * scheduling chose: a diagonal block is as wide as the dependency chain is long, and this is how much of
-     * the work beside it is done together.
+     * As in BLAS `dtrsv`, no singularity or conditioning check is performed; singular inputs have no guaranteed
+     * numerical result. The substitution overwrites `x` as it goes, so a triangle sharing that storage is
+     * snapshotted first.
      */
-    public fun rightHandSideGroup(order: Int, sides: Int): Int = unsupported()
-
-    /**
-     * Whether a group of right-hand sides this far apart is worth copying into adjacent storage first.
-     *
-     * The copy is two passes over a block of the caller's data, out and back, and it buys a substitution
-     * whose independent values lie next to each other. An engine whose arithmetic is a value at a time gains
-     * nothing from that and answers false, and so does one whose right-hand sides are already adjacent.
-     * Where this answers true the caller gathers.
-     */
-    public fun gathersRightHandSides(rhsStride: Int, order: Int, sides: Int): Boolean = unsupported()
-
-    /**
-     * Solves `M · X = X` in place over one diagonal block, for every right-hand side at once.
-     *
-     * Substitutes forward when [lower] and backward when it is not, dividing each finished step by its
-     * diagonal coefficient unless [unitDiag]. No singularity check or particular result for singular or
-     * non-finite inputs is promised.
-     */
-    public fun diagonalSolve(
-        t: DoubleArray,
-        n: Int,
-        start: Int,
-        size: Int,
-        transposed: Boolean,
+    public fun trsv(
+        a: DenseMatrixRegion,
+        x: DoubleArray,
+        xOffset: Int,
+        xStride: Int,
         lower: Boolean,
-        unitDiag: Boolean,
+        transpose: Boolean = false,
+        unitDiag: Boolean = false,
+        scratch: Scratch? = null,
+    ): Unit = scheduledTrsv(a, x, xOffset, xStride, lower, transpose, unitDiag, scratch?.arrays)
+
+    /** `x = op(T) · x` in place (BLAS `dtrmv`), with the flags and overlap of [trsv]. */
+    public fun trmv(
+        a: DenseMatrixRegion,
         x: DoubleArray,
         xOffset: Int,
-        orderStride: Int,
-        rhsStride: Int,
-        sides: Int,
-        tOffset: Int = 0,
-    ): Unit = unsupported()
+        xStride: Int,
+        lower: Boolean,
+        transpose: Boolean = false,
+        unitDiag: Boolean = false,
+        scratch: Scratch? = null,
+    ): Unit = scheduledTrmv(a, x, xOffset, xStride, lower, transpose, unitDiag, scratch?.arrays)
 
     /**
-     * Multiplies `X = M · X` in place over one diagonal block, for every right-hand side at once.
+     * `C = alpha · op(A) · op(B) + beta · C` (BLAS `dgemm`), with shapes `op(A): m×k`, `op(B): k×n`, `C: m×n`.
      *
-     * The order is the one that leaves no step needed after it has been overwritten, which runs opposite to
-     * the solve's: a lower block is substituted from its last step upward, because a step is the sum of the
-     * steps at or before it and those must still hold what they arrived with.
+     * An input that shares [c]'s storage is snapshotted first. A zero [alpha] or an empty shared dimension
+     * scales [c] and reads no operand; a zero [beta] overwrites [c] without reading it.
+     *
+     * Scaling placement and accumulation order depend on the selected implementation, including whether
+     * [alpha] scales operand entries or partial sums, so rounding, overflow and non-finite results may differ
+     * between implementations and transpose modes.
      */
-    public fun diagonalMultiply(
-        t: DoubleArray,
-        n: Int,
-        start: Int,
-        size: Int,
-        transposed: Boolean,
-        lower: Boolean,
-        unitDiag: Boolean,
-        x: DoubleArray,
-        xOffset: Int,
-        orderStride: Int,
-        rhsStride: Int,
-        sides: Int,
-        tOffset: Int = 0,
-    ): Unit = unsupported()
-
-    /** Whole matrix vector product over validated operands. The caller validates and stages aliases before dispatch. */
-    public fun computeGemv(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        transposeA: Boolean,
-        x: DenseVector,
-        beta: Double,
-        y: DenseVector,
-    ): Unit = unsupported()
-
-    /** Whole symmetric matrix vector product over the stored triangle. The caller validates and stages aliases before dispatch. */
-    public fun computeSymv(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        structure: MatrixStructure,
-        x: DenseVector,
-        beta: Double,
-        y: DenseVector,
-    ): Unit = unsupported()
-
-    /** Whole rank one update over validated operands. The caller validates and stages aliases before dispatch. */
-    public fun computeGer(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrixRegion): Unit = unsupported()
-
-    /** Whole symmetric rank one update over the stored triangle. The caller validates and stages aliases before dispatch. */
-    public fun computeSyr(alpha: Double, x: DenseVector, a: DenseMatrixRegion, structure: MatrixStructure): Unit =
-        unsupported()
-
-    /** Whole symmetric rank two update over the stored triangle. The caller validates and stages aliases before dispatch. */
-    public fun computeSyr2(
-        alpha: Double,
-        x: DenseVector,
-        y: DenseVector,
-        a: DenseMatrixRegion,
-        structure: MatrixStructure,
-    ): Unit = unsupported()
-
-    /** Whole triangular vector substitution over validated operands. The caller validates and stages aliases before dispatch. */
-    public fun computeTrsv(
-        a: DenseMatrixRegion,
-        structure: MatrixStructure,
-        transposeA: Boolean,
-        x: DenseVector,
-    ): Unit = unsupported()
-
-    /** Whole triangular vector product over validated operands. The caller validates and stages aliases before dispatch. */
-    public fun computeTrmv(
-        a: DenseMatrixRegion,
-        structure: MatrixStructure,
-        transposeA: Boolean,
-        x: DenseVector,
-    ): Unit = unsupported()
-
-    /** Whole dense matrix product over validated operands. The caller validates and stages aliases before dispatch. */
-    public fun computeGemm(
+    public fun gemm(
         alpha: Double,
         a: DenseMatrixRegion,
         transposeA: Boolean,
@@ -684,62 +338,15 @@ public interface KoblasEngine {
         transposeB: Boolean,
         beta: Double,
         c: DenseMatrixRegion,
-    ): Unit = unsupported()
+        scratch: Scratch? = null,
+    ): Unit = scheduledGemm(alpha, a, transposeA, b, transposeB, beta, c, scratch?.arrays)
 
-    /** Whole symmetric matrix product over the stored triangle. The caller validates and stages aliases before dispatch. */
-    public fun computeSymm(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        structure: MatrixStructure,
-        b: DenseMatrixRegion,
-        beta: Double,
-        c: DenseMatrixRegion,
-        rightSide: Boolean = false,
-    ): Unit = unsupported()
-
-    /** Whole symmetric rank k update over the stored triangle. The caller validates and stages aliases before dispatch. */
-    public fun computeSyrk(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        transposeA: Boolean,
-        beta: Double,
-        c: DenseMatrixRegion,
-        structure: MatrixStructure,
-    ): Unit = unsupported()
-
-    /** Whole symmetric rank two k update over the stored triangle. The caller validates and stages aliases before dispatch. */
-    public fun computeSyr2k(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        b: DenseMatrixRegion,
-        transposeA: Boolean,
-        beta: Double,
-        c: DenseMatrixRegion,
-        structure: MatrixStructure,
-    ): Unit = unsupported()
-
-    /** Whole triangular matrix product over validated operands. The caller validates and stages aliases before dispatch. */
-    public fun computeTrmm(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        structure: MatrixStructure,
-        transposeA: Boolean,
-        b: DenseMatrixRegion,
-        rightSide: Boolean = false,
-    ): Unit = unsupported()
-
-    /** Whole triangular matrix substitution over validated operands. The caller validates and stages aliases before dispatch. */
-    public fun computeTrsm(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        structure: MatrixStructure,
-        transposeA: Boolean,
-        b: DenseMatrixRegion,
-        rightSide: Boolean = false,
-    ): Unit = unsupported()
-
-    /** Whole dense product restricted to the selected output triangle. The caller validates and stages aliases before dispatch. */
-    public fun computeGemmt(
+    /**
+     * `C = alpha · op(A) · op(B) + beta · C` in only the selected triangle (Netlib `GEMMTR`, commonly exposed as
+     * `gemmt`). `op(A)` is `n×k`, `op(B)` is `k×n`, and [c] is `n×n`. The opposite triangle is neither read nor
+     * written. Overlap and multipliers follow [gemm].
+     */
+    public fun gemmt(
         alpha: Double,
         a: DenseMatrixRegion,
         transposeA: Boolean,
@@ -747,29 +354,261 @@ public interface KoblasEngine {
         transposeB: Boolean,
         beta: Double,
         c: DenseMatrixRegion,
-        structure: MatrixStructure,
-    ): Unit = unsupported()
+        lower: Boolean = true,
+        scratch: Scratch? = null,
+    ): Unit = scheduledGemmt(alpha, a, transposeA, b, transposeB, beta, c, lower, scratch?.arrays)
 
-    /** Explicit composition without changing the platform default. */
-    public companion object {
-        /**
-         * Combines available arithmetic with ordered routing preferences and complete portable coverage.
-         *
-         * Backends named by no applicable rule contribute no arithmetic. Known unavailable built-in backends fall through to
-         * later preferences and then portable Kotlin; unknown source identifiers are rejected. This never changes [koblas]. The caller chooses an
-         * applicable profile explicitly; automatic platform selection also checks [EngineProfile.appliesTo].
-         * Panel, product and triangular families are selected unconditionally before a schedule starts,
-         * because packing and grouping must use the same geometry as the selected arithmetic.
-         * Whole-call portable preferences retain the shared schedule with those separately selected families.
-         */
-        public fun combine(profile: EngineProfile, vararg backends: KoblasEngine): KoblasEngine {
-            require(profile.rules.none { rule -> !rule.unconditional && rule.implementations.any { it.family } }) {
-                "Scheduled kernel families require unconditional selection before packing"
-            }
-            return CombinedEngine(CompiledRouting(profile, backends.toList()), profile.name)
-        }
-    }
+    /**
+     * `C = alpha · A · B + beta · C`, or `C = alpha · B · A + beta · C` when [right] (BLAS `dsymm`). Only the
+     * [lower] or upper triangle of the symmetric [a] is read. Overlap and multipliers follow [gemm].
+     */
+    public fun symm(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        b: DenseMatrixRegion,
+        beta: Double,
+        c: DenseMatrixRegion,
+        lower: Boolean = true,
+        right: Boolean = false,
+        scratch: Scratch? = null,
+    ): Unit = scheduledSymm(alpha, a, b, beta, c, lower, right, scratch?.arrays)
+
+    /**
+     * `C = alpha · A·Aᵀ + beta · C`, or `alpha · Aᵀ·A + beta · C` when [transpose] (BLAS `dsyrk`). Only the
+     * [lower] or upper triangle is written. One product, so [alpha] and the accumulation order carry the
+     * latitude [gemm] describes.
+     */
+    public fun syrk(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        transpose: Boolean,
+        beta: Double,
+        c: DenseMatrixRegion,
+        lower: Boolean = true,
+        scratch: Scratch? = null,
+    ): Unit = scheduledSyrk(alpha, a, transpose, beta, c, lower, scratch?.arrays)
+
+    /**
+     * `C = alpha · (op(A) · op(B)ᵀ + op(B) · op(A)ᵀ) + beta · C` (BLAS `dsyr2k`), where `op` transposes when
+     * [transpose]. Only the [lower] or upper triangle is written. The implementation may accumulate the two
+     * products separately or in one traversal, with the rounding differences [gemm] describes.
+     */
+    public fun syr2k(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        b: DenseMatrixRegion,
+        transpose: Boolean,
+        beta: Double,
+        c: DenseMatrixRegion,
+        lower: Boolean = true,
+        scratch: Scratch? = null,
+    ): Unit = scheduledSyr2k(alpha, a, b, transpose, beta, c, lower, scratch?.arrays)
+
+    /**
+     * `B = alpha · op(T)⁻¹ · B` in place, or `B = alpha · B · op(T)⁻¹` when [right] (BLAS `dtrsm`). Flags follow
+     * [trsv]; the right-hand sides are the columns of [b] from the left and its rows from the right.
+     */
+    public fun trsm(
+        a: DenseMatrixRegion,
+        b: DenseMatrixRegion,
+        lower: Boolean,
+        transpose: Boolean = false,
+        unitDiag: Boolean = false,
+        right: Boolean = false,
+        alpha: Double = 1.0,
+        scratch: Scratch? = null,
+    ): Unit = scheduledTriangularMatrix(a, b, lower, transpose, unitDiag, right, alpha, solve = true, scratch?.arrays)
+
+    /** `B = alpha · op(T) · B`, or `B = alpha · B · op(T)` when [right] (BLAS `dtrmm`), the counterpart of [trsm]. */
+    public fun trmm(
+        a: DenseMatrixRegion,
+        b: DenseMatrixRegion,
+        lower: Boolean,
+        transpose: Boolean = false,
+        unitDiag: Boolean = false,
+        right: Boolean = false,
+        alpha: Double = 1.0,
+        scratch: Scratch? = null,
+    ): Unit = scheduledTriangularMatrix(a, b, lower, transpose, unitDiag, right, alpha, solve = false, scratch?.arrays)
+
+    /**
+     * In-place `y = alpha · op(A) · x + beta · y` for a sparse [a], where `op(A)` is `Aᵀ` when [transpose]. A zero
+     * [beta] overwrites [y] without reading it, and a zero [alpha] reads neither [a] nor [x].
+     *
+     * Only stored entries are visited, so an implicit zero of [a] forms no product: a column [a] does not store
+     * leaves [y] untouched even where [x] holds an infinity. A stored zero does form its product. [x] and [a]'s
+     * coefficients may share [y]'s storage and are snapshotted before [y] is scaled.
+     */
+    public fun gemv(
+        alpha: Double,
+        a: SparseMatrix,
+        x: DoubleArray,
+        beta: Double,
+        y: DoubleArray,
+        transpose: Boolean = false,
+        scratch: Scratch? = null,
+    ): Unit = scheduledSparseGemv(alpha, a, x, beta, y, transpose, scratch?.arrays)
+
+    /**
+     * `y = alpha · A · x + beta · y` for a square sparse [a] interpreted as symmetric. Exactly the selected
+     * [lower] or upper stored triangle is read; a stored off-diagonal entry contributes to both mirrored
+     * positions. Multipliers and overlap follow the sparse [gemv].
+     */
+    public fun symv(
+        alpha: Double,
+        a: SparseMatrix,
+        x: DoubleArray,
+        beta: Double,
+        y: DoubleArray,
+        lower: Boolean = true,
+        scratch: Scratch? = null,
+    ): Unit = scheduledSparseSymv(alpha, a, x, beta, y, lower, scratch?.arrays)
+
+    /**
+     * `C = alpha · A · B + beta · C`, or `C = alpha · B · A + beta · C` when [right], interpreting the square
+     * sparse [a] as symmetric from exactly its selected [lower] or upper triangle. A zero [alpha] reads neither
+     * input and a zero [beta] does not read [c]. Shared input and destination storage is staged.
+     */
+    public fun symm(
+        alpha: Double,
+        a: SparseMatrix,
+        b: DenseMatrixRegion,
+        beta: Double,
+        c: DenseMatrixRegion,
+        lower: Boolean = true,
+        right: Boolean = false,
+        scratch: Scratch? = null,
+    ): Unit = scheduledSparseSymm(alpha, a, b, beta, c, lower, right, scratch?.arrays)
+
+    /**
+     * Solve `op(T) · x = b` in place for a sparse triangle, with the flags of the dense [trsv]. A missing diagonal
+     * entry represents zero and no singularity check is performed. A right-hand side that is already exactly zero
+     * contributes no update, as in reference `dtrsv`.
+     */
+    public fun trsv(
+        a: SparseMatrix,
+        x: DoubleArray,
+        lower: Boolean,
+        transpose: Boolean = false,
+        unitDiag: Boolean = false,
+        scratch: Scratch? = null,
+    ): Unit = scheduledSparseTrsv(a, x, lower, transpose, unitDiag, scratch?.arrays)
+
+    /** `x = op(T) · x` in place for a sparse triangle. A missing diagonal entry is simply zero. */
+    public fun trmv(
+        a: SparseMatrix,
+        x: DoubleArray,
+        lower: Boolean,
+        transpose: Boolean = false,
+        unitDiag: Boolean = false,
+        scratch: Scratch? = null,
+    ): Unit = scheduledSparseTrmv(a, x, lower, transpose, unitDiag, scratch?.arrays)
+
+    /**
+     * `C = alpha · op(A) · op(B) + beta · C` (Sparse BLAS `usmm`) for a sparse [a] against a dense [b], or
+     * `C = alpha · op(B) · op(A) + beta · C` when [right]. A zero [beta] overwrites [c] without reading it.
+     *
+     * [right] exists because [a] is distinguished by being the sparse operand and cannot be swapped, so without a
+     * side the product of a dense matrix by a sparse one would only be reachable by transposing the result.
+     */
+    public fun gemm(
+        alpha: Double,
+        a: SparseMatrix,
+        transposeA: Boolean,
+        b: DenseMatrixRegion,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrixRegion,
+        right: Boolean = false,
+        scratch: Scratch? = null,
+    ): Unit = scheduledSparseDenseGemm(alpha, a, transposeA, b, transposeB, beta, c, right, scratch?.arrays)
+
+    /**
+     * Fresh CSC `alpha · op(A) · op(B)`. Product support is discovered from stored positions, including explicit
+     * zeros, retained cancellations and underflowed values; rows are sorted within every column and all result
+     * arrays are owned. A zero [alpha] discovers the same structure without reading operand values.
+     */
+    public fun gemm(
+        alpha: Double,
+        a: SparseMatrix,
+        transposeA: Boolean,
+        b: SparseMatrix,
+        transposeB: Boolean,
+    ): SparseMatrix = scheduledSparseProduct(alpha, a, transposeA, b, transposeB)
+
+    /**
+     * Dense-destination `C = alpha · op(A) · op(B) + beta · C` for two sparse operands. No sparse intermediate is
+     * created and implicit zeros are not evaluated. A zero [alpha] reads neither operand's values and a zero
+     * [beta] does not read [c].
+     */
+    public fun gemm(
+        alpha: Double,
+        a: SparseMatrix,
+        transposeA: Boolean,
+        b: SparseMatrix,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrixRegion,
+        scratch: Scratch? = null,
+    ): Unit = scheduledSparseProductInto(alpha, a, transposeA, b, transposeB, beta, c, scratch?.arrays)
+
+    /**
+     * Dense selected-triangle `C = alpha · op(A) · op(A)ᵀ + beta · C` for a sparse [a]. Only the [lower] or upper
+     * triangle of [c] is read or written, and products involving implicit zeros are not evaluated.
+     */
+    public fun syrk(
+        alpha: Double,
+        a: SparseMatrix,
+        transpose: Boolean,
+        beta: Double,
+        c: DenseMatrixRegion,
+        lower: Boolean = true,
+        scratch: Scratch? = null,
+    ): Unit = scheduledSparseSyrk(alpha, a, transpose, beta, c, lower, scratch?.arrays)
+
+    /**
+     * Fresh CSC selected triangle of `op(A) · op(A)ᵀ`. Stored-product support and cancellations are retained, rows
+     * are sorted, and result arrays are owned. The opposite triangle is absent rather than implicitly mirrored.
+     */
+    public fun syrk(a: SparseMatrix, transpose: Boolean = false, lower: Boolean = true): SparseMatrix =
+        symmetricRankProduct(a, transpose, lower)
+
+    /**
+     * Fresh CSC `alpha · op(A) + B`. The structural union is retained, including explicit zeros, cancellations
+     * and positions only `A` stores when [alpha] is zero, in which case `A`'s values are not read.
+     */
+    public fun addScaled(alpha: Double, a: SparseMatrix, transposeA: Boolean, b: SparseMatrix): SparseMatrix =
+        scheduledSparseAddScaled(alpha, a, transposeA, b)
+
+    /**
+     * `B = alpha · op(T)⁻¹ · B` in place, or `B = alpha · B · op(T)⁻¹` when [right] (Sparse BLAS `ussm`), with the
+     * flags of the sparse [trsv]. A missing diagonal entry behaves as zero and singularity is not reported. From
+     * the right a stored zero off the diagonal is skipped, as reference `dtrsm` skips a zero coefficient.
+     */
+    public fun trsm(
+        a: SparseMatrix,
+        b: DenseMatrixRegion,
+        lower: Boolean,
+        transpose: Boolean = false,
+        unitDiag: Boolean = false,
+        right: Boolean = false,
+        alpha: Double = 1.0,
+        scratch: Scratch? = null,
+    ): Unit = scheduledSparseTrsm(a, b, lower, transpose, unitDiag, right, alpha, scratch?.arrays)
+
+    /**
+     * `B = alpha · op(T) · B` in place, or `B = alpha · B · op(T)` when [right]. Zero or missing diagonal entries
+     * participate normally. From the right a stored zero off the diagonal is skipped, as reference `dtrmm` skips
+     * a zero coefficient.
+     */
+    public fun trmm(
+        a: SparseMatrix,
+        b: DenseMatrixRegion,
+        lower: Boolean,
+        transpose: Boolean = false,
+        unitDiag: Boolean = false,
+        right: Boolean = false,
+        alpha: Double = 1.0,
+        scratch: Scratch? = null,
+    ): Unit = scheduledSparseTrmm(a, b, lower, transpose, unitDiag, right, alpha, scratch?.arrays)
 }
-
-private fun KoblasEngine.unsupported(): Nothing =
-    throw UnsupportedOperationException("This operation is not supplied by $name")

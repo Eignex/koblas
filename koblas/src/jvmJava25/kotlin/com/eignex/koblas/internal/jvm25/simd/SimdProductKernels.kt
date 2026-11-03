@@ -22,7 +22,7 @@ import jdk.incubator.vector.DoubleVector
  * Species initialization requires the Vector API module. [BuiltinEngines] checks
  * availability before constructing an engine with this backend.
  */
-internal object SimdProductKernels : KoblasEngine {
+internal object SimdProductKernels : EngineKernels {
     override val id: String = "jvm-simd"
     override val implementations = setOf(EngineImplementation.Products)
 

@@ -11,7 +11,7 @@ import kotlin.test.*
  * A backend that recommends a grouping of its own, so the shared traversal runs at widths no production
  * backend chooses. The arithmetic stays the portable backend's, since the scheduling is what is under test.
  */
-private class RegroupedPanels(private val group: Int) : KoblasEngine by PortableEngine {
+private class RegroupedPanels(private val group: Int) : EngineKernels by PortableEngine {
     override val implementations = setOf(EngineImplementation.Panels)
 
     override val name: String get() = "regrouped($group)"

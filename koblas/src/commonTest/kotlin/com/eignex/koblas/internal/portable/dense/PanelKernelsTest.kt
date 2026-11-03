@@ -65,7 +65,7 @@ class PanelKernelsTest {
     }
 
     /** A valid dense zero shortcut; indexed leaves retain their separate stored-position behavior. */
-    private class ZeroSkippingPanels : KoblasEngine by PortableEngine {
+    private class ZeroSkippingPanels : EngineKernels by PortableEngine {
         override val name = "zero-skipping"
         override val implementations = setOf(EngineImplementation.Panels)
         var skippedCoefficients: Int = 0

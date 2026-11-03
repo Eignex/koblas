@@ -30,7 +30,7 @@ internal class ProductBlockCall(
 )
 
 /** A product backend that records every block it is handed and delegates the arithmetic. */
-internal class RecordingProducts(private val delegate: KoblasEngine) : KoblasEngine {
+internal class RecordingProducts(private val delegate: EngineKernels) : EngineKernels {
     override val implementations = setOf(EngineImplementation.Products)
 
     override fun packsProduct(rows: Int, columns: Int, depth: Int): Boolean = delegate.packsProduct(
@@ -80,8 +80,8 @@ internal class RecordingProducts(private val delegate: KoblasEngine) : KoblasEng
  * and one wholly outside, which is never scheduled. Only running the product shows which each block was.
  */
 internal fun assertTriangleProductStaysInTriangle(
-    products: KoblasEngine,
-    panels: KoblasEngine,
+    products: EngineKernels,
+    panels: EngineKernels,
     n: Int,
     k: Int,
     lower: Boolean,

@@ -278,7 +278,7 @@ class VectorOpsTest {
     fun `public iamax returns logical indices across strides and kernel boundaries`() {
         // A unit stride reaches the kernel unchanged, and the engine tests already hold it to this contract.
         for (stride in intArrayOf(2, -2)) {
-            val publicKernels = object : KoblasEngine {
+            val publicKernels = object : EngineKernels {
                 override val implementations = setOf(EngineImplementation.Iamax)
                 override val name: String = "test-VectorOpsTest"
 

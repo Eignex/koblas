@@ -3,6 +3,7 @@
 
 package com.eignex.koblas
 
+import com.eignex.koblas.internal.operands.windowsOverlap
 import kotlin.jvm.JvmOverloads
 
 /**
@@ -41,26 +42,8 @@ public class StridedVector @JvmOverloads constructor(
 }
 
 /** Whether these vectors address at least one common buffer entry. */
-public fun DenseVector.overlaps(other: DenseVector): Boolean {
-    if (values !== other.values || size == 0 || other.size == 0) return false
-    val last = offset.toLong() + (size - 1).toLong() * stride
-    val otherLast = other.offset.toLong() + (other.size - 1).toLong() * other.stride
-    val low = maxOf(minOf(offset.toLong(), last), minOf(other.offset.toLong(), otherLast))
-    val high = minOf(maxOf(offset.toLong(), last), maxOf(other.offset.toLong(), otherLast))
-    if (low > high) return false
-    // Rows share one spacing and columns have separated bounds. For equal spacings the intersecting
-    // bounds contain a shared entry exactly when the two origins belong to the same index lattice.
-    val step = kotlin.math.abs(stride.toLong())
-    if (step == kotlin.math.abs(other.stride.toLong())) return (offset.toLong() - other.offset) % step == 0L
-    val first = if (size <= other.size) this else other
-    val second = if (first === this) other else this
-    for (i in 0 until first.size) {
-        val physical = first.offset + i * first.stride
-        val relative = physical - second.offset
-        if (relative % second.stride == 0 && relative / second.stride in 0 until second.size) return true
-    }
-    return false
-}
+public fun DenseVector.overlaps(other: DenseVector): Boolean =
+    windowsOverlap(values, offset, size, stride, other.values, other.offset, other.size, other.stride)
 
 /** A borrowed view over this whole vector, keeping whatever origin and spacing it already has. */
 public fun DenseVector.asView(): StridedVector = StridedVector(values, offset, size, stride)

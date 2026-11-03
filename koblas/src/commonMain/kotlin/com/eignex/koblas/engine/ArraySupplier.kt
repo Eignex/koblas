@@ -1,7 +1,5 @@
 package com.eignex.koblas.engine
 
-import com.eignex.koblas.KoblasEngine
-
 /** Scoped temporary arrays; arithmetic does not own their retention policy. */
 internal interface ArraySupplier {
     fun take(size: Int): DoubleArray
@@ -9,11 +7,6 @@ internal interface ArraySupplier {
     fun release(buffer: DoubleArray)
     fun release(buffer: IntArray)
 }
-
-internal class BufferedEngine(val arithmetic: KoblasEngine, val arrays: ArraySupplier) : KoblasEngine by arithmetic
-
-internal val KoblasEngine.arithmeticEngine: KoblasEngine get() = (this as? BufferedEngine)?.arithmetic ?: this
-internal val KoblasEngine.arrays: ArraySupplier? get() = (this as? BufferedEngine)?.arrays
 
 /** Always return loans, including when operand reads or arithmetic throw. */
 internal inline fun <T> ArraySupplier?.borrow(size: Int, block: (DoubleArray) -> T): T {

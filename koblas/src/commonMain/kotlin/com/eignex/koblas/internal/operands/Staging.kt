@@ -22,15 +22,6 @@ internal inline fun <T> staged(
     }
 }
 
-/** Copies only the logical vector entries, so a short strided view does not stage its entire backing array. */
-internal inline fun <T> staged(arrays: ArraySupplier?, x: DenseVector, aliased: Boolean, block: (DenseVector) -> T): T {
-    if (!aliased) return block(x)
-    return arrays.borrow(x.size) { copy ->
-        x.gatherInto(copy)
-        block(ContiguousVector(copy))
-    }
-}
-
 /**
  * [staged] for a sparse operand, where only the coefficients can alias.
  *
@@ -49,15 +40,6 @@ internal inline fun <T> staged(
         a.values.copyInto(copy)
         block(SparseMatrix.wrapTrusted(a.rows, a.cols, a.colPointers, a.rowIndices, copy))
     }
-}
-
-/** This vector's entries in logical order at the front of [destination], which holds at least [Vector.size]. */
-internal fun DenseVector.gatherInto(destination: DoubleArray) {
-    if (stride == 1) {
-        values.copyInto(destination, 0, offset, offset + size)
-        return
-    }
-    for (i in 0 until size) destination[i] = values[offset + i * stride]
 }
 
 /**
@@ -85,18 +67,3 @@ internal inline fun <T> denseOperand(arrays: ArraySupplier?, matrix: Matrix, blo
 /** Identical logical vector addressing can share one immutable snapshot. */
 internal fun sameVectorMapping(a: DenseVector, b: DenseVector): Boolean =
     a.values === b.values && a.offset == b.offset && a.size == b.size && (a.size <= 1 || a.stride == b.stride)
-
-/** Stages two vector operands against logical destination entries, sharing identical snapshots. */
-internal inline fun <T> stagedVectors(
-    arrays: ArraySupplier?,
-    x: DenseVector,
-    y: DenseVector,
-    destination: DenseMatrixRegion,
-    block: (DenseVector, DenseVector) -> T,
-): T = staged(arrays, x, regionVectorOverlap(destination, x)) { sx ->
-    if (sameVectorMapping(x, y)) {
-        block(sx, sx)
-    } else {
-        staged(arrays, y, regionVectorOverlap(destination, y)) { sy -> block(sx, sy) }
-    }
-}

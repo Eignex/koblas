@@ -24,7 +24,7 @@ import jdk.incubator.vector.VectorOperators
  * initialization requires the Vector API module, so [BuiltinEngines] checks availability
  * before using this backend.
  */
-internal object SimdPanelKernels : KoblasEngine {
+internal object SimdPanelKernels : EngineKernels {
     override val id: String = "jvm-simd"
     override val implementations = setOf(EngineImplementation.Panels)
 

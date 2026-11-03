@@ -3,7 +3,6 @@ package com.eignex.koblas.internal.operands
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
-import com.eignex.koblas.workspace.*
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -35,7 +34,7 @@ class DenseRegionBlasTest {
                 val expected = contiguousCopy(c)
                 ReferenceBlas.gemm(0.875, contiguousCopy(a), ta, contiguousCopy(b), tb, -0.25, expected)
 
-                blas.withWorkspace(Workspace()).gemm(0.875, a, ta, b, tb, -0.25, c)
+                blas.gemm(0.875, a, ta, b, tb, -0.25, c, scratch = Scratch())
 
                 assertRegionAgreesWithReference(expected, c, before, "row=$row transposed=$transposed")
             }
@@ -54,7 +53,7 @@ class DenseRegionBlasTest {
                 val expected = contiguousCopy(c)
                 ReferenceBlas.gemm(0.875, contiguousCopy(a), ta, contiguousCopy(b), tb, -0.25, expected)
 
-                blas.withWorkspace(Workspace()).gemm(0.875, a, ta, b, tb, -0.25, c)
+                blas.gemm(0.875, a, ta, b, tb, -0.25, c, scratch = Scratch())
 
                 assertRegionAgreesWithReference(expected, c, before, "tA=$ta tB=$tb")
             }
@@ -68,10 +67,10 @@ class DenseRegionBlasTest {
         val c = parent.view(4, 4, 8, 8)
         val expected = contiguousCopy(c)
         val before = parent.values.copyOf()
-        val workspace = Workspace()
+        val workspace = Scratch()
         ReferenceBlas.syrk(-1.0, contiguousCopy(a), false, 1.0, expected)
 
-        blas.withWorkspace(workspace).syrk(-1.0, a, false, 1.0, c)
+        blas.syrk(-1.0, a, false, 1.0, c, scratch = workspace)
 
         assertRegionAgreesWithReference(expected, c, before)
         assertEquals(0, workspace.available(a.rows * a.cols))
@@ -91,11 +90,11 @@ class DenseRegionBlasTest {
         ReferenceBlas.trsm(contiguousCopy(triangle), expectedBeside, lower = true)
         val before = parent.values.copyOf()
 
-        blas.withWorkspace(Workspace()).syrk(-1.0, panel, false, 1.0, trailing)
-        blas.withWorkspace(Workspace()).gemm(0.5, panel, false, beside, false, 1.0, trailing)
+        blas.syrk(-1.0, panel, false, 1.0, trailing, scratch = Scratch())
+        blas.gemm(0.5, panel, false, beside, false, 1.0, trailing, scratch = Scratch())
         assertRegionAgreesWithReference(expectedTrailing, trailing, before, "trailing")
         val afterProducts = parent.values.copyOf()
-        blas.withWorkspace(Workspace()).trsm(triangle, beside, lower = true)
+        blas.trsm(triangle, beside, lower = true, scratch = Scratch())
 
         assertRegionAgreesWithReference(expectedBeside, beside, afterProducts, "beside")
     }
@@ -111,7 +110,7 @@ class DenseRegionBlasTest {
                 val before = parent.values.copyOf()
                 ReferenceBlas.trsm(contiguousCopy(a), expected, lower, right = right)
 
-                blas.withWorkspace(Workspace()).trsm(a, b, lower, right = right)
+                blas.trsm(a, b, lower, right = right, scratch = Scratch())
 
                 assertRegionAgreesWithReference(expected, b, before, "lower=$lower right=$right")
             }
@@ -129,7 +128,7 @@ class DenseRegionBlasTest {
                 val before = parent.values.copyOf()
                 ReferenceBlas.syrk(-1.0, contiguousCopy(a), transpose, 1.0, expected, lower)
 
-                blas.withWorkspace(Workspace()).syrk(-1.0, a, transpose, 1.0, c, lower)
+                blas.syrk(-1.0, a, transpose, 1.0, c, lower, scratch = Scratch())
 
                 assertRegionAgreesWithReference(expected, c, before, "transpose=$transpose lower=$lower")
             }
@@ -143,7 +142,7 @@ class DenseRegionBlasTest {
         val expected = actual.copyOf()
         ReferenceBlas.gemv(0.875, contiguousCopy(a), doubleArrayOf(2.0), -0.25, expected)
 
-        blas.withWorkspace(Workspace()).gemv(0.875, a, doubleArrayOf(2.0), -0.25, actual)
+        blas.gemv(0.875, a, doubleArrayOf(2.0), -0.25, actual, scratch = Scratch())
 
         assertClose(expected, actual, "aliased region gemv")
     }
@@ -154,14 +153,14 @@ class DenseRegionBlasTest {
     fun `a triangular solve stages its triangle from the workspace and borrows nothing else`() {
         val rng = Random(20260929)
         val n = 5
-        val workspace = Workspace()
+        val workspace = Scratch()
         val start = randomMatrix(n, n, rng)
         for (i in 0 until n) start[i, i] = 3.0 + i % 2
         val expected = start.copyOf()
         ReferenceBlas.trsm(start.copyOf(), expected, lower = true)
         val aliased = start.copyOf()
 
-        BuiltinEngines.scalar.withWorkspace(workspace).trsm(aliased, aliased, lower = true)
+        BuiltinEngines.scalar.trsm(aliased, aliased, lower = true, scratch = workspace)
 
         assertClose(expected.values, aliased.values, "trsm with its own triangle", tolerance = 1e-9)
         assertEquals(1, workspace.available(n * n), "the triangle was not staged from the workspace")
@@ -172,14 +171,14 @@ class DenseRegionBlasTest {
     fun `a repeated call over one shape reuses the same scratch`() {
         val rng = Random(20260930)
         val order = 9
-        val workspace = Workspace()
+        val workspace = Scratch()
         val a = randomMatrix(order, order, rng)
         val b = randomMatrix(order, 4, rng)
-        val blas = BuiltinEngines.scalar.withWorkspace(workspace)
+        val blas = BuiltinEngines.scalar
 
-        blas.gemm(0.5, a, false, b, false, 0.5, b)
+        blas.gemm(0.5, a, false, b, false, 0.5, b, scratch = workspace)
         val afterOne = workspace.idleLengths()
-        repeat(3) { blas.gemm(0.5, a, false, b, false, 0.5, b) }
+        repeat(3) { blas.gemm(0.5, a, false, b, false, 0.5, b, scratch = workspace) }
 
         assertTrue(afterOne > 0, "an aliased product needs an operand snapshot")
         assertEquals(afterOne, workspace.idleLengths(), "a repeated call kept asking for new buffers")

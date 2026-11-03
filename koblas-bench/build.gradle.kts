@@ -75,11 +75,11 @@ kotlin {
 kotlin.targets.configureEach {
     compilations.configureEach {
         val friends = compileDependencyFiles.filter { it.path.contains("koblas") && !it.path.contains("koblas-bench") }
-        val inspect = name != "test"
         compileTaskProvider.configure {
             if (this is org.jetbrains.kotlin.gradle.tasks.BaseKotlinCompile) friendPaths.from(friends)
-            if (this is org.jetbrains.kotlin.gradle.tasks.KotlinNativeCompile && inspect) {
-                val nativeFriends = libraries.filter { it.path.contains("koblas") && !it.path.contains("koblas-bench") }
+            if (this is org.jetbrains.kotlin.gradle.tasks.KotlinNativeCompile) {
+                // One flag naming every friend, since a second one replaces the test compilation's own main.
+                val nativeFriends = libraries.filter { it.path.contains("koblas") }
                 compilerOptions.freeCompilerArgs.add(nativeFriends.elements.map {
                     "-friend-modules=" + it.joinToString(JdkFile.pathSeparator) { entry -> entry.asFile.absolutePath }
                 })

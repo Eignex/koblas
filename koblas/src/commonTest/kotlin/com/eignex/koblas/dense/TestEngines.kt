@@ -20,7 +20,7 @@ internal fun withEngines(body: (KoblasEngine) -> Unit) {
 }
 
 /** Runs [body] against every composition of panel, product and substitution backends this platform has. */
-internal fun withBackends(body: (KoblasEngine, KoblasEngine, KoblasEngine) -> Unit) {
+internal fun withBackends(body: (EngineKernels, EngineKernels, EngineKernels) -> Unit) {
     body(PortableEngine, PortableEngine, PortableEngine)
     BuiltinEngines.simd?.let { body(it.panelProvider, it.productProvider, it.triangularProvider) }
 }

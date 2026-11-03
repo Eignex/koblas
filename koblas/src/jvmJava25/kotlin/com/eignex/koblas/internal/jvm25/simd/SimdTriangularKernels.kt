@@ -24,7 +24,7 @@ import jdk.incubator.vector.VectorOperators
  * amortize vector loads. Species initialization requires the Vector API module, checked by
  * [BuiltinEngines] before using this backend.
  */
-internal object SimdTriangularKernels : KoblasEngine {
+internal object SimdTriangularKernels : EngineKernels {
     override val id: String = "jvm-simd"
     override val implementations = setOf(EngineImplementation.Triangular)
 

@@ -27,18 +27,16 @@ class PortableEngineTest {
                             val actual = expected.copyOf()
                             val e = expected.view(1, 1, 4, 4)
                             val c = actual.view(1, 1, 4, 4)
-                            val structure = symmetricStructure(lower)
-                            val triangle = triangle(lower, unitDiag = false)
                             val input = if (alpha == 0.0) poison else a
                             when (operation) {
                                 Gemm -> {
                                     ReferenceBlas.gemm(alpha, a, transpose, b, !transpose, -0.5, e)
-                                    PortableEngine.computeGemm(alpha, input, transpose, b, !transpose, -0.5, c)
+                                    PortableEngine.gemm(alpha, input, transpose, b, !transpose, -0.5, c)
                                 }
 
                                 Gemmt -> {
                                     ReferenceBlas.gemmt(alpha, a, transpose, b, !transpose, -0.5, e, lower)
-                                    PortableEngine.computeGemmt(
+                                    PortableEngine.gemmt(
                                         alpha,
                                         input,
                                         transpose,
@@ -46,33 +44,33 @@ class PortableEngineTest {
                                         !transpose,
                                         -0.5,
                                         c,
-                                        structure,
+                                        lower,
                                     )
                                 }
 
                                 Symm -> {
                                     ReferenceBlas.symm(alpha, a, b, -0.5, e, lower, right)
-                                    PortableEngine.computeSymm(alpha, input, structure, b, -0.5, c, right)
+                                    PortableEngine.symm(alpha, input, b, -0.5, c, lower, right)
                                 }
 
                                 Syrk -> {
                                     ReferenceBlas.syrk(alpha, a, transpose, -0.5, e, lower)
-                                    PortableEngine.computeSyrk(alpha, input, transpose, -0.5, c, structure)
+                                    PortableEngine.syrk(alpha, input, transpose, -0.5, c, lower)
                                 }
 
                                 Syr2k -> {
                                     ReferenceBlas.syr2k(alpha, a, b, transpose, -0.5, e, lower)
-                                    PortableEngine.computeSyr2k(alpha, input, b, transpose, -0.5, c, structure)
+                                    PortableEngine.syr2k(alpha, input, b, transpose, -0.5, c, lower)
                                 }
 
                                 Trmm -> {
                                     ReferenceBlas.trmm(a, e, lower, transpose, right = right, alpha = alpha)
-                                    PortableEngine.computeTrmm(alpha, input, triangle, transpose, c, right)
+                                    PortableEngine.trmm(input, c, lower, transpose, right = right, alpha = alpha)
                                 }
 
                                 Trsm -> {
                                     ReferenceBlas.trsm(a, e, lower, transpose, right = right, alpha = alpha)
-                                    PortableEngine.computeTrsm(alpha, input, triangle, transpose, c, right)
+                                    PortableEngine.trsm(input, c, lower, transpose, right = right, alpha = alpha)
                                 }
 
                                 else -> error("Unexpected operation $operation")
@@ -96,8 +94,6 @@ class PortableEngineTest {
         val x = DenseVector.wrap(randomVector(4, rng))
         val y = DenseVector.wrap(randomVector(4, rng))
         for (lower in listOf(false, true)) {
-            val structure = symmetricStructure(lower)
-            val triangle = triangle(lower, unitDiag = false)
             for (transpose in listOf(false, true)) {
                 for (operation in listOf(Gemv, Symv, Trsv, Trmv)) {
                     val expected = y.toDoubleArray()
@@ -105,22 +101,22 @@ class PortableEngineTest {
                     when (operation) {
                         Gemv -> {
                             ReferenceBlas.gemv(0.75, a, x.values, -0.5, expected, transpose)
-                            PortableEngine.computeGemv(0.75, a, transpose, x, -0.5, actual)
+                            PortableEngine.gemv(0.75, a, x, -0.5, actual, transpose)
                         }
 
                         Symv -> {
                             ReferenceBlas.symv(0.75, a, x.values, -0.5, expected, lower)
-                            PortableEngine.computeSymv(0.75, a, structure, x, -0.5, actual)
+                            PortableEngine.symv(0.75, a, x, -0.5, actual, lower)
                         }
 
                         Trsv -> {
                             ReferenceBlas.trsv(a, expected, lower, transpose)
-                            PortableEngine.computeTrsv(a, triangle, transpose, actual)
+                            PortableEngine.trsv(a, actual, lower, transpose)
                         }
 
                         Trmv -> {
                             ReferenceBlas.trmv(a, expected, lower, transpose)
-                            PortableEngine.computeTrmv(a, triangle, transpose, actual)
+                            PortableEngine.trmv(a, actual, lower, transpose)
                         }
 
                         else -> error("Unexpected operation $operation")
@@ -134,17 +130,17 @@ class PortableEngineTest {
                 when (operation) {
                     Ger -> {
                         ReferenceBlas.ger(0.75, x.values, y.values, expected)
-                        PortableEngine.computeGer(0.75, x, y, actual)
+                        PortableEngine.ger(0.75, x, y, actual)
                     }
 
                     Syr -> {
                         ReferenceBlas.syr(0.75, x, expected, lower)
-                        PortableEngine.computeSyr(0.75, x, actual, structure)
+                        PortableEngine.syr(0.75, x, actual, lower)
                     }
 
                     Syr2 -> {
                         ReferenceBlas.syr2(0.75, x, y, expected, lower)
-                        PortableEngine.computeSyr2(0.75, x, y, actual, structure)
+                        PortableEngine.syr2(0.75, x, y, actual, lower)
                     }
 
                     else -> error("Unexpected operation $operation")

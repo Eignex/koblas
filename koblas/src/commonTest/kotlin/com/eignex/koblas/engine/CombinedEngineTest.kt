@@ -9,7 +9,6 @@ import com.eignex.koblas.engineWithKernels
 import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.internal.portable.PortableEngine
 import com.eignex.koblas.sparse.*
-import com.eignex.koblas.workspace.*
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -27,17 +26,17 @@ import kotlin.test.assertTrue
 class CombinedEngineTest {
     @Test
     fun `nested compositions retain leaf identity and missing exports reach the next provider`() {
-        val vendor = object : KoblasEngine {
+        val vendor = object : EngineKernels {
             override val name = "host"
             override val vendor = Vendor.OneMkl
             override val implementations = setOf(EngineImplementation.Dot, EngineImplementation.Gemm)
         }
-        val fallback = object : KoblasEngine {
+        val fallback = object : EngineKernels {
             override val name = "custom"
             override val implementations = setOf(EngineImplementation.Asum)
         }
-        val nested = KoblasEngine.combine(EngineProfile("nested", emptyList()), vendor)
-        val combined = KoblasEngine.combine(
+        val nested = combine(EngineProfile("nested", emptyList()), vendor)
+        val combined = combine(
             EngineProfile(
                 "outer",
                 listOf(
@@ -61,7 +60,7 @@ class CombinedEngineTest {
     @Test
     fun `threshold and layout select the same body that executes`() {
         val calls = mutableListOf<Int>()
-        val backend = object : KoblasEngine {
+        val backend = object : EngineKernels {
             override fun requiresUnitStride(implementation: EngineImplementation): Boolean = true
             override fun minimumLength(implementation: EngineImplementation): Int = 2
 
@@ -96,7 +95,7 @@ class CombinedEngineTest {
         )
         val x = DoubleArray(16) { it / 7.0 }
         for (rule in rules) {
-            val engine = KoblasEngine.combine(EngineProfile("test", listOf(rule)), backend)
+            val engine = combine(EngineProfile("test", listOf(rule)), backend)
             for (length in listOf(0, 1, 3, 4, 5)) {
                 for (stride in listOf(1, 2)) {
                     val expected = PortableEngine.dot(x, 0, x, 1, length, stride, stride)
@@ -115,11 +114,11 @@ class CombinedEngineTest {
 
     @Test
     fun `missing backend and missing capabilities fall through ordered preferences`() {
-        val backend = object : KoblasEngine {
+        val backend = object : EngineKernels {
             override val name = "sum"
             override val implementations = setOf(EngineImplementation.Sum)
         }
-        val engine = KoblasEngine.combine(
+        val engine = combine(
             EngineProfile(
                 "test",
                 listOf(
@@ -143,17 +142,17 @@ class CombinedEngineTest {
         for (source in listOf("onemlk", "jvm-smid")) {
             val profile = EngineProfile("typo", listOf(EngineRule(source, setOf(EngineImplementation.Dot))))
 
-            assertFailsWith<IllegalArgumentException> { KoblasEngine.combine(profile) }
+            assertFailsWith<IllegalArgumentException> { combine(profile) }
         }
         val profile = EngineProfile("optional", listOf(EngineRule("onemkl", setOf(EngineImplementation.Dot))))
 
-        assertEquals(PortableEngine.name, KoblasEngine.combine(profile).implementationFor(EngineImplementation.Dot, 32))
+        assertEquals(PortableEngine.name, combine(profile).implementationFor(EngineImplementation.Dot, 32))
     }
 
     @Test
     fun `indexed dot registration preserves every window argument`() {
         val counts = mutableListOf<Int>()
-        val backend = object : KoblasEngine {
+        val backend = object : EngineKernels {
 
             override val implementations = setOf(EngineImplementation.IndexedDot)
             override val name: String = "indexed"
@@ -173,7 +172,7 @@ class CombinedEngineTest {
                 return PortableEngine.dotDense(indices, indexOffset, values, valueOffset, count, dense)
             }
         }
-        val engine = KoblasEngine.combine(
+        val engine = combine(
             EngineProfile(
                 "test",
                 listOf(
@@ -194,7 +193,7 @@ class CombinedEngineTest {
     @Test
     fun `partial implementations sharing one backend compose across arithmetic families`() {
         val calls = mutableListOf<String>()
-        val vectors = object : KoblasEngine {
+        val vectors = object : EngineKernels {
             override val name = "vectors"
             override val id = "partial"
             override val implementations = setOf(EngineImplementation.Dot)
@@ -211,7 +210,7 @@ class CombinedEngineTest {
                 return PortableEngine.dot(a, aOff, b, bOff, len, aStride, bStride)
             }
         }
-        val indexed = object : KoblasEngine {
+        val indexed = object : EngineKernels {
             override val name = "indexed"
             override val id = "partial"
             override val implementations = setOf(EngineImplementation.IndexedAxpy)
@@ -228,11 +227,11 @@ class CombinedEngineTest {
                 PortableEngine.axpy(indices, indexOffset, values, valueOffset, count, alpha, destination)
             }
         }
-        val matrices = object : KoblasEngine {
+        val matrices = object : EngineKernels {
             override val name = "matrices"
             override val id = "partial"
             override val implementations = setOf(EngineImplementation.Gemm)
-            override fun computeGemm(
+            override fun gemm(
                 alpha: Double,
                 a: DenseMatrixRegion,
                 transposeA: Boolean,
@@ -240,19 +239,20 @@ class CombinedEngineTest {
                 transposeB: Boolean,
                 beta: Double,
                 c: DenseMatrixRegion,
+                scratch: Scratch?,
             ) {
                 calls += "matrix product"
                 ReferenceBlas.gemm(alpha, a, transposeA, b, transposeB, beta, c)
             }
         }
         val operations = vectors.implementations + indexed.implementations + matrices.implementations
-        val engine = KoblasEngine.combine(
+        val engine = combine(
             EngineProfile("partial", listOf(EngineRule("partial", operations))),
             vectors,
             indexed,
             matrices,
         )
-        val nested = KoblasEngine.combine(
+        val nested = combine(
             EngineProfile("nested", listOf(EngineRule(engine.id, engine.implementations))),
             engine,
         )
@@ -309,7 +309,7 @@ class CombinedEngineTest {
             val expected = copy(c)
             ReferenceBlas.gemm(0.875, copy(a), false, copy(b), false, -0.25, expected)
 
-            blas.withWorkspace(Workspace()).gemm(0.875, a, false, b, false, -0.25, c)
+            blas.gemm(0.875, a, false, b, false, -0.25, c, scratch = Scratch())
 
             for (j in 0 until ORDER) {
                 for (i in 0 until ORDER) {
@@ -437,14 +437,10 @@ class CombinedEngineTest {
                     val (recorder, blas) = forced()
                     val c = matrix(ORDER)
                     val b = if (sameMatrix) c else DenseMatrix.wrap(ORDER, ORDER, c.values)
-                    val workspace = if (useWorkspace) Workspace() else null
+                    val workspace = if (useWorkspace) Scratch() else null
 
                     when (operation) {
-                        EngineImplementation.Gemm -> blas.withWorkspace(
-                            workspace,
-                        ).gemm(0.875, c, false, b, true, -0.25, c)
-
-                        EngineImplementation.Gemmt -> blas.withWorkspace(workspace).gemmt(
+                        EngineImplementation.Gemm -> blas.gemm(
                             0.875,
                             c,
                             false,
@@ -452,11 +448,24 @@ class CombinedEngineTest {
                             true,
                             -0.25,
                             c,
+                            scratch =
+                            workspace,
                         )
 
-                        EngineImplementation.Symm -> blas.withWorkspace(workspace).symm(0.875, c, b, -0.25, c)
+                        EngineImplementation.Gemmt -> blas.gemmt(
+                            0.875,
+                            c,
+                            false,
+                            b,
+                            true,
+                            -0.25,
+                            c,
+                            scratch = workspace,
+                        )
 
-                        EngineImplementation.Syr2k -> blas.withWorkspace(workspace).syr2k(0.875, c, b, true, -0.25, c)
+                        EngineImplementation.Symm -> blas.symm(0.875, c, b, -0.25, c, scratch = workspace)
+
+                        EngineImplementation.Syr2k -> blas.syr2k(0.875, c, b, true, -0.25, c, scratch = workspace)
 
                         else -> error("unexpected product $operation")
                     }
@@ -492,17 +501,33 @@ class CombinedEngineTest {
     @Test
     fun `the staged copy is borrowed from the caller s workspace`() {
         val (_, blas) = forced()
-        val workspace = Workspace()
+        val workspace = Scratch()
         val shared = DoubleArray(ORDER * ORDER) { 1.0 + it }
         val c = DenseMatrix.wrap(ORDER, ORDER, shared)
 
-        blas.withWorkspace(
+        blas.gemm(
+            1.0,
+            DenseMatrix.wrap(ORDER, ORDER, shared),
+            false,
+            matrix(ORDER),
+            false,
+            0.0,
+            c,
+            scratch =
             workspace,
-        ).gemm(1.0, DenseMatrix.wrap(ORDER, ORDER, shared), false, matrix(ORDER), false, 0.0, c)
+        )
         val lent = workspace.available(ORDER * ORDER)
-        blas.withWorkspace(
+        blas.gemm(
+            1.0,
+            DenseMatrix.wrap(ORDER, ORDER, shared),
+            false,
+            matrix(ORDER),
+            false,
+            0.0,
+            c,
+            scratch =
             workspace,
-        ).gemm(1.0, DenseMatrix.wrap(ORDER, ORDER, shared), false, matrix(ORDER), false, 0.0, c)
+        )
 
         assertEquals(1, lent, "the staging was not lent by the workspace")
         assertEquals(1, workspace.available(ORDER * ORDER), "a second call allocated its own staging")
@@ -518,7 +543,7 @@ class CombinedEngineTest {
         val expectedA = a.toArray()
         val expectedB = b.toArray()
 
-        blas.withWorkspace(Workspace()).gemm(1.0, a, false, b, false, 0.0, c)
+        blas.gemm(1.0, a, false, b, false, 0.0, c, scratch = Scratch())
 
         val call = recorder.single()
         assertEquals(EngineImplementation.Gemm, call.operation)
@@ -539,13 +564,13 @@ class CombinedEngineTest {
         val trailing = parent.view(4, 4, 5, 5)
         val triangle = parent.view(0, 0, 3, 3)
         val beside = parent.view(0, 4, 3, 5)
-        val workspace = Workspace()
+        val workspace = Scratch()
 
-        blas.withWorkspace(workspace).gemv(1.0, panel, DoubleArray(3), 0.0, DoubleArray(5))
-        blas.withWorkspace(workspace).gemm(1.0, panel, false, beside, false, 1.0, trailing)
-        blas.withWorkspace(workspace).syrk(-1.0, panel, false, 1.0, trailing)
-        blas.withWorkspace(workspace).trsv(triangle, DoubleArray(3), lower = true)
-        blas.withWorkspace(workspace).trsm(triangle, beside, lower = true)
+        blas.gemv(1.0, panel, DoubleArray(3), 0.0, DoubleArray(5), scratch = workspace)
+        blas.gemm(1.0, panel, false, beside, false, 1.0, trailing, scratch = workspace)
+        blas.syrk(-1.0, panel, false, 1.0, trailing, scratch = workspace)
+        blas.trsv(triangle, DoubleArray(3), lower = true, scratch = workspace)
+        blas.trsm(triangle, beside, lower = true, scratch = workspace)
 
         val expected = listOf(
             listOf(panel),
@@ -573,7 +598,7 @@ class CombinedEngineTest {
         val c = parent.view(1, 1, 4, 4)
         val entries = a.toArray()
 
-        blas.withWorkspace(Workspace()).syrk(-1.0, a, false, 1.0, c)
+        blas.syrk(-1.0, a, false, 1.0, c, scratch = Scratch())
 
         val call = recorder.calls.single()
         assertNotSame(parent.values, call.matrices[0].values)
@@ -592,7 +617,7 @@ class CombinedEngineTest {
 /** Computes host products from the received operands, so staging is checked without an installed library. */
 @Suppress("LongParameterList") // the host BLAS product signatures
 private class ReferenceProductBlas : RecordingBlas() {
-    override fun computeGemm(
+    override fun gemm(
         alpha: Double,
         a: DenseMatrixRegion,
         transposeA: Boolean,
@@ -600,9 +625,12 @@ private class ReferenceProductBlas : RecordingBlas() {
         transposeB: Boolean,
         beta: Double,
         c: DenseMatrixRegion,
-    ) = ReferenceBlas.gemm(alpha, a, transposeA, b, transposeB, beta, c)
+        scratch: Scratch?,
+    ) = prepareGemm(alpha, a, transposeA, b, transposeB, beta, c, scratch?.arrays) { sa, sb, _ ->
+        ReferenceBlas.gemm(alpha, sa, transposeA, sb, transposeB, beta, c)
+    }
 
-    override fun computeGemmt(
+    override fun gemmt(
         alpha: Double,
         a: DenseMatrixRegion,
         transposeA: Boolean,
@@ -610,26 +638,35 @@ private class ReferenceProductBlas : RecordingBlas() {
         transposeB: Boolean,
         beta: Double,
         c: DenseMatrixRegion,
-        structure: MatrixStructure,
-    ) = ReferenceBlas.gemmt(alpha, a, transposeA, b, transposeB, beta, c, structure == MatrixStructure.SymmetricLower)
+        lower: Boolean,
+        scratch: Scratch?,
+    ) = prepareGemmt(alpha, a, transposeA, b, transposeB, beta, c, lower, scratch?.arrays) { sa, sb ->
+        ReferenceBlas.gemmt(alpha, sa, transposeA, sb, transposeB, beta, c, lower)
+    }
 
-    override fun computeSymm(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        structure: MatrixStructure,
-        b: DenseMatrixRegion,
-        beta: Double,
-        c: DenseMatrixRegion,
-        rightSide: Boolean,
-    ) = ReferenceBlas.symm(alpha, a, b, beta, c, structure == MatrixStructure.SymmetricLower, rightSide)
-
-    override fun computeSyr2k(
+    override fun symm(
         alpha: Double,
         a: DenseMatrixRegion,
         b: DenseMatrixRegion,
-        transposeA: Boolean,
         beta: Double,
         c: DenseMatrixRegion,
-        structure: MatrixStructure,
-    ) = ReferenceBlas.syr2k(alpha, a, b, transposeA, beta, c, structure == MatrixStructure.SymmetricLower)
+        lower: Boolean,
+        right: Boolean,
+        scratch: Scratch?,
+    ) = prepareSymm(this, alpha, a, b, beta, c, lower, right, scratch?.arrays) { sa, sb ->
+        ReferenceBlas.symm(alpha, sa, sb, beta, c, lower, right)
+    }
+
+    override fun syr2k(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        b: DenseMatrixRegion,
+        transpose: Boolean,
+        beta: Double,
+        c: DenseMatrixRegion,
+        lower: Boolean,
+        scratch: Scratch?,
+    ) = prepareSyr2k(alpha, a, b, transpose, beta, c, lower, scratch?.arrays) { sa, sb ->
+        ReferenceBlas.syr2k(alpha, sa, sb, transpose, beta, c, lower)
+    }
 }

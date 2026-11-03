@@ -2,7 +2,7 @@ package com.eignex.koblas.engine
 
 import com.eignex.koblas.*
 
-internal actual fun simdBackend(): List<KoblasEngine>? = null
+internal actual fun simdBackend(): List<EngineKernels>? = null
 
 /** Select one platform profile once, with portable coverage when no library is available. */
 internal actual fun platformEngine(): KoblasEngine = standardEngine(EngineRuntime.Native)

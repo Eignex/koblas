@@ -4,7 +4,6 @@ import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.portable.PortableEngine
-import com.eignex.koblas.workspace.*
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -26,7 +25,7 @@ class ProductSchedulingTest {
      * Shapes cross each block boundary while keeping the other axes small for the oracle.
      * Tile-derived extents ensure packing on wide species and leave remainder tiles.
      */
-    private fun blockedShapes(tile: KoblasEngine): List<Triple<Int, Int, Int>> {
+    private fun blockedShapes(tile: EngineKernels): List<Triple<Int, Int, Int>> {
         val rows = packedExtent(tile.tileRows)
         val columns = packedExtent(tile.tileColumns)
         return listOf(
@@ -91,7 +90,7 @@ class ProductSchedulingTest {
         val rng = Random(20261017)
         // A square order that is a whole number of tiles on both axes and large enough to be packed.
         val order = lowestCommonTileMultiple(engine.tileRows, engine.tileColumns, atLeast = 40)
-        val workspace = Workspace()
+        val workspace = Scratch()
         val start = randomMatrix(order, order, rng)
         val expected = DenseMatrix(order, order, start.values.copyOf())
         ReferenceBlas.gemm(
@@ -105,7 +104,7 @@ class ProductSchedulingTest {
         )
         val aliased = DenseMatrix(order, order, start.values.copyOf())
 
-        engine.withWorkspace(workspace).gemm(0.875, aliased, false, aliased, true, -0.25, aliased)
+        engine.gemm(0.875, aliased, false, aliased, true, -0.25, aliased, scratch = workspace)
 
         assertClose(expected.values, aliased.values, "${engine.name} aliased product", tolerance = 1e-10)
         val staged = order * order
@@ -122,9 +121,9 @@ class ProductSchedulingTest {
             "${engine.name} did not share the operand snapshot and pack both panels from the workspace",
         )
 
-        val separate = Workspace()
+        val separate = Scratch()
         val other = randomMatrix(order, order, rng)
-        engine.withWorkspace(separate).gemm(0.875, other, false, aliased, true, -0.25, expected)
+        engine.gemm(0.875, other, false, aliased, true, -0.25, expected, scratch = separate)
         assertEquals(
             expectedLoans(staged, listOf(leftPanel, rightPanel)),
             separate.available(staged),
@@ -153,7 +152,7 @@ class ProductSchedulingTest {
     @Test
     fun `an empty destination borrows nothing on any product entry point`() = withProductKernels { engine ->
         val rng = Random(20261025)
-        val workspace = Workspace()
+        val workspace = Scratch()
         val a = randomMatrix(128, 1, rng)
         val b = DenseMatrix(1, 0, DoubleArray(0))
         val c = DenseMatrix(128, 0, DoubleArray(0))
@@ -162,8 +161,8 @@ class ProductSchedulingTest {
         val other = DenseMatrix(wide, 0, DoubleArray(0))
         val empty = DenseMatrix(0, 0, DoubleArray(0))
 
-        engine.withWorkspace(workspace).gemm(1.0, a, false, b, false, 1.0, c)
-        engine.withWorkspace(workspace).gemm(0.875, none, false, other, false, -0.25, empty)
+        engine.gemm(1.0, a, false, b, false, 1.0, c, scratch = workspace)
+        engine.gemm(0.875, none, false, other, false, -0.25, empty, scratch = workspace)
 
         assertEquals(0, workspace.idleLengths(), "${engine.name} borrowed scratch for a product with no output")
     }
@@ -187,8 +186,8 @@ class ProductSchedulingTest {
     @Test
     fun `a repeated blocked product reuses its packing scratch`() {
         val rng = Random(20261019)
-        val workspace = Workspace()
-        val engine = BuiltinEngines.scalar
+        val workspace = Scratch()
+        val engine = PortableEngine
         val a = randomMatrix(37, 41, rng)
         val b = randomMatrix(41, 29, rng)
         val c = randomMatrix(37, 29, rng)
@@ -197,9 +196,9 @@ class ProductSchedulingTest {
         val left = scratchCapacity(productBlockRows(engine, 37) * productBlockDepth(41))
         val right = scratchCapacity(productBlockColumns(engine, 29) * productBlockDepth(41))
 
-        engine.withWorkspace(workspace).gemm(0.875, a, false, b, false, -0.25, c)
+        engine.gemm(0.875, a, false, b, false, -0.25, c, scratch = workspace)
         val afterOne = workspace.available(left) + if (right == left) 0 else workspace.available(right)
-        repeat(3) { engine.withWorkspace(workspace).gemm(0.875, a, false, b, false, -0.25, c) }
+        repeat(3) { engine.gemm(0.875, a, false, b, false, -0.25, c, scratch = workspace) }
 
         assertEquals(2, afterOne, "a blocked product did not borrow a panel for each operand")
         assertEquals(
@@ -418,7 +417,7 @@ class ProductSchedulingTest {
 
     @Suppress("LongParameterList") // the backend and the four facts that pick out one case of the sweep
     private fun assertWindowed(
-        products: KoblasEngine,
+        products: EngineKernels,
         selected: OutputTriangle,
         packed: Boolean,
         transposeA: Boolean,
@@ -464,7 +463,7 @@ class ProductSchedulingTest {
             ),
             ALPHA, left, A_ORIGIN, a.rows + 3, transposeA, right, B_ORIGIN, b.rows + 5, transposeB,
             BETA, destination, C_ORIGIN,
-            order + 7, order, order, depth, selected, Workspace().arrays,
+            order + 7, order, order, depth, selected, Scratch().arrays,
         )
 
         assertContentEquals(leftBefore, left, "$context: the left operand was written")
@@ -536,10 +535,10 @@ class ProductSchedulingTest {
         }
     }
 
-    private fun koblasPanels(): KoblasEngine = BuiltinEngines.simd?.panelProvider ?: PortableEngine
+    private fun koblasPanels(): EngineKernels = BuiltinEngines.simd?.panelProvider ?: PortableEngine
 
     /** The panel backend that belongs beside [products], so a composition under test is a real one. */
-    private fun panelsFor(products: KoblasEngine): KoblasEngine =
+    private fun panelsFor(products: EngineKernels): EngineKernels =
         if (products === PortableEngine) PortableEngine else koblasPanels()
 
     /** The blocked shape and the direct one, so every conformance check covers both routes. */

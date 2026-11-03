@@ -47,12 +47,12 @@ public object BuiltinEngines {
             val rules = parts.groupBy { it.id }.map { (source, providers) ->
                 EngineRule(source, providers.flatMapTo(mutableSetOf()) { it.implementations })
             }
-            KoblasEngine.combine(EngineProfile("jvm-simd", rules), *parts.toTypedArray())
+            combine(EngineProfile("jvm-simd", rules), *parts.toTypedArray())
         }
     }
 }
 
-internal expect fun simdBackend(): List<KoblasEngine>?
+internal expect fun simdBackend(): List<EngineKernels>?
 
 internal expect fun vendorEngine(vendor: Vendor): KoblasEngine?
 
@@ -64,8 +64,5 @@ internal fun configuredEngine(
 ): KoblasEngine {
     val vendors = Vendor.entries.filter { vendor -> profile.rules.any { it.source == vendor.vendorName.lowercase() } }
         .mapNotNull(openVendor)
-    return KoblasEngine.combine(
-        profile,
-        *(vendors + listOfNotNull(owned)).toTypedArray(),
-    )
+    return combine(profile, *(vendors + listOfNotNull(owned)).toTypedArray())
 }

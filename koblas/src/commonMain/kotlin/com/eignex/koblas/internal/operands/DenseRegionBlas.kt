@@ -95,34 +95,6 @@ internal fun scaleRegion(a: DenseMatrixRegion, beta: Double, lower: Boolean? = n
     }
 }
 
-/** Exact overlap of a vector run and logical matrix columns, ignoring column padding. */
-internal fun regionVectorOverlap(a: DenseMatrixRegion, x: DenseVector): Boolean {
-    if (a.values !== x.values || x.size == 0 || a.rows == 0 || a.cols == 0) return false
-    val step = if (x.size <= 1) 1L else kotlin.math.abs(x.stride.toLong())
-    val first = minOf(x.offset.toLong(), x.offset.toLong() + (x.size - 1L) * x.stride)
-    val last = maxOf(x.offset.toLong(), x.offset.toLong() + (x.size - 1L) * x.stride)
-    for (column in 0 until a.cols) {
-        val from = a.offset.toLong() + column.toLong() * a.leadingDimension
-        val until = from + a.rows
-        val candidate = first + maxOf(0L, (from - first + step - 1) / step) * step
-        if (candidate <= last && candidate < until) return true
-    }
-    return false
-}
-
-/** A vector destination snapshots only overlapping logical matrix entries. */
-internal inline fun <T> stagedRegion(
-    arrays: ArraySupplier?,
-    a: DenseMatrixRegion,
-    destination: DenseVector,
-    lower: Boolean? = null,
-    unitDiag: Boolean = false,
-    block: (DenseMatrixRegion) -> T,
-): T {
-    if (!regionVectorOverlap(a, destination)) return block(a)
-    return stagedRegion(arrays, a, destination.values, lower = lower, unitDiag = unitDiag, block = block)
-}
-
 /** Whether two regions have identical logical-to-physical addressing. */
 internal fun sameRegion(a: DenseMatrixRegion, b: DenseMatrixRegion): Boolean =
     a.values === b.values && a.offset == b.offset && a.rows == b.rows && a.cols == b.cols &&

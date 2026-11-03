@@ -8,7 +8,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 
 class KoblasEngineTest {
-    private val partial = object : KoblasEngine {
+    private val partial = object : EngineKernels {
         override val name = "partial"
         override val implementations = setOf(EngineImplementation.Dot)
         override fun dot(
@@ -50,6 +50,6 @@ class KoblasEngineTest {
             listOf(EngineRule("portable", setOf(EngineImplementation.Products), rows = 32..Int.MAX_VALUE)),
         )
 
-        assertFailsWith<IllegalArgumentException> { KoblasEngine.combine(profile, BuiltinEngines.scalar) }
+        assertFailsWith<IllegalArgumentException> { combine(profile, BuiltinEngines.scalar) }
     }
 }

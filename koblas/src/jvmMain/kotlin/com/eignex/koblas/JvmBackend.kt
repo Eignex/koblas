@@ -5,7 +5,7 @@ import com.eignex.koblas.engine.Vendor
 
 /** Portable entry points replaced by the multi-release JAR on desktop JDK 25 or later. */
 internal object JvmBackend {
-    val contributions: List<KoblasEngine>? get() = null
+    val contributions: List<EngineKernels>? get() = null
 
     val default: KoblasEngine get() = BuiltinEngines.scalar
 

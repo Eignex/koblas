@@ -8,7 +8,6 @@ import com.eignex.koblas.engineWithKernels
 import com.eignex.koblas.internal.portable.PortableEngine
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.sparse.*
-import com.eignex.koblas.workspace.*
 import kotlin.random.Random
 import kotlin.test.*
 
@@ -79,14 +78,30 @@ class SparseTriangularTest {
                             val actual = input.copyOf()
                             if (solve) {
                                 ReferenceBlas.trsm(dense, expected, lower, transpose, unitDiag, right, alpha = -0.75)
-                                engine.withWorkspace(
-                                    Workspace(),
-                                ).trsm(sparse, actual, lower, transpose, unitDiag, right, -0.75)
+                                engine.trsm(
+                                    sparse,
+                                    actual,
+                                    lower,
+                                    transpose,
+                                    unitDiag,
+                                    right,
+                                    -0.75,
+                                    scratch =
+                                    Scratch(),
+                                )
                             } else {
                                 ReferenceBlas.trmm(dense, expected, lower, transpose, unitDiag, right, alpha = -0.75)
-                                engine.withWorkspace(
-                                    Workspace(),
-                                ).trmm(sparse, actual, lower, transpose, unitDiag, right, -0.75)
+                                engine.trmm(
+                                    sparse,
+                                    actual,
+                                    lower,
+                                    transpose,
+                                    unitDiag,
+                                    right,
+                                    -0.75,
+                                    scratch =
+                                    Scratch(),
+                                )
                             }
                             val context = "${engine.name} solve=$solve lower=$lower transpose=$transpose " +
                                 "unit=$unitDiag right=$right"
@@ -152,11 +167,11 @@ class SparseTriangularTest {
                         val staged = source.copyOf()
                         val unstaged = source.copyOf()
                         if (solve) {
-                            staging.withWorkspace(Workspace()).trsm(t, staged, lower, transpose, unit, false, ALPHA)
-                            plain.withWorkspace(Workspace()).trsm(t, unstaged, lower, transpose, unit, false, ALPHA)
+                            staging.trsm(t, staged, lower, transpose, unit, false, ALPHA, scratch = Scratch())
+                            plain.trsm(t, unstaged, lower, transpose, unit, false, ALPHA, scratch = Scratch())
                         } else {
-                            staging.withWorkspace(Workspace()).trmm(t, staged, lower, transpose, unit, false, ALPHA)
-                            plain.withWorkspace(Workspace()).trmm(t, unstaged, lower, transpose, unit, false, ALPHA)
+                            staging.trmm(t, staged, lower, transpose, unit, false, ALPHA, scratch = Scratch())
+                            plain.trmm(t, unstaged, lower, transpose, unit, false, ALPHA, scratch = Scratch())
                         }
 
                         assertClose(unstaged.values, staged.values, "staged triangular block $context")
@@ -187,7 +202,7 @@ class SparseTriangularTest {
 
         val independent = SparseMatrix.wrap(order, order, pointers, rows, block.copyOf())
         val expected = DenseMatrix.wrap(order, sides, block.copyOf())
-        plain.withWorkspace(Workspace()).trsm(independent, expected, true, false, false, false, ALPHA)
+        plain.trsm(independent, expected, true, false, false, false, ALPHA, scratch = Scratch())
 
         val sharedTriangle = SparseMatrix.wrap(order, order, pointers, rows, block.copyOf())
         val aliased = DenseMatrix.wrap(order, sides, sharedTriangle.values)
@@ -195,7 +210,7 @@ class SparseTriangularTest {
             rhsStaged(triangularRhsPlan(staging, order, sides, sharedTriangle.nnz, transpose = false)),
             "the aliased triangular fixture did not stage",
         )
-        staging.withWorkspace(Workspace()).trsm(sharedTriangle, aliased, true, false, false, false, ALPHA)
+        staging.trsm(sharedTriangle, aliased, true, false, false, false, ALPHA, scratch = Scratch())
 
         assertClose(expected.values, aliased.values, "a staged solve against its own triangle")
     }
@@ -283,9 +298,9 @@ class SparseTriangularTest {
                         for ((name, engine) in sparsePanelEngines()) {
                             val actual = DenseMatrix.wrap(order, sides, source.copyOf())
                             if (solve) {
-                                engine.withWorkspace(Workspace()).trsm(triangle, actual, lower = true)
+                                engine.trsm(triangle, actual, lower = true, scratch = Scratch())
                             } else {
-                                engine.withWorkspace(Workspace()).trmm(triangle, actual, lower = true)
+                                engine.trmm(triangle, actual, lower = true, scratch = Scratch())
                             }
 
                             assertClose(
