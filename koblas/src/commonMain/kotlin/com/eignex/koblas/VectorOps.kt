@@ -197,6 +197,12 @@ public fun gatherZero(x: SparseVector, from: ContiguousVector) {
 public fun swap(a: DenseVector, b: DenseVector): Unit = koblas.swap(a, b)
 
 /**
+ * Applies a plane rotation: `(x(i), y(i)) = (c*x(i) + s*y(i), c*y(i) - s*x(i))` (BLAS `drot`).
+ * Negative strides are supported. Overlaps are snapshotted; at a shared entry the final write is from [y].
+ */
+public fun rot(x: DenseVector, y: DenseVector, c: Double, s: Double): Unit = koblas.rot(x, y, c, s)
+
+/**
  * `y = y + alpha * x`. A sparse `x` touches only the positions it stores. A dense [x] with an identical
  * mapping is read directly; other dense overlaps, or sparse values sharing the destination buffer, are
  * snapshotted before writing.

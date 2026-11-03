@@ -12,19 +12,14 @@ import com.eignex.koblas.internal.portable.dense.*
 import com.eignex.koblas.internal.portable.dense.euclideanNorm
 import com.eignex.koblas.internal.portable.sparse.*
 import com.eignex.koblas.internal.sparse.*
+import com.eignex.koblas.gemm as matrixGemm
 
 /** Fresh dense product using portable CSC traversal and this engine's arithmetic. */
 public fun KoblasEngine.gemm(a: SparseMatrix, b: DenseMatrixRegion): DenseMatrix =
-    product(1.0, a, false, b, false) as DenseMatrix
+    matrixGemm(1.0, a, false, b, false) as DenseMatrix
 
 /** Fresh CSC product owning its arrays, with stored zeros retained. */
-public fun KoblasEngine.gemm(a: SparseMatrix, b: SparseMatrix): SparseMatrix = product(
-    1.0,
-    a,
-    false,
-    b,
-    false,
-) as SparseMatrix
+public fun KoblasEngine.gemm(a: SparseMatrix, b: SparseMatrix): SparseMatrix = gemm(1.0, a, false, b, false)
 
 /**
  * In-place `y = alpha · op(A) · x + beta · y`, where `op(A)` is `Aᵀ` when [transpose]. Per BLAS

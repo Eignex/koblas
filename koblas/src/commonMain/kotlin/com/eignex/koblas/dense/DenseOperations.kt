@@ -12,6 +12,7 @@ import com.eignex.koblas.internal.portable.dense.*
 import com.eignex.koblas.internal.portable.sparse.*
 import com.eignex.koblas.internal.sparse.*
 import com.eignex.koblas.sparse.*
+import com.eignex.koblas.gemm as matrixGemm
 
 /** `xᵀ · y`. */
 public fun KoblasEngine.dot(x: DenseVector, y: DenseVector): Double {
@@ -92,7 +93,7 @@ private inline fun withStablePair(x: DenseVector, y: DenseVector, operation: (De
 
 /** Fresh dense product of two dense regions using this engine. */
 public fun KoblasEngine.gemm(a: DenseMatrixRegion, b: DenseMatrixRegion): DenseMatrix =
-    product(1.0, a, false, b, false) as DenseMatrix
+    matrixGemm(1.0, a, false, b, false) as DenseMatrix
 
 /** Array convenience for the addressed [gemv] operation. */
 @Suppress("LongParameterList") // BLAS operands
