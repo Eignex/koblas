@@ -112,9 +112,35 @@ Each workload has its own paired case, uses the lab's normal CPU accounting and 
 CPU affinity pinning. Placement chooses compatible hardware automatically. `native-timing.txt` is a small
 subset for comparing timing protocols before changing measurement settings.
 The exact `jvm-simd` arm measures every supplied owned contribution from its intrinsic minimum length.
-Generation requires Python 3 (`KOBLAS_PYTHON` can name its executable).
+The Kotlin `generateCalibrationGrids` task generates the grids.
 OneMKL comparisons may also include OpenBLAS arms, keeping vendor-precedence measurements in the same
 worker attempt. Generated grids are declared inputs; they are not checked into source control.
+
+### Recalculate routing profiles
+
+Capture on the intended host; this example prepares Linux x64 Native comparisons:
+
+```bash
+./gradlew :koblas-bench:prepareLabCalibration :koblas-bench:tuneEngine \
+  --args="--capture --runtime native --backend onemkl --backend openblas --cpu * --native-executable koblas-bench/build/bin/linuxX64/releaseExecutable/koblas-bench.kexe --output /tmp/native-profile"
+```
+
+The Kotlin tool emits `Profile.kt` and external evidence. Use its declaration in the standard target
+configuration, rebuild, and capture disjoint holdouts through `native-default` or `jvm-default`.
+Use `--runtime jvm` for transfer-inclusive tuning, or repeated `--results PATH` arguments to refit
+fetched captures. Retain lab job and execution metadata alongside results; `--fallback aocl=openblas`
+and `--fallback armpl=openblas` explicitly label unmeasured vendor estimates.
+
+Validate the rebuilt composition against its generated profile identity:
+
+```bash
+./gradlew :koblas-bench:tuneEngine \
+  --args="--validate-results /tmp/holdouts --training /tmp/native-profile --runtime native --output /tmp/validated-profile"
+```
+
+Validation checks profile identity, disjoint cases, provider reach and paired ratios.
+`--validation-cases PATH` selects a holdout list; `generateCalibrationGrids` emits the standard grids.
+Keep reports and measurement data outside the repository.
 
 ### Score lab comparisons
 
