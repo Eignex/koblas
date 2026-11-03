@@ -339,13 +339,13 @@ class TuningCaptureTest(unittest.TestCase):
                 values[-2] = {"pass-1": "100", "pass-2": "25", "pass-3": "1000"}[path.name]
                 simd = header + "\n" + ','.join(values) + "\n"
                 (path / "jvm-scalar.csv").write_text(portable)
-                (path / "jvm-default.csv").write_text(simd)
+                (path / "jvm-simd.csv").write_text(simd)
                 metadata = path / "metadata.txt"
                 text = metadata.read_text()
                 identity = text[text.index("[native]"):text.index("[onemkl]")]
                 metadata.write_text(text + identity.replace("[native]", "[jvm-scalar]") +
-                                    identity.replace("[native]", "[jvm-default]"))
-            capture = measurements([root], "jvm-owned", "onemkl", owned_target="jvm-default")
+                                    identity.replace("[native]", "[jvm-simd]"))
+            capture = measurements([root], "jvm-owned", "onemkl")
             self.assertEqual([0.5, 2.0, 0.5], capture.paired["dot+32+uniform"])
 
     def test_capture_rounds_cannot_mix_source_revisions(self):

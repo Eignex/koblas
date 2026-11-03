@@ -151,10 +151,12 @@ class TuneEngineTest(unittest.TestCase):
         self.assertEqual(["64"], precedence["Dot"]["cases"])
 
     def test_profile_validation_gates_hash_disjointness_and_control_regressions(self):
-        for failure in (None, "hash", "overlap", "regression", "rules"):
+        for failure in (None, "hash", "overlap", "regression", "rules", "missing", "catalog"):
             with self.subTest(failure=failure), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 rounds(root)
+                validation_cases = root / "holdouts.txt"
+                validation_cases.write_text("# expected workloads\n  dot+64+uniform  \n" + ("sum+3+uniform\n" if failure == "missing" else ""))
                 profile = root / "profile.tsv"
                 rule = ["onemkl", "Dot", 0, tune.MAX, 0, tune.MAX, 0, tune.MAX, 0, "*", "*"]
                 rules = [rule, ["openblas", *rule[1:]]]
@@ -182,10 +184,11 @@ class TuneEngineTest(unittest.TestCase):
                     profile.write_text(profile.read_text() + "# changed profile\n")
                 if failure:
                     with self.assertRaises(ValueError):
-                        tune.validate_profile([root], profile, root, "native")
+                        tune.validate_profile([root], profile, root, "native",
+                                              validation_cases=None if failure == "catalog" else validation_cases)
                 else:
                     with patch.object(sys, "argv", ["tune-engine.py", "--validate-results", str(root), "--profile", str(profile),
-                                                    "--output", str(root / "validated")]):
+                                                    "--output", str(root / "validated"), "--validation-cases", str(validation_cases)]):
                         tune.main()
                     self.assertEqual({}, json.loads((root / "validated/validation.json").read_text())["regressions"])
 

@@ -196,11 +196,11 @@ class Capture:
         return (*measured, cpu or next(iter(self.models)), cpu_class, next(iter(self.sve_widths)) if cpu_class == "Sve" else "*")
 
 
-def measurements(directories, baseline, candidate, backend=None, strict=False, arm=None, owned_target="jvm-simd", profile_sha256=None,
+def measurements(directories, baseline, candidate, backend=None, strict=False, arm=None, profile_sha256=None,
                  cpu_class=None, sve_vector_bits=None):
     if len({directory.resolve() for directory in directories}) != len(directories):
         raise ValueError("repeated capture directory")
-    targets = ["jvm-scalar", owned_target, candidate] if baseline == "jvm-owned" else [baseline, candidate]
+    targets = ["jvm-scalar", "jvm-simd", candidate] if baseline == "jvm-owned" else [baseline, candidate]
     inputs = [capture_groups(directory, arm, targets) for directory in directories]
     jobs = [lab["resources"]["lab-job.json"].get("id") for _, lab in inputs if lab]
     if len(jobs) != len(set(jobs)):

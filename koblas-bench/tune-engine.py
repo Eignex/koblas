@@ -191,7 +191,7 @@ def training_cases():
     return cases + supplementary_cases() + tail_cases()
 
 
-def validate_profile(results, profile, output, baseline=None, simd_target="jvm-simd", arm=None):
+def validate_profile(results, profile, output, baseline=None, arm=None, validation_cases=None):
     lines = [line.split("\t") for line in profile.read_text().splitlines() if line and not line.startswith("#")]
     header, rules = lines[0], lines[1:]
     if len(header) != 10 or header[0] != "koblas-profile-v3":
@@ -200,7 +200,12 @@ def validate_profile(results, profile, output, baseline=None, simd_target="jvm-s
     baseline = baseline or ("native" if runtime == "native" else "jvm-owned")
     digest = hashlib.sha256(profile.read_bytes()).hexdigest()
     checked = measurements(results, baseline, f"{runtime}-default", strict=True, arm=arm,
-                           owned_target=simd_target, profile_sha256=digest)
+                           profile_sha256=digest)
+    expected = (holdout_cases(runtime) if validation_cases is None else
+                [line.strip() for line in validation_cases.read_text().splitlines() if line.strip() and not line.lstrip().startswith("#")])
+    missing = set(expected) - checked.paired.keys()
+    if not expected or missing:
+        raise ValueError(f"validation missing requested holdouts or controls: {sorted(missing)}")
     target = checked.target(runtime, header[3], header[4], header[5])
     if list(target[4:]) != header[6:8]:
         raise ValueError("validation instruction class or SVE width differs from the profile")
@@ -218,7 +223,7 @@ def validate_profile(results, profile, output, baseline=None, simd_target="jvm-s
     (output / "validation.json").write_text(json.dumps(dict(
         profile_sha256=digest, paired_ratios=checked.paired, ratios_by_cpu=checked.by_cpu,
         fitted_sources=sorted(fitted_sources), best_effort_sources=evidence["best_effort_sources"],
-        source_hashes=checked.hashes, selected_providers=checked.providers, regressions=regressions,
+        source_hashes=checked.hashes, selected_providers=checked.providers, required_cases=expected, regressions=regressions,
         lab=checked.lab), indent=2) + "\n")
     if regressions:
         raise ValueError("combined profile or control regression; inspect retained validation.json")
@@ -233,9 +238,7 @@ def main():
                         help="borrow explicit unmeasured vendor preferences after measured vendors")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--write-cases", type=Path, help="write the shared training and holdout grids without measuring")
-    parser.add_argument("--candidate", help="capture target for one explicitly configured candidate")
     parser.add_argument("--baseline", choices=("native", "jvm-scalar", "jvm-simd", "jvm-owned"))
-    parser.add_argument("--simd-target", default="jvm-simd", help="owned SIMD capture target; JVM profiles include its fitted rules")
     parser.add_argument("--results", type=Path, action="append", help="local capture or fetched lab job; repeat for supplemental cases")
     parser.add_argument("--validate-results", type=Path, action="append", help="validate fetched holdouts against --profile")
     parser.add_argument("--profile", type=Path, help="fitted profile beside its retained evidence.json")
@@ -269,26 +272,22 @@ def main():
         if args.profile is None or args.output is None or args.capture or args.results:
             parser.error("--validate-results requires --profile and --output, without --capture or --results")
         args.output.mkdir(parents=True, exist_ok=False)
-        validate_profile(args.validate_results, args.profile, args.output, args.baseline, args.simd_target, args.lab_arm)
+        validate_profile(args.validate_results, args.profile, args.output, args.baseline, args.lab_arm, args.validation_cases)
         return
     if args.runtime is None or args.backend is None or args.output is None:
         parser.error("--runtime, --backend and --output are required for tuning")
     if args.capture == bool(args.results):
         parser.error("choose --capture or --results")
-    if args.capture and args.simd_target != "jvm-simd":
-        parser.error("local capture uses the exact jvm-simd arm")
     if "jvm-simd" in args.backend and args.runtime != "jvm":
         parser.error("jvm-simd requires --runtime jvm")
     sources = list(dict.fromkeys(args.backend))
-    if args.candidate and len(sources) != 1:
-        parser.error("--candidate names one backend; omit it to fit multiple exact arms")
     baseline = args.baseline or ("native" if args.runtime == "native" else "jvm-owned")
     if baseline.startswith("jvm") != (args.runtime == "jvm"):
         parser.error("baseline must use the selected runtime")
-    candidates = {source: args.candidate or source + ("-jvm" if args.runtime == "jvm" else "")
+    candidates = {source: source + ("-jvm" if args.runtime == "jvm" else "")
                   for source in sources if source != "jvm-simd"}
     if args.runtime == "jvm":
-        candidates["jvm-simd"] = args.candidate if sources == ["jvm-simd"] and args.candidate else args.simd_target
+        candidates["jvm-simd"] = "jvm-simd"
     fallbacks = {}
     for choice in args.fallback:
         source, _, donor = choice.partition("=")
@@ -301,7 +300,7 @@ def main():
         training = training_cases() + (native_tail_cases() if args.runtime == "native" else [])
         args.cases.write_text("\n".join(training) + "\n")
     results = args.results or [args.output / "capture"]
-    targets = list(dict.fromkeys((["native"] if args.runtime == "native" else ["jvm-scalar", args.simd_target]) + list(candidates.values())))
+    targets = list(dict.fromkeys((["native"] if args.runtime == "native" else ["jvm-scalar", "jvm-simd"]) + list(candidates.values())))
     if args.capture:
         command = ["bash", "koblas-bench/capture-report.sh", "--targets", ",".join(targets),
                    "--cases", str(args.cases), "--rounds", "3", "--samples", "5", "--warmups", "20",
@@ -313,7 +312,7 @@ def main():
             command += ["--native-executable", str(args.native_executable)]
         subprocess.run(command, check=True)
     captures = {source: measurements(results, "jvm-scalar" if source == "jvm-simd" else baseline,
-                                    candidate, source, arm=args.lab_arm, owned_target=args.simd_target,
+                                    candidate, source, arm=args.lab_arm,
                                     cpu_class=args.cpu_class, sve_vector_bits=args.sve_vector_bits)
                 for source, candidate in candidates.items()}
     if any(not capture.paired for capture in captures.values()):
@@ -360,13 +359,13 @@ def main():
             raise ValueError("validation requires cases disjoint from training")
         validation_cases.write_text("\n".join(holdout) + "\n")
         validation = args.output / "validation"
-        reference = ["jvm-scalar", args.simd_target] if baseline == "jvm-owned" else [baseline]
+        reference = ["jvm-scalar", "jvm-simd"] if baseline == "jvm-owned" else [baseline]
         command[command.index("--targets") + 1] = ",".join([*reference, f"{args.runtime}-default"])
         command[command.index("--cases") + 1] = str(validation_cases)
         command[command.index("--output") + 1] = str(validation)
         subprocess.run(command, check=True, env=dict(os.environ,
                        KOBLAS_BENCH_ENGINE_PROFILE=str((args.output / "profile.tsv").resolve())))
-        validate_profile([validation], args.output / "profile.tsv", args.output, baseline, args.simd_target)
+        validate_profile([validation], args.output / "profile.tsv", args.output, baseline, validation_cases=validation_cases)
     print(f"Wrote {len(rules)} rules to {args.output / 'profile.tsv'}; retained evidence is available beside the profile.")
 
 

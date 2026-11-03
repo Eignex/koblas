@@ -172,7 +172,6 @@ Validate the emitted configuration on additional cases and compare the combined 
 vendor arms. `KOBLAS_BENCH_ENGINE_PROFILE=/absolute/path/profile.tsv` selects it on the benchmark harness's
 `native-default` or `jvm-default` arm, without changing the library's process default. Refit existing repeated
 captures with `--results PATH` instead of `--capture`. SIMD captures need current capability metadata.
-Use `--candidate native-default` with an explicitly forced profile to fit combined borrowed-layout captures.
 Timing smoke runs cannot produce profiles.
 
 Fetched lab jobs are also accepted. Save the job and execution snapshots beside the fetched files so
@@ -204,12 +203,12 @@ python3 koblas-bench/tune-engine.py --validate-results /tmp/holdouts \
 
 Keep `evidence.json` beside the profile. Every validation round must record its exact profile hash.
 Training overlap, target mismatches and per-CPU median regressions above 5% fail for routes and controls.
+Every generated holdout and control is required; `--validation-cases PATH` selects an explicit complete case list.
 
 For multi-arm jobs, select `--lab-arm LABEL`. Only rows where every SDK arm completed successfully are
 accepted, and only their declared artifacts are read. Each accepted row needs at least three complete
 paired rounds on one CPU model. Each input job must be complete, with one clean source revision across the rounds of each paired row.
-For a capture with owned SIMD under another target name, pass `--simd-target NAME`. The default
-`jvm-owned` reference compares vendors against the faster paired `jvm-scalar` or owned SIMD timing in
+Fitting uses exact built-in arms. The default `jvm-owned` reference compares vendors against the faster paired portable or SIMD timing in
 each round. This prevents a slow SIMD body from hiding a faster available portable implementation.
 
 Benchmark reports and result data stay outside the source tree. The retained lab reports cover
