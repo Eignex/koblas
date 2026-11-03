@@ -1,5 +1,0 @@
-koblas-profile-v3	native-macos-arm64-provisional-v1	native	MacOs	Arm64	*	*	*	BACKENDS.md	Provisional estimates; replace with measured configurations before merge
-accelerate	Nrm2,Iamax	128	2147483647	0	2147483647	0	2147483647	0	*	*
-accelerate	Dot,Asum,Axpy,Scale,Swap,Rot	64	2147483647	0	2147483647	0	2147483647	0	*	*
-accelerate	Syr,Trmv,TrmvTransposed,Trsv,TrsvTransposed,Gemmt,Syrk,Trmm,Trsm	0	2147483647	0	2147483647	0	2147483647	1024	*	*
-accelerate	Gemv,GemvTransposed,Symv,Ger,Syr2,Gemm,Symm,Syr2k	0	2147483647	0	2147483647	0	2147483647	512	*	*

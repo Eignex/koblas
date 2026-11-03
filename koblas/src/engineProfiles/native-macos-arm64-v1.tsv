@@ -1,0 +1,13 @@
+koblas-profile-v3	native-accelerate-30340ce9667b	native	MacOs	Arm64	*	Arm64	*	https://lab.eignex.com/jobs/10630	see evidence.json for paired measurements and hashes
+accelerate	Asum,Iamax	64	2147483647	0	2147483647	0	2147483647	0	true	*
+accelerate	Axpy	6291456	2147483647	0	2147483647	0	2147483647	0	true	*
+accelerate	Dot,Nrm2	96	2147483647	0	2147483647	0	2147483647	0	true	*
+accelerate	Gemm,Symm,Syrk,Trmm,Trsm	8	2147483647	8	2147483647	8	2147483647	512	*	false
+accelerate	Gemm	16	2147483647	16	2147483647	16	2147483647	65536	*	true
+accelerate	Gemv,GemvTransposed	16	2147483647	16	2147483647	0	2147483647	4096	*	false
+accelerate	Ger	16	2147483647	16	2147483647	0	2147483647	1024	*	false
+accelerate	Swap	8388608	8388608	0	2147483647	0	2147483647	0	true	*
+accelerate	Symv	256	2147483647	256	2147483647	0	2147483647	65536	*	false
+accelerate	Syr,Syr2,TrmvTransposed,Trsv,TrsvTransposed	32	2147483647	32	2147483647	0	2147483647	1024	*	false
+accelerate	Syr2k	16	2147483647	16	2147483647	16	2147483647	4096	*	false
+accelerate	Trmv	64	2147483647	64	2147483647	0	2147483647	4096	*	false
