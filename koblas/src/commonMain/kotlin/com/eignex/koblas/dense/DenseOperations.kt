@@ -6,7 +6,6 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.*
-import com.eignex.koblas.internal.configuration.*
 import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.internal.portable.PortableEngine
 import com.eignex.koblas.internal.portable.dense.*

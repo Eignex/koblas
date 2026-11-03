@@ -105,7 +105,7 @@ HotSpot's active `UseSVE`/`MaxVectorSize` settings, including on the scalar arm 
 Unknown or different widths do not match.
 Standard selection borrows compatible preferences within the same runtime when no target profile matches,
 and labels the result `best-effort-*` with its donor names. Unsupported vendors are excluded.
-Standard profiles are typed Kotlin declarations in `engine/TargetProfiles.kt`; the library has no profile parser.
+Standard profiles are typed Kotlin declarations in `engine/StandardEngineProfiles.kt`; the library has no profile parser.
 Portable vector, panel, product and triangular kernels live in `internal/portable/dense/` and
 `internal/portable/sparse/`. `PortableEngine` implements every callback, including whole-matrix operations;
 their algorithms, blocking and CSC traversal live there too. Compositions pass their selected kernels into

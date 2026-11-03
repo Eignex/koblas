@@ -1,11 +1,9 @@
 @file:Suppress("LongParameterList") // Forward raw primitive windows without allocating call descriptions.
 
-package com.eignex.koblas.internal.configuration
+package com.eignex.koblas.engine
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.engine.*
-import com.eignex.koblas.engine.Vendor
 import com.eignex.koblas.internal.portable.PortableEngine
 import com.eignex.koblas.sparse.*
 
