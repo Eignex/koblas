@@ -133,7 +133,8 @@ def supplementary_cases():
 def holdout_cases(runtime=None):
     cases = [line for line in Path(__file__).with_name("cases-addressed.txt").read_text().splitlines()
              if line and not line.startswith("#")]
-    return cases + ["gemv+257x131+uniform+transA=T", "ger+131x257+uniform",
+    return cases + ["dot+3+uniform", "dot+3+uniform+stride=2", "axpy+3+uniform", "sum+3+uniform",
+                    "gemv+257x131+uniform+transA=T", "ger+131x257+uniform",
                     "gemm+129x257x193+uniform+layout=borrowed",
                     "gemm+257x129x193+uniform+layout=borrowed+transA=T",
                     "gemm+257x257x257+uniform+layout=borrowed",

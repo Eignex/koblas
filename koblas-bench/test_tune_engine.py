@@ -26,6 +26,8 @@ class TuneEngineTest(unittest.TestCase):
         self.assertTrue(set(tune.tail_cases()).issubset(training))
         self.assertTrue(set(tune.anchor_cases()).issubset(training))
         self.assertEqual(len(holdout), len(set(holdout)))
+        self.assertTrue({"dot+3+uniform", "dot+3+uniform+stride=2", "axpy+3+uniform",
+                         "sum+3+uniform"}.issubset(holdout))
         native = tune.native_tail_cases()
         self.assertEqual(len(native), len(set(native)))
         self.assertTrue(set(native).isdisjoint(training + holdout))

@@ -24,10 +24,9 @@ check AOCL on Linux/Windows x64 or ArmPL on Arm64. Each vendor has its own routi
 libraries, exports and optional modules fall through to the remaining providers and portable coverage.
 Without native-access permission the JVM selects its owned SIMD or portable profile.
 
-Vendor cutoffs are provisional estimates pending measurement before this PR merges. Existing oneMKL
-numbers supply its starting policy; OpenBLAS, Accelerate, AOCL and ArmPL have separate estimates.
-These profiles do not claim measured applicability across CPU models. Owned SIMD detects the available
-Vector API width. Explicit locally calibrated profiles can restrict applicability to an exact CPU model.
+Standard vendor profiles are provisional until pre-merge calibration completes; they do not claim measured
+applicability across CPU models. Owned SIMD detects the available Vector API width. Locally calibrated
+profiles can restrict applicability to an exact CPU model.
 
 On JDK 25+, enable SIMD with this JVM argument:
 
@@ -55,11 +54,8 @@ fallbacks. Scaling, copying, swapping and rotations use Kotlin loops or array-co
 Matrix-vector products and rank updates use SIMD where applicable. Sparse operations keep their Kotlin
 traversal and can use SIMD for the arithmetic within it.
 
-Automatic JVM native calls are limited to larger matrix-matrix operations: GEMM, GEMMT, SYMM, SYRK,
-SYR2K, TRMM and TRSM. The provisional minimum output and shared dimensions start at 64 for oneMKL
-and Accelerate, or 128 for OpenBLAS, AOCL and ArmPL; GEMMT and borrowed views require twice those
-extents. oneMKL GEMM also qualifies with at least 16 output rows and columns and a shared dimension
-of 1,024–4,096. Kotlin/Native has separate vector and work cutoffs for each vendor.
+The platform profile owns each vendor's operation, shape, work and layout cutoffs. The embedded
+configuration files contain these preferences; Kotlin/Native and JVM bindings have separate tunings.
 
 JVM native calls copy arrays to and from native memory. An Intel comparison that includes this
 cost measured oneMKL at 1.45–4.66x JVM SIMD throughput for matrix-matrix cases at orders 128, 256
@@ -144,8 +140,8 @@ untimed validation cases fail as well. Profile names include a hash of their con
 Contiguous and strided length thresholds are fitted independently and must keep winning at every larger
 measured size. Owned SIMD tails open only after two winning larger lengths. Vendor tails require two
 winning lengths beyond the reported per-core share of last-level cache, or the full reported L2 on macOS.
-Other length rules stay bounded and are flagged in the evidence. Holdouts also exercise inputs above the
-training caps. Matrix rules fit minimum extents and work together, with bounded depth bands for residual deep
+Other length rules stay bounded and are flagged in the evidence. Holdouts check tiny vector dispatch controls
+and inputs above training caps. Matrix rules fit minimum extents and work together, with bounded depth bands for residual deep
 shapes. Borrowed layouts are fitted separately. Every covered measured variant must win on each CPU model.
 Native captures add 70 larger vector cases, including strided runs, so two winning lengths can exceed a
 reported full 32 MiB cache when core topology is unknown. `native-training.txt` contains the full Native
