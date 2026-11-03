@@ -214,8 +214,7 @@ def validate_profile(results, profile, output, baseline=None, simd_target="jvm-s
     fitted_sources = {rule[0] for rule in evidence["fitted_rules"]}
     if not fitted_sources.issubset(reached):
         raise ValueError(f"holdout did not reach fitted providers {sorted(fitted_sources - reached)}")
-    regressions = {case: models for case, models in checked.by_cpu.items()
-                   if any(statistics.median(values) > 1.05 and min(values) > 1.02 for values in models.values())}
+    regressions = {case: models for case, models in checked.by_cpu.items() if any(statistics.median(v) > 1.05 for v in models.values())}
     (output / "validation.json").write_text(json.dumps(dict(
         profile_sha256=digest, paired_ratios=checked.paired, ratios_by_cpu=checked.by_cpu,
         fitted_sources=sorted(fitted_sources), best_effort_sources=evidence["best_effort_sources"],

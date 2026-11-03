@@ -175,7 +175,7 @@ class TuneEngineTest(unittest.TestCase):
                         if name == "onemkl":
                             if failure == "regression":
                                 previous = 5 * 10 ** (int(path.name.removeprefix("pass-")) - 1)
-                                text = text.replace(f",{previous},onemkl", f",{previous * 3},onemkl")
+                                text = text.replace(f",{previous},onemkl", f",{previous * (0.5 if path.name == 'pass-1' else 3)},onemkl")
                             csv = path / "native-default.csv"
                         csv.write_text(text)
                 if failure == "hash":

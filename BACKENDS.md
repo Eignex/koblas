@@ -202,8 +202,8 @@ python3 koblas-bench/tune-engine.py --validate-results /tmp/holdouts \
   --profile /tmp/native-onemkl-profile/profile.tsv --output /tmp/validated-profile
 ```
 
-Keep `evidence.json` beside the profile. Every validation round must record its exact profile hash;
-training overlap, mismatched targets and regressing selected routes or unchanged controls fail the gate.
+Keep `evidence.json` beside the profile. Every validation round must record its exact profile hash.
+Training overlap, target mismatches and per-CPU median regressions above 5% fail for routes and controls.
 
 For multi-arm jobs, select `--lab-arm LABEL`. Only rows where every SDK arm completed successfully are
 accepted, and only their declared artifacts are read. Each accepted row needs at least three complete
