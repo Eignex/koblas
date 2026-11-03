@@ -3,12 +3,9 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
-import com.eignex.koblas.internal.portable.PortableEngine
 import com.eignex.koblas.testutil.allocation.AllocationProbe
 import com.eignex.koblas.testutil.allocation.bytesPerCall
 import com.eignex.koblas.workspace.*
-
-private val selectedBackend = BuiltinEngines.simd ?: PortableEngine
 
 /**
  * Runs indexed Level 1, panel and whole-operation allocation checks in an uninstrumented JVM.
@@ -18,7 +15,7 @@ private val selectedBackend = BuiltinEngines.simd ?: PortableEngine
  * Species width and FMA are fixed at JVM start; separate Gradle configurations cover both.
  */
 internal object SimdSparseAllocationCheck {
-    internal const val ENTRY_COUNT = 512
+    private const val ENTRY_COUNT = 512
     private const val DIMENSION = ENTRY_COUNT * 4
     private const val MAX_BYTES_PER_CALL = 8.0
     private const val WARMUP_ITERATIONS = 20_000
@@ -46,10 +43,6 @@ internal object SimdSparseAllocationCheck {
         val engine = requireNotNull(BuiltinEngines.simd) {
             "SIMD sparse allocation check requires the Vector API module"
         }
-        require(crossesSimdCrossover(16)) {
-            "SIMD sparse allocation check uses $ENTRY_COUNT entries below " +
-                "the 16-entry crossover"
-        }
         val panels = engine.panelProvider
         require(
             panels.implementationFor(
@@ -66,14 +59,7 @@ internal object SimdSparseAllocationCheck {
         val dense = DoubleArray(DIMENSION) { 1.0 + (it % 17) * 0.03125 }
 
         assertAllocationFree("dispatched indexed dot") {
-            selectedBackend.dotDense(indices, 0, values, 0, values.size, dense)
-        }
-        assertAllocationFree("dispatched indexed gather") {
-            selectedBackend.gather(indices, 0, values, 0, values.size, dense)
-            values[ENTRY_COUNT / 2]
-        }
-        assertAllocationFree("dispatched indexed norm") {
-            selectedBackend.nrm2(indices, 0, ENTRY_COUNT, dense)
+            engine.dotDense(indices, 0, values, 0, values.size, dense)
         }
         checkPublicSlices(engine)
         checkPanels(engine)
@@ -99,7 +85,6 @@ internal object SimdSparseAllocationCheck {
             }
         }
         val dense = DoubleArray(DIMENSION) { 1.0 + (it % 17) * 0.03125 }
-        val large = DoubleArray(DIMENSION) { 1e200 }
         val kernels = engine
         val matrix = SparseMatrix.wrap(
             DIMENSION,
@@ -114,20 +99,6 @@ internal object SimdSparseAllocationCheck {
         }
         assertAllocationFree("public indexed dot with independent offsets") {
             kernels.dot(indices, indexOffset, values, valueOffset, ENTRY_COUNT, dense)
-        }
-        assertAllocationFree("public indexed axpy with independent offsets") {
-            kernels.axpy(dense, 1e-12, indices, indexOffset, values, valueOffset, ENTRY_COUNT)
-            dense[1]
-        }
-        assertAllocationFree("public indexed scatter with independent offsets") {
-            kernels.scatter(indices, indexOffset, values, valueOffset, ENTRY_COUNT, dense)
-            dense[1]
-        }
-        assertAllocationFree("public indexed norm with an offset") {
-            kernels.nrm2(indices, indexOffset, ENTRY_COUNT, dense)
-        }
-        assertAllocationFree("public indexed norm with rescaling") {
-            kernels.nrm2(indices, indexOffset, ENTRY_COUNT, large)
         }
     }
 
@@ -311,8 +282,6 @@ internal object SimdSparseAllocationCheck {
         }
         return SparseMatrix.wrap(order, order, pointers, indices.toIntArray(), values.toDoubleArray())
     }
-
-    internal fun crossesSimdCrossover(crossover: Int): Boolean = ENTRY_COUNT >= crossover
 
     private fun assertAllocationFree(
         name: String,

@@ -8,13 +8,7 @@ import kotlin.test.assertTrue
 import kotlin.test.fail
 
 /** Tolerance for a chain of a few dozen flops, relative to `max(1, |expected|)`. */
-internal const val TIGHT_TOLERANCE = 1e-12
-
-/** A non-koblas vector storage used to exercise public adapter fallbacks. */
-internal class ForeignRampVector(override val size: Int) : Vector {
-    override fun get(i: Int): Double = i * 0.5 - 1.0
-    override fun toDoubleArray(): DoubleArray = DoubleArray(size) { this[it] }
-}
+private const val TIGHT_TOLERANCE = 1e-12
 
 internal fun assertClose(expected: Double, actual: Double, context: String, tolerance: Double = TIGHT_TOLERANCE) {
     if (expected.isNaN()) fail("$context: the numerical oracle produced NaN; assert that contract explicitly")
@@ -40,7 +34,10 @@ internal fun assertClose(
         actual.size,
         "$context: size ${actual.size}, expected ${expected.size}",
     )
-    for (i in expected.indices) assertClose(expected[i], actual[i], "$context index $i", tolerance)
+    // Most calls pass, so the per-entry context is built only for an entry that is not exactly equal.
+    for (i in expected.indices) {
+        if (expected[i] != actual[i]) assertClose(expected[i], actual[i], "$context index $i", tolerance)
+    }
 }
 
 internal fun assertClose(
@@ -63,15 +60,6 @@ internal fun randomMatrix(rows: Int, cols: Int, rng: Random): DenseMatrix =
 
 /** An independent copy, so a call can write one of them while the other stays readable. */
 internal fun DenseMatrix.copyOf(): DenseMatrix = DenseMatrix.wrap(rows, cols, values.copyOf())
-
-/** CSC fixture with empty columns, irregular rows, and an explicitly stored zero. */
-internal fun sparseStorageExample(): SparseMatrix = SparseMatrix.ofTriplets(
-    rows = 3,
-    cols = 4,
-    rowIndices = intArrayOf(0, 2, 1, 0, 2),
-    colIndices = intArrayOf(0, 0, 1, 3, 3),
-    values = doubleArrayOf(1.0, -2.0, 3.0, 0.0, -4.0),
-)
 
 internal fun SparseMatrix.denseCopy(): DenseMatrix = DenseMatrix.ofRows(toArray())
 

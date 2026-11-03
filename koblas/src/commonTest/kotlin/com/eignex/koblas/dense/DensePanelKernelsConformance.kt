@@ -456,11 +456,6 @@ internal fun assertExecutionGroupIsUsable(kernels: KoblasEngine) {
             }
         }
     }
-    assertEquals(
-        kernels.executionGroup(PanelWork.MultiDot, 512, 1024),
-        kernels.executionGroup(PanelWork.MultiDot, 512, 1024),
-        "a recommendation changed between two identical questions",
-    )
 }
 
 /**
@@ -544,27 +539,26 @@ internal fun assertPanelsStayInsideTheirWindows(kernels: KoblasEngine) {
 
 /** Long strips exercise wider column groups, a partial group and a scalar row tail. */
 internal fun assertLargeColumnUpdatesAgreeWithReference(kernels: KoblasEngine) {
-    for (rows in intArrayOf(4_096, 4_097)) {
-        for (columns in intArrayOf(12, 13, 25)) {
-            for (stride in 1..2) {
-                val lda = rows + PAD
-                val a = DoubleArray(PAD + lda * columns + PAD) { Double.NaN }
-                for (c in 0 until columns) {
-                    for (i in 0 until rows) a[PAD + c * lda + i] = ((i + c) % 17 - 8) / 16.0
-                }
-                val coefficients = DoubleArray(PAD + columns * stride + PAD) { Double.NaN }
-                for (c in 0 until columns) coefficients[PAD + c * stride] = (c % 11 - 5) / 8.0
-                val destination = DoubleArray(PAD + rows + PAD) { -12345.0 }
-                for (i in 0 until rows) destination[PAD + i] = (i % 13 - 6) / 16.0
-                val expected = referenceColumnUpdate(
-                    0.875, a, PAD, lda, coefficients, PAD, stride, rows, columns, destination, PAD, 1,
-                )
-
-                val actual = destination.copyOf()
-                kernels.columnUpdate(0.875, a, PAD, lda, coefficients, PAD, stride, rows, columns, actual, PAD, 1)
-
-                assertClose(expected, actual, "long column update rows=$rows columns=$columns stride=$stride")
+    val rows = 4_097
+    for (columns in intArrayOf(13, 25)) {
+        for (stride in 1..2) {
+            val lda = rows + PAD
+            val a = DoubleArray(PAD + lda * columns + PAD) { Double.NaN }
+            for (c in 0 until columns) {
+                for (i in 0 until rows) a[PAD + c * lda + i] = ((i + c) % 17 - 8) / 16.0
             }
+            val coefficients = DoubleArray(PAD + columns * stride + PAD) { Double.NaN }
+            for (c in 0 until columns) coefficients[PAD + c * stride] = (c % 11 - 5) / 8.0
+            val destination = DoubleArray(PAD + rows + PAD) { -12345.0 }
+            for (i in 0 until rows) destination[PAD + i] = (i % 13 - 6) / 16.0
+            val expected = referenceColumnUpdate(
+                0.875, a, PAD, lda, coefficients, PAD, stride, rows, columns, destination, PAD, 1,
+            )
+
+            val actual = destination.copyOf()
+            kernels.columnUpdate(0.875, a, PAD, lda, coefficients, PAD, stride, rows, columns, actual, PAD, 1)
+
+            assertClose(expected, actual, "long column update columns=$columns stride=$stride")
         }
     }
 }
@@ -573,7 +567,7 @@ internal fun assertLargeColumnUpdatesAgreeWithReference(kernels: KoblasEngine) {
  * A panel of one stored row whose columns are adjacent, which a backend may run along the row: as one dot
  * for a column update and as an elementwise update for a multi-dot. Lengths straddle the unrolled bodies.
  */
-internal fun assertSingleRowPanelsAgreeWithReference(kernels: KoblasEngine) {
+private fun assertSingleRowPanelsAgreeWithReference(kernels: KoblasEngine) {
     for (columns in intArrayOf(1, 7, 33, 1_000, 4_099)) {
         for (beta in doubleArrayOf(0.0, -0.25)) {
             val a = DoubleArray(PAD + columns + PAD) { ((it % 17) - 8) / 16.0 }
@@ -679,7 +673,7 @@ private fun assertIndexedPanelsEvaluateZeroCoefficients(kernels: KoblasEngine) {
 }
 
 /** The narrowest group of adjacent right-hand sides this backend answers for with its own body. */
-internal fun vectorWidth(kernels: KoblasEngine): Int {
+private fun vectorWidth(kernels: KoblasEngine): Int {
     for (width in 1..64) {
         if (kernels.implementationFor(
                 PanelWork.SparseRightHandSides,

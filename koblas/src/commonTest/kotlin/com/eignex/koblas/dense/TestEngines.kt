@@ -2,11 +2,8 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.*
-
-/**
- * Portable dense Level 2 and 3 under test. Core conformance never depends on an installed library.
- */
-internal val portableEngine: KoblasEngine get() = BuiltinEngines.scalar
+import com.eignex.koblas.internal.portable.PortableEngine
+import com.eignex.koblas.internal.portable.dense.TRIANGULAR_DIAGONAL_BLOCK
 
 /**
  * Runs [body] against the mandatory portable seam, and against every other built-in composition this
@@ -21,3 +18,20 @@ internal fun withEngines(body: (KoblasEngine) -> Unit) {
     body(BuiltinEngines.scalar)
     BuiltinEngines.simd?.let(body)
 }
+
+/** Runs [body] against every composition of panel, product and substitution backends this platform has. */
+internal fun withBackends(body: (KoblasEngine, KoblasEngine, KoblasEngine) -> Unit) {
+    body(PortableEngine, PortableEngine, PortableEngine)
+    BuiltinEngines.simd?.let { body(it.panelProvider, it.productProvider, it.triangularProvider) }
+}
+
+/**
+ * Right-hand sides enough to fill whatever the substitution backend groups them in, read from the backend
+ * because a count that fills one machine's lane block leaves another's empty.
+ */
+internal val VECTOR_SIDES: Int = BuiltinEngines.simd
+    ?.triangularProvider?.rightHandSideGroup(TRIANGULAR_DIAGONAL_BLOCK, UNGROUPED_SIDES)
+    ?: 4
+
+/** Wider than any grouping a backend recommends, so asking with it returns the recommendation itself. */
+private const val UNGROUPED_SIDES = 1024

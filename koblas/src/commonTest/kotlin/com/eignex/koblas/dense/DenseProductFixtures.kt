@@ -2,16 +2,6 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.*
-import com.eignex.koblas.internal.portable.PortableEngine
-
-/** Runs [body] against every product backend this platform has, which is what decides the block geometry. */
-internal fun withProducts(body: (KoblasEngine) -> Unit) {
-    body(PortableEngine)
-    BuiltinEngines.simd?.let { body(it.productProvider) }
-}
-
-/** The product backend of the engine whose scheduling the conformance checks above run under. */
-internal fun defaultProducts(): KoblasEngine = BuiltinEngines.simd?.productProvider ?: PortableEngine
 
 /**
  * A destination order past several of this backend's tiles and one row short of a whole number of them,

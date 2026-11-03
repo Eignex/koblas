@@ -2,20 +2,42 @@ package com.eignex.koblas.testutil.allocation
 
 import com.sun.management.ThreadMXBean
 import java.lang.management.ManagementFactory
+import kotlin.test.assertTrue
 
 /** The JVM's per-thread allocation counter, which is where a byte-level measurement has to come from. */
 private val bean = ManagementFactory.getThreadMXBean() as ThreadMXBean
 
 /** Holds each block's result so escape analysis cannot delete the allocation being measured. */
-internal var allocationSink: Any? = null
+private var allocationSink: Any? = null
 
-/** Bytes allocated by one invocation of [block]. */
-internal fun allocatedBytes(block: () -> Any?): Long {
-    val id = Thread.currentThread().threadId()
-    val before = bean.getThreadAllocatedBytes(id)
-    allocationSink = block()
-    return bean.getThreadAllocatedBytes(id) - before
+/** Allowance for effects that are not koblas's (instrumentation, index boxing, JIT noise). */
+internal const val FLOOR_BYTES = 64.0
+
+/** An array object's own bytes, beside the elements it holds. */
+internal const val ARRAY_HEADER_BYTES = 16
+
+/**
+ * One case of a parameterized allocation test: [probe] measured over windows of [iterations] calls against
+ * [budget] bytes per call. Each case builds its own fixture, so mutations and workspace loans cannot leak
+ * between cases.
+ */
+internal class AllocationCase(
+    private val name: String,
+    private val iterations: Int,
+    private val budget: Double = FLOOR_BYTES,
+    private val probe: () -> Any?,
+) {
+    fun assertWithinBudget() {
+        val bytes = bytesPerIteration(iterations, budget, block = probe)
+
+        assertTrue(bytes <= budget, "$name allocated $bytes B per call against $budget")
+    }
+
+    override fun toString(): String = name
 }
+
+/** Wraps each case as the one-element parameter row JUnit's parameterized runner hands to a constructor. */
+internal fun parameterRows(cases: List<AllocationCase>): List<Array<Any>> = cases.map { arrayOf<Any>(it) }
 
 /**
  * Bytes [block] allocates per call, as the smallest of at least [windows] measurement windows of

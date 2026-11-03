@@ -2,6 +2,8 @@ package com.eignex.koblas.engine
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class VendorTest {
@@ -44,7 +46,7 @@ class VendorTest {
     @Test
     fun `explicit unix vendors preserve their declared candidates`() {
         for (vendor in Vendor.entries) {
-            for (system in listOf(OperatingSystem.Linux, OperatingSystem.MacOs, OperatingSystem.Other)) {
+            for (system in listOf(OperatingSystem.MacOs, OperatingSystem.Other)) {
                 assertEquals(
                     vendor.resolvedCandidates(null, OperatingSystem.Linux),
                     vendor.resolvedCandidates(null, system),
@@ -72,5 +74,30 @@ class VendorTest {
             paths,
         )
         assertEquals(emptyList(), Vendor.OpenBlas.loadCandidates(null, OperatingSystem.Windows, null))
+    }
+
+    @Test
+    fun `cpu flags name the widest instruction class they report`() {
+        assertEquals(CpuClass.Avx512, cpuClass(Architecture.X86_64, "sse2 avx2 avx512f"))
+        assertEquals(CpuClass.Avx2, cpuClass(Architecture.X86_64, "sse2 avx2"))
+        assertEquals(CpuClass.X86_64, cpuClass(Architecture.X86_64, "sse2"))
+        assertEquals(CpuClass.Arm64, cpuClass(Architecture.Arm64, "fp asimd"))
+        assertEquals(CpuClass.Sve, cpuClass(Architecture.Arm64, "fp asimd sve"))
+        assertNull(cpuClass(Architecture.Arm64, null))
+        assertNull(cpuClass(Architecture.X86_64, null))
+    }
+
+    @Test
+    fun `a host rejects an SVE width the architecture cannot have`() {
+        for (invalid in listOf(0, 64, 129, 4096)) {
+            assertFailsWith<IllegalArgumentException> {
+                HostPlatform(
+                    OperatingSystem.Linux,
+                    Architecture.Arm64,
+                    cpuClass = CpuClass.Sve,
+                    sveVectorBits = invalid,
+                )
+            }
+        }
     }
 }

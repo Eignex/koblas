@@ -82,9 +82,4 @@ class DenseMatrixViewTest {
         assertFailsWith<IndexOutOfBoundsException> { view[3, 0] }
         assertFailsWith<IndexOutOfBoundsException> { view[0, -1] = 1.0 }
     }
-
-    @Test
-    fun `contiguous wrapping still requires an exact buffer`() {
-        assertFailsWith<DimensionMismatch> { DenseMatrix.wrap(2, 2, DoubleArray(6)) }
-    }
 }

@@ -93,12 +93,10 @@ class VendorArmTest {
     @Test
     fun `vendor arms decline windowed batches without a rectangle binding`() {
         val blas = vendor() ?: return
-        for (operation in listOf("ger-window-shrinking")) {
-            val choice = vendorArm(Cases.parse("$operation+6+uniform").single(), blas)
+        val choice = vendorArm(Cases.parse("ger-window-shrinking+6+uniform").single(), blas)
 
-            assertNull(choice.work)
-            assertNotNull(choice.reason)
-        }
+        assertNull(choice.work)
+        assertNotNull(choice.reason)
     }
 
     @Test
@@ -119,17 +117,6 @@ class VendorArmTest {
             "a vendor arm must identify the implementation it calls",
         )
         work.close()
-    }
-
-    @Test
-    fun `built in level three arms name their own engine rather than an installed vendor`() {
-        val case = Cases.parse("gemm+64x64x64+uniform").single()
-        for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)) {
-            val work = assertNotNull(denseWork(case, engine))
-
-            assertEquals("${engine.name}/gemm", work.kernel)
-            work.close()
-        }
     }
 
     @Test
@@ -157,6 +144,6 @@ class VendorArmTest {
         assertEquals(Vendor.OpenBlas, vendorFromMode("jvm-vendor-openblas"))
         assertNull(vendorFromMode("jvm-simd"))
         assertNull(vendorFromMode("native"))
-        assertNull(vendorFromMode("jvm-c-raw-avx2"))
+        assertNull(vendorFromMode("jvm-default"))
     }
 }

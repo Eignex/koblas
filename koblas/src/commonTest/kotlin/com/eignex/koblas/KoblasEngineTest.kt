@@ -4,7 +4,6 @@ import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.sparse.*
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 
@@ -45,24 +44,12 @@ class KoblasEngineTest {
     }
 
     @Test
-    fun `composition calls separate providers for supported and missing parts`() {
-        val engine = KoblasEngine.combine(
-            EngineProfile("partial with portable", listOf(EngineRule(partial.id, partial.implementations))),
-            partial,
-            BuiltinEngines.scalar,
+    fun `conditional product geometry is rejected before packing`() {
+        val profile = EngineProfile(
+            "test",
+            listOf(EngineRule("portable", setOf(EngineImplementation.Products), rows = 32..Int.MAX_VALUE)),
         )
-        assertEquals(setOf(partial.id, BuiltinEngines.scalar.id), engine.providers.map { it.id }.toSet())
-        val values = doubleArrayOf(0.5, -2.0, 3.0)
 
-        val dot = engine.dot(values, 0, values, 0, values.size)
-        val sum = engine.sum(values, 0, values.size)
-
-        assertArithmeticAgreesWithReference(BuiltinEngines.scalar.dot(values, 0, values, 0, values.size), dot)
-        assertArithmeticAgreesWithReference(BuiltinEngines.scalar.sum(values, 0, values.size), sum)
-        assertEquals(partial.name, engine.implementationFor(EngineImplementation.Dot, values.size))
-        assertEquals(BuiltinEngines.scalar.name, engine.implementationFor(EngineImplementation.Sum, values.size))
+        assertFailsWith<IllegalArgumentException> { KoblasEngine.combine(profile, BuiltinEngines.scalar) }
     }
-
-    private fun assertArithmeticAgreesWithReference(expected: Double, actual: Double) =
-        assertClose(expected, actual, "provider composition")
 }

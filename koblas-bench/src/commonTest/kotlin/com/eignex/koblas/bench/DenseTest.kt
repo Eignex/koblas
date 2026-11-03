@@ -55,30 +55,10 @@ class DenseTest {
         }
     }
 
-    // Preflight must reject incorrect work before publishing a timing.
     @Test
-    fun `every product case names the engine that runs it`() {
+    fun `every product case runs on every engine and names it`() {
         val engines = listOfNotNull<KoblasEngine>(BuiltinEngines.scalar, BuiltinEngines.simd)
-        for (line in listOf(
-            "gemm+64x64x128+uniform",
-            "gemm+256x2x512+uniform+transA=T+transB=T",
-        )) {
-            val case = Cases.parse(line).single()
-            for (engine in engines) {
-                val work = assertNotNull(denseWork(case, engine), "$line on ${engine.name}")
-                val kernel = assertNotNull(work.kernel, "$line on ${engine.name} named no engine")
-
-                assertTrue(kernel.isNotEmpty(), "$line on ${engine.name}")
-                assertTrue(work.run().isFinite(), "$line on ${engine.name} produced no finite sink")
-                work.close()
-            }
-        }
-    }
-
-    @Test
-    fun `structured and triangular cases run on every engine and name it`() {
-        val engines = listOfNotNull<KoblasEngine>(BuiltinEngines.scalar, BuiltinEngines.simd)
-        for (line in STRUCTURED_CASES) {
+        for (line in PRODUCT_CASES) {
             val case = Cases.parse(line).single()
             for (engine in engines) {
                 val work = assertNotNull(denseWork(case, engine), "$line on ${engine.name}")
@@ -129,13 +109,15 @@ class DenseTest {
 
     private companion object {
         /**
-         * One case of each structured and triangular entry point, in both orientations. Deliberately smaller
-         * than the shapes the workload carries, since each case's preflight costs the cube of the order.
+         * One case of each general, structured and triangular product, in both orientations. Deliberately
+         * smaller than the shapes the workload carries, since each case's preflight costs the cube of the order.
          *
          * A square of forty-eight is packed into tiles on every backend here, and a triangle of ninety-six is
          * more than one diagonal block, so the blocked paths are what preflight checks.
          */
-        val STRUCTURED_CASES = listOf(
+        val PRODUCT_CASES = listOf(
+            "gemm+64x64x128+uniform",
+            "gemm+256x2x512+uniform+transA=T+transB=T",
             "gemmt+48x48+uniform+uplo=L+transA=N+transB=N",
             "gemmt+48x48+uniform+uplo=U+transA=T+transB=T",
             "syrk+48x48+uniform+uplo=L+transA=N",

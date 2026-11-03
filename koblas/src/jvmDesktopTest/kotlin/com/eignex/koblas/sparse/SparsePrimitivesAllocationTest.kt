@@ -1,16 +1,11 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.testutil.allocation.FLOOR_BYTES
 import com.eignex.koblas.testutil.allocation.bytesPerIteration
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
 class SparsePrimitivesAllocationTest {
-
-    private companion object {
-        /** Allowance for effects that are not koblas's (instrumentation, index boxing, JIT noise). */
-        const val FLOOR_BYTES = 64.0
-    }
-
     @Test
     fun `warmed sparse primitives allocate nothing`() {
         val dimension = 128

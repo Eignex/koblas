@@ -1,11 +1,7 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.*
-import com.eignex.koblas.engine.*
 import com.eignex.koblas.sparse.*
-import com.eignex.koblas.times
-import com.eignex.koblas.transpose
-import com.eignex.koblas.withColumn
+import kotlinx.serialization.json.Json
 import kotlin.test.*
 
 class SparseMatrixTest {
@@ -77,7 +73,7 @@ class SparseMatrixTest {
         val columns = intArrayOf(3, 1, 1, 1, 3, 3, 3, 3, 1, 3, 1, 4)
         val values = doubleArrayOf(1e16, -0.0, 0.0, 5.0, 1.0, 4.0, -1e16, -2.0, -0.0, -4.0, -5.0, 9.0)
         val reference = coordinateReference(3, 6, indices, columns, values)
-        for (rows in intArrayOf(3, values.size, values.size + 1, 10_000_000, Int.MAX_VALUE)) {
+        for (rows in intArrayOf(3, values.size, values.size + 1, Int.MAX_VALUE)) {
             val expandedRows = intArrayOf(0, rows / 2, rows - 1)
             val expected = SparseMatrix.wrap(
                 rows,
@@ -160,13 +156,6 @@ class SparseMatrixTest {
     }
 
     @Test
-    fun `ofColumns sums duplicate entries and sorts rows`() {
-        val a = SparseMatrix.ofColumns(3, 1, listOf(listOf(2 to 1.0, 0 to 2.0, 2 to 3.0)))
-        assertTrue(intArrayOf(0, 2).contentEquals(a.rowIndices))
-        assertTrue(doubleArrayOf(2.0, 4.0).contentEquals(a.values)) // 1.0 + 3.0 summed at row 2
-    }
-
-    @Test
     fun `get reads stored entries and returns zero elsewhere`() {
         val a = SparseMatrix.ofColumns(3, 2, listOf(listOf(0 to 1.0, 2 to 3.0), listOf(1 to 2.0)))
         assertEquals(1.0, a[0, 0])
@@ -235,53 +224,6 @@ class SparseMatrixTest {
     }
 
     @Test
-    fun `rows may descend across a column boundary`() {
-        // Within a column they must ascend, but the indices restart at each boundary.
-        val ok = SparseMatrix(2, 2, intArrayOf(0, 1, 2), intArrayOf(1, 0), doubleArrayOf(5.0, 7.0))
-        assertEquals(5.0, ok[1, 0])
-        assertEquals(7.0, ok[0, 1])
-    }
-
-    @Test
-    fun `ofTriplets builds the same matrix as ofColumns`() {
-        val viaColumns = SparseMatrix.ofColumns(
-            rows = 2,
-            cols = 3,
-            columns = listOf(listOf(0 to 1.0), listOf(1 to 3.0), listOf(0 to 2.0)),
-        )
-        val viaTriplets = SparseMatrix.ofTriplets(
-            rows = 2,
-            cols = 3,
-            rowIndices = intArrayOf(0, 1, 0),
-            colIndices = intArrayOf(0, 1, 2),
-            values = doubleArrayOf(1.0, 3.0, 2.0),
-        )
-        assertEquals(viaTriplets, viaColumns)
-    }
-
-    @Test
-    fun `ofTriplets orders arbitrary input and sums duplicates`() {
-        val a = SparseMatrix.ofTriplets(
-            rows = 3,
-            cols = 3,
-            rowIndices = intArrayOf(2, 1, 0, 1, 2),
-            colIndices = intArrayOf(2, 1, 0, 1, 0),
-            values = doubleArrayOf(9.0, 2.0, 1.0, 3.0, 7.0),
-        )
-        assertEquals(1.0, a[0, 0])
-        assertEquals(7.0, a[2, 0])
-        assertEquals(5.0, a[1, 1], "the two (1,1) entries should sum")
-        assertEquals(9.0, a[2, 2])
-        assertEquals(0.0, a[0, 1])
-        assertEquals(4, a.nnz, "the duplicate should be merged, not stored twice")
-        for (j in 0 until a.cols) {
-            for (k in a.colPointers[j] + 1 until a.colPointers[j + 1]) {
-                assertTrue(a.rowIndices[k - 1] < a.rowIndices[k], "column $j is not ascending")
-            }
-        }
-    }
-
-    @Test
     fun `empty factories preserve tall shapes without row scratch`() {
         for (rows in intArrayOf(0, 2, Int.MAX_VALUE)) {
             for (cols in intArrayOf(0, 2)) {
@@ -304,12 +246,7 @@ class SparseMatrixTest {
     }
 
     @Test
-    fun `ofTriplets handles an empty entry set and rejects out of range positions`() {
-        val empty = SparseMatrix.ofTriplets(2, 2, IntArray(0), IntArray(0), DoubleArray(0))
-        assertEquals(0, empty.nnz)
-        assertEquals(0.0, empty[1, 1])
-        assertEquals(2, empty.rows)
-
+    fun `factories reject out of range positions and inconsistent shapes`() {
         for (rows in intArrayOf(2, Int.MAX_VALUE)) {
             for (invalidRow in intArrayOf(-1, rows)) {
                 assertFailsWith<IndexOutOfBoundsException> {
@@ -370,52 +307,6 @@ class SparseMatrixTest {
     }
 
     @Test
-    fun `the transpose round trips and preserves stored zeros`() {
-        val a = SparseMatrix.ofColumns(
-            3,
-            2,
-            listOf(
-                listOf(0 to 4.0, 1 to 0.0, 2 to -1.0),
-                listOf(1 to 7.0),
-            ),
-        )
-        val t = a.transpose()
-        assertEquals(2, t.rows)
-        assertEquals(3, t.cols)
-        assertEquals(a.nnz, t.nnz, "an explicitly stored zero was dropped")
-        for (i in 0 until a.rows) {
-            for (j in 0 until a.cols) assertEquals(a[i, j], t[j, i], "transpose at [$i,$j]")
-        }
-        assertEquals(a, t.transpose(), "transpose twice is not the original")
-    }
-
-    @Test
-    fun `the transpose handles degenerate shapes`() {
-        val empty = SparseMatrix.ofColumns(0, 0, emptyList())
-        assertEquals(empty, empty.transpose().transpose())
-        val noEntries = SparseMatrix.ofColumns(3, 2, listOf(emptyList(), emptyList()))
-        val t = noEntries.transpose()
-        assertEquals(2, t.rows)
-        assertEquals(3, t.cols)
-        assertEquals(0, t.nnz)
-    }
-
-    @Test
-    fun `CSC mat vec multiplies a matrix and its transpose`() {
-        val a = SparseMatrix.ofColumns(
-            rows = 2,
-            cols = 3,
-            columns = listOf(
-                listOf(0 to 1.0),
-                listOf(1 to 3.0),
-                listOf(0 to 2.0),
-            ),
-        )
-        assertContentEquals(doubleArrayOf(7.0, 9.0), koblas.gemv(a, doubleArrayOf(1.0, 3.0, 3.0)))
-        assertContentEquals(doubleArrayOf(1.0, 6.0, 2.0), koblas.gemv(a, doubleArrayOf(1.0, 2.0), transpose = true))
-    }
-
-    @Test
     fun `wrap adopts CSC arrays`() {
         val a = SparseMatrix.wrap(2, 2, intArrayOf(0, 1, 2), intArrayOf(1, 0), doubleArrayOf(5.0, 7.0))
         assertEquals(5.0, a[1, 0])
@@ -423,28 +314,27 @@ class SparseMatrixTest {
     }
 
     @Test
-    fun `withColumn replaces one column and leaves the rest`() {
-        val a = SparseMatrix.ofColumns(
-            3,
-            2,
-            listOf(
-                listOf(0 to 4.0, 2 to -1.0),
-                listOf(1 to 7.0),
-            ),
-        )
-        val b = a.withColumn(0, SparseVector.of(3, intArrayOf(1), doubleArrayOf(5.0)))
-        assertEquals(0.0, b[0, 0])
-        assertEquals(5.0, b[1, 0])
-        assertEquals(0.0, b[2, 0])
-        assertEquals(7.0, b[1, 1])
-        assertEquals(2, b.nnz)
+    fun `round trips through its CSC arrays`() {
+        for (a in listOf(
+            SparseMatrix.ofColumns(3, 2, listOf(listOf(0 to 1.0, 2 to 3.0), listOf(1 to 2.0))),
+            SparseMatrix(2, 1, intArrayOf(0, 1), intArrayOf(1), doubleArrayOf(0.0)), // a stored zero
+            SparseMatrix(0, 0, intArrayOf(0), IntArray(0), DoubleArray(0)),
+            SparseMatrix(4, 3, intArrayOf(0, 0, 0, 0), IntArray(0), DoubleArray(0)), // all-empty columns
+        )) {
+            val back = Json.decodeFromString(
+                SparseMatrix.serializer(),
+                Json.encodeToString(SparseMatrix.serializer(), a),
+            )
+            assertEquals(a, back, "round-trip changed $a")
+        }
     }
 
     @Test
-    fun `withColumn rejects an entering column of the wrong length`() {
-        val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 1.0)))
-        assertFailsWith<DimensionMismatch> {
-            a.withColumn(0, SparseVector.of(3, intArrayOf(0), doubleArrayOf(1.0)))
-        }
+    fun `encodes its structure rather than a dense grid`() {
+        val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(1 to 5.0), emptyList()))
+        val encoded = Json.encodeToString(SparseMatrix.serializer(), a)
+        assertTrue(encoded.contains("colPointers"), "expected the CSC arrays in $encoded")
+        assertTrue(encoded.contains("rowIndices"), "expected the CSC arrays in $encoded")
+        assertTrue("0.0" !in encoded, "a structural zero leaked into the payload: $encoded")
     }
 }

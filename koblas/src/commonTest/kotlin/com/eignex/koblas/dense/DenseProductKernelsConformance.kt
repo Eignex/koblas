@@ -28,7 +28,7 @@ private val BLOCK_DEPTHS = intArrayOf(0, 1, 2, 3, 5, 17)
 private val SCALINGS = listOf(1.0 to 0.0, 1.0 to 1.0, 0.875 to -0.25, -1.5 to 1.0)
 
 /** Packs a left operand from the index formula in the contract, independently of the production packer. */
-internal fun packedLeftFixture(rows: Int, depth: Int, group: Int, entry: (Int, Int) -> Double): DoubleArray {
+private fun packedLeftFixture(rows: Int, depth: Int, group: Int, entry: (Int, Int) -> Double): DoubleArray {
     val groups = (rows + group - 1) / group
     val panel = DoubleArray(groups * depth * group)
     for (i in 0 until rows) {
@@ -38,7 +38,7 @@ internal fun packedLeftFixture(rows: Int, depth: Int, group: Int, entry: (Int, I
 }
 
 /** Packs a right operand from the index formula in the contract, independently of the production packer. */
-internal fun packedRightFixture(depth: Int, columns: Int, group: Int, entry: (Int, Int) -> Double): DoubleArray {
+private fun packedRightFixture(depth: Int, columns: Int, group: Int, entry: (Int, Int) -> Double): DoubleArray {
     val groups = (columns + group - 1) / group
     val panel = DoubleArray(groups * depth * group)
     for (j in 0 until columns) {
