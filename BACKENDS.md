@@ -156,6 +156,11 @@ The exact SIMD arm exposes every supplied kernel from its intrinsic minimum leng
 belong to profiles. JVM fitting includes owned SIMD vector rules; panel, product and triangular families
 are an explicit fixed policy, checked by end-to-end holdout regression rather than the fitted win criterion.
 Repeat `--backend` to measure vendor precedence per operation and emit one complete composition.
+For an optional unmeasured vendor, `--fallback aocl=openblas` copies the measured OpenBLAS preferences
+after measured vendors and before owned SIMD. Use `--fallback armpl=openblas` for the corresponding ARM
+composition. The profile and retained evidence explicitly label these as `Unmeasured best effort`;
+they are excluded from fitted-provider reach claims. Replace the fallback with `--backend` to measure it.
+Validation still checks the complete ordered configuration and every selected route or control.
 Capability metadata filters unsupported operations.
 The emitted profile uses the library's runtime CPU identity from capture metadata, so it matches startup
 applicability checks. Runtime, OS and architecture come from the measured arms; `--os` and `--arch` can

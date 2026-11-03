@@ -13,7 +13,7 @@ class EngineProfileTest {
         val vendor = object : KoblasEngine {
             override val name = "host"
             override val vendor = com.eignex.koblas.vendor.Vendor.OneMkl
-            override val implementations = setOf(EngineImplementation.Dot)
+            override val implementations = setOf(EngineImplementation.Dot, EngineImplementation.Gemm)
         }
         val fallback = object : KoblasEngine {
             override val name = "custom"
@@ -25,6 +25,7 @@ class EngineProfileTest {
                 "outer",
                 listOf(
                     EngineRule(vendor.id, setOf(EngineImplementation.Asum)),
+                    EngineRule(vendor.id, setOf(EngineImplementation.Gemm)),
                     EngineRule(fallback.id, fallback.implementations),
                 ),
             ),
@@ -35,6 +36,8 @@ class EngineProfileTest {
         assertEquals("nested", nested.id)
         assertEquals(null, nested.vendor)
         assertEquals(listOf(vendor, fallback, PortableEngine), combined.providers)
+        assertFalse(EngineImplementation.Gemm in combined.implementations)
+        assertSame(vendor, combined.wholeCallFor(EngineImplementation.Gemm, 8, 8, 8))
         assertEquals(fallback.name, combined.implementationFor(EngineImplementation.Asum, 128))
     }
 

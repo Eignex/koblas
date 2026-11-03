@@ -1,5 +1,6 @@
 """Behavior checks for paired capture fitting, independent of installed BLAS libraries."""
 import importlib.util
+import io
 import hashlib
 import json
 import sys
@@ -99,15 +100,43 @@ class TuneEngineTest(unittest.TestCase):
             return SimpleNamespace(paired=paired, shapes=shapes, by_cpu={case: {"CPU A": values} for case, values in paired.items()}, cache_by_cpu={})
         rules, precedence = tune.compose({"onemkl": capture({"dot": 0.8, "asum": 0.8, "gemm": 0.5}),
                                           "openblas": capture({"dot": 0.5, "asum": 0.5, "gemm": 0.8}),
-                                          "jvm-simd": capture({"dot": 0.6})})
+                                          "jvm-simd": capture({"dot": 0.6})}, [("aocl", "openblas")])
 
         self.assertEqual(["openblas", "onemkl"], precedence["Dot"]["sources"])
         self.assertEqual(["onemkl", "openblas"], precedence["Gemm"]["sources"])
-        self.assertEqual(["openblas", "onemkl"], [rule[0] for rule in rules if rule[1] == "Asum,Dot"])
+        self.assertEqual(["openblas", "onemkl", "aocl"], [rule[0] for rule in rules if rule[1] == "Asum,Dot"])
         for operation, source in {"Asum": "openblas", "Dot": "openblas", "Gemm": "onemkl"}.items():
             self.assertEqual(source, next(rule[0] for rule in rules if operation in rule[1].split(',')))
         self.assertEqual(["jvm-simd", "Dot"], rules[-2][:2])
         self.assertEqual(["jvm-simd", "Panels,Products,Triangular"], rules[-1][:2])
+        self.assertEqual([rule[1:] for rule in rules if rule[0] == "openblas"],
+                         [rule[1:] for rule in rules if rule[0] == "aocl"])
+        self.assertGreater(next(i for i, rule in enumerate(rules) if rule[0] == "aocl"),
+                           max(i for i, rule in enumerate(rules) if rule[0] in ("onemkl", "openblas")))
+
+    def test_emitted_fallbacks_are_estimates_with_exact_retained_routing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            rounds(root)
+            output = root / "fitted"
+            arguments = ["tune-engine.py", "--runtime", "native", "--backend", "onemkl", "--results", str(root),
+                         "--fallback", "openblas=onemkl", "--output", str(output)]
+
+            with patch.object(sys, "argv", arguments):
+                tune.main()
+
+            evidence = json.loads((output / "evidence.json").read_text())
+            self.assertEqual({"openblas": "onemkl"}, evidence["best_effort_sources"])
+            self.assertEqual({"tune-engine.py", "tuning_capture.py"}, set(evidence["calibration_sources"]))
+            self.assertEqual({"onemkl"}, {rule[0] for rule in evidence["fitted_rules"]})
+            profile = (output / "profile.tsv").read_text().splitlines()
+            self.assertIn("Unmeasured best effort: openblas from onemkl", profile[0])
+            self.assertEqual([[str(value) for value in rule] for rule in evidence["routing_rules"]],
+                             [line.split('\t') for line in profile[1:]])
+            for choice in ("typo=onemkl", "openblas=typo", "onemkl=onemkl", "openblas=jvm-simd"):
+                with self.subTest(choice=choice), patch.object(sys, "argv", arguments[:-4] + ["--fallback", choice, "--output", str(output)]), \
+                     patch.object(sys, "stderr", io.StringIO()), self.assertRaises(SystemExit):
+                    tune.main()
 
     def test_vendor_precedence_ignores_losses_outside_the_overlapping_routed_region(self):
         shapes = {str(n): ("Dot", n, 1, 1, False, 1, True) for n in (16, 32, 64)}
@@ -121,15 +150,20 @@ class TuneEngineTest(unittest.TestCase):
         self.assertEqual(["64"], precedence["Dot"]["cases"])
 
     def test_profile_validation_gates_hash_disjointness_and_control_regressions(self):
-        for failure in (None, "hash", "overlap", "regression"):
+        for failure in (None, "hash", "overlap", "regression", "rules"):
             with self.subTest(failure=failure), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 rounds(root)
                 profile = root / "profile.tsv"
-                profile.write_text("koblas-profile-v3\ttest\tnative\tLinux\tX86_64\t*\tAvx2\t*\tfixture\ttest\n"
-                                   "onemkl\tDot\t0\t2147483647\t0\t2147483647\t0\t2147483647\t0\t*\t*\n")
+                rule = ["onemkl", "Dot", 0, tune.MAX, 0, tune.MAX, 0, tune.MAX, 0, "*", "*"]
+                rules = [rule, ["openblas", *rule[1:]]]
+                profile.write_text("koblas-profile-v3\ttest\tnative\tLinux\tX86_64\t*\tAvx2\t*\tfixture\ttest\n" +
+                                   "\n".join("\t".join(map(str, row)) for row in rules) + "\n")
+                if failure == "rules":
+                    profile.write_text(profile.read_text().replace("onemkl\tDot\t0", "onemkl\tDot\t1"))
                 digest = hashlib.sha256(profile.read_bytes()).hexdigest()
-                (root / "evidence.json").write_text(json.dumps(dict(sources=dict(onemkl=dict(
+                (root / "evidence.json").write_text(json.dumps(dict(routing_rules=rules, fitted_rules=[rule],
+                    best_effort_sources={"openblas": "onemkl"}, sources=dict(onemkl=dict(
                     paired_ratios={"dot+64+uniform" if failure == "overlap" else "dot+32+uniform": [0.5] * 3})))))
                 for path in root.glob("pass-*"):
                     metadata = (path / "metadata.txt").read_text().replace("[onemkl]", "[native-default]")

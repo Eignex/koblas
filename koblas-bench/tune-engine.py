@@ -11,6 +11,7 @@ from pathlib import Path
 from tuning_capture import measurements
 
 MAX = 2**31 - 1
+VENDORS = ("onemkl", "openblas", "aocl", "armpl", "accelerate")
 VECTORS = ("dot", "copy", "sum", "nrm2", "iamax", "asum", "axpy", "scal", "swap", "rot")
 
 
@@ -64,7 +65,7 @@ def fit(paired, backend, shapes, by_cpu=None, cache_bytes=None):
     return rules
 
 
-def compose(captures):
+def compose(captures, fallbacks=()):
     fitted = {}
     for source, capture in captures.items():
         caches = list(capture.cache_by_cpu.values())
@@ -109,7 +110,8 @@ def compose(captures):
                 if rule[0] == source:
                     grouped.setdefault(tuple(rule[2:]), []).append(rule[1])
             rules.extend([source, ",".join(operations), *bounds] for bounds, operations in grouped.items())
-    return rules + fitted.get("jvm-simd", []), precedence
+    borrowed = [[source, *rule[1:]] for source, donor in fallbacks for rule in rules if rule[0] == donor]
+    return rules + borrowed + fitted.get("jvm-simd", []), precedence
 
 
 def supplementary_cases():
@@ -215,17 +217,20 @@ def validate_profile(results, profile, output, baseline=None, simd_target="jvm-s
     if list(target[4:]) != header[6:8]:
         raise ValueError("validation instruction class or SVE width differs from the profile")
     evidence = json.loads(profile.with_name("evidence.json").read_text())
+    if rules != [[str(value) for value in rule] for rule in evidence["routing_rules"]]:
+        raise ValueError("profile routing differs from its retained evidence")
     training = {case for source in evidence["sources"].values() for case in source["paired_ratios"]}
     if training & checked.paired.keys():
         raise ValueError("validation cases overlap the fitted training cases")
     reached = {provider for models in checked.providers.values() for provider in models.values()}
-    fitted_sources = {rule[0] for rule in rules if rule[1] != "Panels,Products,Triangular"}
+    fitted_sources = {rule[0] for rule in evidence["fitted_rules"]}
     if not fitted_sources.issubset(reached):
         raise ValueError(f"holdout did not reach fitted providers {sorted(fitted_sources - reached)}")
     regressions = {case: models for case, models in checked.by_cpu.items()
                    if any(statistics.median(values) > 1.05 and min(values) > 1.02 for values in models.values())}
     (output / "validation.json").write_text(json.dumps(dict(
         profile_sha256=digest, paired_ratios=checked.paired, ratios_by_cpu=checked.by_cpu,
+        fitted_sources=sorted(fitted_sources), best_effort_sources=evidence["best_effort_sources"],
         source_hashes=checked.hashes, selected_providers=checked.providers, regressions=regressions,
         lab=checked.lab), indent=2) + "\n")
     if regressions:
@@ -235,8 +240,10 @@ def validate_profile(results, profile, output, baseline=None, simd_target="jvm-s
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--runtime", choices=("native", "jvm"))
-    parser.add_argument("--backend", action="append", choices=("onemkl", "openblas", "aocl", "armpl", "accelerate", "jvm-simd"),
+    parser.add_argument("--backend", action="append", choices=(*VENDORS, "jvm-simd"),
                         help="repeat to fit a complete composition with measured vendor precedence")
+    parser.add_argument("--fallback", action="append", default=[], metavar="BACKEND=MEASURED_BACKEND",
+                        help="borrow explicit unmeasured vendor preferences after measured vendors")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--write-cases", type=Path, help="write the shared training and holdout grids without measuring")
     parser.add_argument("--candidate", help="capture target for one explicitly configured candidate")
@@ -296,6 +303,12 @@ def main():
                   for source in sources if source != "jvm-simd"}
     if args.runtime == "jvm":
         candidates["jvm-simd"] = args.candidate if sources == ["jvm-simd"] and args.candidate else args.simd_target
+    fallbacks = {}
+    for choice in args.fallback:
+        source, _, donor = choice.partition("=")
+        if source not in VENDORS or donor not in candidates or donor not in VENDORS or source in candidates or source in fallbacks:
+            parser.error("--fallback needs a distinct unmeasured vendor and a measured vendor donor")
+        fallbacks[source] = donor
     args.output.mkdir(parents=True, exist_ok=False)
     if args.cases is None:
         args.cases = args.output / "training-cases.txt"
@@ -324,16 +337,20 @@ def main():
     target = next(iter(captures.values())).target(args.runtime, args.os, args.arch, args.cpu)
     if any(capture.target(args.runtime, args.os, args.arch, args.cpu) != target for capture in captures.values()):
         raise ValueError("composition sources were measured on different targets")
-    rules, precedence = compose(captures)
+    rules, precedence = compose(captures, fallbacks.items())
     hashes = {path: digest for capture in captures.values() for path, digest in capture.hashes.items()}
     digest = hashlib.sha256(json.dumps([target, rules, sorted(hashes.values())], sort_keys=True).encode()).hexdigest()[:12]
     provenance = [f"https://lab.eignex.com/jobs/{lab['resources']['lab-job.json']['id']}" if lab else str(directory)
                   for directory, lab in zip(results, next(iter(captures.values())).lab)]
     header = ["koblas-profile-v3", f"{args.runtime}-{'-'.join(candidates)}-{digest}", *target,
               "; ".join(provenance), "see evidence.json for paired measurements and hashes"]
+    if fallbacks:
+        header[-1] += "; Unmeasured best effort: " + ", ".join(f"{source} from {donor}" for source, donor in fallbacks.items())
     (args.output / "profile.tsv").write_text("\n".join("\t".join(map(str, row)) for row in [header, *rules]) + "\n")
     (args.output / "evidence.json").write_text(json.dumps(dict(
         baseline=baseline, candidates=candidates, source_hashes=hashes, target=target, vendor_precedence=precedence,
+        calibration_sources={name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
+                             for name in ("tune-engine.py", "tuning_capture.py")},
         sources={source: dict(paired_ratios=capture.paired, ratios_by_cpu=capture.by_cpu, lab=capture.lab,
                              provenance=capture.provenance,
                              anchor_checks=capture.anchor_checks,
@@ -341,7 +358,8 @@ def main():
                              timing_modes=capture.modes,
                              source_commits=sorted(capture.commits), vector_tail_cache_bytes=capture.cache_by_cpu,
                              selected_providers=capture.providers) for source, capture in captures.items()},
-        fitted_rules=[rule for rule in rules if rule[1] != "Panels,Products,Triangular"],
+        routing_rules=rules, best_effort_sources=fallbacks,
+        fitted_rules=[rule for rule in rules if rule[0] not in fallbacks and rule[1] != "Panels,Products,Triangular"],
         fixed_family_rules=[rule for rule in rules if rule[1] == "Panels,Products,Triangular"],
         criterion="fitted rules only: every variant and CPU median <= 0.95 and every round <= 1.02; fixed families use holdout regression validation",
         bounded_vector_rules=[dict(operation=rule[1], last_measured_length=rule[3],

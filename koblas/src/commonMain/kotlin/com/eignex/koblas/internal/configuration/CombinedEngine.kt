@@ -86,7 +86,7 @@ internal class LengthDispatch(
 /** One primitive-window interface serves leaves and the immutable routed composition. */
 internal class CombinedEngine(private val routing: CompiledRouting, override val name: String) : KoblasEngine {
     internal val components get() = routing.backends
-    override val implementations = routing.backends.flatMapTo(mutableSetOf()) { it.implementations }
+    override val implementations = PortableEngine.implementations
     internal fun wholeCallFor(
         operation: EngineImplementation,
         rows: Int,
