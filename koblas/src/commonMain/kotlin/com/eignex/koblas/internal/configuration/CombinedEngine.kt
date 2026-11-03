@@ -23,13 +23,9 @@ internal class CompiledRouting(profile: EngineProfile, engines: List<KoblasEngin
         }.toTypedArray()
     }
 
-    private val lengths = Array(EngineImplementation.entries.size) { index ->
-        EngineImplementation.entries[index].takeIf { it.vector }?.let(::compileLength)
-    }
-
     /** Fold all vector-invariant shape/work constraints before arithmetic reaches a length check. */
-    private fun compileLength(operation: EngineImplementation): LengthDispatch {
-        var result = LengthDispatch(PortableEngine, 0, Int.MAX_VALUE, 3, null)
+    fun compileLength(operation: EngineImplementation): LengthDispatch? {
+        var result: LengthDispatch? = null
         for ((rule, backend) in routes[operation.ordinal].reversed()) {
             val minimum = backend.minimumLength(operation)
             val lower = maxOf(rule.rows.first, minimum, rule.work.coerceAtMost(Int.MAX_VALUE.toLong()).toInt())
@@ -57,9 +53,13 @@ internal class CompiledRouting(profile: EngineProfile, engines: List<KoblasEngin
         contiguous: Boolean = true,
         borrowed: Boolean = false,
     ): KoblasEngine {
-        lengths[operation.ordinal]?.let { return it.select(rows, contiguous) }
+        val vector = operation.vector
+        val width = if (vector) 1 else columns
+        val shared = if (vector) 1 else depth
         for ((rule, backend) in routes[operation.ordinal]) {
-            if (rule.matches(rows, columns, depth, contiguous, borrowed)) return backend
+            if (vector && rows < backend.minimumLength(operation)) continue
+            if (vector && !contiguous && backend.requiresUnitStride(operation)) continue
+            if (rule.matches(rows, width, shared, contiguous, borrowed && !vector)) return backend
         }
         return PortableEngine
     }
@@ -67,48 +67,55 @@ internal class CompiledRouting(profile: EngineProfile, engines: List<KoblasEngin
 
 /** Primitive length and layout checks over the backends bound to one operation. */
 internal class LengthDispatch(
-    private val backend: KoblasEngine,
-    private val minimum: Int,
-    private val maximum: Int,
-    private val layouts: Int,
-    private val fallback: LengthDispatch?,
-) {
-    fun select(length: Int, contiguous: Boolean = true): KoblasEngine {
-        if (fallback == null) return backend
-        return if (length >= minimum && length <= maximum && layouts and (if (contiguous) 1 else 2) != 0) {
-            backend
-        } else {
-            fallback.select(length, contiguous)
+    val backend: KoblasEngine,
+    val minimum: Int,
+    val maximum: Int,
+    val layouts: Int,
+    val fallback: LengthDispatch?,
+)
+
+/** Inline both calls so the portable fallback has a statically known receiver. */
+private inline fun <R> LengthDispatch?.withBackend(
+    length: Int,
+    contiguous: Boolean = true,
+    action: (KoblasEngine) -> R,
+): R {
+    val layout = if (contiguous) 1 else 2
+    var route = this
+    while (route != null) {
+        if (length >= route.minimum && length <= route.maximum && route.layouts and layout != 0) {
+            return action(route.backend)
         }
+        route = route.fallback
     }
+    return action(PortableEngine)
 }
 
 /** One primitive-window interface serves leaves and the immutable routed composition. */
-internal class CombinedEngine(private val routing: CompiledRouting, override val name: String) : KoblasEngine {
-    internal val components get() = routing.backends
+internal class CombinedEngine(val routing: CompiledRouting, override val name: String) : KoblasEngine {
     override val implementations = PortableEngine.implementations
-    internal fun wholeCallFor(
-        operation: EngineImplementation,
-        rows: Int,
-        columns: Int,
-        depth: Int,
-        borrowed: Boolean,
-    ): KoblasEngine? = routing.select(
-        operation,
-        rows,
-        columns,
-        depth,
-        borrowed = borrowed,
-    ).wholeCallFor(operation, rows, columns, depth, borrowed)
+    private val dotRoute = routing.compileLength(EngineImplementation.Dot)
+    private val sumRoute = routing.compileLength(EngineImplementation.Sum)
+    private val nrm2Route = routing.compileLength(EngineImplementation.Nrm2)
+    private val asumRoute = routing.compileLength(EngineImplementation.Asum)
+    private val iamaxRoute = routing.compileLength(EngineImplementation.Iamax)
+    private val axpyRoute = routing.compileLength(EngineImplementation.Axpy)
+    private val scaleRoute = routing.compileLength(EngineImplementation.Scale)
+    private val swapRoute = routing.compileLength(EngineImplementation.Swap)
+    private val rotRoute = routing.compileLength(EngineImplementation.Rot)
+    private val copyRoute = routing.compileLength(EngineImplementation.Copy)
+    private val indexedDotRoute = routing.compileLength(EngineImplementation.IndexedDot)
+    private val indexedSparseDotRoute = routing.compileLength(EngineImplementation.IndexedSparseDot)
+    private val indexedAxpyRoute = routing.compileLength(EngineImplementation.IndexedAxpy)
+    private val indexedScatterRoute = routing.compileLength(EngineImplementation.IndexedScatter)
+    private val indexedGatherRoute = routing.compileLength(EngineImplementation.IndexedGather)
+    private val indexedGatherZeroRoute = routing.compileLength(EngineImplementation.IndexedGatherZero)
+    private val indexedNrm2Route = routing.compileLength(EngineImplementation.IndexedNrm2)
     internal val panelImplementation = routing.select(EngineImplementation.Panels)
     internal val productImplementation = routing.select(EngineImplementation.Products)
     internal val triangularImplementation = routing.select(EngineImplementation.Triangular)
-    internal fun vectors(operation: EngineImplementation, length: Int, contiguous: Boolean = true): KoblasEngine =
-        routing.select(operation, length, contiguous = contiguous)
-
-    internal fun implementationFor(operation: EngineImplementation, length: Int, contiguous: Boolean): String? =
-        routing.select(operation, length, contiguous = contiguous).implementationFor(operation, length, contiguous)
-
+    internal fun copyProvider(length: Int, contiguous: Boolean): KoblasEngine =
+        copyRoute.withBackend(length, contiguous) { it }
     override fun dot(
         a: DoubleArray,
         aOff: Int,
@@ -117,16 +124,17 @@ internal class CombinedEngine(private val routing: CompiledRouting, override val
         len: Int,
         aStride: Int,
         bStride: Int,
-    ): Double = vectors(EngineImplementation.Dot, len, aStride == 1 && bStride == 1)
-        .dot(a, aOff, b, bOff, len, aStride, bStride)
+    ): Double = dotRoute.withBackend(len, aStride == 1 && bStride == 1) {
+        it.dot(a, aOff, b, bOff, len, aStride, bStride)
+    }
     override fun sum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double =
-        vectors(EngineImplementation.Sum, len, vStride == 1).sum(v, vOff, len, vStride)
+        sumRoute.withBackend(len, vStride == 1) { it.sum(v, vOff, len, vStride) }
     override fun nrm2(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double =
-        vectors(EngineImplementation.Nrm2, len, vStride == 1).nrm2(v, vOff, len, vStride)
+        nrm2Route.withBackend(len, vStride == 1) { it.nrm2(v, vOff, len, vStride) }
     override fun asum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double =
-        vectors(EngineImplementation.Asum, len, vStride == 1).asum(v, vOff, len, vStride)
+        asumRoute.withBackend(len, vStride == 1) { it.asum(v, vOff, len, vStride) }
     override fun iamax(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Int =
-        vectors(EngineImplementation.Iamax, len, vStride == 1).iamax(v, vOff, len, vStride)
+        iamaxRoute.withBackend(len, vStride == 1) { it.iamax(v, vOff, len, vStride) }
     override fun axpy(
         y: DoubleArray,
         yOff: Int,
@@ -136,13 +144,15 @@ internal class CombinedEngine(private val routing: CompiledRouting, override val
         len: Int,
         yStride: Int,
         xStride: Int,
-    ) = vectors(EngineImplementation.Axpy, len, yStride == 1 && xStride == 1)
-        .axpy(y, yOff, alpha, x, xOff, len, yStride, xStride)
+    ) = axpyRoute.withBackend(len, yStride == 1 && xStride == 1) {
+        it.axpy(y, yOff, alpha, x, xOff, len, yStride, xStride)
+    }
     override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int, vStride: Int) =
-        vectors(EngineImplementation.Scale, len, vStride == 1).scale(v, vOff, alpha, len, vStride)
+        scaleRoute.withBackend(len, vStride == 1) { it.scale(v, vOff, alpha, len, vStride) }
     override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) =
-        vectors(EngineImplementation.Swap, len, aStride == 1 && bStride == 1)
-            .swap(a, aOff, b, bOff, len, aStride, bStride)
+        swapRoute.withBackend(len, aStride == 1 && bStride == 1) {
+            it.swap(a, aOff, b, bOff, len, aStride, bStride)
+        }
     override fun rot(
         x: DoubleArray,
         xOff: Int,
@@ -153,9 +163,8 @@ internal class CombinedEngine(private val routing: CompiledRouting, override val
         s: Double,
         xStride: Int,
         yStride: Int,
-    ) {
-        val kernels = vectors(EngineImplementation.Rot, len, xStride == 1 && yStride == 1)
-        kernels.rot(x, xOff, y, yOff, len, c, s, xStride, yStride)
+    ) = rotRoute.withBackend(len, xStride == 1 && yStride == 1) {
+        it.rot(x, xOff, y, yOff, len, c, s, xStride, yStride)
     }
     override fun dotDense(
         indices: IntArray,
@@ -164,8 +173,9 @@ internal class CombinedEngine(private val routing: CompiledRouting, override val
         valueOffset: Int,
         count: Int,
         dense: DoubleArray,
-    ): Double = (routing.select(EngineImplementation.IndexedDot, count))
-        .dotDense(indices, indexOffset, values, valueOffset, count, dense)
+    ): Double = indexedDotRoute.withBackend(count) {
+        it.dotDense(indices, indexOffset, values, valueOffset, count, dense)
+    }
 
     override fun dotSparse(
         xIndices: IntArray,
@@ -178,21 +188,12 @@ internal class CombinedEngine(private val routing: CompiledRouting, override val
         yValues: DoubleArray,
         yValueOffset: Int,
         yCount: Int,
-    ): Double = routing.select(
-        EngineImplementation.IndexedSparseDot,
-        maxOf(xCount, yCount),
-    ).dotSparse(
-        xIndices,
-        xIndexOffset,
-        xValues,
-        xValueOffset,
-        xCount,
-        yIndices,
-        yIndexOffset,
-        yValues,
-        yValueOffset,
-        yCount,
-    )
+    ): Double = indexedSparseDotRoute.withBackend(maxOf(xCount, yCount)) {
+        it.dotSparse(
+            xIndices, xIndexOffset, xValues, xValueOffset, xCount,
+            yIndices, yIndexOffset, yValues, yValueOffset, yCount,
+        )
+    }
 
     override fun axpy(
         indices: IntArray,
@@ -202,10 +203,9 @@ internal class CombinedEngine(private val routing: CompiledRouting, override val
         count: Int,
         alpha: Double,
         destination: DoubleArray,
-    ): Unit = routing.select(
-        EngineImplementation.IndexedAxpy,
-        count,
-    ).axpy(indices, indexOffset, values, valueOffset, count, alpha, destination)
+    ): Unit = indexedAxpyRoute.withBackend(count) {
+        it.axpy(indices, indexOffset, values, valueOffset, count, alpha, destination)
+    }
 
     override fun computeIndexedScatter(
         indices: IntArray,
@@ -214,10 +214,9 @@ internal class CombinedEngine(private val routing: CompiledRouting, override val
         valueOffset: Int,
         count: Int,
         destination: DoubleArray,
-    ): Unit = routing.select(
-        EngineImplementation.IndexedScatter,
-        count,
-    ).computeIndexedScatter(indices, indexOffset, values, valueOffset, count, destination)
+    ): Unit = indexedScatterRoute.withBackend(count) {
+        it.computeIndexedScatter(indices, indexOffset, values, valueOffset, count, destination)
+    }
 
     override fun gather(
         indices: IntArray,
@@ -226,10 +225,9 @@ internal class CombinedEngine(private val routing: CompiledRouting, override val
         valueOffset: Int,
         count: Int,
         source: DoubleArray,
-    ): Unit = routing.select(
-        EngineImplementation.IndexedGather,
-        count,
-    ).gather(indices, indexOffset, values, valueOffset, count, source)
+    ): Unit = indexedGatherRoute.withBackend(count) {
+        it.gather(indices, indexOffset, values, valueOffset, count, source)
+    }
 
     override fun gatherZero(
         indices: IntArray,
@@ -238,17 +236,17 @@ internal class CombinedEngine(private val routing: CompiledRouting, override val
         valueOffset: Int,
         count: Int,
         source: DoubleArray,
-    ): Unit = routing.select(
-        EngineImplementation.IndexedGatherZero,
-        count,
-    ).gatherZero(indices, indexOffset, values, valueOffset, count, source)
+    ): Unit = indexedGatherZeroRoute.withBackend(count) {
+        it.gatherZero(indices, indexOffset, values, valueOffset, count, source)
+    }
 
     override fun computeIndexedNrm2(indices: IntArray, indexOffset: Int, count: Int, values: DoubleArray): Double =
-        routing.select(EngineImplementation.IndexedNrm2, count).computeIndexedNrm2(indices, indexOffset, count, values)
+        indexedNrm2Route.withBackend(count) { it.computeIndexedNrm2(indices, indexOffset, count, values) }
 
     override fun copy(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) =
-        routing.select(EngineImplementation.Copy, len, contiguous = aStride == 1 && bStride == 1)
-            .copy(a, aOff, b, bOff, len, aStride, bStride)
+        copyRoute.withBackend(len, aStride == 1 && bStride == 1) {
+            it.copy(a, aOff, b, bOff, len, aStride, bStride)
+        }
 
     override fun executionGroup(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean): Int =
         panelImplementation.executionGroup(work, rows, columns, contiguous)

@@ -4,7 +4,7 @@ import com.eignex.koblas.internal.configuration.CombinedEngine
 
 /** Leaf providers in routing order, including their own capabilities and host provenance. */
 public val KoblasEngine.providers: List<KoblasEngine> get() =
-    if (this is CombinedEngine) components.toList() else listOf(this)
+    if (this is CombinedEngine) routing.backends.toList() else listOf(this)
 
 /** The provider bound by the dispatcher, before any value-dependent arithmetic fallback. */
 internal fun KoblasEngine.providerFor(
@@ -15,7 +15,7 @@ internal fun KoblasEngine.providerFor(
     contiguous: Boolean,
     borrowed: Boolean,
 ): String = if (operation.vector) {
-    (if (this is CombinedEngine) vectors(operation, rows, contiguous) else this).id
+    (if (this is CombinedEngine) routing.select(operation, rows, contiguous = contiguous) else this).id
 } else {
     wholeCallFor(operation, rows, columns, depth, borrowed)?.id ?: "scheduled"
 }
@@ -26,20 +26,19 @@ internal fun KoblasEngine.wholeCallFor(
     columns: Int,
     depth: Int = 1,
     borrowed: Boolean = false,
-): KoblasEngine? = when (this) {
-    is CombinedEngine -> wholeCallFor(operation, rows, columns, depth, borrowed)
-    else -> takeIf { operation in implementations }
+): KoblasEngine? {
+    val provider = (this as? CombinedEngine)?.routing
+        ?.select(operation, rows, columns, depth, borrowed = borrowed) ?: this
+    return provider.takeIf { operation in it.implementations }
 }
 
 internal fun KoblasEngine.implementationFor(
     operation: EngineImplementation,
     length: Int,
     contiguous: Boolean = true,
-): String? = when {
-    this is CombinedEngine -> implementationFor(operation, length, contiguous)
-    operation !in implementations -> null
-    dynamicAttribution(operation) -> null
-    else -> name
+): String? {
+    val provider = (this as? CombinedEngine)?.routing?.select(operation, length, contiguous = contiguous) ?: this
+    return provider.takeIf { operation in it.implementations && !it.dynamicAttribution(operation) }?.name
 }
 
 internal fun KoblasEngine.implementationFor(

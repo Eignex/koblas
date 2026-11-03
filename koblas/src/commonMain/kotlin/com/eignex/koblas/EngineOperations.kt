@@ -58,7 +58,7 @@ public fun KoblasEngine.copy(x: DenseVector, y: DenseVector) {
     requireSameSize(x.size, y.size, "copy")
     if (sameVectorMapping(x, y)) return
     val contiguous = x.stride == 1 && y.stride == 1
-    val provider = if (this is CombinedEngine) vectors(EngineImplementation.Copy, x.size, contiguous) else this
+    val provider = if (this is CombinedEngine) copyProvider(x.size, contiguous) else this
     // Portable contiguous copy is a memmove, so it needs no alias snapshot.
     val source = if (provider === PortableEngine && contiguous) x else x.stableFor(y)
     provider.copy(source.values, source.offset, y.values, y.offset, x.size, source.stride, y.stride)
