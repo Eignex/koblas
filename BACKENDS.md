@@ -132,8 +132,7 @@ It uses twenty warmups and 200 ms measured samples, then validates the combined 
 holdouts. Native warmups use 50 ms at this target; JVM warmups use the full 200 ms.
 Generated training includes non-square Level 2 calls, both structured Level 3 sides and large borrowed
 GEMM views; `supplement.txt` measures these additions independently of an existing training capture.
-`tail.txt` adds larger dense/indexed inputs and large strides. `anchors.txt` combines these with repeated
-base shapes and the matrix supplement, so producer revisions can be checked before pooling captures.
+`tail.txt` adds larger dense/indexed inputs and large strides. Supplemental captures must use the same measured code.
 `validation.json` records the dispatcher-selected providers and all paired ratios. Persistent regressions
 over five percent in either selected routes or unchanged controls fail validation; missing, empty or
 untimed validation cases fail as well. Profile names include a hash of their configuration and evidence.
@@ -190,11 +189,9 @@ python3 koblas-bench/tune-engine.py --results /tmp/calibration --runtime native 
 Repeat `--results PATH` to add supplemental measurements. Rows must agree on timing settings,
 GC/heap, effective JVM options, GC profiling and CPU policy. Runtime, OS version, vendor version and
 thread evidence must agree within each CPU-model stratum; oneMKL comparisons also retain the pinned
-package. Each paired row uses one clean revision and worker attempt. The reader compares measured-path
-source manifests; changed code requires two distinct repeated anchors per operation, contiguity,
-owned/borrowed layout and CPU stratum with agreeing
-win/lose classifications. Otherwise remeasure the affected cases. Duplicate inputs and missing
-requested training rows stop fitting. Per-row commits, manifests, protocol signatures and anchor checks
+package. Each paired row uses one clean revision and worker attempt. Measured-path source manifests must
+match across all inputs to a profile; recapture the target after changing measured code. Duplicate inputs and missing
+requested training rows stop fitting. Per-row commits, manifests and protocol signatures
 are retained externally with the job provenance and preparation/failed-attempt costs.
 
 Run the disjoint holdouts with the fitted profile as the lab job's `profile` input, then fetch that job

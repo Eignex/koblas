@@ -3,7 +3,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from tuning_capture import measurements, verify_anchors
+from tuning_capture import measurements
 
 
 def rounds(root, model="measured CPU", runtime="native"):
@@ -172,43 +172,15 @@ class TuningCaptureTest(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "protocols"):
                     measurements(roots, "native", "onemkl")
 
-    def test_changed_code_requires_agreeing_anchors_in_each_cpu_stratum(self):
+    def test_changed_measured_code_cannot_be_pooled_with_identical_ratios(self):
         with tempfile.TemporaryDirectory() as directory:
             roots = [Path(directory) / name for name in ("training", "supplement")]
             for root in roots:
                 rounds(root)
             (roots[1] / "source-hashes.txt").write_text("b" * 64 + " koblas/src/commonMain/kotlin/PortableEngine.kt\n")
-            with self.assertRaisesRegex(ValueError, "anchors"):
-                measurements(roots, "native", "onemkl")
-            for root in roots:
-                for path in root.glob("*/*.csv"):
-                    path.write_text(path.read_text() + path.read_text().splitlines()[1].replace("dot+32", "dot+64").replace("Dot:32:", "Dot:64:") + "\n")
-            self.assertEqual(1, len(measurements(roots, "native", "onemkl").anchor_checks))
-            for path in roots[1].glob("*/metadata.txt"):
-                path.write_text(path.read_text().replace("measured CPU", "another CPU"))
-            with self.assertRaisesRegex(ValueError, "anchors"):
-                measurements(roots, "native", "onemkl")
-            for path in roots[1].glob("*/metadata.txt"):
-                path.write_text(path.read_text().replace("another CPU", "measured CPU"))
-            for path in roots[1].glob("*/onemkl.csv"):
-                lines = path.read_text().splitlines()
-                row = lines[-1].split(',')
-                row[-2] = str(float(row[-2]) * 3)
-                path.write_text("\n".join([*lines[:-1], ','.join(row)]) + "\n")
-            with self.assertRaisesRegex(ValueError, "anchors"):
-                measurements(roots, "native", "onemkl")
 
-    def test_anchors_cannot_certify_another_layout_or_contiguity(self):
-        for borrowed, contiguous in ((True, True), (False, False)):
-            with self.subTest(borrowed=borrowed, contiguous=contiguous):
-                shapes = {"first": ("Gemm", 32, 32, 32, False, 1, True),
-                          "second": ("Gemm", 64, 64, 64, False, 1, True),
-                          "other": ("Gemm", 128, 128, 128, borrowed, 1, contiguous)}
-                records = [dict(manifest=manifest, cpu="CPU", paired={case: [0.5] * 3 for case in shapes})
-                           for manifest in ("before", "after")]
-
-                with self.assertRaisesRegex(ValueError, "anchors"):
-                    verify_anchors(records, shapes)
+            with self.assertRaisesRegex(ValueError, "different measured sources"):
+                measurements(roots, "native", "onemkl")
 
     def test_jvm_lab_options_and_gc_profiling_follow_the_selected_arm(self):
         for override in ({"jvm-options": "-XX:MaxVectorSize=32"}, {"profile-gc": "true"}):

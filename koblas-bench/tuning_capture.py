@@ -4,7 +4,6 @@ import hashlib
 import json
 import math
 import re
-import statistics
 from dataclasses import dataclass, field
 from itertools import product
 
@@ -97,39 +96,6 @@ def instruction_class(identities, hardware, lab):
             "Avx2" if "avx2" in flags else "X86_64" if flags and platform.get("profile_arch") == "X86_64" else "*")
 
 
-def verify_anchors(records, shapes):
-    by_manifest = {}
-    for record in records:
-        for case, ratios in record["paired"].items():
-            if shapes[case]:
-                shape = shapes[case]
-                by_manifest.setdefault(record["manifest"], {}).setdefault((shape[0], shape[6], shape[4], record["cpu"]), {}).setdefault(case, []).extend(ratios)
-    checks = []
-    for stratum in sorted({key for groups in by_manifest.values() for key in groups}):
-        nodes = {digest: groups.get(stratum, {}) for digest, groups in by_manifest.items()
-                 if any(key[:3] == stratum[:3] for key in groups)}
-        pending = set(nodes)
-        reached = {min(pending)}
-        pending -= reached
-        while pending:
-            linked = set()
-            for left in sorted(reached):
-                for right in sorted(pending):
-                    anchors = nodes[left].keys() & nodes[right].keys()
-                    if len({shapes[case] for case in anchors}) >= 2 and all(
-                        (statistics.median(nodes[left][case]) <= 0.95 and max(nodes[left][case]) <= 1.02) ==
-                        (statistics.median(nodes[right][case]) <= 0.95 and max(nodes[right][case]) <= 1.02) for case in anchors
-                    ):
-                        linked.add(right)
-                        checks.append(dict(operation=stratum[0], contiguous=stratum[1], borrowed=stratum[2], cpu=stratum[3],
-                                           left=left, right=right, cases=sorted(anchors)))
-            if not linked:
-                raise ValueError(f"changed measured paths need two agreeing repeated anchors for {stratum}")
-            reached.update(linked)
-            pending -= linked
-    return checks
-
-
 def capture_groups(directory, arm, targets):
     index = directory / "lab-cases.jsonl"
     if not index.exists():
@@ -208,7 +174,6 @@ class Capture:
     provenance: list = field(default_factory=list)
     missing_rows: set = field(default_factory=set)
     modes: dict = field(default_factory=dict)
-    anchor_checks: list = field(default_factory=list)
     sve_widths: set = field(default_factory=set)
     excluded: list = field(default_factory=list)
 
@@ -395,5 +360,6 @@ def measurements(directories, baseline, candidate, backend=None, strict=False, a
         for case, ratios in complete.items():
             result.paired.setdefault(case, []).extend(ratios)
             result.by_cpu.setdefault(case, {}).setdefault(next(iter(models)), []).extend(ratios)
-    result.anchor_checks = verify_anchors(result.provenance, result.shapes)
+    if len({record["manifest"] for record in result.provenance if record["paired"]}) > 1:
+        raise ValueError("profile inputs use different measured sources; recapture on one revision")
     return result

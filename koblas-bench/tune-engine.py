@@ -168,19 +168,6 @@ def native_tail_cases():
              for n in (6291456, 8388608) for stride in (2, -1, -2)])
 
 
-def anchor_cases():
-    selected = []
-    for case in training_cases():
-        op, dimensions, *_ = case.split('+')
-        if (op in VECTORS and dimensions in ("1024", "65536") and ("stride=" not in case or case.endswith("stride=2")) or
-            op.startswith("sp") and dimensions in ("256", "4096") or
-            op not in VECTORS and all(n == "64" for n in dimensions.split('x')) or
-            op not in VECTORS and all(n == "256" for n in dimensions.split('x')) or
-            op == "gemm" and dimensions in ("16x16x1024", "16x16x2048") and "layout=borrowed" in case):
-            selected.append(case)
-    return list(dict.fromkeys(selected + supplementary_cases() + tail_cases()))
-
-
 def training_cases():
     cases = [f"{op}+{n}+uniform{stride}" for op in VECTORS
              for n in (2, 4, 8, 16, 32, 64, 96, 128, 256, 1024, 65536, 1_000_000)
@@ -271,7 +258,6 @@ def main():
         (args.write_cases / "holdout.txt").write_text("\n".join(holdout_cases()) + "\n")
         (args.write_cases / "native-holdout.txt").write_text("\n".join(holdout_cases("native")) + "\n")
         (args.write_cases / "supplement.txt").write_text("\n".join(supplementary_cases()) + "\n")
-        (args.write_cases / "anchors.txt").write_text("\n".join(anchor_cases()) + "\n")
         (args.write_cases / "tail.txt").write_text("\n".join(tail_cases()) + "\n")
         (args.write_cases / "native-tail.txt").write_text("\n".join(native_tail_cases()) + "\n")
         (args.write_cases / "native-training.txt").write_text("\n".join(training + native_tail_cases()) + "\n")
@@ -354,7 +340,6 @@ def main():
                              for name in ("tune-engine.py", "tuning_capture.py")},
         sources={source: dict(paired_ratios=capture.paired, ratios_by_cpu=capture.by_cpu, lab=capture.lab,
                              provenance=capture.provenance,
-                             anchor_checks=capture.anchor_checks,
                              excluded_rows=capture.excluded,
                              timing_modes=capture.modes,
                              source_commits=sorted(capture.commits), vector_tail_cache_bytes=capture.cache_by_cpu,

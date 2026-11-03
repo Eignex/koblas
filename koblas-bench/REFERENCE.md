@@ -105,7 +105,7 @@ See [LabAdapter.kt](src/jvmMain/kotlin/com/eignex/koblas/bench/LabAdapter.kt) fo
 The [calibration manifest](lab/calibration.json) prepares the same generated grids as local tuning under
 `koblas-bench/build/calibration/`. Set `cases` to `training.txt` or `holdout.txt` for JVM, or
 `native-training.txt` or `native-holdout.txt` for Native. `native-tail.txt` supplements identical measured
-sources; changed measured sources also need the repeated `anchors.txt` evidence before pooling captures.
+sources; changing measured code requires a fresh capture of the target.
 Use [the macOS manifest](lab/calibration-macos.json) for Accelerate so preparation builds on a compatible
 Mac. The [Linux ARM64 manifest](lab/calibration-linux-arm64.json) declares x64 preparation and ARM64
 build outputs, so the lab hands the cross-built executable to compatible ARM workers.
