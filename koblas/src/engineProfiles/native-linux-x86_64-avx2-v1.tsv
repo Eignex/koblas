@@ -1,0 +1,15 @@
+koblas-profile-v3	native-linux-x86_64-avx2-v1	native	Linux	X86_64	*	Avx2	*	https://lab.eignex.com/jobs/10583	Coarse estimates informed by retained measurements; favor host on Native
+openblas	Dot,Asum	128	2147483647	0	2147483647	0	2147483647	0	true	*
+openblas	Nrm2,Iamax	256	2147483647	0	2147483647	0	2147483647	0	true	*
+openblas	Axpy,Scale,Swap,Rot	4096	2147483647	0	2147483647	0	2147483647	0	true	*
+openblas	Gemm,Symm,Syr2k,Trmm,Trsm	8	2147483647	8	2147483647	8	2147483647	512	*	false
+openblas	Gemm	16	2147483647	16	2147483647	16	2147483647	65536	*	true
+openblas	Gemmt,Syrk	16	2147483647	16	2147483647	16	2147483647	4096	*	false
+openblas	Gemv,GemvTransposed,Ger,Symv,Syr,Syr2,Trmv,TrmvTransposed,Trsv,TrsvTransposed	64	2147483647	64	2147483647	0	2147483647	4096	*	false
+onemkl	Dot,Asum	256	2147483647	0	2147483647	0	2147483647	0	true	*
+onemkl	Nrm2,Iamax	512	2147483647	0	2147483647	0	2147483647	0	true	*
+onemkl	Axpy,Scale,Swap,Rot	4096	2147483647	0	2147483647	0	2147483647	0	true	*
+onemkl	Gemm,Symm,Syr2k,Trmm,Trsm	8	2147483647	8	2147483647	8	2147483647	512	*	false
+onemkl	Gemm	16	2147483647	16	2147483647	16	2147483647	65536	*	true
+onemkl	Gemmt,Syrk	16	2147483647	16	2147483647	16	2147483647	4096	*	false
+onemkl	Gemv,GemvTransposed,Ger,Symv,Syr,Syr2,Trmv,TrmvTransposed,Trsv,TrsvTransposed	32	2147483647	32	2147483647	0	2147483647	1024	*	false

@@ -24,9 +24,15 @@ check AOCL on Linux/Windows x64 or ArmPL on Arm64. Each vendor has its own routi
 libraries, exports and optional modules fall through to the remaining providers and portable coverage.
 Without native-access permission the JVM selects its owned SIMD or portable profile.
 
-Standard vendor profiles are provisional until pre-merge calibration completes; they do not claim measured
-applicability across CPU models. Owned SIMD detects the available Vector API width. Locally calibrated
-profiles can restrict applicability to an exact CPU model.
+The standard profiles use broad thresholds informed by retained measurements, with Native routing
+favoring host libraries; JVM transfers use higher cutoffs. These are tuning estimates, not performance guarantees.
+
+| Target | Standard tuning |
+|---|---|
+| Linux x86-64 | Separate AVX2 and AVX-512 profiles combine oneMKL, OpenBLAS and portable; JVM adds SIMD and estimated AOCL preferences. Tunings use [Native AVX2](https://lab.eignex.com/jobs/10583), [Native AVX-512](https://lab.eignex.com/jobs/10565), [JVM AVX2](https://lab.eignex.com/jobs/10584) and [JVM AVX-512](https://lab.eignex.com/jobs/10566) measurements. |
+| Linux Arm64 | SVE-256 profiles combine OpenBLAS and portable, with SIMD and estimated ArmPL preferences on JVM. Tunings use [Native](https://lab.eignex.com/jobs/10628) and [JVM](https://lab.eignex.com/jobs/10607) measurements. |
+| macOS Arm64 | Accelerate combines with portable, plus SIMD on JVM. Native tuning uses [measurements](https://lab.eignex.com/jobs/10630); JVM thresholds are estimates. |
+| Other supported hosts | Windows borrows Linux tuning; Intel macOS borrows Accelerate tuning from Arm64 and JVM SIMD tuning from Linux x86. Other CPU classes and SVE widths borrow the closest compatible profile, explicitly labeled unmeasured best effort. |
 
 On JDK 25+, enable SIMD with this JVM argument:
 
@@ -97,17 +103,10 @@ Measured profiles can require a CPU instruction class (`Avx2`, `Avx512`, `Arm64`
 SVE profiles also require their measured active vector width. Native reads `PR_SVE_GET_VL`; JVM reads
 HotSpot's active `UseSVE`/`MaxVectorSize` settings, including on the scalar arm without the Vector API.
 Unknown or different widths do not match. The tab-separated profile format is v3; earlier formats are rejected.
-When no measured profile applies, standard selection borrows a best-effort configuration within the same
-runtime. Vendor preferences favor the same OS, then architecture and instruction class; only vendors
-supported on the destination are retained. Owned JVM preferences favor the same architecture and class.
-Windows therefore borrows the corresponding Linux preferences, while Intel macOS borrows Accelerate
-preferences from macOS ARM and owned SIMD preferences from Linux x86. These profiles are named
-`best-effort-*`, record their source profile names and explicitly say `Unmeasured best effort` in their
-evidence. They retain portable coverage and are estimates, not performance measurements for the destination.
+Standard selection borrows compatible preferences within the same runtime when no target profile matches,
+and labels the result `best-effort-*` with its donor names. Unsupported vendors are excluded.
 To load a recalculated profile, pass its text to `EngineProfile.parse`; the library performs no file I/O.
-Standard configuration files live under `koblas/src/engineProfiles/` and are embedded during compilation.
-Replace the target's file with the validated `profile.tsv` to update its standard tuning. The current
-files are explicitly provisional while the pre-merge measurement campaign finishes.
+Standard configurations live under `koblas/src/engineProfiles/` and are embedded during compilation.
 `BuiltinEngines.configured` resolves named libraries and uses exactly the profile's preferences.
 Include owned SIMD rules explicitly when wanted. Missing optional libraries fall through; unknown source identifiers are rejected. Use
 `KoblasEngine.combine(profile, providers...)` for explicit custom providers or scalar-only composition.
@@ -116,7 +115,7 @@ schedule and its packed arithmetic agree on geometry. Intrinsic scalar edges and
 inside their implementations and are reflected by internal implementation attribution. The application engine
 uses shared checked operations for dense and sparse scheduling; separate backend and BLAS interfaces, vendor adapters, vendor preference selection and route objects are
 removed. Explicit composition flattens the supplied engines into arithmetic sources once, with intrinsic
-portable coverage. The composer binds each arithmetic family once, and forwards its calls to that bound provider. No engine inherits implementation code.
+portable coverage. The composer binds each arithmetic family once; shared schedules call that provider directly. No engine inherits implementation code.
 
 Recalculate a profile explicitly on the intended host:
 
@@ -126,94 +125,37 @@ python3 koblas-bench/tune-engine.py --capture --runtime native --backend onemkl 
   --output /tmp/native-onemkl-profile
 ```
 
-The workflow retains three paired rounds, timing metadata, CSVs, ratios and hashes, then emits `profile.tsv`.
-Fitting and validation use the scheduler's compatible hardware without CPU affinity pinning.
-It uses twenty warmups and 200 ms measured samples, then validates the combined configuration on disjoint
-holdouts. Native warmups use 50 ms at this target; JVM warmups use the full 200 ms.
-Generated training includes non-square Level 2 calls, both structured Level 3 sides and large borrowed
-GEMM views; `supplement.txt` measures these additions independently of an existing training capture.
-`tail.txt` adds larger dense/indexed inputs and large strides. Supplemental captures must use the same measured code.
-`validation.json` records the dispatcher-selected providers and all paired ratios. Persistent regressions
-over five percent in either selected routes or unchanged controls fail validation; missing, empty or
-untimed validation cases fail as well. Profile names include a hash of their configuration and evidence.
-Contiguous and strided length thresholds are fitted independently and must keep winning at every larger
-measured size. Owned SIMD tails open only after two winning larger lengths. Vendor tails require two
-winning lengths beyond the reported per-core share of last-level cache, or the full reported L2 on macOS.
-Other length rules stay bounded and are flagged in the evidence. Holdouts check tiny vector dispatch controls
-and inputs above training caps. Matrix rules fit minimum extents and work together, with bounded depth bands for residual deep
-shapes. Borrowed layouts are fitted separately. Every covered measured variant must win on each CPU model.
-Native captures add 70 larger vector cases, including strided runs, so two winning lengths can exceed a
-reported full 32 MiB cache when core topology is unknown. `native-training.txt` contains the full Native
-grid; `native-tail.txt` is its supplemental tail. `native-holdout.txt` also checks larger strided lengths
-above that training cap. These cases are separate from the shared JVM grid to fit its heap budget.
-Use `--runtime jvm` for transfer-inclusive JVM vendor tuning or `--backend jvm-simd` for owned vector tuning.
-The exact SIMD arm exposes every supplied kernel from its intrinsic minimum length; performance cutoffs
-belong to profiles. JVM fitting includes owned SIMD vector rules; panel, product and triangular families
-are an explicit fixed policy, checked by end-to-end holdout regression rather than the fitted win criterion.
-Repeat `--backend` to measure vendor precedence per operation and emit one complete composition.
-For an optional unmeasured vendor, `--fallback aocl=openblas` copies the measured OpenBLAS preferences
-after measured vendors and before owned SIMD. Use `--fallback armpl=openblas` for the corresponding ARM
-composition. The profile and retained evidence explicitly label these as `Unmeasured best effort`;
-they are excluded from fitted-provider reach claims. Replace the fallback with `--backend` to measure it.
-Validation still checks the complete ordered configuration and every selected route or control.
-Capability metadata filters unsupported operations.
-The emitted profile uses the library's runtime CPU identity from capture metadata, so it matches startup
-applicability checks. Runtime, OS and architecture come from the measured arms; `--os` and `--arch` can
-require particular values. Mixed models require an explicit `--cpu '*'` and remain separate evidence
-strata. Model-independent profiles require a single verified instruction class, taken from runtime metadata,
-recorded CPU flags or the lab's AVX-512 placement constraint. Use `--cpu-class Avx2` to select one class
-from a mixed-placement capture, or `--cpu-class Sve --sve-vector-bits 256` to select an SVE width.
-Excluded rows and their costs remain in the evidence. SVE captures without recorded widths must be
-remeasured; other unknown or mixed classes cannot produce a model-independent profile.
-JVM vendor fitting compares against the faster paired portable or exact SIMD arm in each round;
-`--baseline jvm-scalar` supports deployments without SIMD.
+Use `--runtime jvm` for transfer-inclusive JVM tuning and repeat `--backend` for each vendor.
+The workflow compares paired portable, SIMD and vendor arms, emits `profile.tsv`, and checks the combined
+engine on disjoint holdouts. Review the emitted thresholds as broad routing preferences; avoid fitting
+individual noisy sizes. Replace the target's file under `koblas/src/engineProfiles/` to update the default.
 
-Validate the emitted configuration on additional cases and compare the combined engine, not only direct
-vendor arms. `KOBLAS_BENCH_ENGINE_PROFILE=/absolute/path/profile.tsv` selects it on the benchmark harness's
-`native-default` or `jvm-default` arm, without changing the library's process default. Refit existing repeated
-captures with `--results PATH` instead of `--capture`. SIMD captures need current capability metadata.
-Timing smoke runs cannot produce profiles.
-
-Fetched lab jobs are also accepted. Save the job and execution snapshots beside the fetched files so
-the evidence retains preparation and failed-attempt resource counters:
+Existing lab captures can be refitted without another measurement run:
 
 ```bash
 lab fetch ID /tmp/calibration
 lab show ID > /tmp/calibration/lab-job.json
 lab execution ID > /tmp/calibration/lab-execution.json
-python3 koblas-bench/tune-engine.py --results /tmp/calibration --runtime native --backend onemkl \
-  --cpu '*' --output /tmp/native-onemkl-profile
+python3 koblas-bench/tune-engine.py --results /tmp/calibration --runtime native \
+  --backend onemkl --backend openblas --cpu '*' --cpu-class Avx2 \
+  --output /tmp/native-profile
 ```
 
-Repeat `--results PATH` to add supplemental measurements. Rows must agree on timing settings,
-GC/heap, effective JVM options, GC profiling and CPU policy. Runtime, OS version, vendor version and
-thread evidence must agree within each CPU-model stratum; oneMKL comparisons also retain the pinned
-package. Each paired row uses one clean revision and worker attempt. Measured-path source manifests must
-match across all inputs to a profile; recapture the target after changing measured code. Duplicate inputs and missing
-requested training rows stop fitting. Per-row commits, manifests and protocol signatures
-are retained externally with the job provenance and preparation/failed-attempt costs.
-
-Run the disjoint holdouts with the fitted profile as the lab job's `profile` input, then fetch that job
-and its snapshots as above. Apply the same completeness, provider-reach and regression gates:
+Repeat `--results PATH` for supplemental captures of the same measured code. Keep runtime, vendor,
+thread and timing settings consistent; model-independent SVE profiles also require `--sve-vector-bits`.
+Use `--fallback aocl=openblas` or `--fallback armpl=openblas` for explicitly unmeasured vendor estimates.
+Run holdouts with `KOBLAS_BENCH_ENGINE_PROFILE=/absolute/path/profile.tsv` on the `native-default` or
+`jvm-default` benchmark arm, then check their results:
 
 ```bash
 python3 koblas-bench/tune-engine.py --validate-results /tmp/holdouts \
-  --profile /tmp/native-onemkl-profile/profile.tsv --output /tmp/validated-profile
+  --profile /tmp/native-profile/profile.tsv --output /tmp/validated-profile
 ```
 
-Keep `evidence.json` beside the profile. Every validation round must record its exact profile hash.
-Training overlap, target mismatches and per-CPU median regressions above 5% fail for routes and controls.
-Every generated holdout and control is required; `--validation-cases PATH` selects an explicit complete case list.
-
-For multi-arm jobs, select `--lab-arm LABEL`. Only rows where every SDK arm completed successfully are
-accepted, and only their declared artifacts are read. Each accepted row needs at least three complete
-paired rounds on one CPU model. Each input job must be complete, with one clean source revision across the rounds of each paired row.
-Fitting uses exact built-in arms. The default `jvm-owned` reference compares vendors against the faster paired portable or SIMD timing in
-each round. This prevents a slow SIMD body from hiding a faster available portable implementation.
-
-Benchmark reports and result data stay outside the source tree. The retained lab reports cover
-[Native calibration](https://lab.eignex.com/jobs/10142) and the [JVM comparison](https://lab.eignex.com/jobs/10183).
-Use the maintained client, `lab fetch ID /tmp/report`, to retrieve their CSVs, metadata and hashes.
+Validation reports selected providers and paired ratios, rejecting missing cases and median regressions
+above 5%; inspect noise and reset-dominated controls when reviewing results. `--validation-cases PATH`
+selects an explicit disjoint case list. Keep generated evidence, reports and result data outside the
+repository; only routing configurations belong in the source tree.
 
 See the [API overview](koblas/module.md) for explicit engines and bindings, or the
 [usage guide](USAGE.md) for array, workspace and view examples.

@@ -1,7 +1,0 @@
-koblas-profile-v3	jvm-macos-arm64-provisional-v1	jvm	MacOs	Arm64	*	*	*	BACKENDS.md	Provisional estimates; replace with measured configurations before merge
-accelerate	Gemm,Gemmt,Symm,Syrk,Syr2k,Trmm,Trsm	128	2147483647	128	2147483647	128	2147483647	0	*	*
-accelerate	Gemm,Symm,Syrk,Syr2k,Trmm,Trsm	64	2147483647	64	2147483647	64	2147483647	0	*	false
-jvm-simd	Iamax	256	2147483647	0	2147483647	0	2147483647	0	true	*
-jvm-simd	Dot,Sum,Asum,Nrm2,Axpy	0	2147483647	0	2147483647	0	2147483647	0	true	*
-jvm-simd	IndexedDot	16	2147483647	0	2147483647	0	2147483647	0	*	*
-jvm-simd	Panels,Products,Triangular	0	2147483647	0	2147483647	0	2147483647	0	*	*

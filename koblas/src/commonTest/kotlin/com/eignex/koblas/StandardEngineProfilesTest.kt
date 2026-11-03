@@ -6,7 +6,7 @@ import kotlin.test.*
 
 class StandardEngineProfilesTest {
     @Test
-    fun `measured sve profiles match their width and other widths borrow explicit estimates`() {
+    fun `sve profiles match their width and other widths borrow explicit estimates`() {
         for (runtime in EngineRuntime.entries) {
             val measured = StandardEngineProfiles.forTarget(
                 runtime,
@@ -20,6 +20,21 @@ class StandardEngineProfilesTest {
             assertEquals(CpuClass.Sve, measured.target?.cpuClass)
             assertEquals(256, measured.target?.sveVectorBits)
             assertTrue(estimate.evidence.startsWith("Unmeasured best effort"))
+        }
+    }
+
+    @Test
+    fun `x86 profiles select the declared instruction class`() {
+        for (runtime in EngineRuntime.entries) {
+            for (cpuClass in listOf(CpuClass.Avx2, CpuClass.Avx512)) {
+                val profile = StandardEngineProfiles.forTarget(
+                    runtime,
+                    HostPlatform(OperatingSystem.Linux, Architecture.X86_64, cpuClass = cpuClass),
+                )
+
+                assertEquals(cpuClass, profile.target?.cpuClass)
+                assertFalse(profile.name.startsWith("best-effort-"))
+            }
         }
     }
 
@@ -51,7 +66,10 @@ class StandardEngineProfilesTest {
                         }
 
                         assertEquals(if (access) candidates + extra else emptySet(), opened)
-                        val selected = if (access) choices.firstOrNull { it in available } else null
+                        val preferences = StandardEngineProfiles.forTarget(runtime, host).rules.mapNotNull { rule ->
+                            choices.firstOrNull { it.vendorName.lowercase() == rule.source }
+                        }
+                        val selected = if (access) preferences.firstOrNull { it in available } else null
                         for (borrowed in listOf(false, true)) {
                             assertEquals(
                                 selected?.vendorName?.lowercase(),

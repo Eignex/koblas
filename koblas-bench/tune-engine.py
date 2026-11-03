@@ -191,6 +191,11 @@ def training_cases():
     return cases + supplementary_cases() + tail_cases()
 
 
+def case_key(case):
+    parts = case.split("+")
+    return (*parts[:2], *sorted(parts[2:]))
+
+
 def validate_profile(results, profile, output, baseline=None, arm=None, validation_cases=None):
     lines = [line.split("\t") for line in profile.read_text().splitlines() if line and not line.startswith("#")]
     header, rules = lines[0], lines[1:]
@@ -203,7 +208,8 @@ def validate_profile(results, profile, output, baseline=None, arm=None, validati
                            profile_sha256=digest)
     expected = (holdout_cases(runtime) if validation_cases is None else
                 [line.strip() for line in validation_cases.read_text().splitlines() if line.strip() and not line.lstrip().startswith("#")])
-    missing = set(expected) - checked.paired.keys()
+    measured = {case_key(case) for case in checked.paired}
+    missing = {case for case in expected if case_key(case) not in measured}
     if not expected or missing:
         raise ValueError(f"validation missing requested holdouts or controls: {sorted(missing)}")
     target = checked.target(runtime, header[3], header[4], header[5])
@@ -213,7 +219,7 @@ def validate_profile(results, profile, output, baseline=None, arm=None, validati
     if rules != [[str(value) for value in rule] for rule in evidence["routing_rules"]]:
         raise ValueError("profile routing differs from its retained evidence")
     training = {case for source in evidence["sources"].values() for case in source["paired_ratios"]}
-    if training & checked.paired.keys():
+    if any(case_key(case) in measured for case in training):
         raise ValueError("validation cases overlap the fitted training cases")
     reached = {provider for models in checked.providers.values() for provider in models.values()}
     fitted_sources = {rule[0] for rule in evidence["fitted_rules"]}

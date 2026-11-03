@@ -155,8 +155,9 @@ class TuneEngineTest(unittest.TestCase):
             with self.subTest(failure=failure), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 rounds(root)
+                case = "dot+64+uniform+stride=1+workspace=retained"
                 validation_cases = root / "holdouts.txt"
-                validation_cases.write_text("# expected workloads\n  dot+64+uniform  \n" + ("sum+3+uniform\n" if failure == "missing" else ""))
+                validation_cases.write_text(f"# expected workloads\n  {case}  \n" + ("sum+3+uniform\n" if failure == "missing" else ""))
                 profile = root / "profile.tsv"
                 rule = ["onemkl", "Dot", 0, tune.MAX, 0, tune.MAX, 0, tune.MAX, 0, "*", "*"]
                 rules = [rule, ["openblas", *rule[1:]]]
@@ -167,13 +168,13 @@ class TuneEngineTest(unittest.TestCase):
                 digest = hashlib.sha256(profile.read_bytes()).hexdigest()
                 (root / "evidence.json").write_text(json.dumps(dict(routing_rules=rules, fitted_rules=[rule],
                     best_effort_sources={"openblas": "onemkl"}, sources=dict(onemkl=dict(
-                    paired_ratios={"dot+64+uniform" if failure == "overlap" else "dot+32+uniform": [0.5] * 3})))))
+                    paired_ratios={case if failure == "overlap" else "dot+32+uniform": [0.5] * 3})))))
                 for path in root.glob("pass-*"):
                     metadata = (path / "metadata.txt").read_text().replace("[onemkl]", "[native-default]")
                     (path / "metadata.txt").write_text(metadata.replace("dirty=false", f"engine_profile_sha256={digest}\ndirty=false"))
                     for name in ("native", "onemkl"):
                         csv = path / f"{name}.csv"
-                        text = csv.read_text().replace("dot+32", "dot+64").replace("Dot:32:", "Dot:64:")
+                        text = csv.read_text().replace("dot+32+uniform", "dot+64+uniform+workspace=retained+stride=1").replace("Dot:32:", "Dot:64:")
                         if name == "onemkl":
                             if failure == "regression":
                                 previous = 5 * 10 ** (int(path.name.removeprefix("pass-")) - 1)

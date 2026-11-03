@@ -7,7 +7,8 @@ import com.eignex.koblas.vendor.Vendor
 
 /** Backends are bound once; arithmetic never resolves identifiers or capabilities. */
 internal class CompiledRouting(profile: EngineProfile, engines: List<KoblasEngine>) {
-    val backends = engines.flatMap { it.providers }.filterNot { it === PortableEngine }.distinct() + PortableEngine
+    private val portable = PortableEngine
+    val backends = engines.flatMap { it.providers }.filterNot { it === portable }.distinct() + portable
     init {
         val known = backends.map { it.id } + "jvm-simd" + Vendor.entries.map { it.vendorName.lowercase() }
         require(profile.rules.all { it.source in known }) { "Unknown engine source in ${profile.name}" }
@@ -56,12 +57,14 @@ internal class CompiledRouting(profile: EngineProfile, engines: List<KoblasEngin
             if (vector && !contiguous && backend.requiresUnitStride(operation)) continue
             if (rule.matches(rows, width, shared, contiguous, borrowed && !vector)) return backend
         }
-        return PortableEngine
+        return portable
     }
 }
 
 /** Primitive length and layout bounds, in profile order, beside their bound providers. */
 internal class LengthDispatch(val backends: Array<KoblasEngine>, val windows: IntArray) {
+    // A final receiver lets Native inline the fallback without a per-call singleton lookup.
+    val portable = PortableEngine
     val minimum = windows.indices.step(3).minOfOrNull { windows[it] } ?: Int.MAX_VALUE
 }
 
@@ -71,7 +74,7 @@ private inline fun <R> LengthDispatch.withBackend(
     contiguous: Boolean = true,
     action: (KoblasEngine) -> R,
 ): R {
-    if (length < minimum) return action(PortableEngine)
+    if (length < minimum) return action(portable)
     val layout = if (contiguous) 1 else 2
     var index = 0
     while (index < windows.size) {
@@ -80,7 +83,7 @@ private inline fun <R> LengthDispatch.withBackend(
         }
         index += 3
     }
-    return action(PortableEngine)
+    return action(portable)
 }
 
 /** One primitive-window interface serves leaves and the immutable routed composition. */
