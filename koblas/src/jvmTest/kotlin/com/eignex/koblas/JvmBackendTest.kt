@@ -4,7 +4,6 @@ import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.engine.Vendor
-import com.eignex.koblas.workspace.*
 import org.junit.Assume
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -48,7 +47,7 @@ class JvmBackendTest {
         val expected = DenseMatrix.wrap(order, order, a.values.copyOf())
         ReferenceBlas.gemm(0.875, a, false, b, true, -0.25, expected)
 
-        koblas.withWorkspace(Workspace()).gemm(0.875, a, false, b, true, -0.25, a)
+        koblas.gemm(0.875, a, false, b, true, -0.25, a, scratch = Scratch())
 
         assertClose(expected.values, a.values, "aliased default host product")
     }

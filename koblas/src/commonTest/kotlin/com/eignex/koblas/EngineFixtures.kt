@@ -10,7 +10,7 @@ internal fun engineWithKernels(
     products: KoblasEngine = PortableEngine,
     triangles: KoblasEngine = PortableEngine,
     indexed: KoblasEngine = PortableEngine,
-): KoblasEngine = KoblasEngine.combine(
+): KoblasEngine = combine(
     EngineProfile(
         "test",
         listOf(
@@ -35,7 +35,7 @@ internal fun engineWithHost(
     host: KoblasEngine,
     eligible: Boolean = true,
     borrowed: Boolean = true,
-): KoblasEngine = KoblasEngine.combine(
+): KoblasEngine = combine(
     EngineProfile(
         "host-test",
         buildList {

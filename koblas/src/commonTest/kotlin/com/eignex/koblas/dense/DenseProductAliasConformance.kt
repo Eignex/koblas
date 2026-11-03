@@ -5,7 +5,6 @@ import com.eignex.koblas.assertClose
 import com.eignex.koblas.copyOf
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.sparse.*
-import com.eignex.koblas.workspace.*
 import kotlin.random.Random
 import kotlin.test.assertEquals
 
@@ -21,13 +20,13 @@ private enum class ProductAlias {
 
 /** Checks pre-call values against the oracle, counting staging loans beyond the schedule's own scratch. */
 private fun assertProductAliasesAgreeWithReference(
-    call: (DenseMatrix, DenseMatrix, DenseMatrix, Workspace?) -> Unit,
+    call: (DenseMatrix, DenseMatrix, DenseMatrix, Scratch?) -> Unit,
     reference: (DenseMatrix, DenseMatrix, DenseMatrix) -> Unit,
 ) {
     val rng = Random(20261013)
     val order = 6
     // Symmetric diagonal expansion can borrow the same length as a snapshot, so measure unaliased scratch.
-    val scratch = Workspace()
+    val scratch = Scratch()
     call(randomMatrix(order, order, rng), randomMatrix(order, order, rng), randomMatrix(order, order, rng), scratch)
     val scratchLoans = scratch.available(order * order)
     for (alias in ProductAlias.entries) {
@@ -47,7 +46,7 @@ private fun assertProductAliasesAgreeWithReference(
             val originalB = b.copyOf()
             val expected = c.copyOf()
             reference(originalA, originalB, expected)
-            val workspace = if (useWorkspace) Workspace() else null
+            val workspace = if (useWorkspace) Scratch() else null
 
             call(a, b, c, workspace)
 
@@ -76,9 +75,9 @@ internal fun assertRectangularProductAliasesAgreeWithReference(blas: KoblasEngin
             val c = if (aliasDestination) DenseMatrix.wrap(2, 3, a.values) else randomMatrix(3, 3, rng)
             val expected = c.copyOf()
             ReferenceBlas.gemm(0.875, a.copyOf(), aliasDestination, b.copyOf(), false, -0.25, expected)
-            val workspace = if (useWorkspace) Workspace() else null
+            val workspace = if (useWorkspace) Scratch() else null
 
-            blas.withWorkspace(workspace).gemm(0.875, a, aliasDestination, b, false, -0.25, c)
+            blas.gemm(0.875, a, aliasDestination, b, false, -0.25, c, scratch = workspace)
 
             assertClose(expected.values, c.values, "rectangular alias=$aliasDestination workspace=$useWorkspace")
             workspace?.let { assertEquals(if (aliasDestination) 1 else 0, it.available(a.values.size)) }
@@ -91,24 +90,24 @@ internal fun assertDenseProductAliasesAgreeWithReference(blas: KoblasEngine) {
     for (transposeA in booleanArrayOf(false, true)) {
         for (transposeB in booleanArrayOf(false, true)) {
             assertProductAliasesAgreeWithReference(
-                { a, b, c, w -> blas.withWorkspace(w).gemm(0.875, a, transposeA, b, transposeB, -0.25, c) },
+                { a, b, c, w -> blas.gemm(0.875, a, transposeA, b, transposeB, -0.25, c, scratch = w) },
                 { a, b, c -> ReferenceBlas.gemm(0.875, a, transposeA, b, transposeB, -0.25, c) },
             )
             for (lower in booleanArrayOf(false, true)) {
                 assertProductAliasesAgreeWithReference(
-                    { a, b, c, w -> blas.withWorkspace(w).gemmt(0.875, a, transposeA, b, transposeB, -0.25, c, lower) },
+                    { a, b, c, w -> blas.gemmt(0.875, a, transposeA, b, transposeB, -0.25, c, lower, scratch = w) },
                     { a, b, c -> ReferenceBlas.gemmt(0.875, a, transposeA, b, transposeB, -0.25, c, lower) },
                 )
             }
         }
         for (lower in booleanArrayOf(false, true)) {
             assertProductAliasesAgreeWithReference(
-                { a, b, c, w -> blas.withWorkspace(w).syr2k(0.875, a, b, transposeA, -0.25, c, lower) },
+                { a, b, c, w -> blas.syr2k(0.875, a, b, transposeA, -0.25, c, lower, scratch = w) },
                 { a, b, c -> ReferenceBlas.syr2k(0.875, a, b, transposeA, -0.25, c, lower) },
             )
             // The same flag also covers both positions of the symmetric operand.
             assertProductAliasesAgreeWithReference(
-                { a, b, c, w -> blas.withWorkspace(w).symm(0.875, a, b, -0.25, c, lower, transposeA) },
+                { a, b, c, w -> blas.symm(0.875, a, b, -0.25, c, lower, transposeA, scratch = w) },
                 { a, b, c -> ReferenceBlas.symm(0.875, a, b, -0.25, c, lower, transposeA) },
             )
         }

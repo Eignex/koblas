@@ -163,7 +163,7 @@ internal fun triangularMatrix(
  * resident whether the sides were copied or were already adjacent. A backend that wants every side at once
  * says so, which is what the portable one answers, and then the substitution is a single group.
  */
-internal fun triangularGroup(triangles: KoblasEngine, block: Int, sides: Int): Int {
+internal fun triangularGroup(triangles: EngineKernels, block: Int, sides: Int): Int {
     val recommended = triangles.rightHandSideGroup(block, sides)
     val bounded = if (recommended > sides) sides else recommended
     return if (bounded < 1) 1 else bounded
@@ -177,7 +177,7 @@ internal fun triangularGroup(triangles: KoblasEngine, block: Int, sides: Int): I
  * hundred, as many times.
  */
 private fun diagonalStep(
-    triangles: KoblasEngine,
+    triangles: EngineKernels,
     t: DoubleArray,
     order: Int,
     tOffset: Int,
@@ -224,7 +224,7 @@ private fun diagonalStep(
 
 /** Whichever of the two substitutions this call is, with the arguments they share. */
 private fun substitute(
-    triangles: KoblasEngine,
+    triangles: EngineKernels,
     solve: Boolean,
     t: DoubleArray,
     order: Int,

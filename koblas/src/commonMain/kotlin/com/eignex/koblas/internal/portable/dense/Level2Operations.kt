@@ -149,20 +149,18 @@ internal fun KoblasEngine.portableGer(
 
 internal fun KoblasEngine.portableSyr2(
     alpha: Double,
-    x: DenseVector,
-    y: DenseVector,
+    xv: DoubleArray,
+    xOrigin: Int,
+    xStep: Int,
+    yv: DoubleArray,
+    yOrigin: Int,
+    yStep: Int,
     a: DenseMatrixRegion,
     lower: Boolean,
 ) {
     if (alpha == 0.0 || a.rows == 0 || a.cols == 0) return
     val panels = panelProvider
     val n = a.rows
-    val xv = x.values
-    val yv = y.values
-    val xOrigin = x.offset
-    val xStep = x.stride
-    val yOrigin = y.offset
-    val yStep = y.stride
     val lda = a.leadingDimension
     val group = panels.executionGroup(PanelWork.RankUpdate, n, n, xStep == 1 && yStep == 1)
     forEachTrianglePanel(n, group, lower, fromDiagonal = true) { start, width, window, rows ->
@@ -272,14 +270,18 @@ internal fun KoblasEngine.portableTrmv(
     }
 }
 
-internal fun KoblasEngine.portableSyr(alpha: Double, x: DenseVector, a: DenseMatrixRegion, lower: Boolean) {
+internal fun KoblasEngine.portableSyr(
+    alpha: Double,
+    xv: DoubleArray,
+    origin: Int,
+    step: Int,
+    a: DenseMatrixRegion,
+    lower: Boolean,
+) {
     if (alpha == 0.0 || a.rows == 0 || a.cols == 0) return
     val n = a.rows
     val panels = panelProvider
-    val xv = x.values
-    val origin = x.offset
-    val step = x.stride
-    val group = panels.executionGroup(PanelWork.RankUpdate, n, n, x.stride == 1)
+    val group = panels.executionGroup(PanelWork.RankUpdate, n, n, step == 1)
     forEachTrianglePanel(n, group, lower, fromDiagonal = true) { start, width, window, rows ->
         // Only the diagonal corner has differing stored rows; the remaining window is shared by the group.
         val cornerFirst = if (lower) start else start + 1

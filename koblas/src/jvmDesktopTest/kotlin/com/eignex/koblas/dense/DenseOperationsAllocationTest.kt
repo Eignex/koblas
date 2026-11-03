@@ -6,7 +6,6 @@ import com.eignex.koblas.testutil.allocation.ARRAY_HEADER_BYTES
 import com.eignex.koblas.testutil.allocation.AllocationCase
 import com.eignex.koblas.testutil.allocation.FLOOR_BYTES
 import com.eignex.koblas.testutil.allocation.parameterRows
-import com.eignex.koblas.workspace.*
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import kotlin.test.Test
@@ -91,31 +90,31 @@ class DenseOperationsAllocationTest internal constructor(private val case: Alloc
         private fun workspaceCases(): List<AllocationCase> = listOf(
             with(AliasedLevelTwoFixture()) {
                 AllocationCase("aliased dense gemv reuses a workspace", 400) {
-                    portable.withWorkspace(workspace).gemv(1e-12, a, y, 1.0, y)
+                    portable.gemv(1e-12, a, y, 1.0, y, scratch = workspace)
                     y
                 }
             },
             with(AliasedLevelTwoFixture()) {
                 AllocationCase("aliased dense symv reuses a workspace", 400) {
-                    portable.withWorkspace(workspace).symv(1e-12, a, y, 1.0, y)
+                    portable.symv(1e-12, a, y, 1.0, y, scratch = workspace)
                     y
                 }
             },
             with(StridedOperandFixture()) {
                 AllocationCase("a strided operand lent a workspace allocates nothing", 1_000) {
-                    koblas.withWorkspace(workspace).gemv(1e-12, a, strided, 1.0, destination)
+                    koblas.gemv(1e-12, a, strided, 1.0, destination, scratch = workspace)
                     destination
                 }
             },
             with(DenseLevelThreeFixture()) {
                 AllocationCase("dense trsm reuses a workspace", 100) {
-                    portable.withWorkspace(workspace).trsm(triangle, b, lower = true)
+                    portable.trsm(triangle, b, lower = true, scratch = workspace)
                     b
                 }
             },
             with(DenseLevelThreeFixture()) {
                 AllocationCase("dense trmm reuses a workspace", 100) {
-                    portable.withWorkspace(workspace).trmm(triangle, b, lower = true)
+                    portable.trmm(triangle, b, lower = true, scratch = workspace)
                     b
                 }
             },
@@ -124,19 +123,19 @@ class DenseOperationsAllocationTest internal constructor(private val case: Alloc
         private fun productCases(): List<AllocationCase> = listOf(
             with(DenseProductFixture()) {
                 AllocationCase("shallow matrix products reuse a workspace", 50) {
-                    portable.withWorkspace(workspace).gemm(1e-12, wide, false, wide, false, 1.0, packedTarget)
+                    portable.gemm(1e-12, wide, false, wide, false, 1.0, packedTarget, scratch = workspace)
                     packedTarget
                 }
             },
             with(DenseProductFixture()) {
                 AllocationCase("deep matrix products reuse a workspace", 50) {
-                    portable.withWorkspace(workspace).gemm(1e-12, deepLeft, false, deepRight, false, 1.0, deepTarget)
+                    portable.gemm(1e-12, deepLeft, false, deepRight, false, 1.0, deepTarget, scratch = workspace)
                     deepTarget
                 }
             },
             with(DenseProductFixture()) {
                 AllocationCase("unpacked matrix products reuse a workspace", 200) {
-                    portable.withWorkspace(workspace).gemm(1e-12, small, false, small, false, 1.0, smallTarget)
+                    portable.gemm(1e-12, small, false, small, false, 1.0, smallTarget, scratch = workspace)
                     smallTarget
                 }
             },
@@ -195,9 +194,9 @@ class DenseOperationsAllocationTest internal constructor(private val case: Alloc
         val a = DenseMatrix.wrap(n, n, DoubleArray(n * n) { 1.0 + (it % 13) * 0.125 })
         val strided = StridedVector(DoubleArray(2 * n) { 1.0 + (it % 7) * 0.25 }, 0, n, 2)
         val destination = DenseVector.wrap(DoubleArray(n))
-        val workspace = Workspace()
+        val workspace = Scratch()
         init {
-            koblas.withWorkspace(workspace).gemv(1e-12, a, strided, 1.0, destination)
+            koblas.gemv(1e-12, a, strided, 1.0, destination, scratch = workspace)
         }
     }
 
@@ -206,9 +205,9 @@ class DenseOperationsAllocationTest internal constructor(private val case: Alloc
         val portable = BuiltinEngines.scalar
         val a = DenseMatrix.wrap(n, n, DoubleArray(n * n) { 1.0 + (it % 13) * 0.125 })
         val y = DoubleArray(n) { 1.0 + (it % 7) * 0.25 }
-        val workspace = Workspace()
+        val workspace = Scratch()
         init {
-            portable.withWorkspace(workspace).gemv(1e-12, a, y, 1.0, y)
+            portable.gemv(1e-12, a, y, 1.0, y, scratch = workspace)
         }
     }
 
@@ -220,16 +219,16 @@ class DenseOperationsAllocationTest internal constructor(private val case: Alloc
             for (i in 0 until order) it.values[i + i * order] = 4.0
         }
         val b = DenseMatrix.wrap(order, sides, DoubleArray(order * sides) { 1.0 })
-        val workspace = Workspace()
+        val workspace = Scratch()
         init {
-            portable.withWorkspace(workspace).trsm(triangle, b, lower = true)
-            portable.withWorkspace(workspace).trmm(triangle, b, lower = true)
+            portable.trsm(triangle, b, lower = true, scratch = workspace)
+            portable.trmm(triangle, b, lower = true, scratch = workspace)
         }
     }
 
     private class DenseProductFixture {
         val portable = BuiltinEngines.scalar
-        val workspace = Workspace()
+        val workspace = Scratch()
         val wide = DenseMatrix.wrap(48, 48, DoubleArray(48 * 48) { 1.0 + (it % 13) * 0.125 })
         val deepLeft = DenseMatrix.wrap(12, 400, DoubleArray(12 * 400) { 1.0 + (it % 7) * 0.25 })
         val deepRight = DenseMatrix.wrap(400, 12, DoubleArray(400 * 12) { 0.5 + (it % 5) * 0.125 })
@@ -238,9 +237,9 @@ class DenseOperationsAllocationTest internal constructor(private val case: Alloc
         val smallTarget = DenseMatrix.wrap(5, 5, DoubleArray(25))
         val packedTarget = DenseMatrix.wrap(48, 48, DoubleArray(48 * 48))
         init {
-            portable.withWorkspace(workspace).gemm(1e-12, wide, false, wide, false, 1.0, packedTarget)
-            portable.withWorkspace(workspace).gemm(1e-12, deepLeft, false, deepRight, false, 1.0, deepTarget)
-            portable.withWorkspace(workspace).gemm(1e-12, small, false, small, false, 1.0, smallTarget)
+            portable.gemm(1e-12, wide, false, wide, false, 1.0, packedTarget, scratch = workspace)
+            portable.gemm(1e-12, deepLeft, false, deepRight, false, 1.0, deepTarget, scratch = workspace)
+            portable.gemm(1e-12, small, false, small, false, 1.0, smallTarget, scratch = workspace)
         }
     }
 

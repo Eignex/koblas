@@ -9,7 +9,7 @@ class EngineProfileTest {
     fun `matrix preferences bound every extent and the borrowed layout`() {
         val backend = provider("matrix", setOf(Gemm))
         val rule = EngineRule(backend.id, backend.implementations, 2..4, 3..5, 6..8, borrowed = false)
-        val engine = KoblasEngine.combine(EngineProfile("bounded", listOf(rule)), backend)
+        val engine = combine(EngineProfile("bounded", listOf(rule)), backend)
 
         for (dimension in 0..2) {
             val low = intArrayOf(2, 3, 6)
@@ -38,7 +38,7 @@ class EngineProfileTest {
         val operations = mutableSetOf(Sum)
         val rules = mutableListOf(EngineRule("test", operations))
         val profile = EngineProfile("test", rules)
-        val engine = KoblasEngine.combine(profile, provider("test", setOf(Sum)))
+        val engine = combine(profile, provider("test", setOf(Sum)))
         operations.clear()
         rules.clear()
 
@@ -90,7 +90,7 @@ class EngineProfileTest {
         }
     }
 
-    private fun provider(id: String, operations: Set<EngineImplementation>): KoblasEngine = object : KoblasEngine {
+    private fun provider(id: String, operations: Set<EngineImplementation>): KoblasEngine = object : EngineKernels {
         override val name = id
         override val implementations = operations
     }

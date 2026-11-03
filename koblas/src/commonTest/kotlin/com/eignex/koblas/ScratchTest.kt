@@ -1,4 +1,4 @@
-package com.eignex.koblas.workspace
+package com.eignex.koblas
 
 import com.eignex.koblas.engine.*
 import kotlin.test.Test
@@ -8,11 +8,11 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /** Repeated calls of one shape must reuse buffers; changing shapes must retain only a bounded set. */
-class WorkspaceTest {
+class ScratchTest {
 
     @Test
     fun `a repeated loan of one length returns the same buffer`() {
-        val workspace = Workspace()
+        val workspace = Scratch()
 
         val first = workspace.arrays.borrow(64) { it }
         val second = workspace.arrays.borrow(64) { it }
@@ -23,7 +23,7 @@ class WorkspaceTest {
 
     @Test
     fun `nested loans of one length are distinct buffers`() {
-        val workspace = Workspace()
+        val workspace = Scratch()
 
         workspace.arrays.borrow(32) { outer ->
             workspace.arrays.borrow(32) { inner ->
@@ -37,7 +37,7 @@ class WorkspaceTest {
 
     @Test
     fun `a loan is returned when the work it was lent for throws`() {
-        val workspace = Workspace()
+        val workspace = Scratch()
 
         assertFailsWith<IllegalStateException> {
             workspace.arrays.borrow(16) { error("the kernel failed") }
@@ -48,7 +48,7 @@ class WorkspaceTest {
 
     @Test
     fun `index loans behave as floating point ones do`() {
-        val workspace = Workspace()
+        val workspace = Scratch()
 
         val first = workspace.arrays.borrowI32(8) { it }
         workspace.arrays.borrowI32(8) { inner -> assertSame(first, inner) }
@@ -59,7 +59,7 @@ class WorkspaceTest {
     // Without the bound this count would be the number of distinct lengths the sweep asked for.
     @Test
     fun `a sweep over changing lengths retains a bounded number of them`() {
-        val workspace = Workspace()
+        val workspace = Scratch()
 
         for (length in 1..64) workspace.arrays.borrow(length) { it[0] = length.toDouble() }
         val floating = workspace.idleLengths()
@@ -71,7 +71,7 @@ class WorkspaceTest {
 
     @Test
     fun `a sweep keeps the most recently returned lengths`() {
-        val workspace = Workspace()
+        val workspace = Scratch()
 
         for (length in 1..64) workspace.arrays.borrow(length) { it[0] = length.toDouble() }
 
@@ -82,7 +82,7 @@ class WorkspaceTest {
     // Alternating between two shapes is the case the bound must not break.
     @Test
     fun `alternating between two lengths keeps both resident`() {
-        val workspace = Workspace()
+        val workspace = Scratch()
         workspace.arrays.borrow(128) { it[0] = 1.0 }
         workspace.arrays.borrow(256) { it[0] = 1.0 }
 
@@ -97,7 +97,7 @@ class WorkspaceTest {
 
     @Test
     fun `a negative length is rejected rather than allocated`() {
-        val workspace = Workspace()
+        val workspace = Scratch()
 
         assertFailsWith<IllegalArgumentException> { workspace.arrays.borrow(-1) { it } }
     }

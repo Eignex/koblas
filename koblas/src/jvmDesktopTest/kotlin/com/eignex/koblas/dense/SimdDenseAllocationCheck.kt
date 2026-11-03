@@ -10,7 +10,6 @@ import com.eignex.koblas.internal.portable.dense.TRIANGULAR_DIAGONAL_BLOCK
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.testutil.allocation.AllocationProbe
 import com.eignex.koblas.testutil.allocation.bytesPerCall
-import com.eignex.koblas.workspace.*
 
 /**
  * Runs allocation checks for the Vector API dense panels in an uninstrumented JVM.
@@ -165,7 +164,7 @@ internal object SimdDenseAllocationCheck {
         val x = DenseVector.wrap(DoubleArray(ORDER) { 1.0 + (it % 7) * 0.25 })
         val y = DenseVector.wrap(DoubleArray(ORDER) { 0.5 })
         val destination = DenseVector.wrap(DoubleArray(ORDER))
-        val workspace = Workspace()
+        val workspace = Scratch()
         val left = DenseMatrix.wrap(PRODUCT_ORDER, PRODUCT_ORDER, DoubleArray(PRODUCT_ORDER * PRODUCT_ORDER) { 1.0 })
         val right = DenseMatrix.wrap(PRODUCT_ORDER, PRODUCT_ORDER, DoubleArray(PRODUCT_ORDER * PRODUCT_ORDER) { 0.5 })
         val product = DenseMatrix.wrap(PRODUCT_ORDER, PRODUCT_ORDER, DoubleArray(PRODUCT_ORDER * PRODUCT_ORDER))
@@ -176,7 +175,7 @@ internal object SimdDenseAllocationCheck {
             destination[0]
         }
         assertAllocationFree("generic product", PRODUCT_WARMUP, PRODUCT_ITERATIONS) {
-            koblas.withWorkspace(workspace).gemm(1e-12, left, false, right, false, -0.25, product)
+            koblas.gemm(1e-12, left, false, right, false, -0.25, product, scratch = workspace)
             product.values[0]
         }
     }
@@ -199,7 +198,7 @@ internal object SimdDenseAllocationCheck {
         val matrix = DenseMatrix.wrap(ORDER, ORDER, DoubleArray(ORDER * ORDER) { 1.0 + (it % 13) * 0.125 })
         val x = DoubleArray(ORDER) { 1.0 + (it % 7) * 0.25 }
         val y = DoubleArray(ORDER) { 0.5 }
-        val workspace = Workspace()
+        val workspace = Scratch()
         val left = DenseMatrix.wrap(PRODUCT_ORDER, PRODUCT_ORDER, DoubleArray(PRODUCT_ORDER * PRODUCT_ORDER) { 1.0 })
         val product = DenseMatrix.wrap(PRODUCT_ORDER, PRODUCT_ORDER, DoubleArray(PRODUCT_ORDER * PRODUCT_ORDER))
 
@@ -208,7 +207,7 @@ internal object SimdDenseAllocationCheck {
             y[0]
         }
         assertAllocationFree("gemm behind a host composition", PRODUCT_WARMUP, PRODUCT_ITERATIONS) {
-            composed.withWorkspace(workspace).gemm(1e-12, left, false, left, false, -0.25, product)
+            composed.gemm(1e-12, left, false, left, false, -0.25, product, scratch = workspace)
             product.values[0]
         }
     }
@@ -223,7 +222,7 @@ internal object SimdDenseAllocationCheck {
         require(products.packsProduct(order, order, order)) {
             "the structured probe at $order cubed is not packed on this machine"
         }
-        val workspace = Workspace()
+        val workspace = Scratch()
         val square = order * order
         val a = DenseMatrix.wrap(order, order, DoubleArray(square) { 1.0 + (it % 13) * 0.125 })
         val b = DenseMatrix.wrap(order, order, DoubleArray(square) { 0.5 + (it % 7) * 0.25 })
@@ -231,21 +230,21 @@ internal object SimdDenseAllocationCheck {
 
         for (lower in booleanArrayOf(true, false)) {
             assertAllocationFree("gemmt lower=$lower", PRODUCT_WARMUP, PRODUCT_ITERATIONS) {
-                engine.withWorkspace(workspace).gemmt(1e-12, a, false, b, false, -0.25, c, lower)
+                engine.gemmt(1e-12, a, false, b, false, -0.25, c, lower, scratch = workspace)
                 c.values[0]
             }
             assertAllocationFree("syrk lower=$lower", PRODUCT_WARMUP, PRODUCT_ITERATIONS) {
-                engine.withWorkspace(workspace).syrk(1e-12, a, false, -0.25, c, lower)
+                engine.syrk(1e-12, a, false, -0.25, c, lower, scratch = workspace)
                 c.values[0]
             }
             assertAllocationFree("syr2k lower=$lower", PRODUCT_WARMUP, PRODUCT_ITERATIONS) {
-                engine.withWorkspace(workspace).syr2k(1e-12, a, b, false, -0.25, c, lower)
+                engine.syr2k(1e-12, a, b, false, -0.25, c, lower, scratch = workspace)
                 c.values[0]
             }
         }
         for (right in booleanArrayOf(false, true)) {
             assertAllocationFree("symm right=$right", PRODUCT_WARMUP, PRODUCT_ITERATIONS) {
-                engine.withWorkspace(workspace).symm(1e-12, a, b, -0.25, c, lower = true, right = right)
+                engine.symm(1e-12, a, b, -0.25, c, lower = true, right = right, scratch = workspace)
                 c.values[0]
             }
         }
@@ -264,13 +263,13 @@ internal object SimdDenseAllocationCheck {
     }
 
     private fun checkThinSolve(engine: KoblasEngine, order: Int) {
-        val workspace = Workspace()
+        val workspace = Scratch()
         val triangle = dominantTriangle(order)
         val b = DenseMatrix.wrap(order, 1, DoubleArray(order))
 
         assertAllocationFree("trsm left order=$order sides=1", WIDE_WARMUP, WIDE_ITERATIONS) {
             b.values.fill(1.0)
-            engine.withWorkspace(workspace).trsm(triangle, b, lower = true)
+            engine.trsm(triangle, b, lower = true, scratch = workspace)
             b.values[0]
         }
     }
@@ -286,7 +285,7 @@ internal object SimdDenseAllocationCheck {
     }
 
     private fun checkTriangularOrder(engine: KoblasEngine, order: Int) {
-        val workspace = Workspace()
+        val workspace = Scratch()
         val triangle = dominantTriangle(order)
         val group = engine.triangularProvider.rightHandSideGroup(TRIANGULAR_DIAGONAL_BLOCK, UNGROUPED_SIDES)
         for (sides in intArrayOf(1, group + 1)) {
@@ -299,7 +298,7 @@ internal object SimdDenseAllocationCheck {
                     TRIANGULAR_ITERATIONS,
                 ) {
                     left.values.fill(1.0)
-                    engine.withWorkspace(workspace).trsm(triangle, left, lower = true, unitDiag = unitDiag)
+                    engine.trsm(triangle, left, lower = true, unitDiag = unitDiag, scratch = workspace)
                     left.values[0]
                 }
                 assertAllocationFree(
@@ -308,7 +307,7 @@ internal object SimdDenseAllocationCheck {
                     TRIANGULAR_ITERATIONS,
                 ) {
                     left.values.fill(1.0)
-                    engine.withWorkspace(workspace).trmm(triangle, left, lower = true, unitDiag = unitDiag)
+                    engine.trmm(triangle, left, lower = true, unitDiag = unitDiag, scratch = workspace)
                     left.values[0]
                 }
                 assertAllocationFree(
@@ -317,12 +316,13 @@ internal object SimdDenseAllocationCheck {
                     TRIANGULAR_ITERATIONS,
                 ) {
                     right.values.fill(1.0)
-                    engine.withWorkspace(workspace).trsm(
+                    engine.trsm(
                         triangle,
                         right,
                         lower = true,
                         unitDiag = unitDiag,
                         right = true,
+                        scratch = workspace,
                     )
                     right.values[0]
                 }
@@ -332,12 +332,13 @@ internal object SimdDenseAllocationCheck {
                     TRIANGULAR_ITERATIONS,
                 ) {
                     right.values.fill(1.0)
-                    engine.withWorkspace(workspace).trmm(
+                    engine.trmm(
                         triangle,
                         right,
                         lower = true,
                         unitDiag = unitDiag,
                         right = true,
+                        scratch = workspace,
                     )
                     right.values[0]
                 }
@@ -389,7 +390,7 @@ internal object SimdDenseAllocationCheck {
      * whole tile and a column edge stores fewer columns, and the writeback is where accumulators that
      * stopped living in registers show up.
      */
-    private fun checkShortEdges(products: KoblasEngine, tileRows: Int, tileColumns: Int) {
+    private fun checkShortEdges(products: EngineKernels, tileRows: Int, tileColumns: Int) {
         val depth = 32
         val left = DoubleArray(tileRows * depth) { 1.0 + (it % 13) * 0.125 }
         val right = DoubleArray(tileColumns * depth) { 0.5 + (it % 7) * 0.25 }
@@ -425,7 +426,7 @@ internal object SimdDenseAllocationCheck {
      * inlined into a traversal is not, since what a compiler keeps in registers depends on the size of the
      * method it ended up compiling.
      */
-    private fun checkBlockOfTiles(products: KoblasEngine, tileRows: Int, tileColumns: Int) {
+    private fun checkBlockOfTiles(products: EngineKernels, tileRows: Int, tileColumns: Int) {
         val depth = 64
         // One row and one column short of whole tiles, so the block has both edges inside it as well as the
         // full tiles that surround them.
@@ -445,7 +446,7 @@ internal object SimdDenseAllocationCheck {
     }
 
     private fun checkWholeProducts(engine: KoblasEngine) {
-        val workspace = Workspace()
+        val workspace = Scratch()
         // Both shapes have to be ones this machine's tile geometry really packs, or the deep probe would
         // measure the unpacked route while claiming to measure depth blocks.
         val narrow = maxOf(engine.productProvider.tileRows + 1, PRODUCT_NARROW)
@@ -471,11 +472,11 @@ internal object SimdDenseAllocationCheck {
         val deepTarget = DenseMatrix.wrap(narrow, narrow, DoubleArray(narrow * narrow))
 
         assertAllocationFree("gemm over one depth block", PRODUCT_WARMUP, PRODUCT_ITERATIONS) {
-            engine.withWorkspace(workspace).gemm(1e-12, wide, false, wide, false, -0.25, wideTarget)
+            engine.gemm(1e-12, wide, false, wide, false, -0.25, wideTarget, scratch = workspace)
             wideTarget.values[0]
         }
         assertAllocationFree("gemm over several depth blocks", PRODUCT_WARMUP, PRODUCT_ITERATIONS) {
-            engine.withWorkspace(workspace).gemm(1e-12, deepLeft, false, deepRight, false, -0.25, deepTarget)
+            engine.gemm(1e-12, deepLeft, false, deepRight, false, -0.25, deepTarget, scratch = workspace)
             deepTarget.values[0]
         }
         checkUnpackedProducts(engine, workspace)
@@ -485,7 +486,7 @@ internal object SimdDenseAllocationCheck {
      * The route a product too small to pay for packing takes, in both of its forms: the accumulating one
      * borrows a destination column and the reducing one may borrow a coefficient column to gather into.
      */
-    private fun checkUnpackedProducts(engine: KoblasEngine, workspace: Workspace) {
+    private fun checkUnpackedProducts(engine: KoblasEngine, workspace: Scratch) {
         val rows = 256
         val depth = 512
         val a = DenseMatrix.wrap(rows, depth, DoubleArray(rows * depth) { 1.0 + (it % 13) * 0.125 })
@@ -495,15 +496,15 @@ internal object SimdDenseAllocationCheck {
         val target = DenseMatrix.wrap(rows, 2, DoubleArray(rows * 2))
 
         assertAllocationFree("unpacked product accumulating columns", PRODUCT_WARMUP, PRODUCT_ITERATIONS) {
-            engine.withWorkspace(workspace).gemm(1e-12, a, false, plainRight, false, -0.25, target)
+            engine.gemm(1e-12, a, false, plainRight, false, -0.25, target, scratch = workspace)
             target.values[0]
         }
         assertAllocationFree("unpacked product reducing columns", PRODUCT_WARMUP, PRODUCT_ITERATIONS) {
-            engine.withWorkspace(workspace).gemm(1e-12, transposed, true, plainRight, false, -0.25, target)
+            engine.gemm(1e-12, transposed, true, plainRight, false, -0.25, target, scratch = workspace)
             target.values[0]
         }
         assertAllocationFree("unpacked product over a gathered column", PRODUCT_WARMUP, PRODUCT_ITERATIONS) {
-            engine.withWorkspace(workspace).gemm(1e-12, transposed, true, storedRight, true, -0.25, target)
+            engine.gemm(1e-12, transposed, true, storedRight, true, -0.25, target, scratch = workspace)
             target.values[0]
         }
     }

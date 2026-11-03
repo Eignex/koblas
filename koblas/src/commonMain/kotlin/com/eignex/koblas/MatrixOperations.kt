@@ -4,41 +4,37 @@
 
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.operands.*
-import com.eignex.koblas.dense.gemm as denseGemm
-import com.eignex.koblas.dense.trmm as denseTrmm
-import com.eignex.koblas.dense.trmv as denseTrmv
-import com.eignex.koblas.dense.trsm as denseTrsm
-import com.eignex.koblas.dense.trsv as denseTrsv
-import com.eignex.koblas.sparse.gemm as sparseGemm
-import com.eignex.koblas.sparse.trmm as sparseTrmm
-import com.eignex.koblas.sparse.trmv as sparseTrmv
-import com.eignex.koblas.sparse.trsm as sparseTrsm
-import com.eignex.koblas.sparse.trsv as sparseTrsv
 
 /**
  * Allocates a product using this engine. Two sparse operands produce owned CSC storage;
  * other pairings produce dense storage. Custom [Matrix] operands are read once into dense scratch.
  */
-public fun KoblasEngine.gemm(a: Matrix, b: Matrix): Matrix = gemm(1.0, a, false, b, false)
+public fun KoblasEngine.gemm(a: Matrix, b: Matrix, scratch: Scratch? = null): Matrix =
+    gemm(1.0, a, false, b, false, scratch)
 
 /** Scaled product with independent transpose flags and the storage rule of [gemm]. */
-public fun KoblasEngine.gemm(alpha: Double, a: Matrix, transposeA: Boolean, b: Matrix, transposeB: Boolean): Matrix {
+public fun KoblasEngine.gemm(
+    alpha: Double,
+    a: Matrix,
+    transposeA: Boolean,
+    b: Matrix,
+    transposeB: Boolean,
+    scratch: Scratch? = null,
+): Matrix {
     requireProductOperands(a, transposeA, b, transposeB, "gemm")
-    if (a is SparseMatrix && b is SparseMatrix) return sparseGemm(alpha, a, transposeA, b, transposeB)
+    if (a is SparseMatrix && b is SparseMatrix) return gemm(alpha, a, transposeA, b, transposeB)
     val result = DenseMatrix.zero(if (transposeA) a.cols else a.rows, if (transposeB) b.rows else b.cols)
-    gemm(alpha, a, transposeA, b, transposeB, 0.0, result)
+    gemm(alpha, a, transposeA, b, transposeB, 0.0, result, scratch)
     return result
 }
 
 /**
- * Writes a generic product through this engine into addressed dense storage. Validation precedes all
- * writes; zero alpha and empty depth read no inputs, and zero beta reads no destination values.
- * Reusable scratch supplies logical alias snapshots, sparse scratch and custom operand normalization.
+ * Writes a product of any two readable matrices through this engine into addressed dense storage. Validation
+ * precedes all writes; zero alpha and empty depth read no inputs, and zero beta reads no destination values.
+ * A custom [Matrix] operand is read once into dense storage borrowed from [scratch] when one is given.
  */
-@Suppress("LongParameterList") // BLAS operands, flags and scratch
 public fun KoblasEngine.gemm(
     alpha: Double,
     a: Matrix,
@@ -47,6 +43,7 @@ public fun KoblasEngine.gemm(
     transposeB: Boolean,
     beta: Double,
     c: DenseMatrixRegion,
+    scratch: Scratch? = null,
 ) {
     requireGemmOperands(a, transposeA, b, transposeB, c)
     if (c.rows == 0 || c.cols == 0) return
@@ -54,73 +51,67 @@ public fun KoblasEngine.gemm(
         scaleRegion(c, beta, vectors = this)
         return
     }
+    val arrays = scratch?.arrays
     when {
-        a is SparseMatrix && b is SparseMatrix -> sparseGemm(alpha, a, transposeA, b, transposeB, beta, c)
+        a is SparseMatrix && b is SparseMatrix -> gemm(alpha, a, transposeA, b, transposeB, beta, c, scratch)
 
         a is SparseMatrix -> denseOperand(arrays, b) { right ->
-            sparseGemm(alpha, a, transposeA, right, transposeB, beta, c, right = false)
+            gemm(alpha, a, transposeA, right, transposeB, beta, c, right = false, scratch = scratch)
         }
 
         b is SparseMatrix -> denseOperand(arrays, a) { left ->
-            sparseGemm(alpha, b, transposeB, left, transposeA, beta, c, right = true)
+            gemm(alpha, b, transposeB, left, transposeA, beta, c, right = true, scratch = scratch)
         }
 
         else -> denseOperand(arrays, a) { left ->
             if (a === b) {
-                denseGemm(alpha, left, transposeA, left, transposeB, beta, c)
+                gemm(alpha, left, transposeA, left, transposeB, beta, c, scratch)
             } else {
-                denseOperand(arrays, b) { right -> denseGemm(alpha, left, transposeA, right, transposeB, beta, c) }
+                denseOperand(arrays, b) { right -> gemm(alpha, left, transposeA, right, transposeB, beta, c, scratch) }
             }
         }
     }
 }
 
 /** TRSV over readable dense, sparse or custom operands, using this engine. */
-@Suppress("LongParameterList") // triangle flags and scratch
 public fun KoblasEngine.trsv(
     a: Matrix,
     x: DoubleArray,
     lower: Boolean,
     transpose: Boolean = false,
     unitDiag: Boolean = false,
+    scratch: Scratch? = null,
 ) {
     requireTriangularVectorOperands(a, x.size, "trsv")
     if (a is SparseMatrix) {
-        sparseTrsv(a, x, lower, transpose, unitDiag)
+        trsv(a, x, lower, transpose, unitDiag, scratch)
     } else {
-        triangleOperand(
-            arrays,
-            a,
-            lower,
-            unitDiag,
-        ) { dense -> denseTrsv(dense, x, lower, transpose, unitDiag) }
+        triangleOperand(scratch?.arrays, a, lower, unitDiag) { dense ->
+            trsv(dense, x, 0, 1, lower, transpose, unitDiag, scratch)
+        }
     }
 }
 
 /** TRMV over readable dense, sparse or custom operands, using this engine. */
-@Suppress("LongParameterList") // triangle flags and scratch
 public fun KoblasEngine.trmv(
     a: Matrix,
     x: DoubleArray,
     lower: Boolean,
     transpose: Boolean = false,
     unitDiag: Boolean = false,
+    scratch: Scratch? = null,
 ) {
     requireTriangularVectorOperands(a, x.size, "trmv")
     if (a is SparseMatrix) {
-        sparseTrmv(a, x, lower, transpose, unitDiag)
+        trmv(a, x, lower, transpose, unitDiag, scratch)
     } else {
-        triangleOperand(
-            arrays,
-            a,
-            lower,
-            unitDiag,
-        ) { dense -> denseTrmv(dense, x, lower, transpose, unitDiag) }
+        triangleOperand(scratch?.arrays, a, lower, unitDiag) { dense ->
+            trmv(dense, x, 0, 1, lower, transpose, unitDiag, scratch)
+        }
     }
 }
 
 /** TRSM over readable dense, sparse or custom operands, using this engine. */
-@Suppress("LongParameterList") // triangle flags and scratch
 public fun KoblasEngine.trsm(
     a: Matrix,
     b: DenseMatrixRegion,
@@ -129,6 +120,7 @@ public fun KoblasEngine.trsm(
     unitDiag: Boolean = false,
     right: Boolean = false,
     alpha: Double = 1.0,
+    scratch: Scratch? = null,
 ) {
     requireTriangularMatrixOperands(a, b, right, "trsm")
     if (alpha == 0.0 || b.rows == 0 || b.cols == 0) {
@@ -136,19 +128,15 @@ public fun KoblasEngine.trsm(
         return
     }
     if (a is SparseMatrix) {
-        sparseTrsm(a, b, lower, transpose, unitDiag, right, alpha)
+        trsm(a, b, lower, transpose, unitDiag, right, alpha, scratch)
     } else {
-        triangleOperand(
-            arrays,
-            a,
-            lower,
-            unitDiag,
-        ) { dense -> denseTrsm(dense, b, lower, transpose, unitDiag, right, alpha) }
+        triangleOperand(scratch?.arrays, a, lower, unitDiag) { dense ->
+            trsm(dense, b, lower, transpose, unitDiag, right, alpha, scratch)
+        }
     }
 }
 
 /** TRMM over readable dense, sparse or custom operands, using this engine. */
-@Suppress("LongParameterList") // triangle flags and scratch
 public fun KoblasEngine.trmm(
     a: Matrix,
     b: DenseMatrixRegion,
@@ -157,6 +145,7 @@ public fun KoblasEngine.trmm(
     unitDiag: Boolean = false,
     right: Boolean = false,
     alpha: Double = 1.0,
+    scratch: Scratch? = null,
 ) {
     requireTriangularMatrixOperands(a, b, right, "trmm")
     if (alpha == 0.0 || b.rows == 0 || b.cols == 0) {
@@ -164,14 +153,11 @@ public fun KoblasEngine.trmm(
         return
     }
     if (a is SparseMatrix) {
-        sparseTrmm(a, b, lower, transpose, unitDiag, right, alpha)
+        trmm(a, b, lower, transpose, unitDiag, right, alpha, scratch)
     } else {
-        triangleOperand(
-            arrays,
-            a,
-            lower,
-            unitDiag,
-        ) { dense -> denseTrmm(dense, b, lower, transpose, unitDiag, right, alpha) }
+        triangleOperand(scratch?.arrays, a, lower, unitDiag) { dense ->
+            trmm(dense, b, lower, transpose, unitDiag, right, alpha, scratch)
+        }
     }
 }
 

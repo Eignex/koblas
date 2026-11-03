@@ -1,35 +1,27 @@
-package com.eignex.koblas.workspace
+package com.eignex.koblas
 
-import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.engine.*
+import com.eignex.koblas.engine.ArraySupplier
 
 /**
- * Reusable scratch for alias-safe matrix operations.
+ * Reusable temporary arrays a Level 2 or 3 routine borrows for alias snapshots, packed panels and sparse scratch.
  *
- * A workspace belongs to one invocation at a time. Independent calls may use distinct workspaces; calls
- * without one own their temporary storage. Buffers never retain an operand and are returned even if
+ * Passed to one call at a time, so it must not be shared by concurrent calls; nested calls may share it.
+ * A call given none allocates its own temporary storage. Buffers never retain an operand and are returned even if
  * arithmetic throws.
  *
  * Reuse is by exact length, keeping repeated shapes allocation-free without exposing stale tail entries.
  * Retention keeps a bounded number of recently returned lengths, so changing shapes cannot grow the pool
  * indefinitely. Active loans remain valid through nested calls.
  */
-public class Workspace {
+public class Scratch {
     private val doubles = PooledBuffers<DoubleArray>()
     private val indices = PooledBuffers<IntArray>()
-    private val engines = ArrayList<BufferedEngine>()
 
     internal val arrays: ArraySupplier = object : ArraySupplier {
         override fun take(size: Int): DoubleArray = doubles.take(size, ::DoubleArray)
         override fun takeI32(size: Int): IntArray = indices.take(size, ::IntArray)
         override fun release(buffer: DoubleArray): Unit = doubles.release(buffer)
         override fun release(buffer: IntArray): Unit = indices.release(buffer)
-    }
-
-    internal fun bind(engine: KoblasEngine): KoblasEngine {
-        val arithmetic = engine.arithmeticEngine
-        for (i in engines.indices) if (engines[i].arithmetic === arithmetic) return engines[i]
-        return BufferedEngine(arithmetic, arrays).also { engines += it }
     }
 
     /** Idle floating-point buffers of [size]; an implementation diagnostic tests read to see reuse happen. */
@@ -68,7 +60,7 @@ private class PooledBuffers<A : Any> {
 
     fun release(buffer: A) {
         val index = lentIndexOf(buffer)
-        check(index >= 0) { "released a buffer this workspace did not lend" }
+        check(index >= 0) { "released a buffer this scratch did not lend" }
         lent.removeAt(index)
         makeRoomFor(sizeOf(buffer))
         idle += buffer

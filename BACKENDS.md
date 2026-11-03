@@ -49,7 +49,6 @@ val profile = StandardEngineProfiles.forTarget(EngineRuntime.Native, hostPlatfor
 val engine = BuiltinEngines.configured(profile)
 ```
 
-Use `KoblasEngine.combine(profile, providers...)` for custom providers. A custom profile's applicability
-can be checked with `profile.appliesTo(runtime, hostPlatform())`; include SIMD rules explicitly when wanted.
+A custom profile's applicability can be checked with `profile.appliesTo(runtime, hostPlatform())`; include SIMD rules explicitly when wanted.
 Profiles are recalculated explicitly through the [benchmark workflow](koblas-bench/REFERENCE.md#recalculate-routing-profiles);
 application startup only selects a prebuilt one.

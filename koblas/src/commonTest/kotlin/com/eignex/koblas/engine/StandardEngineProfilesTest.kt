@@ -128,7 +128,7 @@ class StandardEngineProfilesTest {
                     profiles,
                 ),
             )
-            val engine = KoblasEngine.combine(
+            val engine = combine(
                 profile,
                 provider("onemkl", setOf(Dot)),
                 provider("accelerate", setOf(Dot)),
@@ -156,7 +156,7 @@ class StandardEngineProfilesTest {
         assertEquals(setOf("jvm-simd"), unknown.rules.map { it.source }.toSet())
     }
 
-    private fun provider(id: String, operations: Set<EngineImplementation>): KoblasEngine = object : KoblasEngine {
+    private fun provider(id: String, operations: Set<EngineImplementation>): KoblasEngine = object : EngineKernels {
         override val name = id
         override val implementations = operations
     }

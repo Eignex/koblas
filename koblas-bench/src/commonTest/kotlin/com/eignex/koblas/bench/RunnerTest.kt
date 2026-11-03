@@ -13,7 +13,7 @@ class RunnerTest {
     @Test
     fun `recorded providers follow the actual threshold and layout dispatcher`() {
         var calls = 0
-        val leaf = object : KoblasEngine {
+        val leaf = object : EngineKernels {
             override val name = "chosen"
             override val implementations = setOf(EngineImplementation.Dot)
             override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int): Double {
@@ -21,7 +21,7 @@ class RunnerTest {
                 return BuiltinEngines.scalar.dot(a, aOff, b, bOff, len, aStride, bStride)
             }
         }
-        val engine = KoblasEngine.combine(EngineProfile("threshold", listOf(
+        val engine = combine(EngineProfile("threshold", listOf(
             EngineRule(leaf.id, leaf.implementations, rows = 64..Int.MAX_VALUE, contiguous = true),
         )), leaf)
         for ((id, expected) in listOf("dot+63+uniform" to "portable", "dot+64+uniform" to leaf.id,
@@ -153,21 +153,21 @@ class RunnerTest {
 
     @Test
     fun `combined identity attributes only the supplied capabilities to each source`() {
-        val source = object : KoblasEngine {
+        val source = object : EngineKernels {
             override val name = "vendor"
             override val vendor = Vendor.OneMkl
             override val libraryPath = "/mkl"
             override val version = "mkl-version"
             override val implementations = setOf(EngineImplementation.Dot)
         }
-        val second = object : KoblasEngine {
+        val second = object : EngineKernels {
             override val name = "second"
             override val vendor = Vendor.OpenBlas
             override val libraryPath = "/openblas"
             override val version = "openblas-version"
             override val implementations = setOf(EngineImplementation.Asum)
         }
-        val engine = KoblasEngine.combine(EngineProfile("combined", emptyList()), source, second)
+        val engine = combine(EngineProfile("combined", emptyList()), source, second)
 
         val identity = engineIdentity("native-default", engine)
 

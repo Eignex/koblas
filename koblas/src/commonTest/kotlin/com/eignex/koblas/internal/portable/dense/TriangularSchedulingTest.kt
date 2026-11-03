@@ -4,7 +4,6 @@ import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.portable.PortableEngine
-import com.eignex.koblas.workspace.*
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -96,7 +95,7 @@ class TriangularSchedulingTest {
     @Test
     fun `a triangle sharing its own block is staged before the block is scaled`() = withEngines { blas ->
         val order = TRIANGULAR_DIAGONAL_BLOCK + 3
-        val workspace = Workspace()
+        val workspace = Scratch()
         for (solve in booleanArrayOf(false, true)) {
             // A finite matrix throughout, because the operand it shares is the block as well as the
             // triangle: the poison a separate triangle carries above its diagonal would be data here.
@@ -111,9 +110,9 @@ class TriangularSchedulingTest {
             val aliased = triangle.copyOf()
 
             if (solve) {
-                blas.withWorkspace(workspace).trsm(aliased, aliased, lower = true, alpha = ALPHA)
+                blas.trsm(aliased, aliased, lower = true, alpha = ALPHA, scratch = workspace)
             } else {
-                blas.withWorkspace(workspace).trmm(aliased, aliased, lower = true, alpha = ALPHA)
+                blas.trmm(aliased, aliased, lower = true, alpha = ALPHA, scratch = workspace)
             }
 
             assertClose(expected.values, aliased.values, "aliased triangle solve=$solve", SOLVE_TOLERANCE)
@@ -128,13 +127,13 @@ class TriangularSchedulingTest {
         val triangle = DenseMatrix.wrap(order, order, DoubleArray(order * order) { (it % 7 - 3) / (8.0 * order) })
         for (i in 0 until order) triangle[i, i] = 3.0 + i % 2
         for (solve in booleanArrayOf(false, true)) {
-            val workspace = Workspace()
+            val workspace = Scratch()
             val b = DenseMatrix.wrap(order, 1, DoubleArray(order) { (it % 5 - 2) / 4.0 })
             val call = {
                 if (solve) {
-                    blas.withWorkspace(workspace).trsm(triangle, b, lower = true)
+                    blas.trsm(triangle, b, lower = true, scratch = workspace)
                 } else {
-                    blas.withWorkspace(workspace).trmm(triangle, b, lower = true)
+                    blas.trmm(triangle, b, lower = true, scratch = workspace)
                 }
             }
 
@@ -166,9 +165,9 @@ class TriangularSchedulingTest {
         }
 
     private fun assertTriangularBlocks(
-        panels: KoblasEngine,
-        products: KoblasEngine,
-        triangles: KoblasEngine,
+        panels: EngineKernels,
+        products: EngineKernels,
+        triangles: EngineKernels,
         flags: Flags,
         solve: Boolean,
     ) {

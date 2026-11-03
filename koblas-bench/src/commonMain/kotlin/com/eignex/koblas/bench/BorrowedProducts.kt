@@ -1,6 +1,5 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.workspace.*
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
@@ -33,10 +32,10 @@ internal fun borrowedProductWork(case: BenchCase, engine: KoblasEngine): CaseWor
     for (j in 0 until columns) for (i in 0 until rows) {
         expected[c.offset + i + j * c.leadingDimension] = result[i + j * rows]
     }
-    val buffered = engine.withWorkspace(if (case.options["workspace"] == "retained") Workspace() else null)
+    val scratch = if (case.options["workspace"] == "retained") Scratch() else null
     fun apply(): Double {
         original.copyInto(c.values)
-        buffered.gemm(alpha, a, ta, b, tb, beta, c)
+        engine.gemm(alpha, a, ta, b, tb, beta, c, scratch = scratch)
         return c[0, 0]
     }
     apply()

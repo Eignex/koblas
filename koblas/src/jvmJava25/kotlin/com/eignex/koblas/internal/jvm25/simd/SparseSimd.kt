@@ -16,7 +16,7 @@ import jdk.incubator.vector.VectorOperators
  *
  * Its own object so the initializer, which touches DoubleVector, runs only once the module is present.
  */
-internal object SparseSimd : KoblasEngine {
+internal object SparseSimd : EngineKernels {
     override val id: String = "jvm-simd"
     override fun minimumLength(implementation: EngineImplementation): Int = 2
 

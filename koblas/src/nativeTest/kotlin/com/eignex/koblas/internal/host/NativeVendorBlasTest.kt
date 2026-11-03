@@ -12,7 +12,6 @@ import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.sparse.*
-import com.eignex.koblas.workspace.*
 import kotlin.native.concurrent.TransferMode
 import kotlin.native.concurrent.Worker
 import kotlin.random.Random
@@ -59,10 +58,10 @@ class NativeVendorBlasTest {
                     task.b.cols,
                     DoubleArray(task.a.rows * task.b.cols) { 1.0 },
                 )
-                val workspace = Workspace()
+                val workspace = Scratch()
                 repeat(REPEATS) {
                     destination.values.fill(1.0)
-                    koblas.withWorkspace(workspace).gemm(1.0, task.a, false, task.b, false, task.beta, destination)
+                    koblas.gemm(1.0, task.a, false, task.b, false, task.beta, destination, scratch = workspace)
                 }
                 task.beta to destination.values
             }
@@ -94,11 +93,11 @@ class NativeVendorBlasTest {
         val futures = (0 until WORKERS).map {
             val worker = Worker.start()
             worker to worker.execute(TransferMode.SAFE, { square }) { operand ->
-                val workspace = Workspace()
+                val workspace = Scratch()
                 var last = DoubleArray(0)
                 repeat(REPEATS) {
                     val shared = operand.copyOf()
-                    koblas.withWorkspace(workspace).gemm(1.0, shared, false, shared, false, 0.0, shared)
+                    koblas.gemm(1.0, shared, false, shared, false, 0.0, shared, scratch = workspace)
                     last = shared.values
                 }
                 last

@@ -101,7 +101,7 @@ internal object SimdRuntimePathCheck {
      * At least two steps are needed to reach multiply-subtract in a solve and multiply-add in a product.
      * Lane boundaries distinguish the vector body, its portable tail and the wholly portable fallback.
      */
-    private fun assertTriangularKernelsAgreeWithReference(kernels: KoblasEngine, lanes: Int) {
+    private fun assertTriangularKernelsAgreeWithReference(kernels: EngineKernels, lanes: Int) {
         val rng = Random(20261013)
         val order = 3
         val n = order + 2
@@ -166,7 +166,7 @@ internal object SimdRuntimePathCheck {
      * One contiguous side runs along the block. The oracle is the portable loop over every side, reached by
      * giving it a second side it does not otherwise take, so the new body is not checked against itself.
      */
-    private fun assertSingleSideAgreesWithReference(kernels: KoblasEngine, lanes: Int) {
+    private fun assertSingleSideAgreesWithReference(kernels: EngineKernels, lanes: Int) {
         val rng = Random(20261031)
         for (order in intArrayOf(lanes + 1, 4 * lanes + 3)) {
             val n = order + 2

@@ -18,7 +18,7 @@ internal val simdAvailable: Boolean = try {
 }
 
 /** Only supplied operations are capabilities; the composer supplies other providers. */
-private object SimdVectorLeaves : KoblasEngine {
+private object SimdVectorLeaves : EngineKernels {
     override val id: String = "jvm-simd"
     override val implementations = setOf(Dot, Sum, Nrm2, Iamax, Asum, Axpy)
     override fun dynamicAttribution(implementation: EngineImplementation): Boolean = implementation == Nrm2
@@ -76,6 +76,6 @@ private object SimdVectorLeaves : KoblasEngine {
     }
 }
 
-internal val simdContributions: List<KoblasEngine> by lazy {
+internal val simdContributions: List<EngineKernels> by lazy {
     listOf(SimdVectorLeaves, SparseSimd, SimdPanelKernels, SimdProductKernels, SimdTriangularKernels)
 }

@@ -6,7 +6,6 @@ import com.eignex.koblas.testutil.allocation.ARRAY_HEADER_BYTES
 import com.eignex.koblas.testutil.allocation.AllocationCase
 import com.eignex.koblas.testutil.allocation.FLOOR_BYTES
 import com.eignex.koblas.testutil.allocation.parameterRows
-import com.eignex.koblas.workspace.*
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import kotlin.test.Test
@@ -68,7 +67,7 @@ class SparseOperationsAllocationTest internal constructor(private val case: Allo
         private fun levelTwoCases(): List<AllocationCase> = listOf(
             with(AliasedGemvFixture()) {
                 AllocationCase("aliased sparse gemv reuses a workspace", 400) {
-                    koblas.withWorkspace(workspace).gemv(1e-12, sparse, coefficients, 1.0, coefficients)
+                    koblas.gemv(1e-12, sparse, coefficients, 1.0, coefficients, scratch = workspace)
                     coefficients
                 }
             },
@@ -95,43 +94,43 @@ class SparseOperationsAllocationTest internal constructor(private val case: Allo
         private fun levelThreeCases(): List<AllocationCase> = listOf(
             with(SparseLevelThreeFixture()) {
                 AllocationCase("left sparse gemm reuses a workspace", 300) {
-                    engine.withWorkspace(workspace).gemm(1e-12, sparse, false, b, false, 1.0, panel)
+                    engine.gemm(1e-12, sparse, false, b, false, 1.0, panel, scratch = workspace)
                     panel
                 }
             },
             with(SparseLevelThreeFixture()) {
                 AllocationCase("right sparse gemm reuses a workspace", 300) {
-                    engine.withWorkspace(workspace).gemm(1e-12, sparse, false, b, true, 1.0, transposed, right = true)
+                    engine.gemm(1e-12, sparse, false, b, true, 1.0, transposed, right = true, scratch = workspace)
                     transposed
                 }
             },
             with(SparseLevelThreeFixture()) {
                 AllocationCase("sparse syrk reuses a workspace", 300) {
-                    engine.withWorkspace(workspace).syrk(1e-12, sparse, false, 1.0, square)
+                    engine.syrk(1e-12, sparse, false, 1.0, square, scratch = workspace)
                     square
                 }
             },
             with(SparseLevelThreeFixture()) {
                 AllocationCase("sparse symm reuses a workspace", 300) {
-                    engine.withWorkspace(workspace).symm(1e-12, sparse, b, 1.0, panel)
+                    engine.symm(1e-12, sparse, b, 1.0, panel, scratch = workspace)
                     panel
                 }
             },
             with(SparseLevelThreeFixture()) {
                 AllocationCase("sparse matrix product reuses a workspace", 300) {
-                    engine.withWorkspace(workspace).gemm(1e-12, sparse, false, identity, false, 1.0, square)
+                    engine.gemm(1e-12, sparse, false, identity, false, 1.0, square, scratch = workspace)
                     square
                 }
             },
             with(SparseLevelThreeFixture()) {
                 AllocationCase("sparse trsm reuses a workspace", 300) {
-                    engine.withWorkspace(workspace).trsm(sparse, solveBlock, lower = true)
+                    engine.trsm(sparse, solveBlock, lower = true, scratch = workspace)
                     solveBlock
                 }
             },
             with(SparseLevelThreeFixture()) {
                 AllocationCase("sparse trmm reuses a workspace", 300) {
-                    engine.withWorkspace(workspace).trmm(sparse, multiplyBlock, lower = true)
+                    engine.trmm(sparse, multiplyBlock, lower = true, scratch = workspace)
                     multiplyBlock
                 }
             },
@@ -208,9 +207,9 @@ class SparseOperationsAllocationTest internal constructor(private val case: Allo
         val n = 128
         val sparse = SparseMatrix.ofColumns(n, n, List(n) { j -> listOf((j + 1) % n to 1.0 + j % 5) })
         val coefficients = sparse.values
-        val workspace = Workspace()
+        val workspace = Scratch()
         init {
-            koblas.withWorkspace(workspace).gemv(1e-12, sparse, coefficients, 1.0, coefficients)
+            koblas.gemv(1e-12, sparse, coefficients, 1.0, coefficients, scratch = workspace)
         }
     }
 
@@ -232,16 +231,16 @@ class SparseOperationsAllocationTest internal constructor(private val case: Allo
         val transposed = DenseMatrix.zero(rightHandSides, n)
         val square = DenseMatrix.zero(n, n)
         val panel = DenseMatrix.zero(n, rightHandSides)
-        val workspace = Workspace()
+        val workspace = Scratch()
         init {
             // One warm call per shape, so the loans exist before the measured loop asks for them again.
-            engine.withWorkspace(workspace).gemm(1e-12, sparse, false, b, false, 1.0, panel)
-            engine.withWorkspace(workspace).gemm(1e-12, sparse, false, b, true, 1.0, transposed, right = true)
-            engine.withWorkspace(workspace).syrk(1e-12, sparse, false, 1.0, square)
-            engine.withWorkspace(workspace).symm(1e-12, sparse, b, 1.0, panel)
-            engine.withWorkspace(workspace).gemm(1e-12, sparse, false, identity, false, 1.0, square)
-            engine.withWorkspace(workspace).trsm(sparse, solveBlock, lower = true)
-            engine.withWorkspace(workspace).trmm(sparse, multiplyBlock, lower = true)
+            engine.gemm(1e-12, sparse, false, b, false, 1.0, panel, scratch = workspace)
+            engine.gemm(1e-12, sparse, false, b, true, 1.0, transposed, right = true, scratch = workspace)
+            engine.syrk(1e-12, sparse, false, 1.0, square, scratch = workspace)
+            engine.symm(1e-12, sparse, b, 1.0, panel, scratch = workspace)
+            engine.gemm(1e-12, sparse, false, identity, false, 1.0, square, scratch = workspace)
+            engine.trsm(sparse, solveBlock, lower = true, scratch = workspace)
+            engine.trmm(sparse, multiplyBlock, lower = true, scratch = workspace)
         }
     }
 }

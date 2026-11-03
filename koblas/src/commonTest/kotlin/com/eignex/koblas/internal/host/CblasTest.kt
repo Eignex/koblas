@@ -4,7 +4,6 @@ import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.portable.PortableEngine
-import com.eignex.koblas.workspace.*
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test
@@ -394,26 +393,26 @@ class CblasTest {
     fun `an operand sharing the destination gives the answer two separate operands would`() =
         withHost("the staged aliases") { blas ->
             val rng = Random(23)
-            val workspace = Workspace()
+            val workspace = Scratch()
             val square = wellConditioned(ORDER, rng)
             val separate = DenseMatrix.wrap(ORDER, ORDER, square.values.copyOf())
 
             val expectedProduct = DenseMatrix.wrap(ORDER, ORDER, square.values.copyOf())
             ReferenceBlas.gemm(ALPHA, separate, false, separate, false, BETA, expectedProduct)
             val product = DenseMatrix.wrap(ORDER, ORDER, square.values.copyOf())
-            blas.withWorkspace(workspace).gemm(ALPHA, product, false, product, false, BETA, product)
+            blas.gemm(ALPHA, product, false, product, false, BETA, product, scratch = workspace)
 
             val expectedSolve = DenseMatrix.wrap(ORDER, ORDER, square.values.copyOf())
             ReferenceBlas.trsm(separate, expectedSolve, lower = true, alpha = ALPHA)
             val solve = DenseMatrix.wrap(ORDER, ORDER, square.values.copyOf())
-            blas.withWorkspace(workspace).trsm(solve, solve, lower = true, alpha = ALPHA)
+            blas.trsm(solve, solve, lower = true, alpha = ALPHA, scratch = workspace)
 
             // The first column is the vector operand and the destination at once.
             val expectedGemv = DoubleArray(ORDER)
             ReferenceBlas.gemv(ALPHA, separate, square.values.copyOf(ORDER), 0.0, expectedGemv)
             val matrix = DenseMatrix.wrap(ORDER, ORDER, square.values.copyOf())
             val column = StridedVector(matrix.values, 0, ORDER)
-            blas.withWorkspace(workspace).gemv(ALPHA, matrix, column, 0.0, column)
+            blas.gemv(ALPHA, matrix, column, 0.0, column, scratch = workspace)
 
             assertClose(expectedProduct, product, "gemm over one buffer", TOLERANCE)
             assertClose(expectedSolve, solve, "trsm over one buffer", TOLERANCE)

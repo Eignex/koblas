@@ -13,6 +13,7 @@ import com.eignex.koblas.internal.host.positiveIncrement
 import com.eignex.koblas.internal.host.sideFor
 import com.eignex.koblas.internal.host.transposeFor
 import com.eignex.koblas.internal.host.uploFor
+import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.sparse.*
 import java.lang.foreign.Arena
 import java.lang.foreign.FunctionDescriptor
@@ -29,7 +30,7 @@ import java.lang.invoke.MethodHandle
  * exception. Nothing is cached between calls and no segment escapes one, so instances are safe to share and
  * concurrent calls on one instance do not interfere.
  */
-internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngine {
+internal class JvmVendorBlas(private val library: JvmVendorLibrary) : EngineKernels {
     override val name: String get() = vendor.vendorName.lowercase()
     override fun minimumLength(implementation: EngineImplementation): Int = 1
 
@@ -172,7 +173,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
 
     // Level 2. One matrix operand, so the call runs under that matrix's own Cblas.COL_MAJOR.
 
-    override fun computeGemv(
+    private fun cblasGemv(
         alpha: Double,
         a: DenseMatrixRegion,
         transposeA: Boolean,
@@ -192,7 +193,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
         }
     }
 
-    override fun computeSymv(
+    private fun cblasSymv(
         alpha: Double,
         a: DenseMatrixRegion,
         structure: MatrixStructure,
@@ -212,7 +213,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
         }
     }
 
-    override fun computeGer(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrixRegion) {
+    private fun cblasGer(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrixRegion) {
         Arena.ofConfined().use { arena ->
             val na = arena.stage(a)
             val nx = arena.stage(x)
@@ -225,7 +226,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
         }
     }
 
-    override fun computeSyr(alpha: Double, x: DenseVector, a: DenseMatrixRegion, structure: MatrixStructure) {
+    private fun cblasSyr(alpha: Double, x: DenseVector, a: DenseMatrixRegion, structure: MatrixStructure) {
         Arena.ofConfined().use { arena ->
             val na = arena.stage(a, structure)
             val nx = arena.stage(x)
@@ -243,7 +244,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
         }
     }
 
-    override fun computeSyr2(
+    private fun cblasSyr2(
         alpha: Double,
         x: DenseVector,
         y: DenseVector,
@@ -262,10 +263,10 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
         }
     }
 
-    override fun computeTrsv(a: DenseMatrixRegion, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) =
+    private fun cblasTrsv(a: DenseMatrixRegion, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) =
         triangularVector(a, structure, transposeA, x, supplied(trsvHandle))
 
-    override fun computeTrmv(a: DenseMatrixRegion, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) =
+    private fun cblasTrmv(a: DenseMatrixRegion, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) =
         triangularVector(a, structure, transposeA, x, supplied(trmvHandle))
 
     @Suppress("LongParameterList") // the shared triangular vector signature plus its handle
@@ -290,7 +291,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
     // Level 3. Every operand is contiguous column-major, so the layout is fixed and a transpose is a flag.
 
     @Suppress("LongParameterList") // the BLAS dgemm signature
-    override fun computeGemm(
+    private fun cblasGemm(
         alpha: Double,
         a: DenseMatrixRegion,
         transposeA: Boolean,
@@ -315,7 +316,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
     }
 
     @Suppress("LongParameterList") // the BLAS dsymm signature
-    override fun computeSymm(
+    private fun cblasSymm(
         alpha: Double,
         a: DenseMatrixRegion,
         structure: MatrixStructure,
@@ -338,7 +339,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
     }
 
     @Suppress("LongParameterList") // the BLAS dsyrk signature
-    override fun computeSyrk(
+    private fun cblasSyrk(
         alpha: Double,
         a: DenseMatrixRegion,
         transposeA: Boolean,
@@ -360,7 +361,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
     }
 
     @Suppress("LongParameterList") // the BLAS dsyr2k signature
-    override fun computeSyr2k(
+    private fun cblasSyr2k(
         alpha: Double,
         a: DenseMatrixRegion,
         b: DenseMatrixRegion,
@@ -384,7 +385,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
     }
 
     @Suppress("LongParameterList") // the BLAS dtrmm signature
-    override fun computeTrmm(
+    private fun cblasTrmm(
         alpha: Double,
         a: DenseMatrixRegion,
         structure: MatrixStructure,
@@ -394,7 +395,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
     ) = triangularMatrix(alpha, a, structure, transposeA, b, rightSide, supplied(trmmHandle))
 
     @Suppress("LongParameterList") // the BLAS dtrsm signature
-    override fun computeTrsm(
+    private fun cblasTrsm(
         alpha: Double,
         a: DenseMatrixRegion,
         structure: MatrixStructure,
@@ -427,7 +428,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
 
     /** Calls only this library's exported `cblas_dgemmt`. */
     @Suppress("LongParameterList") // the BLAS gemmt signature
-    override fun computeGemmt(
+    private fun cblasGemmt(
         alpha: Double,
         a: DenseMatrixRegion,
         transposeA: Boolean,
@@ -452,6 +453,277 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : KoblasEngi
         }
     }
 
+    // The routines run inside the shared preparation, so a call reaching this library directly is checked and
+    // staged exactly as one routed here by a composed engine.
+
+    private fun requireExport(operation: EngineImplementation) {
+        if (operation !in implementations) {
+            throw UnsupportedOperationException("${operation.entryPoint} is not exported by ${vendor.vendorName}")
+        }
+    }
+
+    override fun gemv(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        x: DoubleArray,
+        xOffset: Int,
+        xStride: Int,
+        beta: Double,
+        y: DoubleArray,
+        yOffset: Int,
+        yStride: Int,
+        transpose: Boolean,
+        scratch: Scratch?,
+    ) {
+        requireExport(EngineImplementation.Gemv)
+        prepareGemv(this, alpha, a, x, xOffset, xStride, beta, y, yOffset, yStride, transpose, scratch?.arrays) {
+                sa,
+                sx,
+                sxOffset,
+                sxStride,
+            ->
+            val rows = if (transpose) a.cols else a.rows
+            cblasGemv(
+                alpha,
+                sa,
+                transpose,
+                StridedVector(sx, sxOffset, if (transpose) a.rows else a.cols, sxStride),
+                beta,
+                StridedVector(y, yOffset, rows, yStride),
+            )
+        }
+    }
+
+    override fun symv(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        x: DoubleArray,
+        xOffset: Int,
+        xStride: Int,
+        beta: Double,
+        y: DoubleArray,
+        yOffset: Int,
+        yStride: Int,
+        lower: Boolean,
+        scratch: Scratch?,
+    ) {
+        requireExport(EngineImplementation.Symv)
+        prepareSymv(this, alpha, a, x, xOffset, xStride, beta, y, yOffset, yStride, lower, scratch?.arrays) {
+                sa,
+                sx,
+                sxOffset,
+                sxStride,
+            ->
+            cblasSymv(
+                alpha,
+                sa,
+                symmetricStructure(lower),
+                StridedVector(sx, sxOffset, a.rows, sxStride),
+                beta,
+                StridedVector(y, yOffset, a.rows, yStride),
+            )
+        }
+    }
+
+    override fun ger(
+        alpha: Double,
+        x: DoubleArray,
+        xOffset: Int,
+        xStride: Int,
+        y: DoubleArray,
+        yOffset: Int,
+        yStride: Int,
+        a: DenseMatrixRegion,
+        scratch: Scratch?,
+    ) {
+        requireExport(EngineImplementation.Ger)
+        prepareGer(alpha, x, xOffset, xStride, y, yOffset, yStride, a, scratch?.arrays) { sx, sxo, sxs, sy, syo, sys ->
+            cblasGer(alpha, StridedVector(sx, sxo, a.rows, sxs), StridedVector(sy, syo, a.cols, sys), a)
+        }
+    }
+
+    override fun syr(
+        alpha: Double,
+        x: DoubleArray,
+        xOffset: Int,
+        xStride: Int,
+        a: DenseMatrixRegion,
+        lower: Boolean,
+        scratch: Scratch?,
+    ) {
+        requireExport(EngineImplementation.Syr)
+        prepareSyr(alpha, x, xOffset, xStride, a, scratch?.arrays) { sx, sxo, sxs ->
+            cblasSyr(alpha, StridedVector(sx, sxo, a.rows, sxs), a, symmetricStructure(lower))
+        }
+    }
+
+    override fun syr2(
+        alpha: Double,
+        x: DoubleArray,
+        xOffset: Int,
+        xStride: Int,
+        y: DoubleArray,
+        yOffset: Int,
+        yStride: Int,
+        a: DenseMatrixRegion,
+        lower: Boolean,
+        scratch: Scratch?,
+    ) {
+        requireExport(EngineImplementation.Syr2)
+        prepareSyr2(alpha, x, xOffset, xStride, y, yOffset, yStride, a, scratch?.arrays) { sx, sxo, sxs, sy, syo, sys ->
+            cblasSyr2(
+                alpha,
+                StridedVector(sx, sxo, a.rows, sxs),
+                StridedVector(sy, syo, a.rows, sys),
+                a,
+                symmetricStructure(lower),
+            )
+        }
+    }
+
+    override fun trsv(
+        a: DenseMatrixRegion,
+        x: DoubleArray,
+        xOffset: Int,
+        xStride: Int,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+        scratch: Scratch?,
+    ) {
+        requireExport(EngineImplementation.Trsv)
+        prepareTriangularVector(a, x, xOffset, xStride, lower, unitDiag, "trsv", scratch?.arrays) { sa ->
+            cblasTrsv(sa, triangle(lower, unitDiag), transpose, StridedVector(x, xOffset, a.rows, xStride))
+        }
+    }
+
+    override fun trmv(
+        a: DenseMatrixRegion,
+        x: DoubleArray,
+        xOffset: Int,
+        xStride: Int,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+        scratch: Scratch?,
+    ) {
+        requireExport(EngineImplementation.Trmv)
+        prepareTriangularVector(a, x, xOffset, xStride, lower, unitDiag, "trmv", scratch?.arrays) { sa ->
+            cblasTrmv(sa, triangle(lower, unitDiag), transpose, StridedVector(x, xOffset, a.rows, xStride))
+        }
+    }
+
+    override fun gemm(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        transposeA: Boolean,
+        b: DenseMatrixRegion,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrixRegion,
+        scratch: Scratch?,
+    ) {
+        requireExport(EngineImplementation.Gemm)
+        prepareGemm(alpha, a, transposeA, b, transposeB, beta, c, scratch?.arrays) { sa, sb, _ ->
+            cblasGemm(alpha, sa, transposeA, sb, transposeB, beta, c)
+        }
+    }
+
+    override fun gemmt(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        transposeA: Boolean,
+        b: DenseMatrixRegion,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrixRegion,
+        lower: Boolean,
+        scratch: Scratch?,
+    ) {
+        requireExport(EngineImplementation.Gemmt)
+        prepareGemmt(alpha, a, transposeA, b, transposeB, beta, c, lower, scratch?.arrays) { sa, sb ->
+            cblasGemmt(alpha, sa, transposeA, sb, transposeB, beta, c, symmetricStructure(lower))
+        }
+    }
+
+    override fun symm(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        b: DenseMatrixRegion,
+        beta: Double,
+        c: DenseMatrixRegion,
+        lower: Boolean,
+        right: Boolean,
+        scratch: Scratch?,
+    ) {
+        requireExport(EngineImplementation.Symm)
+        prepareSymm(this, alpha, a, b, beta, c, lower, right, scratch?.arrays) { sa, sb ->
+            cblasSymm(alpha, sa, symmetricStructure(lower), sb, beta, c, right)
+        }
+    }
+
+    override fun syrk(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        transpose: Boolean,
+        beta: Double,
+        c: DenseMatrixRegion,
+        lower: Boolean,
+        scratch: Scratch?,
+    ) {
+        requireExport(EngineImplementation.Syrk)
+        prepareSyrk(alpha, a, transpose, beta, c, lower, scratch?.arrays) { sa ->
+            cblasSyrk(alpha, sa, transpose, beta, c, symmetricStructure(lower))
+        }
+    }
+
+    override fun syr2k(
+        alpha: Double,
+        a: DenseMatrixRegion,
+        b: DenseMatrixRegion,
+        transpose: Boolean,
+        beta: Double,
+        c: DenseMatrixRegion,
+        lower: Boolean,
+        scratch: Scratch?,
+    ) {
+        requireExport(EngineImplementation.Syr2k)
+        prepareSyr2k(alpha, a, b, transpose, beta, c, lower, scratch?.arrays) { sa, sb ->
+            cblasSyr2k(alpha, sa, sb, transpose, beta, c, symmetricStructure(lower))
+        }
+    }
+
+    override fun trsm(
+        a: DenseMatrixRegion,
+        b: DenseMatrixRegion,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+        right: Boolean,
+        alpha: Double,
+        scratch: Scratch?,
+    ) {
+        requireExport(EngineImplementation.Trsm)
+        prepareTriangularMatrix(a, b, lower, unitDiag, right, alpha, "trsm", scratch?.arrays) { sa ->
+            cblasTrsm(alpha, sa, triangle(lower, unitDiag), transpose, b, right)
+        }
+    }
+
+    override fun trmm(
+        a: DenseMatrixRegion,
+        b: DenseMatrixRegion,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+        right: Boolean,
+        alpha: Double,
+        scratch: Scratch?,
+    ) {
+        requireExport(EngineImplementation.Trmm)
+        prepareTriangularMatrix(a, b, lower, unitDiag, right, alpha, "trmm", scratch?.arrays) { sa ->
+            cblasTrmm(alpha, sa, triangle(lower, unitDiag), transpose, b, right)
+        }
+    }
     private fun gemmtHandle(): MethodHandle = supplied(gemmtOrNull)
 
     private fun supplied(handle: MethodHandle?): MethodHandle {

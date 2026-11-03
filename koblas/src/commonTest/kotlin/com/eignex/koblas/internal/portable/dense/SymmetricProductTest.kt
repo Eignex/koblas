@@ -3,7 +3,6 @@ package com.eignex.koblas.internal.portable.dense
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
-import com.eignex.koblas.workspace.*
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -108,15 +107,15 @@ class SymmetricProductTest {
     @Test
     fun `a long thin symmetric product retains bounded scratch`() = withEngines { blas ->
         val order = (MAX_IDLE_LENGTHS + 2) * SYMMETRIC_BLOCK
-        val workspace = Workspace()
+        val workspace = Scratch()
         val a = DenseMatrix.wrap(order, order, DoubleArray(order * order) { (it % 7 - 3) / (8.0 * order) })
         for (i in 0 until order) a[i, i] = 3.0 + i % 2
         val b = DenseMatrix.wrap(order, 1, DoubleArray(order) { (it % 5 - 2) / 4.0 })
         val c = DenseMatrix.wrap(order, 1, DoubleArray(order) { (it % 3 - 1) / 2.0 })
 
-        blas.withWorkspace(workspace).symm(0.875, a, b, -0.25, c, lower = true)
+        blas.symm(0.875, a, b, -0.25, c, lower = true, scratch = workspace)
         val afterOne = workspace.idleLengths()
-        repeat(3) { blas.withWorkspace(workspace).symm(0.875, a, b, -0.25, c, lower = true) }
+        repeat(3) { blas.symm(0.875, a, b, -0.25, c, lower = true, scratch = workspace) }
 
         val context = "${blas.name} over ${order / SYMMETRIC_BLOCK} blocks"
         assertTrue(afterOne > 0, "$context borrowed nothing")

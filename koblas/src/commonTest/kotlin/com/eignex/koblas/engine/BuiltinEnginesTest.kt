@@ -26,6 +26,7 @@ class BuiltinEnginesTest {
     fun `exact SIMD uses supplied kernels from their intrinsic minimum length`() {
         val simd = BuiltinEngines.simd ?: return
         val leaf = simd.providers.first { it.id == "jvm-simd" && EngineImplementation.Iamax in it.implementations }
+            as EngineKernels
 
         assertEquals(
             leaf.name,
@@ -114,7 +115,7 @@ class BuiltinEnginesTest {
         println("SKIPPED: no CBLAS library installed; $what was not verified on this host")
     }
 
-    private fun provider(id: String, operations: Set<EngineImplementation>): KoblasEngine = object : KoblasEngine {
+    private fun provider(id: String, operations: Set<EngineImplementation>): KoblasEngine = object : EngineKernels {
         override val name = id
         override val implementations = operations
     }

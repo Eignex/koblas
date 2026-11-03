@@ -5,17 +5,17 @@ sparse matrices are validated CSC.
 
 Operators and container conveniences use the immutable default engine [koblas][com.eignex.koblas.engine.koblas],
 selected once from the platform's standard profile. [BuiltinEngines][com.eignex.koblas.engine.BuiltinEngines] names
-exact engines, such as portable Kotlin through [BuiltinEngines.scalar][com.eignex.koblas.engine.BuiltinEngines.scalar],
-and [KoblasEngine.combine][com.eignex.koblas.KoblasEngine.combine] composes custom providers the same way. Engines
-share validation, alias handling and scheduling, and differ only in arithmetic: rounding, FMA, exceptional results
-and tied-index choices follow the selected implementation.
+exact engines, such as portable Kotlin through [BuiltinEngines.scalar][com.eignex.koblas.engine.BuiltinEngines.scalar].
+Each BLAS routine is one member of [KoblasEngine][com.eignex.koblas.KoblasEngine]. Engines share validation, alias
+handling and scheduling, and differ only in arithmetic: rounding, FMA, exceptional results and tied-index choices
+follow the selected implementation.
 
 Factorizations and solvers are outside this library. Concurrent calls need separate mutable destinations and
-workspaces.
+separate [Scratch][com.eignex.koblas.Scratch].
 
 # Package com.eignex.koblas
 
-Owning dense and sparse containers, vector views, operators and the [KoblasEngine] contract. [Matrix] and [Vector]
+Owning dense and sparse containers, vector views, operators, the [KoblasEngine] contract and [Scratch] arrays. [Matrix] and [Vector]
 are read-only contracts custom types can implement. Products accept dense or sparse operands on either side: two
 sparse operands produce CSC storage, other pairings produce dense storage, and no sparse operand is densified.
 
@@ -36,7 +36,3 @@ wherever the reference BLAS routine would multiply it.
 [SparsePrimitives] provides stateless arithmetic over caller-owned buffers; pivoting, dropping and solver state
 belong to the caller.
 
-# Package com.eignex.koblas.workspace
-
-[Workspace] retains temporary arrays, with bounded retention, for an engine bound through [withWorkspace]. A
-workspace serves one call at a time.

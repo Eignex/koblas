@@ -4,7 +4,6 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.*
-import com.eignex.koblas.workspace.*
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -49,7 +48,7 @@ class DenseOperationsTest {
                 val expected = contiguousCopy(c)
                 ReferenceBlas.gemm(alpha, contiguousCopy(a), transposeA, contiguousCopy(b), transposeB, beta, expected)
 
-                blas.withWorkspace(Workspace()).gemm(alpha, a, transposeA, b, transposeB, beta, c)
+                blas.gemm(alpha, a, transposeA, b, transposeB, beta, c, scratch = Scratch())
 
                 val context = "${blas.name} ${m}x${k}x$n tA=$transposeA tB=$transposeB view=$view a=$alpha b=$beta"
                 assertRegionAgreesWithReference(expected, c, before, context)
@@ -71,7 +70,7 @@ class DenseOperationsTest {
         val before = c.values.copyOf()
         ReferenceBlas.gemm(1.0, contiguousCopy(a), false, contiguousCopy(b), false, 0.0, expected)
 
-        blas.withWorkspace(Workspace()).gemm(1.0, a, false, b, false, 0.0, c)
+        blas.gemm(1.0, a, false, b, false, 0.0, c, scratch = Scratch())
 
         assertRegionAgreesWithReference(expected, c, before)
     }
@@ -209,7 +208,7 @@ class DenseOperationsTest {
                 val before = c.values.copyOf()
                 ReferenceBlas.syrk(-1.0, contiguousCopy(a), transpose, 0.5, expected, lower)
 
-                blas.withWorkspace(Workspace()).syrk(-1.0, a, transpose, 0.5, c, lower)
+                blas.syrk(-1.0, a, transpose, 0.5, c, lower, scratch = Scratch())
 
                 assertRegionAgreesWithReference(expected, c, before)
             }
@@ -275,7 +274,7 @@ class DenseOperationsTest {
                         val before = b.values.copyOf()
                         ReferenceBlas.trsm(contiguousCopy(a), expected, lower, transpose, unit, right, 0.875)
 
-                        blas.withWorkspace(Workspace()).trsm(a, b, lower, transpose, unit, right, 0.875)
+                        blas.trsm(a, b, lower, transpose, unit, right, 0.875, scratch = Scratch())
 
                         assertRegionAgreesWithReference(expected, b, before)
                     }
@@ -294,7 +293,7 @@ class DenseOperationsTest {
                     val expected = actual.copyOf()
                     ReferenceBlas.trsv(contiguousCopy(a), expected, lower, transpose, unit)
 
-                    blas.withWorkspace(Workspace()).trsv(a, actual, lower, transpose, unit)
+                    blas.trsv(a, actual, lower, transpose, unit, scratch = Scratch())
 
                     assertClose(expected, actual, "view vector")
                 }
@@ -321,9 +320,9 @@ class DenseOperationsTest {
             ReferenceBlas.trsv(contiguousCopy(a), expectedX, lower, unitDiag = true)
             ReferenceBlas.syrk(-1.0, contiguousCopy(panel), false, 1.0, expectedC, lower)
 
-            blas.withWorkspace(Workspace()).trsm(a, b, lower, unitDiag = true)
-            blas.withWorkspace(Workspace()).trsv(a, x, lower, unitDiag = true)
-            blas.withWorkspace(Workspace()).syrk(-1.0, panel, false, 1.0, c, lower)
+            blas.trsm(a, b, lower, unitDiag = true, scratch = Scratch())
+            blas.trsv(a, x, lower, unitDiag = true, scratch = Scratch())
+            blas.syrk(-1.0, panel, false, 1.0, c, lower, scratch = Scratch())
 
             assertRegionAgreesWithReference(expectedB, b, beforeB, "unit diagonal trsm")
             assertClose(expectedX, x, "unit diagonal trsv")
@@ -379,13 +378,13 @@ class DenseOperationsTest {
         val c = paddedRegion(4, 4).also { it.values.fill(Double.NaN) }
         val before = c.values.copyOf()
         val expected = DenseMatrix.zero(4)
-        val workspace = Workspace()
+        val workspace = Scratch()
 
-        blas.withWorkspace(workspace).gemm(0.0, a, false, b, false, 0.0, c)
+        blas.gemm(0.0, a, false, b, false, 0.0, c, scratch = workspace)
 
         assertRegionAgreesWithReference(expected, c, before)
         assertEquals(0, workspace.available(16))
-        blas.withWorkspace(workspace).trsm(a, c, lower = true, alpha = 0.0)
+        blas.trsm(a, c, lower = true, alpha = 0.0, scratch = workspace)
         assertRegionAgreesWithReference(expected, c, before)
     }
 
@@ -424,12 +423,12 @@ class DenseOperationsTest {
     fun `a call with nothing to compute never reaches the workspace`() {
         val rng = Random(20260931)
         val n = 4
-        val workspace = Workspace()
+        val workspace = Scratch()
         val a = randomMatrix(n, n, rng)
         val c = randomMatrix(n, n, rng)
 
-        BuiltinEngines.scalar.withWorkspace(workspace).gemm(0.0, a, false, a, false, -0.25, c)
-        BuiltinEngines.scalar.withWorkspace(workspace).gemv(0.0, a, DoubleArray(n), -0.25, DoubleArray(n), false)
+        BuiltinEngines.scalar.gemm(0.0, a, false, a, false, -0.25, c, scratch = workspace)
+        BuiltinEngines.scalar.gemv(0.0, a, DoubleArray(n), -0.25, DoubleArray(n), false, scratch = workspace)
 
         assertEquals(0, workspace.idleLengths(), "a no-work call borrowed scratch it had no use for")
     }
@@ -438,19 +437,19 @@ class DenseOperationsTest {
     // destination would take a staging loan for a result that does not exist.
     @Test
     fun `a structured call with no output borrows nothing`() = withEngines { blas ->
-        val workspace = Workspace()
+        val workspace = Scratch()
         val shared = DoubleArray(0)
         val tall = DenseMatrix.wrap(0, 4, shared)
         val wide = DenseMatrix.wrap(4, 0, shared)
         val square = DenseMatrix.wrap(0, 0, shared)
         val destination = DenseMatrix.wrap(0, 4, shared)
 
-        blas.withWorkspace(workspace).gemmt(0.875, tall, false, wide, false, -0.25, square)
-        blas.withWorkspace(workspace).syrk(0.875, tall, false, -0.25, square)
-        blas.withWorkspace(workspace).syr2k(0.875, tall, tall, false, -0.25, square)
-        blas.withWorkspace(workspace).symm(0.875, square, tall, -0.25, destination)
-        blas.withWorkspace(workspace).trsm(square, tall, lower = true)
-        blas.withWorkspace(workspace).trmm(square, tall, lower = true)
+        blas.gemmt(0.875, tall, false, wide, false, -0.25, square, scratch = workspace)
+        blas.syrk(0.875, tall, false, -0.25, square, scratch = workspace)
+        blas.syr2k(0.875, tall, tall, false, -0.25, square, scratch = workspace)
+        blas.symm(0.875, square, tall, -0.25, destination, scratch = workspace)
+        blas.trsm(square, tall, lower = true, scratch = workspace)
+        blas.trmm(square, tall, lower = true, scratch = workspace)
 
         assertEquals(0, workspace.idleLengths(), "a call with no output borrowed scratch it had no use for")
     }
@@ -600,7 +599,7 @@ class DenseOperationsTest {
     @Test
     fun `windowed GER snapshots either or both aliased vector ranges`() = withBuiltinEngines { engine ->
         for (alias in 1..3) {
-            val workspace = Workspace()
+            val workspace = Scratch()
             repeat(2) { _ ->
                 val a = DenseMatrix.wrap(9, 8, DoubleArray(72) { (it % 13 - 6) / 8.0 })
                 val x = if (alias != 2) a.values else DoubleArray(10) { (it - 4) / 16.0 }
@@ -609,7 +608,7 @@ class DenseOperationsTest {
                 val yOffset = if (alias != 1) 30 else 4
                 val expected = referenceWindow(a, x, y, 3, 2, xOffset, yOffset)
 
-                engine.withWorkspace(workspace).ger(-0.875, x, y, a, 2, 3, 3, 2, xOffset, yOffset)
+                engine.ger(-0.875, x, y, a, 2, 3, 3, 2, xOffset, yOffset, scratch = workspace)
 
                 assertWindowAgreesWithReference(expected, a, 3, 2)
                 assertEquals(if (alias != 2) 1 else 0, workspace.available(3))
@@ -646,13 +645,14 @@ class DenseOperationsTest {
     fun `empty windows and zero alpha do not read entries or borrow scratch`() = withBuiltinEngines { engine ->
         for (shape in listOf(0 to 0, 0 to 2, 3 to 0, 3 to 2)) {
             val a = DenseMatrix.wrap(9, 8, DoubleArray(72) { Double.NaN })
-            val workspace = Workspace()
+            val workspace = Scratch()
             val alpha = if (shape.first > 0 && shape.second > 0) 0.0 else Double.NaN
 
-            engine.withWorkspace(workspace).ger(
+            engine.ger(
                 alpha, a.values, a.values, a,
                 9 - shape.first, 8 - shape.second, shape.first, shape.second,
                 72 - shape.first, 72 - shape.second,
+                scratch = workspace,
             )
 
             assertContentEquals(DoubleArray(72) { Double.NaN }, a.values)
@@ -905,10 +905,10 @@ class DenseOperationsTest {
         val x = StridedVector(backing, 0, n, 2)
         val a = DenseMatrix.wrap(n, n, DoubleArray(n * n) { 1.0 + (it % 5) * 0.25 })
         val expected = DoubleArray(n).also { koblas.gemv(1.0, a, x, 0.0, DenseVector.wrap(it)) }
-        val workspace = Workspace()
+        val workspace = Scratch()
         val destination = DoubleArray(n)
 
-        koblas.withWorkspace(workspace).gemv(1.0, a, x, 0.0, DenseVector.wrap(destination))
+        koblas.gemv(1.0, a, x, 0.0, DenseVector.wrap(destination), scratch = workspace)
 
         assertContentEquals(expected, destination)
         assertEquals(0, workspace.available(n), "the addressed call borrowed a gather")

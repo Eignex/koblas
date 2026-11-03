@@ -12,7 +12,7 @@ import com.eignex.koblas.internal.jvm25.simd.simdContributions
 
 /** Desktop implementation selected by the multi-release JAR on JDK 25 or later. */
 internal object JvmBackend {
-    val contributions: List<KoblasEngine>? get() =
+    val contributions: List<EngineKernels>? get() =
         if (simdAvailable) simdContributions else null
 
     val default: KoblasEngine by lazy {

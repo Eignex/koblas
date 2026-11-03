@@ -6,7 +6,6 @@ import com.eignex.koblas.engine.*
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.times
 import com.eignex.koblas.transpose
-import com.eignex.koblas.workspace.*
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -88,7 +87,7 @@ class SparseCapacityTest {
         val tall = tallEmpty(Int.MAX_VALUE)
         val destination = DenseMatrix.wrap(0, 0, DoubleArray(0))
 
-        koblas.withWorkspace(Workspace()).syrk(1.0, tall, transpose = true, 0.5, destination)
+        koblas.syrk(1.0, tall, transpose = true, 0.5, destination, scratch = Scratch())
 
         assertEquals(0, destination.values.size)
     }

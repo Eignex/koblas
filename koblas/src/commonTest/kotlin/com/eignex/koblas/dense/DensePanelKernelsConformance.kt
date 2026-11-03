@@ -152,7 +152,7 @@ private fun referenceIndexedRankUpdate(
  * Checks [kernels] against independent definitions across lane and grouping boundaries,
  * nonzero offsets and padded leading dimensions. Strides rotate with extent to bound the sweep.
  */
-internal fun assertPanelKernelsAgreeWithReference(kernels: KoblasEngine) {
+internal fun assertPanelKernelsAgreeWithReference(kernels: EngineKernels) {
     val rng = Random(20260919)
     var variant = 0
     for (rows in ROWS) {
@@ -245,7 +245,7 @@ private fun referenceIndexedCoupled(
  * columns are stored entries. Counts straddle lane boundaries and include empty sparse columns;
  * spread indices exercise gathering in both adjacent and strided groups.
  */
-private fun assertIndexedPanelsAgreeWithReference(kernels: KoblasEngine) {
+private fun assertIndexedPanelsAgreeWithReference(kernels: EngineKernels) {
     val rng = Random(20260930)
     val alpha = 0.875
     for (rows in intArrayOf(0, 1, 2, 3, 4, 5, 7, 8, 9, 16, 17, 64)) {
@@ -324,7 +324,7 @@ private fun assertIndexedPanelsAgreeWithReference(kernels: KoblasEngine) {
  * window; contiguous throughout, which is what its contract takes.
  */
 private fun assertCoupledAgrees(
-    kernels: KoblasEngine,
+    kernels: EngineKernels,
     alpha: Double,
     a: DoubleArray,
     lda: Int,
@@ -359,7 +359,7 @@ private fun assertCoupledAgrees(
  * Offsets and strides are full array indices. Each is tested beyond twenty-one bits in both
  * panel orientations, as a legal large dense window can require.
  */
-internal fun assertIndexedPanelsAddressPastAPackedBound(kernels: KoblasEngine) {
+internal fun assertIndexedPanelsAddressPastAPackedBound(kernels: EngineKernels) {
     val bound = 1 shl 21
     val block = DoubleArray(bound + 16)
     val indices = intArrayOf(0, 1)
@@ -395,7 +395,7 @@ internal fun assertIndexedPanelsAddressPastAPackedBound(kernels: KoblasEngine) {
  * Zero beta overwrites without reading the destination. Finite zero coefficients and negative strides
  * exercise ordinary updates without prescribing exceptional-value behavior.
  */
-internal fun assertPanelContractHolds(kernels: KoblasEngine) {
+internal fun assertPanelContractHolds(kernels: EngineKernels) {
     val rows = 17
     val a = DoubleArray(rows * 2) { 1.0 + it }
     val x = DoubleArray(rows) { 1.0 }
@@ -435,7 +435,7 @@ internal fun assertPanelContractHolds(kernels: KoblasEngine) {
 }
 
 /** The grouping a backend recommends, which has to be usable and must not claim more columns than exist. */
-internal fun assertExecutionGroupIsUsable(kernels: KoblasEngine) {
+internal fun assertExecutionGroupIsUsable(kernels: EngineKernels) {
     for (work in PanelWork.entries) {
         for (columns in intArrayOf(0, 1, 2, 3, 7, 1024)) {
             for (contiguous in booleanArrayOf(true, false)) {
@@ -462,7 +462,7 @@ internal fun assertExecutionGroupIsUsable(kernels: KoblasEngine) {
  * Too-short arrays expose forbidden reads at empty extents. Multi-dot still writes outputs
  * selected by its columns even when it has no rows.
  */
-internal fun assertEmptyExtentsReadNothing(kernels: KoblasEngine) {
+internal fun assertEmptyExtentsReadNothing(kernels: EngineKernels) {
     val nothing = DoubleArray(0)
     val destination = DoubleArray(2) { Double.NaN }
 
@@ -491,7 +491,7 @@ internal fun assertEmptyExtentsReadNothing(kernels: KoblasEngine) {
 }
 
 /** Guard values around each window expose overruns and stores through masked tails. */
-internal fun assertPanelsStayInsideTheirWindows(kernels: KoblasEngine) {
+internal fun assertPanelsStayInsideTheirWindows(kernels: EngineKernels) {
     val guard = -12345.0
     for (rows in intArrayOf(1, 3, 5, 8, 13)) {
         for (columns in intArrayOf(1, 2, 3, 5)) {
@@ -538,7 +538,7 @@ internal fun assertPanelsStayInsideTheirWindows(kernels: KoblasEngine) {
 }
 
 /** Long strips exercise wider column groups, a partial group and a scalar row tail. */
-internal fun assertLargeColumnUpdatesAgreeWithReference(kernels: KoblasEngine) {
+internal fun assertLargeColumnUpdatesAgreeWithReference(kernels: EngineKernels) {
     val rows = 4_097
     for (columns in intArrayOf(13, 25)) {
         for (stride in 1..2) {
@@ -567,7 +567,7 @@ internal fun assertLargeColumnUpdatesAgreeWithReference(kernels: KoblasEngine) {
  * A panel of one stored row whose columns are adjacent, which a backend may run along the row: as one dot
  * for a column update and as an elementwise update for a multi-dot. Lengths straddle the unrolled bodies.
  */
-private fun assertSingleRowPanelsAgreeWithReference(kernels: KoblasEngine) {
+private fun assertSingleRowPanelsAgreeWithReference(kernels: EngineKernels) {
     for (columns in intArrayOf(1, 7, 33, 1_000, 4_099)) {
         for (beta in doubleArrayOf(0.0, -0.25)) {
             val a = DoubleArray(PAD + columns + PAD) { ((it % 17) - 8) / 16.0 }
@@ -595,7 +595,7 @@ private fun assertSingleRowPanelsAgreeWithReference(kernels: KoblasEngine) {
  * The excluded diagonal is scattered but not reduced. A NaN there exposes forbidden reduction;
  * a separate pivot column remains readable by the scatter, including at that position.
  */
-private fun assertExcludedPositionIsNotReduced(kernels: KoblasEngine) {
+private fun assertExcludedPositionIsNotReduced(kernels: EngineKernels) {
     val width = vectorWidth(kernels) + 1
     val positions = 3
     for (excluded in 0 until positions) {
@@ -629,7 +629,7 @@ private fun assertExcludedPositionIsNotReduced(kernels: KoblasEngine) {
  * The sparse stored-position contract requires zero evaluation at the first owned-body width and a
  * scalar tail. Fixed narrow fixtures could exercise only portable fallback.
  */
-private fun assertIndexedPanelsEvaluateZeroCoefficients(kernels: KoblasEngine) {
+private fun assertIndexedPanelsEvaluateZeroCoefficients(kernels: EngineKernels) {
     val full = vectorWidth(kernels)
     if (kernels.providers.any { it.id == "jvm-simd" && EngineImplementation.Panels in it.implementations }) {
         assertTrue(kernels.implementationFor(PanelWork.SparseRightHandSides, full, 2) != PortableEngine.name)
@@ -673,7 +673,7 @@ private fun assertIndexedPanelsEvaluateZeroCoefficients(kernels: KoblasEngine) {
 }
 
 /** The narrowest group of adjacent right-hand sides this backend answers for with its own body. */
-private fun vectorWidth(kernels: KoblasEngine): Int {
+private fun vectorWidth(kernels: EngineKernels): Int {
     for (width in 1..64) {
         if (kernels.implementationFor(
                 PanelWork.SparseRightHandSides,

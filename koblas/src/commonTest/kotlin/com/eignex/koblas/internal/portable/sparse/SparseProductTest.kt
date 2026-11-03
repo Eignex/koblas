@@ -11,7 +11,6 @@ import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.sparse.ReferenceSparseBlas
 import com.eignex.koblas.times
-import com.eignex.koblas.workspace.*
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -77,7 +76,7 @@ class SparseProductTest {
                 val actual = expected.copyOf()
 
                 ReferenceSparseBlas.gemm(0.5, a, transposeA, b, transposeB, -0.25, expected)
-                koblas.withWorkspace(Workspace()).gemm(0.5, a, transposeA, b, transposeB, -0.25, actual)
+                koblas.gemm(0.5, a, transposeA, b, transposeB, -0.25, actual, scratch = Scratch())
 
                 assertClose(expected, actual, "sparse-sparse dense transposeA=$transposeA transposeB=$transposeB")
             }
@@ -227,7 +226,7 @@ class SparseProductTest {
                 val dense = DenseMatrix.wrap(n, n, DoubleArray(n * n) { Double.NaN })
 
                 val sparse = koblas.syrk(a, transpose, lower)
-                koblas.withWorkspace(Workspace()).syrk(1.0, a, transpose, 0.0, dense, lower)
+                koblas.syrk(1.0, a, transpose, 0.0, dense, lower, scratch = Scratch())
 
                 for (j in 0 until n) {
                     for (i in 0 until n) {
@@ -343,7 +342,7 @@ class SparseProductTest {
             ),
         )
         for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd).distinct()) {
-            val workspace = Workspace()
+            val workspace = Scratch()
             // Epoch one collides with the first column unless marks are cleared; nonzero row counts
             // expose an adjacency builder that assumes its borrowed pointers are fresh.
             for (transpose in booleanArrayOf(false, true)) {
@@ -378,7 +377,7 @@ class SparseProductTest {
                             val actual = initial.copyOf()
                             ReferenceSparseBlas.syrk(0.875, a, transpose, -0.25, expected, lower)
 
-                            engine.withWorkspace(workspace).syrk(0.875, a, transpose, -0.25, actual, lower)
+                            engine.syrk(0.875, a, transpose, -0.25, actual, lower, scratch = workspace)
 
                             val context = "${engine.name} pass=$pass pattern=$pattern transpose=$transpose lower=$lower"
                             assertClose(expected, actual, context)

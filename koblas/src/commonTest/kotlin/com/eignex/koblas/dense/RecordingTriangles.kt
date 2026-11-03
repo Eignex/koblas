@@ -17,7 +17,7 @@ internal class DiagonalCall(
 )
 
 /** A substitution backend that records every diagonal block it is handed and delegates the arithmetic. */
-internal class RecordingTriangles(private val delegate: KoblasEngine) : KoblasEngine {
+internal class RecordingTriangles(private val delegate: EngineKernels) : EngineKernels {
     override val implementations = setOf(EngineImplementation.Triangular)
 
     override fun rightHandSideGroup(order: Int, sides: Int): Int = delegate.rightHandSideGroup(order, sides)

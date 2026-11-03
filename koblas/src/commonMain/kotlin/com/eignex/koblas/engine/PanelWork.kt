@@ -2,16 +2,14 @@
 
 package com.eignex.koblas.engine
 
-import com.eignex.koblas.KoblasEngine
-
 /**
  * The logical panel shapes a matrix algorithm asks a backend for.
  *
  * Each names work, not an instruction: how many values are reduced or updated together is the backend's
- * answer to [KoblasEngine.executionGroup], and a caller that hard-coded four columns would be writing
+ * answer to [EngineKernels.executionGroup], and a caller that hard-coded four columns would be writing
  * one machine's geometry into an algorithm every machine runs.
  */
-public enum class PanelWork {
+internal enum class PanelWork {
     /** Several logical columns reduced against one vector, producing one value per column. */
     MultiDot,
 
@@ -28,9 +26,9 @@ public enum class PanelWork {
      * Dense right-hand sides visited together while a sparse operand's indices and values are walked once,
      * where the panel's destination is the dense block.
      *
-     * Two questions carry this name. [KoblasEngine.executionGroup] answers how many right-hand sides a
+     * Two questions carry this name. [EngineKernels.executionGroup] answers how many right-hand sides a
      * sparse traversal should hand over at a time, where `columns` is how many there are to choose from.
-     * [KoblasEngine.indexedRankUpdate] and [KoblasEngine.indexedCoupledUpdate] are the arithmetic
+     * [EngineKernels.indexedRankUpdate] and [EngineKernels.indexedCoupledUpdate] are the arithmetic
      * over one such group, where the group is the panel's `rows` and the stored entries it walks are its
      * `columns`, so a backend that vectorises does it across the right-hand sides and never across the
      * indices.
@@ -45,7 +43,7 @@ public enum class PanelWork {
      * with a group differs: an update spreads a coefficient over a destination window, where a wider group
      * spends one walk of the column's indices on more of it; a reduction carries an accumulator per
      * right-hand side, which a group of one can keep in a register and a wider group has to keep in the
-     * array the caller supplied. [KoblasEngine.indexedColumnUpdate] is the arithmetic over a group of
+     * array the caller supplied. [EngineKernels.indexedColumnUpdate] is the arithmetic over a group of
      * this shape.
      */
     SparseRightHandSideReduction,

@@ -9,7 +9,6 @@ import com.eignex.koblas.engineWithKernels
 import com.eignex.koblas.internal.portable.sparse.AdjacentPreferringPanels
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.randomVector
-import com.eignex.koblas.workspace.*
 import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlin.random.Random
@@ -79,7 +78,7 @@ class SparseOperationsTest {
                 assertEquals(1, stride)
                 calls += operation
             }
-            val selected = object : KoblasEngine {
+            val selected = object : EngineKernels {
                 override val name = "stored-reductions"
                 override val implementations = setOf(EngineImplementation.Nrm2, EngineImplementation.Asum)
                 override fun nrm2(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
@@ -280,7 +279,7 @@ class SparseOperationsTest {
         )
         val denseOperand = DoubleArray(matrix.rows)
         val calls = mutableListOf<Pair<Int, Int>>()
-        val selected = object : KoblasEngine {
+        val selected = object : EngineKernels {
             override val implementations = setOf(EngineImplementation.IndexedDot)
             override val name: String = "test-SparseOperationsTest"
 
@@ -451,7 +450,7 @@ class SparseOperationsTest {
         val sharedB = DenseMatrix.wrap(2, 2, allShared)
         val sharedC = DenseMatrix.wrap(2, 2, allShared)
 
-        koblas.withWorkspace(Workspace()).symm(1.0, sharedA, sharedB, 0.0, sharedC, lower = true)
+        koblas.symm(1.0, sharedA, sharedB, 0.0, sharedC, lower = true, scratch = Scratch())
 
         assertContentEquals(doubleArrayOf(13.0, 21.0, 29.0, 46.0), sharedC.values)
     }
@@ -463,7 +462,7 @@ class SparseOperationsTest {
         val identity = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 1.0)))
         val aliasedC = DenseMatrix.wrap(2, 2, aliasedValues)
 
-        koblas.withWorkspace(Workspace()).gemm(1.0, aliasedA, false, identity, false, 0.0, aliasedC)
+        koblas.gemm(1.0, aliasedA, false, identity, false, 0.0, aliasedC, scratch = Scratch())
 
         assertContentEquals(doubleArrayOf(2.0, 3.0, 5.0, 7.0), aliasedC.values)
     }
@@ -497,14 +496,14 @@ class SparseOperationsTest {
                             val expected = DenseMatrix.wrap(rows, columns, coefficients.copyOf())
                             val shared = filledTriangle(lower, coefficients)
                             val block = DenseMatrix.wrap(rows, columns, shared.values)
-                            val aliased = koblas.withWorkspace(Workspace())
+                            val scratch = Scratch()
 
                             if (solve) {
                                 koblas.trsm(independent, expected, lower, transpose, unitDiag, right, -0.75)
-                                aliased.trsm(shared, block, lower, transpose, unitDiag, right, -0.75)
+                                koblas.trsm(shared, block, lower, transpose, unitDiag, right, -0.75, scratch = scratch)
                             } else {
                                 koblas.trmm(independent, expected, lower, transpose, unitDiag, right, -0.75)
-                                aliased.trmm(shared, block, lower, transpose, unitDiag, right, -0.75)
+                                koblas.trmm(shared, block, lower, transpose, unitDiag, right, -0.75, scratch = scratch)
                             }
 
                             assertClose(expected, block, what, tolerance = 1e-9)
@@ -524,33 +523,33 @@ class SparseOperationsTest {
 
         assertStaged(n, "gemv over the vector it writes") { w ->
             val y = doubleArrayOf(1.0, -2.0, 0.5, 3.0)
-            koblas.withWorkspace(w).gemv(0.5, permutation(), y, -1.5, y, false)
+            koblas.gemv(0.5, permutation(), y, -1.5, y, false, scratch = w)
         }
         assertStaged(n, "gemv over the coefficients it writes") { w ->
             val a = permutation()
-            koblas.withWorkspace(w).gemv(0.5, a, doubleArrayOf(1.0, -2.0, 0.5, 3.0), -1.5, a.values, false)
+            koblas.gemv(0.5, a, doubleArrayOf(1.0, -2.0, 0.5, 3.0), -1.5, a.values, false, scratch = w)
         }
         assertStaged(n, "symv over the vector it writes") { w ->
             val y = doubleArrayOf(1.0, -2.0, 0.5, 3.0)
-            koblas.withWorkspace(w).symv(0.5, permutation(), y, -1.5, y, true)
+            koblas.symv(0.5, permutation(), y, -1.5, y, true, scratch = w)
         }
         assertStaged(3, "trsv over the coefficients that are its right-hand side") { w ->
             val a = aliasTriangle()
-            koblas.withWorkspace(w).trsv(a, a.values, lower = true)
+            koblas.trsv(a, a.values, lower = true, scratch = w)
         }
         assertStaged(3, "trmv over the coefficients that are its right-hand side") { w ->
             val a = aliasTriangle()
-            koblas.withWorkspace(w).trmv(a, a.values, lower = true)
+            koblas.trmv(a, a.values, lower = true, scratch = w)
         }
     }
 
     /** Sparse staging copies only coefficients: structural arrays cannot alias a dense destination. */
     @Test
     fun `a staged sparse operand copies its coefficients and shares its structure`() {
-        val workspace = Workspace()
+        val workspace = Scratch()
         val a = permutation()
 
-        koblas.withWorkspace(workspace).gemv(0.5, a, doubleArrayOf(1.0, -2.0, 0.5, 3.0), -1.5, a.values, false)
+        koblas.gemv(0.5, a, doubleArrayOf(1.0, -2.0, 0.5, 3.0), -1.5, a.values, false, scratch = workspace)
 
         assertEquals(1, workspace.available(a.nnz), "the coefficients were not staged from the workspace")
         assertEquals(0, workspace.availableI32(a.cols + 1), "the column pointers were copied")
@@ -612,14 +611,13 @@ class SparseOperationsTest {
                     DenseMatrix.wrap(order, sides, DoubleArray(0))
                 }
                 for (operation in listOf("gemm", "symm", "trsm", "trmm")) {
-                    val workspace = Workspace()
-                    val engine = staging.withWorkspace(workspace)
+                    val workspace = Scratch()
 
                     when (operation) {
-                        "gemm" -> engine.gemm(0.875, a, false, b, false, -0.25, b, right = right)
-                        "symm" -> engine.symm(0.875, a, b, -0.25, b, lower = true, right = right)
-                        "trsm" -> engine.trsm(a, b, lower = true, right = right, alpha = 0.875)
-                        else -> engine.trmm(a, b, lower = true, right = right, alpha = 0.875)
+                        "gemm" -> staging.gemm(0.875, a, false, b, false, -0.25, b, right = right, scratch = workspace)
+                        "symm" -> staging.symm(0.875, a, b, -0.25, b, lower = true, right = right, scratch = workspace)
+                        "trsm" -> staging.trsm(a, b, lower = true, right = right, alpha = 0.875, scratch = workspace)
+                        else -> staging.trmm(a, b, lower = true, right = right, alpha = 0.875, scratch = workspace)
                     }
 
                     val context = "$operation order=$order sides=$sides right=$right"
@@ -642,14 +640,13 @@ class SparseOperationsTest {
                 for (solve in booleanArrayOf(false, true)) {
                     val dimension = if (a.rows == a.cols) order + 1 else order
                     val b = if (right) DenseMatrix.zero(0, dimension) else DenseMatrix.zero(dimension, 0)
-                    val workspace = Workspace()
-                    val engine = koblas.withWorkspace(workspace)
+                    val workspace = Scratch()
 
                     assertFailsWith<DimensionMismatch>("shape=${a.rows} by ${a.cols} right=$right solve=$solve") {
                         if (solve) {
-                            engine.trsm(a, b, lower = true, right = right)
+                            koblas.trsm(a, b, lower = true, right = right, scratch = workspace)
                         } else {
-                            engine.trmm(a, b, lower = true, right = right)
+                            koblas.trmm(a, b, lower = true, right = right, scratch = workspace)
                         }
                     }
 
@@ -994,8 +991,8 @@ class SparseOperationsTest {
     }
 
     /** That [call] took exactly one loan, of [length], and returned it. */
-    private fun assertStaged(length: Int, what: String, call: (Workspace) -> Unit) {
-        val workspace = Workspace()
+    private fun assertStaged(length: Int, what: String, call: (Scratch) -> Unit) {
+        val workspace = Scratch()
 
         call(workspace)
 
