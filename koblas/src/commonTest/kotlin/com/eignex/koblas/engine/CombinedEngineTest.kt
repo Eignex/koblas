@@ -6,7 +6,6 @@ import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.engineWithHost
 import com.eignex.koblas.engineWithKernels
-import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.internal.portable.PortableEngine
 import com.eignex.koblas.sparse.*
 import kotlin.test.Test
@@ -617,7 +616,7 @@ class CombinedEngineTest {
 /** Computes host products from the received operands, so staging is checked without an installed library. */
 @Suppress("LongParameterList") // the host BLAS product signatures
 private class ReferenceProductBlas : RecordingBlas() {
-    override fun gemm(
+    override fun cblasGemm(
         alpha: Double,
         a: DenseMatrixRegion,
         transposeA: Boolean,
@@ -625,12 +624,9 @@ private class ReferenceProductBlas : RecordingBlas() {
         transposeB: Boolean,
         beta: Double,
         c: DenseMatrixRegion,
-        scratch: Scratch?,
-    ) = prepareGemm(alpha, a, transposeA, b, transposeB, beta, c, scratch?.arrays) { sa, sb, _ ->
-        ReferenceBlas.gemm(alpha, sa, transposeA, sb, transposeB, beta, c)
-    }
+    ) = ReferenceBlas.gemm(alpha, a, transposeA, b, transposeB, beta, c)
 
-    override fun gemmt(
+    override fun cblasGemmt(
         alpha: Double,
         a: DenseMatrixRegion,
         transposeA: Boolean,
@@ -638,35 +634,26 @@ private class ReferenceProductBlas : RecordingBlas() {
         transposeB: Boolean,
         beta: Double,
         c: DenseMatrixRegion,
-        lower: Boolean,
-        scratch: Scratch?,
-    ) = prepareGemmt(alpha, a, transposeA, b, transposeB, beta, c, lower, scratch?.arrays) { sa, sb ->
-        ReferenceBlas.gemmt(alpha, sa, transposeA, sb, transposeB, beta, c, lower)
-    }
+        structure: MatrixStructure,
+    ) = ReferenceBlas.gemmt(alpha, a, transposeA, b, transposeB, beta, c, structure == MatrixStructure.SymmetricLower)
 
-    override fun symm(
+    override fun cblasSymm(
         alpha: Double,
         a: DenseMatrixRegion,
+        structure: MatrixStructure,
         b: DenseMatrixRegion,
         beta: Double,
         c: DenseMatrixRegion,
-        lower: Boolean,
-        right: Boolean,
-        scratch: Scratch?,
-    ) = prepareSymm(this, alpha, a, b, beta, c, lower, right, scratch?.arrays) { sa, sb ->
-        ReferenceBlas.symm(alpha, sa, sb, beta, c, lower, right)
-    }
+        rightSide: Boolean,
+    ) = ReferenceBlas.symm(alpha, a, b, beta, c, structure == MatrixStructure.SymmetricLower, rightSide)
 
-    override fun syr2k(
+    override fun cblasSyr2k(
         alpha: Double,
         a: DenseMatrixRegion,
         b: DenseMatrixRegion,
-        transpose: Boolean,
+        transposeA: Boolean,
         beta: Double,
         c: DenseMatrixRegion,
-        lower: Boolean,
-        scratch: Scratch?,
-    ) = prepareSyr2k(alpha, a, b, transpose, beta, c, lower, scratch?.arrays) { sa, sb ->
-        ReferenceBlas.syr2k(alpha, sa, sb, transpose, beta, c, lower)
-    }
+        structure: MatrixStructure,
+    ) = ReferenceBlas.syr2k(alpha, a, b, transposeA, beta, c, structure == MatrixStructure.SymmetricLower)
 }

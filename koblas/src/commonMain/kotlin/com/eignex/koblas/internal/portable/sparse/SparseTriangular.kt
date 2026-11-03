@@ -213,3 +213,32 @@ internal fun trsmRightCore(
         )
     }
 }
+
+/** Sparse `trsm` when [solve] and `trmm` otherwise, from either side. */
+internal fun KoblasEngine.sparseTriangularMatrix(
+    a: SparseMatrix,
+    b: DenseMatrixRegion,
+    lower: Boolean,
+    transpose: Boolean,
+    unitDiag: Boolean,
+    right: Boolean,
+    alpha: Double,
+    solve: Boolean,
+    arrays: ArraySupplier?,
+) {
+    requireTriangularMatrixOperands(a, b, right, if (solve) "trsm" else "trmm")
+    if (alpha == 0.0) return scaleRegion(b, 0.0)
+    val n = a.rows
+    if (n == 0 || (if (right) b.rows else b.cols) == 0) return
+    // Snapshot an aliased triangle before alpha scales the right-hand sides and changes its coefficients.
+    staged(arrays, a, a.values === b.values) { triangle ->
+        scaleRegion(b, alpha, vectors = this)
+        withExplicitDiagonal(triangle, n, unitDiag, arrays) { diagonal ->
+            when {
+                !right -> triangularLeftCore(this, solve, triangle, b, lower, transpose, unitDiag, diagonal, arrays)
+                solve -> trsmRightCore(this, triangle, b, lower, !transpose, diagonal)
+                else -> trmmRightCore(this, triangle, b, lower, transpose, unitDiag, diagonal)
+            }
+        }
+    }
+}
