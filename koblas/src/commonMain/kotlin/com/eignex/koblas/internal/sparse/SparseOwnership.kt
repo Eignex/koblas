@@ -11,7 +11,7 @@ import com.eignex.koblas.internal.portable.sparse.*
  */
 @Suppress("LongParameterList")
 internal inline fun <T> withSymmetricRankScratch(
-    arrays: ArraySupplier?,
+    arrays: Scratch?,
     order: Int,
     sourceRows: Int,
     sourceEntries: Int,

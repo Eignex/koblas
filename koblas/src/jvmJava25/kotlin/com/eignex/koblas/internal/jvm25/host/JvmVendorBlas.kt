@@ -9,17 +9,12 @@ import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.host.Cblas
 import com.eignex.koblas.internal.host.HostBlas
 import com.eignex.koblas.internal.host.diagFor
-import com.eignex.koblas.internal.host.exportedImplementations
 import com.eignex.koblas.internal.host.positiveIncrement
 import com.eignex.koblas.internal.host.sideFor
 import com.eignex.koblas.internal.host.transposeFor
 import com.eignex.koblas.internal.host.uploFor
 import com.eignex.koblas.sparse.*
 import java.lang.foreign.Arena
-import java.lang.foreign.FunctionDescriptor
-import java.lang.foreign.ValueLayout.ADDRESS
-import java.lang.foreign.ValueLayout.JAVA_DOUBLE
-import java.lang.foreign.ValueLayout.JAVA_INT
 import java.lang.invoke.MethodHandle
 
 /**
@@ -39,7 +34,22 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
     override val version: String get() = library.version
     override val threadEvidence: ThreadEvidence get() = library.threadEvidence
 
-    override val implementations: Set<EngineImplementation> = exportedImplementations(library::exports)
+    /** Bound by [EngineImplementation.ordinal], null where the library does not export the entry point. */
+    private val handles: Array<MethodHandle?> = Array(EngineImplementation.entries.size) {
+        val operation = EngineImplementation.entries[it]
+        descriptorFor(operation)?.let { descriptor -> library.handleOrNull(operation.entryPoint, descriptor) }
+    }
+
+    override val implementations: Set<EngineImplementation> =
+        EngineImplementation.entries.filterTo(LinkedHashSet()) { handles[it.ordinal] != null }
+
+    private fun handle(operation: EngineImplementation): MethodHandle {
+        val exported = handles[operation.ordinal] ?: throw UnsupportedOperationException(
+            "${operation.entryPoint} is not exported by ${vendor.vendorName}",
+        )
+        library.holdCallingThread()
+        return exported
+    }
 
     // Level 1 bindings stage foreign memory while keeping arithmetic in this library.
 
@@ -58,25 +68,23 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
         return Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
             val ny = arena.stage(y)
-            supplied(dotHandle).invokeExact(x.size, nx.segment, nx.increment, ny.segment, ny.increment) as Double
+            handle(EngineImplementation.Dot)
+                .invokeExact(x.size, nx.segment, nx.increment, ny.segment, ny.increment) as Double
         }
     }
 
-    override fun nrm2(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
+    override fun nrm2(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double =
+        reduce(EngineImplementation.Nrm2, v, vOff, len, vStride)
+
+    override fun asum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double =
+        reduce(EngineImplementation.Asum, v, vOff, len, vStride)
+
+    private fun reduce(operation: EngineImplementation, v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
         val x = StridedVector(v, vOff, len, vStride)
         if (len == 0) return 0.0
         return Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
-            supplied(nrm2Handle).invokeExact(x.size, nx.segment, positiveIncrement(nx.increment, x.size)) as Double
-        }
-    }
-
-    override fun asum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
-        val x = StridedVector(v, vOff, len, vStride)
-        if (len == 0) return 0.0
-        return Arena.ofConfined().use { arena ->
-            val nx = arena.stage(x)
-            supplied(asumHandle).invokeExact(x.size, nx.segment, positiveIncrement(nx.increment, x.size)) as Double
+            handle(operation).invokeExact(x.size, nx.segment, positiveIncrement(nx.increment, x.size)) as Double
         }
     }
 
@@ -85,9 +93,8 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
         if (len == 0) return -1
         return Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
-            val found = supplied(
-                iamaxHandle,
-            ).invokeExact(x.size, nx.segment, positiveIncrement(nx.increment, x.size)) as Int
+            val found = handle(EngineImplementation.Iamax)
+                .invokeExact(x.size, nx.segment, positiveIncrement(nx.increment, x.size)) as Int
             if (x.stride >= 0) found else x.size - 1 - found
         }
     }
@@ -108,7 +115,8 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
         Arena.ofConfined().use { arena ->
             val nx = arena.stage(source)
             val ny = arena.stage(destination)
-            supplied(axpyHandle).invokeExact(source.size, alpha, nx.segment, nx.increment, ny.segment, ny.increment)
+            handle(EngineImplementation.Axpy)
+                .invokeExact(source.size, alpha, nx.segment, nx.increment, ny.segment, ny.increment)
             ny.writeBack()
         }
     }
@@ -118,32 +126,38 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
         if (len == 0) return
         Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
-            supplied(scalHandle).invokeExact(x.size, alpha, nx.segment, positiveIncrement(nx.increment, x.size))
+            handle(EngineImplementation.Scale)
+                .invokeExact(x.size, alpha, nx.segment, positiveIncrement(nx.increment, x.size))
             nx.writeBack()
         }
     }
 
-    override fun copy(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) {
+    override fun copy(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) =
+        pair(EngineImplementation.Copy, a, aOff, b, bOff, len, aStride, bStride, exchange = false)
+
+    override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) =
+        pair(EngineImplementation.Swap, a, aOff, b, bOff, len, aStride, bStride, exchange = true)
+
+    /** `cblas_dcopy` or `cblas_dswap`, where [exchange] also writes the first operand back. */
+    private fun pair(
+        operation: EngineImplementation,
+        a: DoubleArray,
+        aOff: Int,
+        b: DoubleArray,
+        bOff: Int,
+        len: Int,
+        aStride: Int,
+        bStride: Int,
+        exchange: Boolean,
+    ) {
         val x = StridedVector(a, aOff, len, aStride)
         val y = StridedVector(b, bOff, len, bStride)
         if (len == 0) return
         Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
             val ny = arena.stage(y)
-            supplied(copyHandle).invokeExact(x.size, nx.segment, nx.increment, ny.segment, ny.increment)
-            ny.writeBack()
-        }
-    }
-
-    override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) {
-        val x = StridedVector(a, aOff, len, aStride)
-        val y = StridedVector(b, bOff, len, bStride)
-        if (len == 0) return
-        Arena.ofConfined().use { arena ->
-            val nx = arena.stage(x)
-            val ny = arena.stage(y)
-            supplied(swapHandle).invokeExact(x.size, nx.segment, nx.increment, ny.segment, ny.increment)
-            nx.writeBack()
+            handle(operation).invokeExact(x.size, nx.segment, nx.increment, ny.segment, ny.increment)
+            if (exchange) nx.writeBack()
             ny.writeBack()
         }
     }
@@ -165,7 +179,8 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
         Arena.ofConfined().use { arena ->
             val nx = arena.stage(source)
             val ny = arena.stage(destination)
-            supplied(rotHandle).invokeExact(source.size, nx.segment, nx.increment, ny.segment, ny.increment, c, s)
+            handle(EngineImplementation.Rot)
+                .invokeExact(source.size, nx.segment, nx.increment, ny.segment, ny.increment, c, s)
             nx.writeBack()
             ny.writeBack()
         }
@@ -185,7 +200,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
             val na = arena.stage(a)
             val nx = arena.stage(x)
             val ny = arena.stage(y, read = beta != 0.0)
-            supplied(gemvHandle).invokeExact(
+            handle(EngineImplementation.Gemv).invokeExact(
                 Cblas.COL_MAJOR, transposeFor(transposeA), a.rows, a.cols, alpha,
                 na.segment, na.leadingDimension, nx.segment, nx.increment, beta, ny.segment, ny.increment,
             )
@@ -205,7 +220,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
             val na = arena.stage(a, structure)
             val nx = arena.stage(x)
             val ny = arena.stage(y, read = beta != 0.0)
-            supplied(symvHandle).invokeExact(
+            handle(EngineImplementation.Symv).invokeExact(
                 Cblas.COL_MAJOR, uploFor(structure), a.rows, alpha,
                 na.segment, na.leadingDimension, nx.segment, nx.increment, beta, ny.segment, ny.increment,
             )
@@ -218,7 +233,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
             val na = arena.stage(a)
             val nx = arena.stage(x)
             val ny = arena.stage(y)
-            supplied(gerHandle).invokeExact(
+            handle(EngineImplementation.Ger).invokeExact(
                 Cblas.COL_MAJOR, a.rows, a.cols, alpha,
                 nx.segment, nx.increment, ny.segment, ny.increment, na.segment, na.leadingDimension,
             )
@@ -230,7 +245,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
         Arena.ofConfined().use { arena ->
             val na = arena.stage(a, structure)
             val nx = arena.stage(x)
-            supplied(syrHandle).invokeExact(
+            handle(EngineImplementation.Syr).invokeExact(
                 Cblas.COL_MAJOR,
                 uploFor(structure),
                 a.rows,
@@ -255,7 +270,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
             val na = arena.stage(a, structure)
             val nx = arena.stage(x)
             val ny = arena.stage(y)
-            supplied(syr2Handle).invokeExact(
+            handle(EngineImplementation.Syr2).invokeExact(
                 Cblas.COL_MAJOR, uploFor(structure), a.rows, alpha,
                 nx.segment, nx.increment, ny.segment, ny.increment, na.segment, na.leadingDimension,
             )
@@ -263,24 +278,17 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
         }
     }
 
-    override fun cblasTrsv(a: DenseMatrixRegion, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) =
-        triangularVector(a, structure, transposeA, x, supplied(trsvHandle))
-
-    override fun cblasTrmv(a: DenseMatrixRegion, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) =
-        triangularVector(a, structure, transposeA, x, supplied(trmvHandle))
-
-    @Suppress("LongParameterList") // the shared triangular vector signature plus its handle
-    private fun triangularVector(
+    override fun cblasTriangularVector(
+        operation: EngineImplementation,
         a: DenseMatrixRegion,
         structure: MatrixStructure,
         transposeA: Boolean,
         x: DenseVector,
-        handle: MethodHandle,
     ) {
         Arena.ofConfined().use { arena ->
             val na = arena.stage(a, structure)
             val nx = arena.stage(x)
-            handle.invokeExact(
+            handle(operation).invokeExact(
                 Cblas.COL_MAJOR, uploFor(structure), transposeFor(transposeA), diagFor(structure),
                 a.rows, na.segment, na.leadingDimension, nx.segment, nx.increment,
             )
@@ -290,7 +298,6 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
 
     // Level 3. Every operand is contiguous column-major, so the layout is fixed and a transpose is a flag.
 
-    @Suppress("LongParameterList") // the BLAS dgemm signature
     override fun cblasGemm(
         alpha: Double,
         a: DenseMatrixRegion,
@@ -305,7 +312,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
             val na = arena.stage(a)
             val nb = arena.stage(b)
             val nc = arena.stage(c, read = beta != 0.0)
-            supplied(gemmHandle).invokeExact(
+            handle(EngineImplementation.Gemm).invokeExact(
                 Cblas.COL_MAJOR, transposeFor(transposeA), transposeFor(transposeB),
                 c.rows, c.cols, depth, alpha,
                 na.segment, na.leadingDimension, nb.segment, nb.leadingDimension, beta,
@@ -315,7 +322,6 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
         }
     }
 
-    @Suppress("LongParameterList") // the BLAS dsymm signature
     override fun cblasSymm(
         alpha: Double,
         a: DenseMatrixRegion,
@@ -329,7 +335,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
             val na = arena.stage(a, structure)
             val nb = arena.stage(b)
             val nc = arena.stage(c, read = beta != 0.0)
-            supplied(symmHandle).invokeExact(
+            handle(EngineImplementation.Symm).invokeExact(
                 Cblas.COL_MAJOR, sideFor(rightSide), uploFor(structure), c.rows, c.cols, alpha,
                 na.segment, na.leadingDimension, nb.segment, nb.leadingDimension, beta,
                 nc.segment, nc.leadingDimension,
@@ -338,7 +344,6 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
         }
     }
 
-    @Suppress("LongParameterList") // the BLAS dsyrk signature
     override fun cblasSyrk(
         alpha: Double,
         a: DenseMatrixRegion,
@@ -351,7 +356,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
         Arena.ofConfined().use { arena ->
             val na = arena.stage(a)
             val nc = arena.stage(c, structure, read = beta != 0.0)
-            supplied(syrkHandle).invokeExact(
+            handle(EngineImplementation.Syrk).invokeExact(
                 Cblas.COL_MAJOR, uploFor(structure), transposeFor(transposeA),
                 c.rows, depth, alpha, na.segment, na.leadingDimension, beta,
                 nc.segment, nc.leadingDimension,
@@ -360,7 +365,6 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
         }
     }
 
-    @Suppress("LongParameterList") // the BLAS dsyr2k signature
     override fun cblasSyr2k(
         alpha: Double,
         a: DenseMatrixRegion,
@@ -375,7 +379,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
             val na = arena.stage(a)
             val nb = arena.stage(b)
             val nc = arena.stage(c, structure, read = beta != 0.0)
-            supplied(syr2kHandle).invokeExact(
+            handle(EngineImplementation.Syr2k).invokeExact(
                 Cblas.COL_MAJOR, uploFor(structure), transposeFor(transposeA),
                 c.rows, depth, alpha, na.segment, na.leadingDimension,
                 nb.segment, nb.leadingDimension, beta, nc.segment, nc.leadingDimension,
@@ -384,40 +388,19 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
         }
     }
 
-    @Suppress("LongParameterList") // the BLAS dtrmm signature
-    override fun cblasTrmm(
+    override fun cblasTriangularMatrix(
+        operation: EngineImplementation,
         alpha: Double,
         a: DenseMatrixRegion,
         structure: MatrixStructure,
         transposeA: Boolean,
         b: DenseMatrixRegion,
         rightSide: Boolean,
-    ) = triangularMatrix(alpha, a, structure, transposeA, b, rightSide, supplied(trmmHandle))
-
-    @Suppress("LongParameterList") // the BLAS dtrsm signature
-    override fun cblasTrsm(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        structure: MatrixStructure,
-        transposeA: Boolean,
-        b: DenseMatrixRegion,
-        rightSide: Boolean,
-    ) = triangularMatrix(alpha, a, structure, transposeA, b, rightSide, supplied(trsmHandle))
-
-    @Suppress("LongParameterList") // the shared triangular matrix signature plus its handle
-    private fun triangularMatrix(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        structure: MatrixStructure,
-        transposeA: Boolean,
-        b: DenseMatrixRegion,
-        rightSide: Boolean,
-        handle: MethodHandle,
     ) {
         Arena.ofConfined().use { arena ->
             val na = arena.stage(a, structure)
             val nb = arena.stage(b)
-            handle.invokeExact(
+            handle(operation).invokeExact(
                 Cblas.COL_MAJOR, sideFor(rightSide), uploFor(structure),
                 transposeFor(transposeA), diagFor(structure), b.rows, b.cols, alpha,
                 na.segment, na.leadingDimension, nb.segment, nb.leadingDimension,
@@ -427,7 +410,6 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
     }
 
     /** Calls only this library's exported `cblas_dgemmt`. */
-    @Suppress("LongParameterList") // the BLAS gemmt signature
     override fun cblasGemmt(
         alpha: Double,
         a: DenseMatrixRegion,
@@ -443,7 +425,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
             val na = arena.stage(a)
             val nb = arena.stage(b)
             val nc = arena.stage(c, structure, read = beta != 0.0)
-            gemmtHandle().invokeExact(
+            handle(EngineImplementation.Gemmt).invokeExact(
                 Cblas.COL_MAJOR, uploFor(structure), transposeFor(transposeA),
                 transposeFor(transposeB), c.rows, depth, alpha,
                 na.segment, na.leadingDimension, nb.segment, nb.leadingDimension, beta,
@@ -451,145 +433,5 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
             )
             nc.writeBack()
         }
-    }
-    private fun gemmtHandle(): MethodHandle = supplied(gemmtOrNull)
-
-    private fun supplied(handle: MethodHandle?): MethodHandle {
-        val exported = handle ?: throw UnsupportedOperationException(
-            "Operation is not exported by ${vendor.vendorName}",
-        )
-        library.holdCallingThread()
-        return exported
-    }
-
-    private val dotHandle = library.handleOrNull(
-        EngineImplementation.Dot.entryPoint,
-        FunctionDescriptor.of(JAVA_DOUBLE, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT),
-    )
-    private val nrm2Handle = library.handleOrNull(
-        EngineImplementation.Nrm2.entryPoint,
-        FunctionDescriptor.of(JAVA_DOUBLE, JAVA_INT, ADDRESS, JAVA_INT),
-    )
-    private val asumHandle = library.handleOrNull(
-        EngineImplementation.Asum.entryPoint,
-        FunctionDescriptor.of(JAVA_DOUBLE, JAVA_INT, ADDRESS, JAVA_INT),
-    )
-
-    /**
-     * `CBLAS_INDEX` is `size_t` in the reference header and in several vendors, and `int` in others. The low
-     * 32 bits agree for every index a 32-bit BLAS integer can address, so binding it as `int` reads the same
-     * value either way and avoids depending on which one this library used.
-     */
-    private val iamaxHandle = library.handleOrNull(
-        EngineImplementation.Iamax.entryPoint,
-        FunctionDescriptor.of(JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT),
-    )
-    private val axpyHandle = library.handleOrNull(
-        EngineImplementation.Axpy.entryPoint,
-        FunctionDescriptor.ofVoid(JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT),
-    )
-    private val scalHandle = library.handleOrNull(
-        EngineImplementation.Scale.entryPoint,
-        FunctionDescriptor.ofVoid(JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT),
-    )
-    private val copyHandle = library.handleOrNull(
-        EngineImplementation.Copy.entryPoint,
-        FunctionDescriptor.ofVoid(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT),
-    )
-    private val swapHandle = library.handleOrNull(
-        EngineImplementation.Swap.entryPoint,
-        FunctionDescriptor.ofVoid(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT),
-    )
-    private val rotHandle = library.handleOrNull(
-        EngineImplementation.Rot.entryPoint,
-        FunctionDescriptor.ofVoid(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, JAVA_DOUBLE),
-    )
-    private val gemvHandle = library.handleOrNull(
-        EngineImplementation.Gemv.entryPoint,
-        FunctionDescriptor.ofVoid(
-            JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
-            ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
-        ),
-    )
-    private val symvHandle = library.handleOrNull(
-        EngineImplementation.Symv.entryPoint,
-        FunctionDescriptor.ofVoid(
-            JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
-            ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
-        ),
-    )
-    private val gerHandle = library.handleOrNull(
-        EngineImplementation.Ger.entryPoint,
-        FunctionDescriptor.ofVoid(
-            JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT,
-        ),
-    )
-    private val syrHandle = library.handleOrNull(
-        EngineImplementation.Syr.entryPoint,
-        FunctionDescriptor.ofVoid(
-            JAVA_INT,
-            JAVA_INT,
-            JAVA_INT,
-            JAVA_DOUBLE,
-            ADDRESS,
-            JAVA_INT,
-            ADDRESS,
-            JAVA_INT,
-        ),
-    )
-    private val syr2Handle = library.handleOrNull(
-        EngineImplementation.Syr2.entryPoint,
-        FunctionDescriptor.ofVoid(
-            JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT,
-        ),
-    )
-    private val trsvHandle = library.handleOrNull(EngineImplementation.Trsv.entryPoint, TRIANGULAR_VECTOR)
-    private val trmvHandle = library.handleOrNull(EngineImplementation.Trmv.entryPoint, TRIANGULAR_VECTOR)
-    private val gemmHandle = library.handleOrNull(
-        EngineImplementation.Gemm.entryPoint,
-        FunctionDescriptor.ofVoid(
-            JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE,
-            ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
-        ),
-    )
-    private val symmHandle = library.handleOrNull(
-        EngineImplementation.Symm.entryPoint,
-        FunctionDescriptor.ofVoid(
-            JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE,
-            ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
-        ),
-    )
-    private val syrkHandle = library.handleOrNull(
-        EngineImplementation.Syrk.entryPoint,
-        FunctionDescriptor.ofVoid(
-            JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE,
-            ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
-        ),
-    )
-    private val syr2kHandle = library.handleOrNull(
-        EngineImplementation.Syr2k.entryPoint,
-        FunctionDescriptor.ofVoid(
-            JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE,
-            ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
-        ),
-    )
-    private val trmmHandle = library.handleOrNull(EngineImplementation.Trmm.entryPoint, TRIANGULAR_MATRIX)
-    private val trsmHandle = library.handleOrNull(EngineImplementation.Trsm.entryPoint, TRIANGULAR_MATRIX)
-    private val gemmtOrNull = library.handleOrNull(
-        EngineImplementation.Gemmt.entryPoint,
-        FunctionDescriptor.ofVoid(
-            JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE,
-            ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
-        ),
-    )
-
-    private companion object {
-        val TRIANGULAR_VECTOR: FunctionDescriptor = FunctionDescriptor.ofVoid(
-            JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT,
-        )
-        val TRIANGULAR_MATRIX: FunctionDescriptor = FunctionDescriptor.ofVoid(
-            JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE,
-            ADDRESS, JAVA_INT, ADDRESS, JAVA_INT,
-        )
     }
 }

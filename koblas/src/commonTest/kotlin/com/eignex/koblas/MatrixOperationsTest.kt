@@ -10,8 +10,6 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.fail
-import com.eignex.koblas.dense.gemm as denseGemm
-import com.eignex.koblas.sparse.gemm as sparseGemm
 
 class MatrixOperationsTest {
 
@@ -61,16 +59,12 @@ class MatrixOperationsTest {
         val sparseLeft = sparseOf(4, 3, rng)
         val sparseRight = sparseOf(3, 5, rng)
 
-        assertClose(
-            koblas.denseGemm(denseLeft, denseRight),
-            koblas.gemm(denseLeft as Matrix, denseRight) as DenseMatrix,
-            "dense by dense",
-        )
-        assertClose(
-            koblas.sparseGemm(sparseLeft, denseRight),
-            koblas.gemm(sparseLeft as Matrix, denseRight) as DenseMatrix,
-            "sparse by dense",
-        )
+        val denseProduct = DenseMatrix.zero(4, 5)
+        koblas.gemm(1.0, denseLeft, false, denseRight, false, 0.0, denseProduct)
+        assertClose(denseProduct, koblas.gemm(denseLeft as Matrix, denseRight) as DenseMatrix, "dense by dense")
+        val sparseProduct = DenseMatrix.zero(4, 5)
+        koblas.gemm(1.0, sparseLeft, false, denseRight, false, 0.0, sparseProduct)
+        assertClose(sparseProduct, koblas.gemm(sparseLeft as Matrix, denseRight) as DenseMatrix, "sparse by dense")
         val mirrored = DenseMatrix.zero(4, 5)
         koblas.gemm(1.0, sparseRight, false, denseLeft, false, 0.0, mirrored, right = true)
         assertClose(mirrored, koblas.gemm(denseLeft as Matrix, sparseRight) as DenseMatrix, "dense by sparse")

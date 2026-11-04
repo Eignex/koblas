@@ -15,6 +15,9 @@ import com.eignex.koblas.sparse.*
  * copied out of it first; a caller works it out from the transpose it is passing. A group the window does
  * not fill is padded with positive zero, which is what lets a tile accumulate over it and store nothing
  * there.
+ *
+ * The columns of `op(B)` are the rows of `op(B)ᵀ`, so the same packer groups a right operand with its
+ * transpose flag inverted and its row and depth roles exchanged.
  */
 internal fun packLeftPanel(
     source: DoubleArray,
@@ -57,48 +60,5 @@ internal fun packLeftPanel(
             step++
         }
         row += group
-    }
-}
-
-/** The right-operand counterpart of [packLeftPanel], grouping columns of `op(B)` instead of rows. */
-internal fun packRightPanel(
-    source: DoubleArray,
-    sourceOffset: Int,
-    ldb: Int,
-    transpose: Boolean,
-    depthStart: Int,
-    columnStart: Int,
-    depth: Int,
-    columns: Int,
-    destination: DoubleArray,
-    destinationOffset: Int,
-    group: Int,
-) {
-    if (columns <= 0 || depth <= 0) return
-    var target = destinationOffset
-    var column = 0
-    while (column < columns) {
-        val present = if (group < columns - column) group else columns - column
-        var step = 0
-        while (step < depth) {
-            var lane = 0
-            if (transpose) {
-                val base = sourceOffset + columnStart + column + (depthStart + step) * ldb
-                while (lane < present) {
-                    destination[target + lane] = source[base + lane]
-                    lane++
-                }
-            } else {
-                val base = sourceOffset + depthStart + step + (columnStart + column) * ldb
-                while (lane < present) {
-                    destination[target + lane] = source[base + lane * ldb]
-                    lane++
-                }
-            }
-            if (present < group) destination.fill(0.0, target + present, target + group)
-            target += group
-            step++
-        }
-        column += group
     }
 }

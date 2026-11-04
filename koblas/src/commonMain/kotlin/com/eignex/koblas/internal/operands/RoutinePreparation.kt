@@ -31,7 +31,7 @@ internal inline fun prepareMatrixVector(
     yOffset: Int,
     yStride: Int,
     lower: Boolean?,
-    arrays: ArraySupplier?,
+    arrays: Scratch?,
     body: (DenseMatrixRegion, DoubleArray, Int, Int) -> Unit,
 ) {
     val rows = if (transpose) a.cols else a.rows
@@ -63,7 +63,7 @@ internal inline fun prepareRankUpdate(
     yOffset: Int,
     yStride: Int,
     a: DenseMatrixRegion,
-    arrays: ArraySupplier?,
+    arrays: Scratch?,
     body: (DoubleArray, Int, Int, DoubleArray, Int, Int) -> Unit,
 ) {
     requireVectorWindow(x.size, xOffset, a.rows, xStride, "x")
@@ -85,7 +85,7 @@ internal inline fun prepareTriangularVector(
     lower: Boolean,
     unitDiag: Boolean,
     what: String,
-    arrays: ArraySupplier?,
+    arrays: Scratch?,
     body: (DenseMatrixRegion) -> Unit,
 ) {
     requireSquare(a, what)
@@ -110,7 +110,7 @@ internal inline fun prepareProduct(
     selected: Boolean?,
     aTriangle: Boolean?,
     vectors: KoblasEngine?,
-    arrays: ArraySupplier?,
+    arrays: Scratch?,
     body: (DenseMatrixRegion, DenseMatrixRegion) -> Unit,
 ) {
     // Return before borrowing operand-sized scratch for an empty destination.
@@ -139,7 +139,7 @@ internal inline fun prepareTriangularMatrix(
     right: Boolean,
     alpha: Double,
     what: String,
-    arrays: ArraySupplier?,
+    arrays: Scratch?,
     body: (DenseMatrixRegion) -> Unit,
 ) {
     requireTriangularMatrixOperands(a, b, right, what)

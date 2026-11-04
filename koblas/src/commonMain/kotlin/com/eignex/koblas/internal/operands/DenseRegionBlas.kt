@@ -9,7 +9,7 @@ import com.eignex.koblas.internal.portable.dense.applyBeta
 
 /** Snapshots a region only when it shares the destination buffer. */
 internal inline fun <T> stagedRegion(
-    arrays: ArraySupplier?,
+    arrays: Scratch?,
     a: DenseMatrixRegion,
     destination: DoubleArray,
     stable: DenseMatrixRegion? = null,
@@ -19,23 +19,12 @@ internal inline fun <T> stagedRegion(
     block: (DenseMatrixRegion) -> T,
 ): T {
     if (a.values !== destination) return block(a)
-    if (original != null && stable != null && a.values === original.values && a.offset == original.offset &&
-        a.rows == original.rows && a.cols == original.cols && a.leadingDimension == original.leadingDimension
-    ) {
-        return block(stable)
-    }
+    if (original != null && stable != null && sameRegion(a, original)) return block(stable)
     return arrays.borrow(DenseMatrix.entryCount(a.rows, a.cols)) { copy ->
-        for (j in 0 until a.cols) {
-            for (i in 0 until a.rows) {
-                if (lower == null || (if (lower) i >= j else i <= j)) {
-                    copy[i + j * a.rows] = if (unitDiag && i == j) {
-                        1.0
-                    } else {
-                        a.values[a.offset + i + j * a.leadingDimension]
-                    }
-                }
-            }
-        }
+        val values = a.values
+        val offset = a.offset
+        val lda = a.leadingDimension
+        copyTriangle(a.rows, a.cols, lower, unitDiag, copy) { i, j -> values[offset + i + j * lda] }
         block(DenseMatrix.wrap(a.rows, a.cols, copy))
     }
 }
@@ -54,16 +43,9 @@ internal fun regionsOverlap(a: DenseMatrixRegion, b: DenseMatrixRegion): Boolean
     return false
 }
 
-/** Length passed to each scaling kernel, either the full contiguous region or one padded column. */
-internal fun scalingLength(rows: Int, columns: Int, leadingDimension: Int): Int = when {
-    rows == 0 || columns == 0 -> 0
-    leadingDimension == rows -> rows * columns
-    else -> rows
-}
-
 /** Disjoint submatrices of the same parent need no snapshot. */
 internal inline fun <T> stagedRegion(
-    arrays: ArraySupplier?,
+    arrays: Scratch?,
     a: DenseMatrixRegion,
     destination: DenseMatrixRegion,
     stable: DenseMatrixRegion? = null,
@@ -80,11 +62,10 @@ internal inline fun <T> stagedRegion(
 internal fun scaleRegion(a: DenseMatrixRegion, beta: Double, lower: Boolean? = null, vectors: KoblasEngine? = null) {
     if (beta == 1.0 || a.rows == 0 || a.cols == 0) return
     if (lower == null && vectors != null) {
-        val length = scalingLength(a.rows, a.cols, a.leadingDimension)
         if (a.leadingDimension == a.rows) {
-            applyBeta(vectors, a.values, a.offset, length, beta)
+            applyBeta(vectors, a.values, a.offset, a.rows * a.cols, beta)
         } else {
-            for (j in 0 until a.cols) applyBeta(vectors, a.values, a.offset + j * a.leadingDimension, length, beta)
+            for (j in 0 until a.cols) applyBeta(vectors, a.values, a.offset + j * a.leadingDimension, a.rows, beta)
         }
         return
     }

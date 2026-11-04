@@ -23,21 +23,18 @@ import java.lang.invoke.MethodHandle
  * required and reported in the route.
  */
 internal class JvmVendorLibrary private constructor(
-    /** Which vendor this library is. */
-    val vendor: Vendor,
-    /** The file that opened, which is the evidence for the vendor label. */
-    val path: String,
+    override val vendor: Vendor,
+    override val candidate: String,
     private val lookup: SymbolLookup,
     private val linker: Linker,
-) {
-    /** The library's own version string, or a note that it reports none. */
-    val version: String by lazy { readVersion() }
+) : AdmissionCalls {
+    override val version: String by lazy { readVersion() }
 
     /**
      * File reported by the dynamic loader for the key symbol. A requested soname can resolve to an
      * already-loaded absolute path, so the candidate name alone does not identify the executing file.
      */
-    val resolvedFile: String by lazy { symbolOwner(vendor.keySymbol) ?: path }
+    val resolvedFile: String by lazy { symbolOwner(vendor.keySymbol) ?: candidate }
 
     private fun symbolOwner(symbol: String): String? {
         val address = lookup.find(symbol).orElse(null) ?: return null
@@ -77,42 +74,59 @@ internal class JvmVendorLibrary private constructor(
         }
     }
 
-    /**
-     * Select and verify oneMKL's LP64 interface before any other oneMKL call.
-     *
-     * The setter overrides an inherited `MKL_INTERFACE_LAYER` and returns the selected interface.
-     * A missing setter or a runtime already fixed to another interface must not reach ABI probes.
-     */
-    private fun establishIntegerInterface(): Boolean {
-        if (vendor != Vendor.OneMkl) return true
-        val handle = handleOrNull("MKL_Set_Interface_Layer", FunctionDescriptor.of(JAVA_INT, JAVA_INT))
-            ?: return false
-        return (handle.invokeExact(MKL_LP64) as Int) == MKL_LP64
+    // Every invokeExact below takes its exact type from a cast applied directly to it, or from statement position
+    // for a void call, because it converts nothing. A safe call, or a void call as a lambda's trailing
+    // expression, would give the site a boxed return type that matches no descriptor.
+
+    override fun callIntToInt(name: String, argument: Int): Int? {
+        val handle = handleOrNull(name, FunctionDescriptor.of(JAVA_INT, JAVA_INT)) ?: return null
+        val result = handle.invokeExact(argument) as Int
+        return result
     }
 
-    /**
-     * Configure one compute thread after integer interface selection and before any arithmetic.
-     *
-     * oneMKL must select its sequential layer before first use to avoid resolving a threaded layer
-     * that requires an unavailable OpenMP runtime. Thread count and dynamic expansion are fixed too.
-     * [confirmSingleThread] checks the result after the ABI probe; configuration precedes the probe
-     * because the probe itself can resolve the threading layer.
-     */
-    private fun enforceSingleThread() {
-        // Every call below sits in statement position with its handle in a local. invokeExact converts
-        // nothing, and both a safe call and a lambda's trailing expression give the site a boxed return type
-        // that will not match a void descriptor.
-        if (vendor.threadControl == ThreadControl.Environment) limitAccelerateThreads()
-        if (vendor.threadControl == ThreadControl.Mkl) {
-            val layer = handleOrNull("MKL_Set_Threading_Layer", FunctionDescriptor.of(JAVA_INT, JAVA_INT))
-            if (layer != null) layer.invokeExact(MKL_SEQUENTIAL) as Int
-            val dynamic = handleOrNull("MKL_Set_Dynamic", FunctionDescriptor.ofVoid(JAVA_INT))
-            if (dynamic != null) dynamic.invokeExact(0)
+    override fun callIntToUnit(name: String, argument: Int) {
+        val handle = handleOrNull(name, FunctionDescriptor.ofVoid(JAVA_INT)) ?: return
+        handle.invokeExact(argument)
+    }
+
+    override fun callToInt(name: String): Int? {
+        val handle = handleOrNull(name, FunctionDescriptor.of(JAVA_INT)) ?: return null
+        val result = handle.invokeExact() as Int
+        return result
+    }
+
+    override fun callIntoBuffer(name: String, size: Int): String? {
+        val handle = handleOrNull(name, FunctionDescriptor.ofVoid(ADDRESS, JAVA_INT)) ?: return null
+        Arena.ofConfined().use { arena ->
+            val buffer = arena.allocate(size.toLong())
+            handle.invokeExact(buffer, size)
+            return buffer.getString(0)
         }
+    }
+
+    override fun callToString(name: String): String? {
+        val handle = handleOrNull(name, FunctionDescriptor.of(ADDRESS)) ?: return null
+        val address = handle.invokeExact() as MemorySegment
+        if (address.equals(MemorySegment.NULL)) return null
+        return address.reinterpret(VERSION_BUFFER.toLong()).getString(0)
+    }
+
+    /** Through libc `setenv`, with overwrite on. */
+    override fun setEnvironmentVariable(name: String, value: String) {
+        val address = linker.defaultLookup().find("setenv").orElse(null) ?: return
+        val handle = linker.downcallHandle(address, FunctionDescriptor.of(JAVA_INT, ADDRESS, ADDRESS, JAVA_INT))
+        Arena.ofConfined().use { arena ->
+            handle.invokeExact(arena.allocateFrom(name), arena.allocateFrom(value), 1) as Int
+        }
+    }
+
+    override fun holdThisThread() {
         val setter = threadSetter ?: return
         setter.invokeExact(1)
         heldThreads.set(true)
     }
+
+    override fun knownAnswersMatch(): Boolean = probeDot() && probeGemm()
 
     private val threadSetter: MethodHandle? by lazy {
         vendor.threadControl.setter?.let { handleOrNull(it, FunctionDescriptor.ofVoid(JAVA_INT)) }
@@ -129,81 +143,16 @@ internal class JvmVendorLibrary private constructor(
      * first call.
      */
     fun holdCallingThread() {
-        if (heldThreads.get()) return
-        val setter = threadSetter ?: return
-        setter.invokeExact(1)
-        heldThreads.set(true)
+        if (!heldThreads.get()) holdThisThread()
     }
 
-    /**
-     * Set Accelerate's process thread limit before arithmetic through libc `setenv`.
-     * [ACCELERATE_THREAD_LIMIT] is its available control; overwrite inherited values so they cannot
-     * weaken the single-thread invariant.
-     */
-    private fun limitAccelerateThreads() {
-        val address = linker.defaultLookup().find("setenv").orElse(null) ?: return
-        val handle = linker.downcallHandle(
-            address,
-            FunctionDescriptor.of(JAVA_INT, ADDRESS, ADDRESS, JAVA_INT),
-        )
-        Arena.ofConfined().use { arena ->
-            val name = arena.allocateFrom(ACCELERATE_THREAD_LIMIT)
-            val value = arena.allocateFrom("1")
-            handle.invokeExact(name, value, 1) as Int
-        }
-    }
-
-    /** Set once at load, after [enforceSingleThread], and never again. */
+    /** Set once at load by [admit], and never again. */
     var threadEvidence: ThreadEvidence = ThreadEvidence.Unconfirmed
         private set
 
-    /**
-     * Read back the thread count after [enforceSingleThread]. A library still reporting multiple
-     * threads is rejected before arithmetic.
-     */
-    fun confirmSingleThread(): Boolean {
-        val control = vendor.threadControl
-        val getter = control.getter
-        if (getter == null) {
-            // Accelerate, held through the environment and unable to answer. Declared, not discovered.
-            threadEvidence = ThreadEvidence.Unconfirmed
-            return true
-        }
-        val handle = handleOrNull(getter, FunctionDescriptor.of(JAVA_INT))
-        if (handle == null) {
-            // A build of a known vendor without that vendor's control is not one this code knows; see
-            // ThreadControl.permitsAbsentControl for the serial-build exception.
-            if (!control.permitsAbsentControl(path)) return false
-            threadEvidence = ThreadEvidence.Confirmed
-            return true
-        }
-        if ((handle.invokeExact() as Int) != 1) return false
-        threadEvidence = ThreadEvidence.Confirmed
-        return true
-    }
-
-    /**
-     * Check ABI compatibility through the build's integer-width declaration; see [declaresWideIntegers].
-     * A known-answer arithmetic probe separately rejects libraries that bind but cannot execute.
-     */
-    fun verifiedAbi(): Boolean {
-        if (declaresWideIntegers(version)) return false
-        if (!declaredIntegerWidthMatches()) return false
-        return probeDot() && probeGemm()
-    }
-
-    /** BLIS answers the integer-width question directly; see [BLIS_INTEGER_WIDTH]. */
-    private fun declaredIntegerWidthMatches(): Boolean {
-        val handle = handleOrNull(BLIS_INTEGER_WIDTH, FunctionDescriptor.of(JAVA_INT)) ?: return true
-        return (handle.invokeExact() as Int) == LP64_INTEGER_BITS
-    }
-
     @Suppress("SpreadOperator") // The small ABI probe copies only once when a library is opened.
     private fun probeDot(): Boolean {
-        val handle = handleOrNull(
-            EngineImplementation.Dot.entryPoint,
-            FunctionDescriptor.of(JAVA_DOUBLE, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT),
-        ) ?: return false
+        val handle = handleOrNull(EngineImplementation.Dot.entryPoint, DOT) ?: return false
         Arena.ofConfined().use { arena ->
             val x = arena.allocateFrom(JAVA_DOUBLE, *AbiProbe.x)
             val y = arena.allocateFrom(JAVA_DOUBLE, *AbiProbe.y)
@@ -213,13 +162,7 @@ internal class JvmVendorLibrary private constructor(
 
     @Suppress("SpreadOperator") // The small ABI probe copies only once when a library is opened.
     private fun probeGemm(): Boolean {
-        val handle = handleOrNull(
-            EngineImplementation.Gemm.entryPoint,
-            FunctionDescriptor.ofVoid(
-                JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE,
-                ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
-            ),
-        ) ?: return false
+        val handle = handleOrNull(EngineImplementation.Gemm.entryPoint, GEMM) ?: return false
         val expected = AbiProbe.operand
         Arena.ofConfined().use { arena ->
             val a = arena.allocateFrom(JAVA_DOUBLE, *AbiProbe.identity)
@@ -233,49 +176,13 @@ internal class JvmVendorLibrary private constructor(
         }
     }
 
-    /** Whether [name] is exported. */
-    fun exports(name: String): Boolean = lookup.find(name).isPresent
-
     /** A non-critical handle for [name], or null when the library does not export it. */
     fun handleOrNull(name: String, descriptor: FunctionDescriptor): MethodHandle? {
         val address = lookup.find(name).orElse(null) ?: return null
         return linker.downcallHandle(address, descriptor)
     }
 
-    private fun readVersion(): String {
-        mklVersion()?.let { return it }
-        stringVersion("openblas_get_config")?.let { return it }
-        stringVersion("bli_info_get_version_str")?.let { return it }
-        return if (vendor == Vendor.Accelerate) "system framework" else "unreported"
-    }
-
-    /** oneMKL writes its version into a caller-supplied buffer rather than returning a pointer. */
-    private fun mklVersion(): String? {
-        val handle = handleOrNull(
-            "MKL_Get_Version_String",
-            FunctionDescriptor.ofVoid(ADDRESS, JAVA_INT),
-        ) ?: return null
-        Arena.ofConfined().use { arena ->
-            val buffer = arena.allocate(VERSION_BUFFER.toLong())
-            handle.invokeExact(buffer, VERSION_BUFFER)
-            return buffer.getString(0).trim().ifEmpty { null }
-        }
-    }
-
-    /** OpenBLAS and BLIS both return a pointer to a static string. */
-    private fun stringVersion(symbol: String): String? {
-        val handle = handleOrNull(symbol, FunctionDescriptor.of(ADDRESS)) ?: return null
-        val address = handle.invokeExact() as MemorySegment
-        if (address.equals(MemorySegment.NULL)) return null
-        return address.reinterpret(VERSION_BUFFER.toLong()).getString(0).trim().ifEmpty { null }
-    }
-
     companion object {
-        private const val VERSION_BUFFER = 256
-
-        /** `MKL_THREADING_SEQUENTIAL`. */
-        private const val MKL_SEQUENTIAL = 1
-
         /** `Dl_info` is four pointers, of which only the first, `dli_fname`, is read. */
         private const val DL_INFO_BYTES = 32L
         private const val PATH_BYTES = 4096L
@@ -317,12 +224,96 @@ internal class JvmVendorLibrary private constructor(
                 return null // native access denied to this module
             }
             val library = JvmVendorLibrary(vendor, candidate, lookup, linker)
-            // oneMKL interface selection must precede dynamic/thread controls, version reads and probes.
-            if (!library.establishIntegerInterface()) return null
-            library.enforceSingleThread()
-            if (!library.verifiedAbi()) return null
-            if (!library.confirmSingleThread()) return null
+            library.threadEvidence = library.admit() ?: return null
             return library
         }
     }
+}
+
+private val DOT = FunctionDescriptor.of(JAVA_DOUBLE, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT)
+private val PAIR = FunctionDescriptor.ofVoid(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT)
+private val RANK_TWO = FunctionDescriptor.ofVoid(
+    JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT,
+)
+private val TRIANGULAR_VECTOR = FunctionDescriptor.ofVoid(
+    JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT,
+)
+private val GEMM = FunctionDescriptor.ofVoid(
+    JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE,
+    ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
+)
+private val SYMM = FunctionDescriptor.ofVoid(
+    JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE,
+    ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
+)
+private val TRIANGULAR_MATRIX = FunctionDescriptor.ofVoid(
+    JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE,
+    ADDRESS, JAVA_INT, ADDRESS, JAVA_INT,
+)
+
+/**
+ * The foreign shape of [operation]'s CBLAS entry point, or null when it is not a foreign call. Routines that
+ * share a signature share a descriptor: `dgemmt` has `dgemm`'s, `dsyr2k` has `dsymm`'s and `dsyr2` has `dger`'s.
+ *
+ * `CBLAS_INDEX` is `size_t` in the reference header and in several vendors, and `int` in others. The low 32 bits
+ * agree for every index a 32-bit BLAS integer can address, so binding `idamax` as `int` reads the same value
+ * either way and avoids depending on which one this library used.
+ */
+internal fun descriptorFor(operation: EngineImplementation): FunctionDescriptor? = when (operation) {
+    EngineImplementation.Dot -> DOT
+
+    EngineImplementation.Nrm2, EngineImplementation.Asum ->
+        FunctionDescriptor.of(JAVA_DOUBLE, JAVA_INT, ADDRESS, JAVA_INT)
+
+    EngineImplementation.Iamax -> FunctionDescriptor.of(JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT)
+
+    EngineImplementation.Axpy ->
+        FunctionDescriptor.ofVoid(JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT)
+
+    EngineImplementation.Scale -> FunctionDescriptor.ofVoid(JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT)
+
+    EngineImplementation.Copy, EngineImplementation.Swap -> PAIR
+
+    EngineImplementation.Rot ->
+        FunctionDescriptor.ofVoid(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, JAVA_DOUBLE)
+
+    EngineImplementation.Gemv, EngineImplementation.GemvTransposed -> FunctionDescriptor.ofVoid(
+        JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
+        ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
+    )
+
+    EngineImplementation.Symv -> FunctionDescriptor.ofVoid(
+        JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
+        ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
+    )
+
+    EngineImplementation.Ger, EngineImplementation.Syr2 -> RANK_TWO
+
+    EngineImplementation.Syr -> FunctionDescriptor.ofVoid(
+        JAVA_INT,
+        JAVA_INT,
+        JAVA_INT,
+        JAVA_DOUBLE,
+        ADDRESS,
+        JAVA_INT,
+        ADDRESS,
+        JAVA_INT,
+    )
+
+    EngineImplementation.Trmv, EngineImplementation.TrmvTransposed,
+    EngineImplementation.Trsv, EngineImplementation.TrsvTransposed,
+    -> TRIANGULAR_VECTOR
+
+    EngineImplementation.Gemm, EngineImplementation.Gemmt -> GEMM
+
+    EngineImplementation.Symm, EngineImplementation.Syr2k -> SYMM
+
+    EngineImplementation.Syrk -> FunctionDescriptor.ofVoid(
+        JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE,
+        ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
+    )
+
+    EngineImplementation.Trmm, EngineImplementation.Trsm -> TRIANGULAR_MATRIX
+
+    else -> null
 }

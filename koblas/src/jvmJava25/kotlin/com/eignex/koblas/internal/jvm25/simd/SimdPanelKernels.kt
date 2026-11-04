@@ -31,12 +31,8 @@ internal object SimdPanelKernels : EngineKernels {
     private val SPECIES = SIMD_SPECIES
     private val LANE = SPECIES.length()
 
-    /**
-     * Cache the name so scheduling decisions that compare it do not allocate.
-     */
-    private val NAME: String = "simd-panel($LANE lanes)"
-
-    override val name: String get() = NAME
+    /** Stored so scheduling decisions that compare it do not allocate. */
+    override val name: String = "simd-panel($LANE lanes)"
 
     /**
      * Structural minimum of one whole lane block. Measurements did not establish a robust higher
@@ -78,7 +74,7 @@ internal object SimdPanelKernels : EngineKernels {
     override fun prefersContiguous(work: PanelWork, rows: Int, columns: Int): Boolean =
         rows >= COPY_WORTH_BLOCKS * LANE && !vectorizes(rows, contiguous = false)
 
-    internal fun implementationFor(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean): String =
+    override fun implementationFor(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean): String =
         if (vectorizes(rows, contiguous) || (contiguous && reachesShortBody(work, rows))) {
             name
         } else {
@@ -124,7 +120,7 @@ internal object SimdPanelKernels : EngineKernels {
             c += NARROW_GROUP
         }
         while (c < columns) {
-            store(y, yOffset + c * yStride, alpha, dotOne(a, aOffset + c * lda, x, xOffset, rows), beta)
+            store(y, yOffset + c * yStride, alpha, SimdOps.dot(a, aOffset + c * lda, x, xOffset, rows), beta)
             c++
         }
     }
@@ -200,8 +196,11 @@ internal object SimdPanelKernels : EngineKernels {
         store(y, yOffset + 7 * yStride, alpha, s7, beta)
     }
 
-    /** Four columns per pass over the shared vector, one chain each. */
-    private fun dotFour(
+    /**
+     * Four columns per pass over the shared vector, one chain each. [lda] and [yStride] may be negative,
+     * which is how a triangular group walks its lines from the far end.
+     */
+    internal fun dotFour(
         alpha: Double,
         a: DoubleArray,
         aOffset: Int,
@@ -230,10 +229,12 @@ internal object SimdPanelKernels : EngineKernels {
             v3 = multiplyAdd(DoubleVector.fromArray(SPECIES, a, a3 + i), xv, v3)
             i += LANE
         }
-        var s0 = v0.reduceLanes(VectorOperators.ADD)
-        var s1 = v1.reduceLanes(VectorOperators.ADD)
-        var s2 = v2.reduceLanes(VectorOperators.ADD)
-        var s3 = v3.reduceLanes(VectorOperators.ADD)
+        // A run shorter than a lane block, common in a triangular group, skips four empty reductions.
+        val vectored = i > 0
+        var s0 = if (vectored) v0.reduceLanes(VectorOperators.ADD) else 0.0
+        var s1 = if (vectored) v1.reduceLanes(VectorOperators.ADD) else 0.0
+        var s2 = if (vectored) v2.reduceLanes(VectorOperators.ADD) else 0.0
+        var s3 = if (vectored) v3.reduceLanes(VectorOperators.ADD) else 0.0
         while (i < rows) {
             val xi = x[xOffset + i]
             s0 += a[aOffset + i] * xi
@@ -282,10 +283,6 @@ internal object SimdPanelKernels : EngineKernels {
         store(y, yOffset, alpha, s0, beta)
         store(y, yOffset + yStride, alpha, s1, beta)
     }
-
-    /** A single column is the vector kernel's dot, which keeps several accumulators on a long run. */
-    private fun dotOne(a: DoubleArray, aOffset: Int, x: DoubleArray, xOffset: Int, rows: Int): Double =
-        SimdOps.dot(a, aOffset, x, xOffset, rows)
 
     override fun columnUpdate(
         alpha: Double,
@@ -342,10 +339,11 @@ internal object SimdPanelKernels : EngineKernels {
             c += WIDE_GROUP
         }
         while (c + NARROW_GROUP <= columns) {
-            updateTwo(
+            val at = aOffset + c * lda
+            indexedUpdateTwo(
                 a,
-                aOffset + c * lda,
-                lda,
+                at,
+                at + lda,
                 rows,
                 y,
                 yOffset,
@@ -414,7 +412,8 @@ internal object SimdPanelKernels : EngineKernels {
         }
     }
 
-    private fun updateFour(
+    /** `y += t0 · a0 + … + t3 · a3` over four lines [lda] apart; [lda] may be negative, as [dotFour]'s may. */
+    internal fun updateFour(
         a: DoubleArray,
         aOffset: Int,
         lda: Int,
@@ -448,34 +447,8 @@ internal object SimdPanelKernels : EngineKernels {
         }
     }
 
-    private fun updateTwo(
-        a: DoubleArray,
-        aOffset: Int,
-        lda: Int,
-        rows: Int,
-        y: DoubleArray,
-        yOffset: Int,
-        t0: Double,
-        t1: Double,
-    ) {
-        val c0 = DoubleVector.broadcast(SPECIES, t0)
-        val c1 = DoubleVector.broadcast(SPECIES, t1)
-        var i = 0
-        val bound = SPECIES.loopBound(rows)
-        while (i < bound) {
-            var acc = DoubleVector.fromArray(SPECIES, y, yOffset + i)
-            acc = multiplyAdd(DoubleVector.fromArray(SPECIES, a, aOffset + i), c0, acc)
-            acc = multiplyAdd(DoubleVector.fromArray(SPECIES, a, aOffset + i + lda), c1, acc)
-            acc.intoArray(y, yOffset + i)
-            i += LANE
-        }
-        while (i < rows) {
-            y[yOffset + i] += t0 * a[aOffset + i] + t1 * a[aOffset + i + lda]
-            i++
-        }
-    }
-
-    private fun updateOne(a: DoubleArray, aOffset: Int, rows: Int, y: DoubleArray, yOffset: Int, t: Double) {
+    /** `y += t · a` over one contiguous run, shared by every single-column update and scatter. */
+    internal fun updateOne(a: DoubleArray, aOffset: Int, rows: Int, y: DoubleArray, yOffset: Int, t: Double) {
         val coefficient = DoubleVector.broadcast(SPECIES, t)
         var i = 0
         val bound = SPECIES.loopBound(rows)
@@ -735,10 +708,11 @@ internal object SimdPanelKernels : EngineKernels {
             }
         }
         while (c + NARROW_GROUP <= columns) {
-            rankTwo(
+            val at = aOffset + c * lda
+            rankTwoAt(
                 a,
-                aOffset + c * lda,
-                lda,
+                at,
+                at + lda,
                 x,
                 xOffset,
                 rows,
@@ -748,12 +722,12 @@ internal object SimdPanelKernels : EngineKernels {
             c += NARROW_GROUP
         }
         while (c < columns) {
-            rankOne(
-                a,
-                aOffset + c * lda,
+            updateOne(
                 x,
                 xOffset,
                 rows,
+                a,
+                aOffset + c * lda,
                 alpha * coefficients[coefficientOffset + c * coefficientStride],
             )
             c++
@@ -914,53 +888,6 @@ internal object SimdPanelKernels : EngineKernels {
         }
     }
 
-    private fun rankTwo(
-        a: DoubleArray,
-        aOffset: Int,
-        lda: Int,
-        x: DoubleArray,
-        xOffset: Int,
-        rows: Int,
-        t0: Double,
-        t1: Double,
-    ) {
-        val c0 = DoubleVector.broadcast(SPECIES, t0)
-        val c1 = DoubleVector.broadcast(SPECIES, t1)
-        var i = 0
-        val bound = SPECIES.loopBound(rows)
-        while (i < bound) {
-            val xv = DoubleVector.fromArray(SPECIES, x, xOffset + i)
-            multiplyAdd(xv, c0, DoubleVector.fromArray(SPECIES, a, aOffset + i)).intoArray(a, aOffset + i)
-            multiplyAdd(xv, c1, DoubleVector.fromArray(SPECIES, a, aOffset + i + lda))
-                .intoArray(a, aOffset + i + lda)
-            i += LANE
-        }
-        while (i < rows) {
-            val v = x[xOffset + i]
-            a[aOffset + i] += t0 * v
-            a[aOffset + i + lda] += t1 * v
-            i++
-        }
-    }
-
-    private fun rankOne(a: DoubleArray, aOffset: Int, x: DoubleArray, xOffset: Int, rows: Int, t: Double) {
-        val coefficient = DoubleVector.broadcast(SPECIES, t)
-        var i = 0
-        val bound = SPECIES.loopBound(rows)
-        while (i < bound) {
-            multiplyAdd(
-                DoubleVector.fromArray(SPECIES, x, xOffset + i),
-                coefficient,
-                DoubleVector.fromArray(SPECIES, a, aOffset + i),
-            ).intoArray(a, aOffset + i)
-            i += LANE
-        }
-        while (i < rows) {
-            a[aOffset + i] += t * x[xOffset + i]
-            i++
-        }
-    }
-
     /**
      * The indexed column update in lanes of right-hand sides.
      *
@@ -1080,7 +1007,8 @@ internal object SimdPanelKernels : EngineKernels {
             c += NARROW_GROUP
         }
         while (c < columns) {
-            rankOne(a, aOffset + indices[fromIndex + c] * indexStride, x, xOffset, rows, alpha * values[fromIndex + c])
+            val at = aOffset + indices[fromIndex + c] * indexStride
+            updateOne(x, xOffset, rows, a, at, alpha * values[fromIndex + c])
             c++
         }
     }
@@ -1153,29 +1081,10 @@ internal object SimdPanelKernels : EngineKernels {
             val sourceAt = offset + indices[fromIndex + c] * indexStride
             // Separate bodies avoid a branch between stores that prevents vector allocation elimination.
             if (c == excluded) {
-                scatterOnly(t, a, at, b, pivot, rows)
+                updateOne(b, pivot, rows, a, at, t)
             } else {
                 scatterAndReduce(t, a, at, b, pivot, sums, sumOffset, rows, sourceAt)
             }
-        }
-    }
-
-    /** One position of the coupled pass that scatters and is not reduced, which is a symmetric diagonal. */
-    private fun scatterOnly(t: Double, a: DoubleArray, at: Int, b: DoubleArray, pivot: Int, rows: Int) {
-        val coefficient = DoubleVector.broadcast(SPECIES, t)
-        var i = 0
-        val bound = SPECIES.loopBound(rows)
-        while (i < bound) {
-            multiplyAdd(
-                DoubleVector.fromArray(SPECIES, b, pivot + i),
-                coefficient,
-                DoubleVector.fromArray(SPECIES, a, at + i),
-            ).intoArray(a, at + i)
-            i += LANE
-        }
-        while (i < rows) {
-            a[at + i] += t * b[pivot + i]
-            i++
         }
     }
 

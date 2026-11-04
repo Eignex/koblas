@@ -182,20 +182,15 @@ class DenseOperationsTest {
     }
 
     @Test
-    fun `contiguous and borrowed operands mix in allocating overloads`() = withRegionEngines { blas ->
+    fun `contiguous and borrowed operands mix in the allocating gemm`() = withRegionEngines { blas ->
         val a = paddedRegion(4, 3)
         val b = contiguousCopy(paddedRegion(3, 5, 2))
         val expected = DenseMatrix.zero(4, 5)
         ReferenceBlas.gemm(1.0, contiguousCopy(a), false, b, false, 0.0, expected)
-        val x = DoubleArray(3) { it / 4.0 }
-        val vector = DoubleArray(4)
-        ReferenceBlas.gemv(1.0, contiguousCopy(a), x, 0.0, vector)
 
-        val product = blas.gemm(a, b)
-        val image = blas.gemv(a, x)
+        val product = blas.gemm(a, b) as DenseMatrix
 
         assertClose(expected, product, "mixed storage gemm")
-        assertClose(vector, image, "allocating view gemv")
     }
 
     @Test
@@ -480,9 +475,9 @@ class DenseOperationsTest {
     @Test
     fun `gemv and gemm reject incompatible shapes`() {
         assertFailsWith<DimensionMismatch> { DenseMatrix(2, 3) * DenseMatrix(2, 2) }
-        assertFailsWith<DimensionMismatch> { koblas.gemv(DenseMatrix(2, 3), DoubleArray(2)) }
+        assertFailsWith<DimensionMismatch> { koblas.gemv(1.0, DenseMatrix(2, 3), DoubleArray(2), 0.0, DoubleArray(2)) }
         assertFailsWith<DimensionMismatch> {
-            koblas.gemv(DenseMatrix(2, 3), DoubleArray(3), transpose = true)
+            koblas.gemv(1.0, DenseMatrix(2, 3), DoubleArray(3), 0.0, DoubleArray(3), transpose = true)
         }
     }
 
@@ -912,25 +907,5 @@ class DenseOperationsTest {
 
         assertContentEquals(expected, destination)
         assertEquals(0, workspace.available(n), "the addressed call borrowed a gather")
-    }
-
-    // The extents hold no elements, so a call that sized its result before checking the vector would fail on the
-    // allocation rather than on the shape.
-    @Test
-    fun `allocating gemv rejects incompatible vectors before oversized results`() = withEngines { blas ->
-        for (transpose in booleanArrayOf(false, true)) {
-            val rows = if (transpose) 0 else Int.MAX_VALUE
-            val cols = if (transpose) Int.MAX_VALUE else 0
-
-            val failure = assertFailsWith<DimensionMismatch> {
-                blas.gemv(DenseMatrix.zero(rows, cols), doubleArrayOf(1.0), transpose)
-            }
-
-            assertEquals(
-                "gemv: ${rows}x$cols with transpose=$transpose needs x=0 and y=${Int.MAX_VALUE}, " +
-                    "got x=1 and y=${Int.MAX_VALUE}",
-                failure.message,
-            )
-        }
     }
 }

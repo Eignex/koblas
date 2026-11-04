@@ -46,7 +46,7 @@ internal fun declined(): ArmChoice =
  *
  * [verify] runs before anything is timed and compares the whole destination buffer against [DenseReference].
  */
-private fun level23(
+internal fun level23(
     engine: KoblasEngine,
     case: BenchCase,
     timing: String,

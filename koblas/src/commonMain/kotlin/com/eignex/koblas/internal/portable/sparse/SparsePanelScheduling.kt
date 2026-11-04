@@ -4,7 +4,6 @@ import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.portable.dense.scalarDivide
-import com.eignex.koblas.internal.portable.dense.scalarEvaluatedAxpy
 import com.eignex.koblas.internal.sparse.*
 import com.eignex.koblas.sparse.*
 
@@ -70,8 +69,8 @@ internal fun KoblasEngine.sparseSymmetricLeftColumn(
     indexStride: Int,
     width: Int,
     lower: Boolean,
-    cOffset: Int = offset,
-    cRhsStride: Int = rhsStride,
+    cOffset: Int,
+    cRhsStride: Int,
 ) {
     val start = selectedRunStart(rowIndices, fromIndex, toIndex, column, lower)
     val end = selectedRunEnd(rowIndices, fromIndex, toIndex, column, lower)
@@ -88,37 +87,6 @@ internal fun KoblasEngine.sparseSymmetricLeftColumn(
         alpha, c, b, offset, rhsStride, indexStride, rowIndices, values, start, end - start, width,
         pivot, c, cOffset + column * indexStride, diagonal, cOffset, cRhsStride, indexStride,
     )
-}
-
-/**
- * One CSC column of a symmetric product with the dense block on the left, where both halves of the
- * product update whole contiguous dense columns and therefore reach the selected Level 1 `axpy`.
- */
-@Suppress("LongParameterList") // one CSC column slice against a dense block from the right
-internal fun KoblasEngine.sparseSymmetricRightColumn(
-    alpha: Double,
-    column: Int,
-    rowIndices: IntArray,
-    values: DoubleArray,
-    fromIndex: Int,
-    toIndex: Int,
-    b: DoubleArray,
-    c: DoubleArray,
-    rows: Int,
-    lower: Boolean,
-    bOffset: Int = 0,
-    ldb: Int = rows,
-    cOffset: Int = 0,
-    ldc: Int = rows,
-) {
-    for (position in fromIndex until toIndex) {
-        val row = rowIndices[position]
-        if (if (lower) row >= column else row <= column) {
-            val coefficient = alpha * values[position]
-            sparseEvaluatedAxpy(c, cOffset + row * ldc, coefficient, b, bOffset + column * ldb, rows)
-            if (row != column) sparseEvaluatedAxpy(c, cOffset + column * ldc, coefficient, b, bOffset + row * ldb, rows)
-        }
-    }
 }
 
 /**
@@ -186,35 +154,6 @@ internal fun KoblasEngine.sparseScatterProductPanel(
 }
 
 /**
- * One CSC column of a product whose sparse operand sits on the right, which is a whole contiguous dense
- * column update per stored entry and therefore the selected Level 1 `axpy`.
- */
-@Suppress("LongParameterList") // the column slice, its orientation, and both dense windows
-internal fun KoblasEngine.sparseRightProductColumn(
-    alpha: Double,
-    column: Int,
-    rowIndices: IntArray,
-    values: DoubleArray,
-    fromIndex: Int,
-    toIndex: Int,
-    transposeSparse: Boolean,
-    b: DoubleArray,
-    leadingDimension: Int,
-    c: DoubleArray,
-    rows: Int,
-    bOrigin: Int = 0,
-    cOrigin: Int = 0,
-    ldc: Int = rows,
-) {
-    for (position in fromIndex until toIndex) {
-        val row = rowIndices[position]
-        val cOffset = cOrigin + (if (transposeSparse) row else column) * ldc
-        val bColumn = if (transposeSparse) column else row
-        sparseEvaluatedAxpy(c, cOffset, alpha * values[position], b, bOrigin + bColumn * leadingDimension, rows)
-    }
-}
-
-/**
  * One triangular column against a panel of right-hand sides, in the direction that finishes the pivot
  * first and then updates the rows below it.
  *
@@ -229,12 +168,11 @@ internal fun KoblasEngine.sparseRightProductColumn(
  * one dead right-hand side keeps the written-out loop, whatever the layout, so the rule survives on
  * every backend rather than becoming a property of the one that does not vectorise.
  */
-@Suppress("LongParameterList") // the column slice, its three triangle flags, and the panel window
+@Suppress("LongParameterList") // the column slice, its two triangle flags, and the panel window
 internal fun KoblasEngine.sparseTriangularPanelScatter(
     solve: Boolean,
     column: Int,
     lower: Boolean,
-    unitDiagonal: Boolean,
     diagonal: Double,
     rowIndices: IntArray,
     values: DoubleArray,
@@ -260,11 +198,7 @@ internal fun KoblasEngine.sparseTriangularPanelScatter(
         work[width + rhs] = if (raw == 0.0) 0.0 else 1.0
         if (raw != 0.0) {
             live++
-            dense[at] = when {
-                solve -> work[rhs]
-                unitDiagonal -> raw
-                else -> diagonal * raw
-            }
+            dense[at] = if (solve) work[rhs] else diagonal * raw
         }
     }
     val start = strictRunStart(rowIndices, fromIndex, toIndex, column, lower)
@@ -289,12 +223,11 @@ internal fun KoblasEngine.sparseTriangularPanelScatter(
  * pivot into rows it has not, so every right-hand side contributes and the whole strictly triangular run
  * is one panel call. The accumulation lands in [work], which is adjacent whatever the block's layout is.
  */
-@Suppress("LongParameterList") // the column slice, its three triangle flags, and the panel window
+@Suppress("LongParameterList") // the column slice, its two triangle flags, and the panel window
 internal fun KoblasEngine.sparseTriangularPanelGather(
     solve: Boolean,
     column: Int,
     lower: Boolean,
-    unitDiagonal: Boolean,
     diagonal: Double,
     rowIndices: IntArray,
     values: DoubleArray,
@@ -310,7 +243,7 @@ internal fun KoblasEngine.sparseTriangularPanelGather(
     val pivot = offset + column * indexStride
     for (rhs in 0 until width) {
         val raw = dense[pivot + rhs * rhsStride]
-        work[rhs] = if (solve || unitDiagonal) raw else diagonal * raw
+        work[rhs] = if (solve) raw else diagonal * raw
     }
     val start = strictRunStart(rowIndices, fromIndex, toIndex, column, lower)
     val end = strictRunEnd(rowIndices, fromIndex, toIndex, column, lower)
@@ -347,8 +280,8 @@ internal fun KoblasEngine.sparseTriangularRightColumn(
     toIndex: Int,
     dense: DoubleArray,
     rows: Int,
-    origin: Int = 0,
-    leadingDimension: Int = rows,
+    origin: Int,
+    leadingDimension: Int,
 ) {
     val columnOffset = origin + column * leadingDimension
     if (gather && !unitDiagonal) sparseApplyDiagonal(dense, columnOffset, rows, diagonal, solve)
@@ -380,29 +313,6 @@ private fun KoblasEngine.sparseApplyDiagonal(
     } else {
         this.scale(dense, offset, diagonal, rows)
     }
-}
-
-/**
- * `y += alpha · x` over a contiguous run, forming the product even where [alpha] is zero.
- *
- * This update represents a stored sparse position, including an explicit zero. Its participation is
- * required by the sparse structural contract, unlike a zero coefficient in a dense update. Level 1
- * `axpy` skips a zero multiplier, so that case needs its own loop here.
- */
-@Suppress("LongParameterList") // the two windows and the run length
-private fun KoblasEngine.sparseEvaluatedAxpy(
-    y: DoubleArray,
-    yOffset: Int,
-    alpha: Double,
-    x: DoubleArray,
-    xOffset: Int,
-    length: Int,
-) {
-    if (alpha != 0.0) {
-        this.axpy(y, yOffset, alpha, x, xOffset, length)
-        return
-    }
-    scalarEvaluatedAxpy(y, yOffset, alpha, x, xOffset, length)
 }
 
 /**

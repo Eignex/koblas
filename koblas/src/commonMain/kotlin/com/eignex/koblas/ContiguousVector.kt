@@ -14,8 +14,6 @@ import kotlinx.serialization.Serializable
 public class ContiguousVector internal constructor(public override val values: DoubleArray) :
     VectorStorage,
     DenseVector {
-    internal constructor(size: Int) : this(DoubleArray(size))
-
     override val size: Int get() = values.size
     override val offset: Int get() = 0
     override val stride: Int get() = 1

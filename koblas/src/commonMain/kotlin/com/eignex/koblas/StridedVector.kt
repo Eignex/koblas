@@ -3,6 +3,7 @@
 
 package com.eignex.koblas
 
+import com.eignex.koblas.internal.operands.requireVectorWindow
 import com.eignex.koblas.internal.operands.windowsOverlap
 import kotlin.jvm.JvmOverloads
 
@@ -21,8 +22,6 @@ public class StridedVector @JvmOverloads constructor(
     public override val stride: Int = 1,
 ) : DenseVector {
     init {
-        requireShape(size >= 0) { "negative size: $size" }
-        require(stride != 0) { "stride must not be zero" }
         requireViewBounds(values.size, offset, size, stride, "vector")
     }
 
@@ -60,8 +59,6 @@ public fun DenseVector.asView(): StridedVector = StridedVector(values, offset, s
  */
 @JvmOverloads
 public fun DenseVector.view(offset: Int, size: Int, stride: Int = 1): StridedVector {
-    requireShape(size >= 0) { "negative size: $size" }
-    require(stride != 0) { "stride must not be zero" }
     requireViewBounds(this.size, offset, size, stride, "logical vector")
     val physicalStride = this.stride.toLong() * stride
     requireShape(physicalStride in Int.MIN_VALUE.toLong()..Int.MAX_VALUE.toLong()) {
@@ -73,15 +70,10 @@ public fun DenseVector.view(offset: Int, size: Int, stride: Int = 1): StridedVec
     return StridedVector(values, origin.toInt(), size, physicalStride.toInt())
 }
 
+/** An empty view addresses no entry, yet its origin must still lie within the buffer or at its end. */
 private fun requireViewBounds(bufferSize: Int, offset: Int, size: Int, stride: Int, description: String) {
-    if (size == 0) {
-        requireShape(offset in 0..bufferSize) { "$description view offset $offset exceeds buffer length $bufferSize" }
-        return
-    }
-    val last = offset.toLong() + (size - 1).toLong() * stride
-    val firstPhysical = minOf(offset.toLong(), last)
-    val lastPhysical = maxOf(offset.toLong(), last)
-    requireShape(firstPhysical >= 0 && lastPhysical < bufferSize) {
-        "$description view addresses [$firstPhysical, $lastPhysical] outside buffer length $bufferSize"
+    requireVectorWindow(bufferSize, offset, size, stride, "$description view")
+    requireShape(size != 0 || offset in 0..bufferSize) {
+        "$description view offset $offset exceeds buffer length $bufferSize"
     }
 }

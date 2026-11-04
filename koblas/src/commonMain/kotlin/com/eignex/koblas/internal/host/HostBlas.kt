@@ -44,14 +44,9 @@ internal abstract class HostBlas : EngineKernels {
         structure: MatrixStructure,
     )
 
-    protected abstract fun cblasTrsv(
-        a: DenseMatrixRegion,
-        structure: MatrixStructure,
-        transposeA: Boolean,
-        x: DenseVector,
-    )
-
-    protected abstract fun cblasTrmv(
+    /** `cblas_dtrsv` or `cblas_dtrmv`, as [operation] names, which share one signature. */
+    protected abstract fun cblasTriangularVector(
+        operation: EngineImplementation,
         a: DenseMatrixRegion,
         structure: MatrixStructure,
         transposeA: Boolean,
@@ -108,16 +103,9 @@ internal abstract class HostBlas : EngineKernels {
         structure: MatrixStructure,
     )
 
-    protected abstract fun cblasTrmm(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        structure: MatrixStructure,
-        transposeA: Boolean,
-        b: DenseMatrixRegion,
-        rightSide: Boolean,
-    )
-
-    protected abstract fun cblasTrsm(
+    /** `cblas_dtrsm` or `cblas_dtrmm`, as [operation] names, which share one signature. */
+    protected abstract fun cblasTriangularMatrix(
+        operation: EngineImplementation,
         alpha: Double,
         a: DenseMatrixRegion,
         structure: MatrixStructure,
@@ -148,8 +136,7 @@ internal abstract class HostBlas : EngineKernels {
         requireExport(EngineImplementation.Gemv)
         val rows = if (transpose) a.cols else a.rows
         val depth = if (transpose) a.rows else a.cols
-        val arrays = scratch?.arrays
-        prepareMatrixVector(this, alpha, a, transpose, x, xOffset, xStride, beta, y, yOffset, yStride, null, arrays) {
+        prepareMatrixVector(this, alpha, a, transpose, x, xOffset, xStride, beta, y, yOffset, yStride, null, scratch) {
                 sa,
                 sx,
                 so,
@@ -181,8 +168,7 @@ internal abstract class HostBlas : EngineKernels {
     ) {
         requireExport(EngineImplementation.Symv)
         requireSquare(a, "symv")
-        val arrays = scratch?.arrays
-        prepareMatrixVector(this, alpha, a, false, x, xOffset, xStride, beta, y, yOffset, yStride, lower, arrays) {
+        prepareMatrixVector(this, alpha, a, false, x, xOffset, xStride, beta, y, yOffset, yStride, lower, scratch) {
                 sa,
                 sx,
                 so,
@@ -212,7 +198,7 @@ internal abstract class HostBlas : EngineKernels {
         scratch: Scratch?,
     ) {
         requireExport(EngineImplementation.Ger)
-        prepareRankUpdate(alpha, x, xOffset, xStride, y, yOffset, yStride, a, scratch?.arrays) {
+        prepareRankUpdate(alpha, x, xOffset, xStride, y, yOffset, yStride, a, scratch) {
                 sx,
                 xo,
                 xs,
@@ -235,7 +221,7 @@ internal abstract class HostBlas : EngineKernels {
     ) {
         requireExport(EngineImplementation.Syr)
         requireSquare(a, "syr")
-        prepareRankUpdate(alpha, x, xOffset, xStride, x, xOffset, xStride, a, scratch?.arrays) { sx, xo, xs, _, _, _ ->
+        prepareRankUpdate(alpha, x, xOffset, xStride, x, xOffset, xStride, a, scratch) { sx, xo, xs, _, _, _ ->
             cblasSyr(alpha, StridedVector(sx, xo, a.rows, xs), a, symmetricStructure(lower))
         }
     }
@@ -254,7 +240,7 @@ internal abstract class HostBlas : EngineKernels {
     ) {
         requireExport(EngineImplementation.Syr2)
         requireSquare(a, "syr2")
-        prepareRankUpdate(alpha, x, xOffset, xStride, y, yOffset, yStride, a, scratch?.arrays) {
+        prepareRankUpdate(alpha, x, xOffset, xStride, y, yOffset, yStride, a, scratch) {
                 sx,
                 xo,
                 xs,
@@ -278,8 +264,9 @@ internal abstract class HostBlas : EngineKernels {
         scratch: Scratch?,
     ) {
         requireExport(EngineImplementation.Trsv)
-        prepareTriangularVector(a, x, xOffset, xStride, lower, unitDiag, "trsv", scratch?.arrays) { sa ->
-            cblasTrsv(sa, triangle(lower, unitDiag), transpose, StridedVector(x, xOffset, a.rows, xStride))
+        prepareTriangularVector(a, x, xOffset, xStride, lower, unitDiag, "trsv", scratch) { sa ->
+            val vector = StridedVector(x, xOffset, a.rows, xStride)
+            cblasTriangularVector(EngineImplementation.Trsv, sa, triangle(lower, unitDiag), transpose, vector)
         }
     }
 
@@ -294,8 +281,9 @@ internal abstract class HostBlas : EngineKernels {
         scratch: Scratch?,
     ) {
         requireExport(EngineImplementation.Trmv)
-        prepareTriangularVector(a, x, xOffset, xStride, lower, unitDiag, "trmv", scratch?.arrays) { sa ->
-            cblasTrmv(sa, triangle(lower, unitDiag), transpose, StridedVector(x, xOffset, a.rows, xStride))
+        prepareTriangularVector(a, x, xOffset, xStride, lower, unitDiag, "trmv", scratch) { sa ->
+            val vector = StridedVector(x, xOffset, a.rows, xStride)
+            cblasTriangularVector(EngineImplementation.Trmv, sa, triangle(lower, unitDiag), transpose, vector)
         }
     }
 
@@ -312,7 +300,7 @@ internal abstract class HostBlas : EngineKernels {
         requireExport(EngineImplementation.Gemm)
         requireGemmOperands(a, transposeA, b, transposeB, c)
         val depth = if (transposeA) a.rows else a.cols
-        prepareProduct(alpha, a, b, beta, c, depth, null, null, null, scratch?.arrays) { sa, sb ->
+        prepareProduct(alpha, a, b, beta, c, depth, null, null, null, scratch) { sa, sb ->
             cblasGemm(alpha, sa, transposeA, sb, transposeB, beta, c)
         }
     }
@@ -331,7 +319,7 @@ internal abstract class HostBlas : EngineKernels {
         requireExport(EngineImplementation.Gemmt)
         requireGemmtOperands(a, transposeA, b, transposeB, c)
         val depth = if (transposeA) a.rows else a.cols
-        prepareProduct(alpha, a, b, beta, c, depth, lower, null, null, scratch?.arrays) { sa, sb ->
+        prepareProduct(alpha, a, b, beta, c, depth, lower, null, null, scratch) { sa, sb ->
             cblasGemmt(alpha, sa, transposeA, sb, transposeB, beta, c, symmetricStructure(lower))
         }
     }
@@ -350,7 +338,7 @@ internal abstract class HostBlas : EngineKernels {
         requireSymmOperands(a, b, c, right)
         // One operand serving both sides needs a full snapshot, since the second reads the triangle the first skips.
         val aTriangle = if (sameRegion(a, b)) null else lower
-        prepareProduct(alpha, a, b, beta, c, a.rows, null, aTriangle, this, scratch?.arrays) { sa, sb ->
+        prepareProduct(alpha, a, b, beta, c, a.rows, null, aTriangle, this, scratch) { sa, sb ->
             cblasSymm(alpha, sa, symmetricStructure(lower), sb, beta, c, right)
         }
     }
@@ -367,7 +355,7 @@ internal abstract class HostBlas : EngineKernels {
         requireExport(EngineImplementation.Syrk)
         requireSyrkOperands(a, transpose, c)
         val depth = if (transpose) a.rows else a.cols
-        prepareProduct(alpha, a, a, beta, c, depth, lower, null, null, scratch?.arrays) { sa, _ ->
+        prepareProduct(alpha, a, a, beta, c, depth, lower, null, null, scratch) { sa, _ ->
             cblasSyrk(alpha, sa, transpose, beta, c, symmetricStructure(lower))
         }
     }
@@ -385,7 +373,7 @@ internal abstract class HostBlas : EngineKernels {
         requireExport(EngineImplementation.Syr2k)
         requireSyr2kOperands(a, b, transpose, c)
         val depth = if (transpose) a.rows else a.cols
-        prepareProduct(alpha, a, b, beta, c, depth, lower, null, null, scratch?.arrays) { sa, sb ->
+        prepareProduct(alpha, a, b, beta, c, depth, lower, null, null, scratch) { sa, sb ->
             cblasSyr2k(alpha, sa, sb, transpose, beta, c, symmetricStructure(lower))
         }
     }
@@ -401,8 +389,8 @@ internal abstract class HostBlas : EngineKernels {
         scratch: Scratch?,
     ) {
         requireExport(EngineImplementation.Trsm)
-        prepareTriangularMatrix(a, b, lower, unitDiag, right, alpha, "trsm", scratch?.arrays) { sa ->
-            cblasTrsm(alpha, sa, triangle(lower, unitDiag), transpose, b, right)
+        prepareTriangularMatrix(a, b, lower, unitDiag, right, alpha, "trsm", scratch) { sa ->
+            cblasTriangularMatrix(EngineImplementation.Trsm, alpha, sa, triangle(lower, unitDiag), transpose, b, right)
         }
     }
 
@@ -417,8 +405,8 @@ internal abstract class HostBlas : EngineKernels {
         scratch: Scratch?,
     ) {
         requireExport(EngineImplementation.Trmm)
-        prepareTriangularMatrix(a, b, lower, unitDiag, right, alpha, "trmm", scratch?.arrays) { sa ->
-            cblasTrmm(alpha, sa, triangle(lower, unitDiag), transpose, b, right)
+        prepareTriangularMatrix(a, b, lower, unitDiag, right, alpha, "trmm", scratch) { sa ->
+            cblasTriangularMatrix(EngineImplementation.Trmm, alpha, sa, triangle(lower, unitDiag), transpose, b, right)
         }
     }
 }

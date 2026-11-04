@@ -31,10 +31,8 @@ internal object SimdTriangularKernels : EngineKernels {
     private val SPECIES = SIMD_SPECIES
     private val LANE = SPECIES.length()
 
-    /** Built once, for the reason [SimdPanelKernels] builds its own once. */
-    private val NAME: String = "simd-substitution($LANE lanes)"
-
-    override val name: String get() = NAME
+    /** Stored, for the reason [SimdPanelKernels] stores its own. */
+    override val name: String = "simd-substitution($LANE lanes)"
 
     /**
      * Group right-hand sides so the block repeatedly read during substitution stays resident.
@@ -62,12 +60,12 @@ internal object SimdTriangularKernels : EngineKernels {
     override fun gathersRightHandSides(rhsStride: Int, order: Int, sides: Int): Boolean =
         rhsStride != 1 && sides >= LANE && order > 1
 
-    internal fun implementationsFor(order: Int, sides: Int, contiguous: Boolean): List<String> = when {
+    override fun implementationsFor(order: Int, sides: Int, contiguous: Boolean): List<String> = when {
         order <= 0 || sides <= 0 -> emptyList()
-        sides == 1 && contiguous -> listOf(NAME)
+        sides == 1 && contiguous -> listOf(name)
         !contiguous || sides < LANE -> PortableEngine.implementationsFor(order, sides, contiguous)
-        sides % LANE == 0 -> listOf(NAME)
-        else -> listOf(NAME) + PortableEngine.implementationsFor(order, sides, contiguous)
+        sides % LANE == 0 -> listOf(name)
+        else -> listOf(name) + PortableEngine.implementationsFor(order, sides, contiguous)
     }
 
     override fun diagonalSolve(
@@ -84,38 +82,36 @@ internal object SimdTriangularKernels : EngineKernels {
         rhsStride: Int,
         sides: Int,
         tOffset: Int,
-    ) {
-        if (size <= 0 || sides <= 0) return
-        if (sides == 1 && orderStride == 1) {
-            singleSolve(t, n, start, size, transposed, lower, unitDiag, x, xOffset, tOffset)
-            return
-        }
-        if (rhsStride != 1 || sides < LANE) {
-            PortableEngine.diagonalSolve(
-                t, n, start, size, transposed, lower, unitDiag, x, xOffset, orderStride, rhsStride, sides, tOffset,
-            )
-            return
-        }
-        var lane = 0
-        val bound = sides - sides % LANE
-        // Unfused four-block compilation exceeds the JIT budget and materializes vectors on the heap.
-        while (hardwareFusedMultiplyAdd && lane + FOUR_BLOCKS * LANE <= bound) {
-            solveFour(t, n, start, size, transposed, lower, unitDiag, x, xOffset + lane, orderStride, tOffset)
-            lane += FOUR_BLOCKS * LANE
-        }
-        while (lane < bound) {
-            solveBlock(t, n, start, size, transposed, lower, unitDiag, x, xOffset + lane, orderStride, tOffset)
-            lane += LANE
-        }
-        if (lane < sides) {
-            PortableEngine.diagonalSolve(
-                t, n, start, size, transposed, lower, unitDiag, x, xOffset + lane, orderStride,
-                1, sides - lane, tOffset,
-            )
-        }
-    }
+    ): Unit = diagonal(
+        true, t, n, start, size, transposed, lower, unitDiag, x, xOffset,
+        orderStride, rhsStride, sides, tOffset,
+    )
 
     override fun diagonalMultiply(
+        t: DoubleArray,
+        n: Int,
+        start: Int,
+        size: Int,
+        transposed: Boolean,
+        lower: Boolean,
+        unitDiag: Boolean,
+        x: DoubleArray,
+        xOffset: Int,
+        orderStride: Int,
+        rhsStride: Int,
+        sides: Int,
+        tOffset: Int,
+    ): Unit = diagonal(
+        false, t, n, start, size, transposed, lower, unitDiag, x, xOffset,
+        orderStride, rhsStride, sides, tOffset,
+    )
+
+    /**
+     * Shared lane-block walk of [diagonalSolve] and [diagonalMultiply]. Each body stays its own method, so
+     * the branch on [solve] is paid once per lane block rather than inside a substitution.
+     */
+    private fun diagonal(
+        solve: Boolean,
         t: DoubleArray,
         n: Int,
         start: Int,
@@ -132,30 +128,45 @@ internal object SimdTriangularKernels : EngineKernels {
     ) {
         if (size <= 0 || sides <= 0) return
         if (sides == 1 && orderStride == 1) {
-            singleMultiply(t, n, start, size, transposed, lower, unitDiag, x, xOffset, tOffset)
-            return
-        }
-        if (rhsStride != 1 || sides < LANE) {
-            PortableEngine.diagonalMultiply(
-                t, n, start, size, transposed, lower, unitDiag, x, xOffset, orderStride, rhsStride, sides, tOffset,
-            )
+            if (solve) {
+                singleSolve(t, n, start, size, transposed, lower, unitDiag, x, xOffset, tOffset)
+            } else {
+                singleMultiply(t, n, start, size, transposed, lower, unitDiag, x, xOffset, tOffset)
+            }
             return
         }
         var lane = 0
-        val bound = sides - sides % LANE
-        // Unfused four-block compilation exceeds the JIT budget and materializes vectors on the heap.
-        while (hardwareFusedMultiplyAdd && lane + FOUR_BLOCKS * LANE <= bound) {
-            multiplyFour(t, n, start, size, transposed, lower, unitDiag, x, xOffset + lane, orderStride, tOffset)
-            lane += FOUR_BLOCKS * LANE
+        if (rhsStride == 1 && sides >= LANE) {
+            val bound = sides - sides % LANE
+            // Unfused four-block compilation exceeds the JIT budget and materializes vectors on the heap.
+            while (hardwareFusedMultiplyAdd && lane + FOUR_BLOCKS * LANE <= bound) {
+                val at = xOffset + lane
+                if (solve) {
+                    solveFour(t, n, start, size, transposed, lower, unitDiag, x, at, orderStride, tOffset)
+                } else {
+                    multiplyFour(t, n, start, size, transposed, lower, unitDiag, x, at, orderStride, tOffset)
+                }
+                lane += FOUR_BLOCKS * LANE
+            }
+            while (lane < bound) {
+                val at = xOffset + lane
+                if (solve) {
+                    solveBlock(t, n, start, size, transposed, lower, unitDiag, x, at, orderStride, tOffset)
+                } else {
+                    multiplyBlock(t, n, start, size, transposed, lower, unitDiag, x, at, orderStride, tOffset)
+                }
+                lane += LANE
+            }
         }
-        while (lane < bound) {
-            multiplyBlock(t, n, start, size, transposed, lower, unitDiag, x, xOffset + lane, orderStride, tOffset)
-            lane += LANE
-        }
-        if (lane < sides) {
+        if (lane == sides) return
+        val from = xOffset + lane * rhsStride
+        if (solve) {
+            PortableEngine.diagonalSolve(
+                t, n, start, size, transposed, lower, unitDiag, x, from, orderStride, rhsStride, sides - lane, tOffset,
+            )
+        } else {
             PortableEngine.diagonalMultiply(
-                t, n, start, size, transposed, lower, unitDiag, x, xOffset + lane, orderStride,
-                1, sides - lane, tOffset,
+                t, n, start, size, transposed, lower, unitDiag, x, from, orderStride, rhsStride, sides - lane, tOffset,
             )
         }
     }
@@ -184,12 +195,10 @@ internal object SimdTriangularKernels : EngineKernels {
             val first = if (lower) 0 else p + 1
             val last = if (lower) p else size
             for (q in first until last) {
-                val coefficient = triangleEntry(t, n, start, p, q, transposed, tOffset)
-                accumulated = multiplySubtract(
-                    DoubleVector.fromArray(SPECIES, x, xOffset + q * orderStride),
-                    coefficient,
-                    accumulated,
-                )
+                val entry = triangleEntry(t, n, start, p, q, transposed, tOffset)
+                val coefficient = DoubleVector.broadcast(SPECIES, -entry)
+                val from = xOffset + q * orderStride
+                accumulated = multiplyAdd(DoubleVector.fromArray(SPECIES, x, from), coefficient, accumulated)
             }
             if (!unitDiag) accumulated = accumulated.div(triangleEntry(t, n, start, p, p, transposed, tOffset))
             accumulated.intoArray(x, at)
@@ -229,10 +238,10 @@ internal object SimdTriangularKernels : EngineKernels {
                 val entry = triangleEntry(t, n, start, p, q, transposed, tOffset)
                 val coefficient = DoubleVector.broadcast(SPECIES, -entry)
                 val from = xOffset + q * orderStride
-                a0 = fusedStep(DoubleVector.fromArray(SPECIES, x, from), coefficient, a0)
-                a1 = fusedStep(DoubleVector.fromArray(SPECIES, x, from + LANE), coefficient, a1)
-                a2 = fusedStep(DoubleVector.fromArray(SPECIES, x, from + 2 * LANE), coefficient, a2)
-                a3 = fusedStep(DoubleVector.fromArray(SPECIES, x, from + 3 * LANE), coefficient, a3)
+                a0 = multiplyAdd(DoubleVector.fromArray(SPECIES, x, from), coefficient, a0)
+                a1 = multiplyAdd(DoubleVector.fromArray(SPECIES, x, from + LANE), coefficient, a1)
+                a2 = multiplyAdd(DoubleVector.fromArray(SPECIES, x, from + 2 * LANE), coefficient, a2)
+                a3 = multiplyAdd(DoubleVector.fromArray(SPECIES, x, from + 3 * LANE), coefficient, a3)
             }
             if (!unitDiag) {
                 val diagonal = triangleEntry(t, n, start, p, p, transposed, tOffset)
@@ -282,10 +291,10 @@ internal object SimdTriangularKernels : EngineKernels {
                 val entry = triangleEntry(t, n, start, p, q, transposed, tOffset)
                 val coefficient = DoubleVector.broadcast(SPECIES, entry)
                 val from = xOffset + q * orderStride
-                a0 = fusedStep(DoubleVector.fromArray(SPECIES, x, from), coefficient, a0)
-                a1 = fusedStep(DoubleVector.fromArray(SPECIES, x, from + LANE), coefficient, a1)
-                a2 = fusedStep(DoubleVector.fromArray(SPECIES, x, from + 2 * LANE), coefficient, a2)
-                a3 = fusedStep(DoubleVector.fromArray(SPECIES, x, from + 3 * LANE), coefficient, a3)
+                a0 = multiplyAdd(DoubleVector.fromArray(SPECIES, x, from), coefficient, a0)
+                a1 = multiplyAdd(DoubleVector.fromArray(SPECIES, x, from + LANE), coefficient, a1)
+                a2 = multiplyAdd(DoubleVector.fromArray(SPECIES, x, from + 2 * LANE), coefficient, a2)
+                a3 = multiplyAdd(DoubleVector.fromArray(SPECIES, x, from + 3 * LANE), coefficient, a3)
             }
             a0.intoArray(x, at)
             a1.intoArray(x, at + LANE)
@@ -317,12 +326,9 @@ internal object SimdTriangularKernels : EngineKernels {
             val first = if (lower) 0 else p + 1
             val last = if (lower) p else size
             for (q in first until last) {
-                val coefficient = triangleEntry(t, n, start, p, q, transposed, tOffset)
-                accumulated = multiplyAdd(
-                    DoubleVector.fromArray(SPECIES, x, xOffset + q * orderStride),
-                    coefficient,
-                    accumulated,
-                )
+                val coefficient = DoubleVector.broadcast(SPECIES, triangleEntry(t, n, start, p, q, transposed, tOffset))
+                val from = xOffset + q * orderStride
+                accumulated = multiplyAdd(DoubleVector.fromArray(SPECIES, x, from), coefficient, accumulated)
             }
             accumulated.intoArray(x, at)
         }
@@ -363,7 +369,10 @@ internal object SimdTriangularKernels : EngineKernels {
                 // Reduce each row against the steps already finished, which lie before the group.
                 val from = if (lower) 0 else p0 + 1
                 val until = if (lower) p0 else size
-                fourDots(t, base, n, p0, p1, p2, p3, x, xOffset, from, until - from, -1.0)
+                SimdPanelKernels.dotFour(
+                    -1.0, t, base + p0 * n + from, direction * n, x, xOffset + from, until - from,
+                    1.0, x, xOffset + p0, direction,
+                )
             }
             val x0 = divide(x[xOffset + p0], t, base, n, p0, unitDiag)
             val x1 = divide(x[xOffset + p1] - entry(t, base, n, transposed, p1, p0) * x0, t, base, n, p1, unitDiag)
@@ -399,7 +408,9 @@ internal object SimdTriangularKernels : EngineKernels {
                 // Carry the four finished steps into the ones after the group.
                 val from = if (lower) p3 + 1 else 0
                 val until = if (lower) size else p3
-                fourUpdate(t, base, n, p0, p1, p2, p3, x, xOffset, from, until - from, -x0, -x1, -x2, -x3)
+                SimdPanelKernels.updateFour(
+                    t, base + p0 * n + from, direction * n, until - from, x, xOffset + from, -x0, -x1, -x2, -x3,
+                )
             }
             done += GROUP
         }
@@ -415,7 +426,7 @@ internal object SimdTriangularKernels : EngineKernels {
                 x[xOffset + p] = value
                 val from = if (lower) p + 1 else 0
                 val until = if (lower) size else p
-                runUpdate(t, base + p * n + from, x, xOffset + from, until - from, -value)
+                SimdPanelKernels.updateOne(t, base + p * n + from, until - from, x, xOffset + from, -value)
             }
         }
     }
@@ -453,7 +464,9 @@ internal object SimdTriangularKernels : EngineKernels {
                 // The group's columns reach the steps already finished, which lie before it in this order.
                 val from = if (lower) p0 + 1 else 0
                 val until = if (lower) size else p0
-                fourUpdate(t, base, n, p0, p1, p2, p3, x, xOffset, from, until - from, x0, x1, x2, x3)
+                SimdPanelKernels.updateFour(
+                    t, base + p0 * n + from, direction * n, until - from, x, xOffset + from, x0, x1, x2, x3,
+                )
             }
             x[xOffset + p0] = scale(x0, t, base, n, p0, unitDiag) + entry(t, base, n, transposed, p0, p1) * x1 +
                 entry(t, base, n, transposed, p0, p2) * x2 + entry(t, base, n, transposed, p0, p3) * x3
@@ -465,7 +478,10 @@ internal object SimdTriangularKernels : EngineKernels {
                 // Each row also reduces the steps not yet reached, which still hold their inputs.
                 val from = if (lower) 0 else p3 + 1
                 val until = if (lower) p3 else size
-                fourDots(t, base, n, p0, p1, p2, p3, x, xOffset, from, until - from, 1.0)
+                SimdPanelKernels.dotFour(
+                    1.0, t, base + p0 * n + from, direction * n, x, xOffset + from, until - from,
+                    1.0, x, xOffset + p0, direction,
+                )
             }
             done += GROUP
         }
@@ -481,7 +497,7 @@ internal object SimdTriangularKernels : EngineKernels {
                 x[xOffset + p] = scaled
                 val from = if (lower) p + 1 else 0
                 val until = if (lower) size else p
-                runUpdate(t, base + p * n + from, x, xOffset + from, until - from, own)
+                SimdPanelKernels.updateOne(t, base + p * n + from, until - from, x, xOffset + from, own)
             }
         }
     }
@@ -495,130 +511,6 @@ internal object SimdTriangularKernels : EngineKernels {
 
     private fun scale(value: Double, t: DoubleArray, base: Int, n: Int, p: Int, unitDiag: Boolean): Double =
         if (unitDiag) value else t[base + p * n + p] * value
-
-    /** `x(q) += s0 · line(p0, q) + … + s3 · line(p3, q)` over one run of steps, the column pass of a group. */
-    private fun fourUpdate(
-        t: DoubleArray,
-        base: Int,
-        n: Int,
-        p0: Int,
-        p1: Int,
-        p2: Int,
-        p3: Int,
-        x: DoubleArray,
-        xOffset: Int,
-        from: Int,
-        length: Int,
-        s0: Double,
-        s1: Double,
-        s2: Double,
-        s3: Double,
-    ) {
-        val l0 = base + p0 * n + from
-        val l1 = base + p1 * n + from
-        val l2 = base + p2 * n + from
-        val l3 = base + p3 * n + from
-        val at = xOffset + from
-        var i = 0
-        val bound = SPECIES.loopBound(length)
-        if (bound > 0) {
-            val c0 = DoubleVector.broadcast(SPECIES, s0)
-            val c1 = DoubleVector.broadcast(SPECIES, s1)
-            val c2 = DoubleVector.broadcast(SPECIES, s2)
-            val c3 = DoubleVector.broadcast(SPECIES, s3)
-            while (i < bound) {
-                var sum = DoubleVector.fromArray(SPECIES, x, at + i)
-                sum = multiplyAdd(DoubleVector.fromArray(SPECIES, t, l0 + i), c0, sum)
-                sum = multiplyAdd(DoubleVector.fromArray(SPECIES, t, l1 + i), c1, sum)
-                sum = multiplyAdd(DoubleVector.fromArray(SPECIES, t, l2 + i), c2, sum)
-                multiplyAdd(DoubleVector.fromArray(SPECIES, t, l3 + i), c3, sum).intoArray(x, at + i)
-                i += LANE
-            }
-        }
-        while (i < length) {
-            x[at + i] += s0 * t[l0 + i] + s1 * t[l1 + i] + s2 * t[l2 + i] + s3 * t[l3 + i]
-            i++
-        }
-    }
-
-    /** `x(pk) += sign · (line(pk) · x)` over one run of steps for four lines at once, the row pass of a group. */
-    private fun fourDots(
-        t: DoubleArray,
-        base: Int,
-        n: Int,
-        p0: Int,
-        p1: Int,
-        p2: Int,
-        p3: Int,
-        x: DoubleArray,
-        xOffset: Int,
-        from: Int,
-        length: Int,
-        sign: Double,
-    ) {
-        val l0 = base + p0 * n + from
-        val l1 = base + p1 * n + from
-        val l2 = base + p2 * n + from
-        val l3 = base + p3 * n + from
-        val at = xOffset + from
-        var i = 0
-        var d0 = 0.0
-        var d1 = 0.0
-        var d2 = 0.0
-        var d3 = 0.0
-        val bound = SPECIES.loopBound(length)
-        if (bound > 0) {
-            var v0 = DoubleVector.zero(SPECIES)
-            var v1 = DoubleVector.zero(SPECIES)
-            var v2 = DoubleVector.zero(SPECIES)
-            var v3 = DoubleVector.zero(SPECIES)
-            while (i < bound) {
-                val xv = DoubleVector.fromArray(SPECIES, x, at + i)
-                v0 = multiplyAdd(DoubleVector.fromArray(SPECIES, t, l0 + i), xv, v0)
-                v1 = multiplyAdd(DoubleVector.fromArray(SPECIES, t, l1 + i), xv, v1)
-                v2 = multiplyAdd(DoubleVector.fromArray(SPECIES, t, l2 + i), xv, v2)
-                v3 = multiplyAdd(DoubleVector.fromArray(SPECIES, t, l3 + i), xv, v3)
-                i += LANE
-            }
-            d0 = v0.reduceLanes(VectorOperators.ADD)
-            d1 = v1.reduceLanes(VectorOperators.ADD)
-            d2 = v2.reduceLanes(VectorOperators.ADD)
-            d3 = v3.reduceLanes(VectorOperators.ADD)
-        }
-        while (i < length) {
-            val xi = x[at + i]
-            d0 += t[l0 + i] * xi
-            d1 += t[l1 + i] * xi
-            d2 += t[l2 + i] * xi
-            d3 += t[l3 + i] * xi
-            i++
-        }
-        x[xOffset + p0] += sign * d0
-        x[xOffset + p1] += sign * d1
-        x[xOffset + p2] += sign * d2
-        x[xOffset + p3] += sign * d3
-    }
-
-    /** `x(i) += scale · t(i)` along one contiguous run, the column step of [singleSolve]. */
-    private fun runUpdate(t: DoubleArray, tFrom: Int, x: DoubleArray, xFrom: Int, length: Int, scale: Double) {
-        var i = 0
-        val bound = SPECIES.loopBound(length)
-        if (bound > 0) {
-            val coefficient = DoubleVector.broadcast(SPECIES, scale)
-            while (i < bound) {
-                multiplyAdd(
-                    DoubleVector.fromArray(SPECIES, t, tFrom + i),
-                    coefficient,
-                    DoubleVector.fromArray(SPECIES, x, xFrom + i),
-                ).intoArray(x, xFrom + i)
-                i += LANE
-            }
-        }
-        while (i < length) {
-            x[xFrom + i] += scale * t[tFrom + i]
-            i++
-        }
-    }
 
     /** The dot of two contiguous runs, the row step of [singleSolve], with two chains on a long run. */
     private fun runDot(t: DoubleArray, tFrom: Int, x: DoubleArray, xFrom: Int, length: Int): Double {
@@ -656,47 +548,5 @@ internal object SimdTriangularKernels : EngineKernels {
             i++
         }
         return sum
-    }
-
-    /**
-     * `accumulated - coefficient · values`, fused where the machine has the instruction.
-     *
-     * Inline because a helper returning a [DoubleVector] that the JIT declines to inline makes the vector a
-     * heap object, which would turn the substitution's one live accumulator into an allocation per step of
-     * the block. The negated coefficient is what lets the fused form carry the subtraction.
-     */
-    @Suppress("NOTHING_TO_INLINE")
-    private inline fun multiplySubtract(
-        values: DoubleVector,
-        coefficient: Double,
-        accumulated: DoubleVector,
-    ): DoubleVector = if (hardwareFusedMultiplyAdd) {
-        values.fma(DoubleVector.broadcast(SPECIES, -coefficient), accumulated)
-    } else {
-        accumulated.sub(values.mul(coefficient))
-    }
-
-    /** `accumulated + coefficient · values`, inline for the reason [multiplySubtract] is. */
-    @Suppress("NOTHING_TO_INLINE")
-    private inline fun multiplyAdd(
-        values: DoubleVector,
-        coefficient: Double,
-        accumulated: DoubleVector,
-    ): DoubleVector = if (hardwareFusedMultiplyAdd) {
-        values.fma(DoubleVector.broadcast(SPECIES, coefficient), accumulated)
-    } else {
-        accumulated.add(values.mul(coefficient))
-    }
-
-    /** `accumulated + coefficient · values` over a broadcast coefficient, inline as [multiplySubtract] is. */
-    @Suppress("NOTHING_TO_INLINE")
-    private inline fun fusedStep(
-        values: DoubleVector,
-        coefficient: DoubleVector,
-        accumulated: DoubleVector,
-    ): DoubleVector = if (hardwareFusedMultiplyAdd) {
-        values.fma(coefficient, accumulated)
-    } else {
-        accumulated.add(values.mul(coefficient))
     }
 }

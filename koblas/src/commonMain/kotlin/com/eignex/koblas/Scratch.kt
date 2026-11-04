@@ -1,7 +1,5 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.engine.ArraySupplier
-
 /**
  * Reusable temporary arrays a Level 2 or 3 routine borrows for alias snapshots, packed panels and sparse scratch.
  *
@@ -17,12 +15,13 @@ public class Scratch {
     private val doubles = PooledBuffers<DoubleArray>()
     private val indices = PooledBuffers<IntArray>()
 
-    internal val arrays: ArraySupplier = object : ArraySupplier {
-        override fun take(size: Int): DoubleArray = doubles.take(size, ::DoubleArray)
-        override fun takeI32(size: Int): IntArray = indices.take(size, ::IntArray)
-        override fun release(buffer: DoubleArray): Unit = doubles.release(buffer)
-        override fun release(buffer: IntArray): Unit = indices.release(buffer)
-    }
+    internal fun take(size: Int): DoubleArray = doubles.take(size, ::DoubleArray)
+
+    internal fun takeI32(size: Int): IntArray = indices.take(size, ::IntArray)
+
+    internal fun release(buffer: DoubleArray): Unit = doubles.release(buffer)
+
+    internal fun release(buffer: IntArray): Unit = indices.release(buffer)
 
     /** Idle floating-point buffers of [size]; an implementation diagnostic tests read to see reuse happen. */
     internal fun available(size: Int): Int = doubles.available(size)
@@ -120,3 +119,28 @@ private class PooledBuffers<A : Any> {
  * alternating between two shapes. A ninth length evicts the least recently returned one.
  */
 internal const val MAX_IDLE_LENGTHS = 8
+
+/** Always return loans, including when operand reads or arithmetic throw. */
+internal inline fun <T> Scratch?.borrow(size: Int, block: (DoubleArray) -> T): T {
+    val buffer = this?.take(size) ?: DoubleArray(size)
+    try {
+        return block(buffer)
+    } finally {
+        this?.release(buffer)
+    }
+}
+
+internal inline fun <T> Scratch?.borrowI32(size: Int, block: (IntArray) -> T): T {
+    val buffer = this?.takeI32(size) ?: IntArray(size)
+    try {
+        return block(buffer)
+    } finally {
+        this?.release(buffer)
+    }
+}
+
+private val EMPTY_BUFFER = DoubleArray(0)
+
+/** Unused panels consume neither a loan nor a retained length. */
+internal inline fun <T> Scratch?.borrowOptional(size: Int, block: (DoubleArray) -> T): T =
+    if (size == 0) block(EMPTY_BUFFER) else borrow(size, block)

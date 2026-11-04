@@ -23,10 +23,8 @@ internal object Fixtures {
         for (i in values.indices) values[i] = random.nextDouble()
     }
 
-    fun matrix(rows: Int, cols: Int, operand: Int): DenseMatrix {
-        val values = vector(rows * cols, operand)
-        return DenseMatrix.ofColumns(Array(cols) { column -> values.copyOfRange(column * rows, (column + 1) * rows) })
-    }
+    fun matrix(rows: Int, cols: Int, operand: Int): DenseMatrix =
+        DenseMatrix.wrap(rows, cols, vector(rows * cols, operand))
 
     fun triangular(order: Int, operand: Int, lower: Boolean): DenseMatrix {
         val matrix = matrix(order, order, operand)

@@ -9,7 +9,6 @@ import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.internal.portable.PortableEngine
 import com.eignex.koblas.internal.portable.dense.*
-import com.eignex.koblas.gemm as matrixGemm
 
 /** `xᵀ · y`. */
 public fun KoblasEngine.dot(x: DenseVector, y: DenseVector): Double {
@@ -57,7 +56,7 @@ public fun KoblasEngine.copy(x: DenseVector, y: DenseVector) {
     requireSameSize(x.size, y.size, "copy")
     if (sameVectorMapping(x, y)) return
     val contiguous = x.stride == 1 && y.stride == 1
-    val provider = if (this is CombinedEngine) copyProvider(x.size, contiguous) else this
+    val provider = if (this is CombinedEngine) vectorProvider(EngineImplementation.Copy, x.size, contiguous) else this
     // Portable contiguous copy is a memmove, so it needs no alias snapshot.
     val source = if (provider === PortableEngine && contiguous) x else x.stableFor(y)
     provider.copy(source.values, source.offset, y.values, y.offset, x.size, source.stride, y.stride)
@@ -87,10 +86,6 @@ private inline fun withStablePair(x: DenseVector, y: DenseVector, operation: (De
     for (i in 0 until y.size) y[i] = b[i]
 }
 
-/** Fresh dense product of two dense regions using this engine. */
-public fun KoblasEngine.gemm(a: DenseMatrixRegion, b: DenseMatrixRegion, scratch: Scratch? = null): DenseMatrix =
-    matrixGemm(1.0, a, false, b, false, scratch) as DenseMatrix
-
 /** [KoblasEngine.gemv] over whole arrays, which must match `op(A)` exactly. */
 public fun KoblasEngine.gemv(
     alpha: Double,
@@ -117,20 +112,6 @@ public fun KoblasEngine.gemv(
 ) {
     requireGemvOperands(a, transpose, x.size, y.size)
     gemv(alpha, a, x.values, x.offset, x.stride, beta, y.values, y.offset, y.stride, transpose, scratch)
-}
-
-/** [KoblasEngine.gemv] with `alpha = 1, beta = 0`, into a fresh result. */
-public fun KoblasEngine.gemv(
-    a: DenseMatrixRegion,
-    x: DoubleArray,
-    transpose: Boolean = false,
-    scratch: Scratch? = null,
-): DoubleArray {
-    val size = if (transpose) a.cols else a.rows
-    requireGemvOperands(a, transpose, x.size, size)
-    val y = DoubleArray(size)
-    gemv(1.0, a, x, 0, 1, 0.0, y, 0, 1, transpose, scratch)
-    return y
 }
 
 /**
@@ -232,7 +213,7 @@ public fun KoblasEngine.ger(
     if (alpha == 0.0 || rows == 0 || columns == 0) return
     if (x === a.values || y === a.values) {
         val window = a.view(rowOffset, columnOffset, rows, columns)
-        stagedWindows(scratch?.arrays, x, xOffset, rows, 1, y, yOffset, columns, 1, window) {
+        stagedWindows(scratch, x, xOffset, rows, 1, y, yOffset, columns, 1, window) {
                 sx,
                 sxo,
                 sxs,
@@ -275,19 +256,6 @@ public fun KoblasEngine.syr2(
     syr2(alpha, x.values, x.offset, x.stride, y.values, y.offset, y.stride, a, lower, scratch)
 }
 
-/** [KoblasEngine.trsv] over a whole array of the triangle's order. */
-public fun KoblasEngine.trsv(
-    a: DenseMatrixRegion,
-    x: DoubleArray,
-    lower: Boolean,
-    transpose: Boolean = false,
-    unitDiag: Boolean = false,
-    scratch: Scratch? = null,
-) {
-    requireTriangularVectorOperands(a, x.size, "trsv")
-    trsv(a, x, 0, 1, lower, transpose, unitDiag, scratch)
-}
-
 /** [KoblasEngine.trsv] over a vector of the triangle's order. */
 public fun KoblasEngine.trsv(
     a: DenseMatrixRegion,
@@ -299,19 +267,6 @@ public fun KoblasEngine.trsv(
 ) {
     requireTriangularVectorOperands(a, x.size, "trsv")
     trsv(a, x.values, x.offset, x.stride, lower, transpose, unitDiag, scratch)
-}
-
-/** [KoblasEngine.trmv] over a whole array of the triangle's order. */
-public fun KoblasEngine.trmv(
-    a: DenseMatrixRegion,
-    x: DoubleArray,
-    lower: Boolean,
-    transpose: Boolean = false,
-    unitDiag: Boolean = false,
-    scratch: Scratch? = null,
-) {
-    requireTriangularVectorOperands(a, x.size, "trmv")
-    trmv(a, x, 0, 1, lower, transpose, unitDiag, scratch)
 }
 
 /** [KoblasEngine.trmv] over a vector of the triangle's order. */

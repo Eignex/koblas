@@ -30,12 +30,7 @@ private const val SUPPORT_SWEEP_FACTOR: Int = 8
  * kept as well.
  */
 @OptIn(UnsafeKoblasApi::class)
-internal fun multiplySparse(
-    a: SparseMatrix,
-    b: SparseMatrix,
-    alpha: Double = 1.0,
-    lower: Boolean? = null,
-): SparseMatrix {
+internal fun multiplySparse(a: SparseMatrix, b: SparseMatrix, alpha: Double): SparseMatrix {
     val rows = a.rows
     // Return before allocating row-indexed scratch: a tall empty result must not exhaust memory.
     if (a.nnz == 0 || !reachesStoredColumn(a, b)) {
@@ -52,26 +47,30 @@ internal fun multiplySparse(
     for (j in 0 until b.cols) {
         var used = 0
         val epoch = j + 1
-        val firstRow = if (lower == true) j else 0
-        val lastRow = if (lower == false) j + 1 else rows
         for (bp in b.colPointers[j] until b.colPointers[j + 1]) {
             val l = b.rowIndices[bp]
             // Stored zeros preserve the product pattern, including the stored positions of the corresponding A column.
             used = if (alpha == 0.0) {
                 SparseAccumulationKernels.accumulateProductPattern(
-                    a.rowIndices, a.colPointers[l], a.colPointers[l + 1], firstRow, lastRow,
-                    epoch, values, touchedIn, touched, used,
+                    a.rowIndices,
+                    a.colPointers[l],
+                    a.colPointers[l + 1],
+                    epoch,
+                    values,
+                    touchedIn,
+                    touched,
+                    used,
                 )
             } else {
                 SparseAccumulationKernels.accumulateProductSlice(
                     a.rowIndices, a.values, a.colPointers[l], a.colPointers[l + 1], b.values[bp],
-                    firstRow, lastRow, epoch, values, touchedIn, touched, used,
+                    0, rows, epoch, values, touchedIn, touched, used,
                 )
             }
         }
         builder.reserve(used)
         // CSC requires ascending rows; sort the collected rows or sweep their range using this column's scratch.
-        orderTouchedRows(touchedIn, epoch, firstRow, lastRow, touched, used)
+        orderTouchedRows(touchedIn, epoch, 0, rows, touched, used)
         SparseAccumulationKernels.emitScaledSupport(
             alpha,
             touched,
@@ -99,25 +98,14 @@ private fun reachesStoredColumn(a: SparseMatrix, b: SparseMatrix): Boolean {
 
 /**
  * Adds `alpha · A · B` directly into dense [c]. Both sparse operands are already in the requested
- * orientation. [lower] limits writes to one triangle when non-null. Stored traversal deliberately avoids
- * products with implicit sparse zeros.
+ * orientation. Stored traversal deliberately avoids products with implicit sparse zeros.
  */
 @OptIn(UnsafeKoblasApi::class)
-internal fun multiplySparseInto(
-    alpha: Double,
-    a: SparseMatrix,
-    b: SparseMatrix,
-    c: DenseMatrixRegion,
-    lower: Boolean? = null,
-) {
-    if (alpha == 0.0) return
+internal fun multiplySparseInto(alpha: Double, a: SparseMatrix, b: SparseMatrix, c: DenseMatrixRegion) {
     for (j in 0 until b.cols) {
         SparseAccumulationKernels.addProductColumnToDense(
             alpha, a.colPointers, a.rowIndices, a.values, b.rowIndices, b.values,
-            b.colPointers[j], b.colPointers[j + 1],
-            if (lower == true) j else 0,
-            if (lower == false) j + 1 else a.rows,
-            c.values, c.offset + j * c.leadingDimension,
+            b.colPointers[j], b.colPointers[j + 1], c.values, c.offset + j * c.leadingDimension,
         )
     }
 }
@@ -347,7 +335,10 @@ internal fun sparseAddScaled(alpha: Double, a: SparseMatrix, transposeA: Boolean
         } else {
             DoubleArray(left.nnz) { alpha * left.values[it] + b.values[it] }
         }
-        return SparseMatrix.wrapTrusted(rows, cols, left.copyColumnPointers(), left.copyRowIndices(), values)
+        // A transpose is a fresh structure nothing else holds, so only the caller's own one is copied.
+        val pointers = if (transposeA) left.colPointers else left.copyColumnPointers()
+        val rowIndices = if (transposeA) left.rowIndices else left.copyRowIndices()
+        return SparseMatrix.wrapTrusted(rows, cols, pointers, rowIndices, values)
     }
     val union = left.nnz.toLong() + b.nnz
     requireShape(

@@ -72,16 +72,6 @@ internal fun Pins.stage(matrix: DenseMatrixRegion): PinnedMatrix {
     return PinnedMatrix(pointer(matrix.values, if (empty) 0 else matrix.offset), maxOf(1, matrix.leadingDimension))
 }
 
-/**
- * Lowest storage index passed to BLAS. Negative increments retain their sign but start at the
- * low address, allowing BLAS to reconstruct the logical first entry at the high end.
- */
-internal fun baseIndex(vector: DenseVector): Int = baseIndex(vector.offset, vector.stride, vector.size)
-
-/** The same rule over a raw run, which is what the Level 1 entry points hand BLAS. */
-internal fun baseIndex(offset: Int, stride: Int, size: Int): Int =
-    if (stride >= 0) offset else offset + (size - 1) * stride
-
 /** The address of a raw run's lowest entry, once the whole run is checked to lie inside the pinned array. */
 internal fun Pinned<DoubleArray>.runAddress(offset: Int, stride: Int, size: Int): CPointer<DoubleVar> {
     requireVectorWindow(get().size, offset, size, stride, "vector")

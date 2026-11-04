@@ -51,23 +51,22 @@ public fun KoblasEngine.gemm(
         scaleRegion(c, beta, vectors = this)
         return
     }
-    val arrays = scratch?.arrays
     when {
         a is SparseMatrix && b is SparseMatrix -> gemm(alpha, a, transposeA, b, transposeB, beta, c, scratch)
 
-        a is SparseMatrix -> denseOperand(arrays, b) { right ->
+        a is SparseMatrix -> denseOperand(scratch, b) { right ->
             gemm(alpha, a, transposeA, right, transposeB, beta, c, right = false, scratch = scratch)
         }
 
-        b is SparseMatrix -> denseOperand(arrays, a) { left ->
+        b is SparseMatrix -> denseOperand(scratch, a) { left ->
             gemm(alpha, b, transposeB, left, transposeA, beta, c, right = true, scratch = scratch)
         }
 
-        else -> denseOperand(arrays, a) { left ->
+        else -> denseOperand(scratch, a) { left ->
             if (a === b) {
                 gemm(alpha, left, transposeA, left, transposeB, beta, c, scratch)
             } else {
-                denseOperand(arrays, b) { right -> gemm(alpha, left, transposeA, right, transposeB, beta, c, scratch) }
+                denseOperand(scratch, b) { right -> gemm(alpha, left, transposeA, right, transposeB, beta, c, scratch) }
             }
         }
     }
@@ -83,12 +82,8 @@ public fun KoblasEngine.trsv(
     scratch: Scratch? = null,
 ) {
     requireTriangularVectorOperands(a, x.size, "trsv")
-    if (a is SparseMatrix) {
-        trsv(a, x, lower, transpose, unitDiag, scratch)
-    } else {
-        triangleOperand(scratch?.arrays, a, lower, unitDiag) { dense ->
-            trsv(dense, x, 0, 1, lower, transpose, unitDiag, scratch)
-        }
+    withTriangle(a, lower, unitDiag, scratch, { trsv(it, x, lower, transpose, unitDiag, scratch) }) {
+        trsv(it, x, 0, 1, lower, transpose, unitDiag, scratch)
     }
 }
 
@@ -102,12 +97,8 @@ public fun KoblasEngine.trmv(
     scratch: Scratch? = null,
 ) {
     requireTriangularVectorOperands(a, x.size, "trmv")
-    if (a is SparseMatrix) {
-        trmv(a, x, lower, transpose, unitDiag, scratch)
-    } else {
-        triangleOperand(scratch?.arrays, a, lower, unitDiag) { dense ->
-            trmv(dense, x, 0, 1, lower, transpose, unitDiag, scratch)
-        }
+    withTriangle(a, lower, unitDiag, scratch, { trmv(it, x, lower, transpose, unitDiag, scratch) }) {
+        trmv(it, x, 0, 1, lower, transpose, unitDiag, scratch)
     }
 }
 
@@ -127,12 +118,8 @@ public fun KoblasEngine.trsm(
         scaleRegion(b, if (alpha == 0.0) 0.0 else 1.0)
         return
     }
-    if (a is SparseMatrix) {
-        trsm(a, b, lower, transpose, unitDiag, right, alpha, scratch)
-    } else {
-        triangleOperand(scratch?.arrays, a, lower, unitDiag) { dense ->
-            trsm(dense, b, lower, transpose, unitDiag, right, alpha, scratch)
-        }
+    withTriangle(a, lower, unitDiag, scratch, { trsm(it, b, lower, transpose, unitDiag, right, alpha, scratch) }) {
+        trsm(it, b, lower, transpose, unitDiag, right, alpha, scratch)
     }
 }
 
@@ -152,13 +139,21 @@ public fun KoblasEngine.trmm(
         scaleRegion(b, if (alpha == 0.0) 0.0 else 1.0)
         return
     }
-    if (a is SparseMatrix) {
-        trmm(a, b, lower, transpose, unitDiag, right, alpha, scratch)
-    } else {
-        triangleOperand(scratch?.arrays, a, lower, unitDiag) { dense ->
-            trmm(dense, b, lower, transpose, unitDiag, right, alpha, scratch)
-        }
+    withTriangle(a, lower, unitDiag, scratch, { trmm(it, b, lower, transpose, unitDiag, right, alpha, scratch) }) {
+        trmm(it, b, lower, transpose, unitDiag, right, alpha, scratch)
     }
+}
+
+/** A sparse triangle keeps its structure; any other operand is read once into dense triangle storage. */
+private inline fun withTriangle(
+    a: Matrix,
+    lower: Boolean,
+    unitDiag: Boolean,
+    scratch: Scratch?,
+    sparse: (SparseMatrix) -> Unit,
+    dense: (DenseMatrixRegion) -> Unit,
+) {
+    if (a is SparseMatrix) sparse(a) else triangleOperand(scratch, a, lower, unitDiag, dense)
 }
 
 /** Allocating product through [koblas]: two sparse operands give CSC storage, any other pairing dense. */

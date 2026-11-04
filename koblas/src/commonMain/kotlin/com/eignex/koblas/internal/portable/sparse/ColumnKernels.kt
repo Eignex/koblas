@@ -88,7 +88,7 @@ internal fun sparseSymmetricLeftColumnSingle(
     offset: Int,
     indexStride: Int,
     lower: Boolean,
-    cOffset: Int = offset,
+    cOffset: Int,
 ) {
     val start = selectedRunStart(rowIndices, fromIndex, toIndex, column, lower)
     val end = selectedRunEnd(rowIndices, fromIndex, toIndex, column, lower)

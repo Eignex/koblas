@@ -138,8 +138,9 @@ public fun Vector.iamax(): Int {
  * destination and a borrowed slice of a longer buffer are the same call.
  */
 public fun copy(src: Vector, dst: DenseVector) {
+    if (src is DenseVector) return koblas.copy(src, dst)
     requireSameSize(src.size, dst.size, "copy")
-    val source = if (src is DenseVector) src else src.stableFor(dst)
+    val source = src.stableFor(dst)
     if (source is SparseVector) {
         // Only contiguous destinations can use the indexed kernel, whose seam carries no increment.
         if (dst.isWholeArray) {
@@ -209,11 +210,11 @@ public fun rot(x: DenseVector, y: DenseVector, c: Double, s: Double): Unit = kob
  * Custom [Vector] implementations are also snapshotted, since their backing storage is opaque.
  */
 public fun DenseVector.axpy(alpha: Double, x: Vector) {
+    if (x is DenseVector) return koblas.axpy(alpha, x, this)
     requireSameSize(size, x.size, "axpy")
     if (alpha == 0.0) return
     when (val source = x.stableFor(this)) {
-        is DenseVector ->
-            koblas.axpy(alpha, source, this)
+        is DenseVector -> koblas.axpy(alpha, source, this)
 
         // SparseVector uses indexed kernels; foreign Vector implementations use the generic loop.
         is SparseVector -> if (isWholeArray) {

@@ -32,10 +32,8 @@ internal object SimdProductKernels : EngineKernels {
     /** Two lane blocks per register tile. */
     private val ROWS = ROW_BLOCKS * LANE
 
-    /** Built once, for the reason [SimdPanelKernels] builds its own once. */
-    private val NAME: String = "simd-tile(${ROWS}x$TILE_COLUMNS)"
-
-    override val name: String get() = NAME
+    /** Stored, for the reason [SimdPanelKernels] stores its own. */
+    override val name: String = "simd-tile(${ROWS}x$TILE_COLUMNS)"
 
     override val tileRows: Int get() = ROWS
 
@@ -46,7 +44,7 @@ internal object SimdProductKernels : EngineKernels {
      * scalar edge for the rows a last tile does not fill, in that order because that is the order the row
      * sweep below takes them in.
      */
-    internal fun implementationsFor(rows: Int, columns: Int, depth: Int): List<String> = when {
+    override fun implementationsFor(rows: Int, columns: Int, depth: Int): List<String> = when {
         rows <= 0 || columns <= 0 || depth <= 0 -> emptyList()
         rows < ROWS -> listOf(EDGE_NAME)
         rows % ROWS == 0 -> listOf(name)

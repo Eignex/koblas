@@ -6,18 +6,7 @@ import java.io.File
 import java.lang.management.ManagementFactory
 
 /** Resolved once; none of these facts change while the process runs. */
-private val host: HostPlatform by lazy {
-    val os = operatingSystem()
-    val arch = architecture()
-    val flags = if (os == OperatingSystem.MacOs && arch == Architecture.Arm64) {
-        "asimd"
-    } else {
-        cpuInfo(if (arch == Architecture.Arm64) "Features" else "flags")
-    }
-    val instructionClass = cpuClass(arch, flags)
-    val bits = if (instructionClass == CpuClass.Sve) sveVectorBits() else null
-    HostPlatform(os, arch, cpuInfo("model name"), instructionClass, bits)
-}
+private val host: HostPlatform by lazy { detectHost(operatingSystem(), architecture(), ::cpuInfo, ::sveVectorBits) }
 
 /** Platform facts read once from JVM properties and Linux CPU metadata where available. */
 public actual fun hostPlatform(): HostPlatform = host
@@ -52,14 +41,11 @@ private fun architecture(): Architecture = when (System.getProperty("os.arch")) 
 }
 
 /** Linux supplies the model and instruction flags used by calibrated profiles. */
-private fun cpuInfo(key: String): String? {
-    if (operatingSystem() != OperatingSystem.Linux) return null
-    return try {
-        File("/proc/cpuinfo").bufferedReader().use { reader ->
-            reader.lineSequence().firstOrNull { it.startsWith(key) }
-                ?.substringAfter(':')?.trim()?.takeIf { it.isNotEmpty() }
-        }
-    } catch (_: java.io.IOException) {
-        null
+private fun cpuInfo(key: String): String? = try {
+    File("/proc/cpuinfo").bufferedReader().use { reader ->
+        reader.lineSequence().firstOrNull { it.startsWith(key) }
+            ?.substringAfter(':')?.trim()?.takeIf { it.isNotEmpty() }
     }
+} catch (_: java.io.IOException) {
+    null
 }

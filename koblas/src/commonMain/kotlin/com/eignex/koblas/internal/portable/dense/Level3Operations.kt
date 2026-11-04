@@ -7,6 +7,11 @@ import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.operands.scaleRegion
 
+/*
+ * Every entry point here runs inside its routine's preparation, which has already settled an empty
+ * destination, an empty shared dimension and a zero alpha, so each one starts at the arithmetic.
+ */
+
 /**
  * The product itself, over operands already staged against an overlap with the destination.
  *
@@ -25,13 +30,8 @@ internal fun KoblasEngine.portableGemm(
     beta: Double,
     c: DenseMatrixRegion,
     depth: Int,
-    arrays: ArraySupplier?,
+    arrays: Scratch?,
 ) {
-    if (c.rows == 0 || c.cols == 0) return
-    if (alpha == 0.0 || depth == 0) {
-        scaleRegion(c, beta)
-        return
-    }
     if (c.cols == 1 && c.rows > 1) {
         // The column of op(B) is a stored column, or a stored row when B is transposed.
         portableGemv(
@@ -64,21 +64,13 @@ internal fun KoblasEngine.portableGemmt(
     beta: Double,
     c: DenseMatrixRegion,
     lower: Boolean,
-    arrays: ArraySupplier?,
+    arrays: Scratch?,
 ) {
     val depth = if (transposeA) a.rows else a.cols
-    if (c.rows == 0) return
-    if (alpha == 0.0 || depth == 0) {
-        scaleRegion(c, beta, lower)
-        return
-    }
     productWindow(
         this, alpha, a.values, a.offset, a.leadingDimension, transposeA, b.values, b.offset,
         b.leadingDimension, transposeB, beta, c.values, c.offset, c.leadingDimension, c.rows, c.cols, depth,
-        selectedTriangle(
-            lower,
-        ),
-        arrays,
+        selectedTriangle(lower), arrays,
     )
 }
 
@@ -90,13 +82,8 @@ internal fun KoblasEngine.portableSymm(
     c: DenseMatrixRegion,
     lower: Boolean,
     right: Boolean,
-    arrays: ArraySupplier?,
+    arrays: Scratch?,
 ) {
-    if (c.rows == 0 || c.cols == 0) return
-    if (alpha == 0.0) {
-        scaleRegion(c, beta, vectors = this)
-        return
-    }
     scaleRegion(c, beta, vectors = this)
     symmetricProduct(
         this, alpha, a.values, a.rows, lower, b.values, b.leadingDimension, c.values, c.leadingDimension,
@@ -111,21 +98,13 @@ internal fun KoblasEngine.portableSyrk(
     beta: Double,
     c: DenseMatrixRegion,
     lower: Boolean,
-    arrays: ArraySupplier?,
+    arrays: Scratch?,
 ) {
     val depth = if (transpose) a.rows else a.cols
-    if (c.rows == 0) return
-    if (alpha == 0.0 || depth == 0) {
-        scaleRegion(c, beta, lower)
-        return
-    }
     productWindow(
         this, alpha, a.values, a.offset, a.leadingDimension, transpose, a.values, a.offset,
         a.leadingDimension, !transpose, beta, c.values, c.offset, c.leadingDimension, c.rows, c.cols, depth,
-        selectedTriangle(
-            lower,
-        ),
-        arrays,
+        selectedTriangle(lower), arrays,
     )
 }
 
@@ -137,14 +116,9 @@ internal fun KoblasEngine.portableSyr2k(
     beta: Double,
     c: DenseMatrixRegion,
     lower: Boolean,
-    arrays: ArraySupplier?,
+    arrays: Scratch?,
 ) {
     val depth = if (transpose) a.rows else a.cols
-    if (c.rows == 0) return
-    if (alpha == 0.0 || depth == 0) {
-        scaleRegion(c, beta, lower)
-        return
-    }
     val selected = selectedTriangle(lower)
     productWindow(
         this, alpha, a.values, a.offset, a.leadingDimension, transpose, b.values, b.offset,
@@ -166,12 +140,8 @@ internal fun KoblasEngine.portableTriangularMatrix(
     b: DenseMatrixRegion,
     right: Boolean,
     solve: Boolean,
-    arrays: ArraySupplier?,
+    arrays: Scratch?,
 ) {
-    if (alpha == 0.0) {
-        scaleRegion(b, 0.0)
-        return
-    }
     triangularMatrix(
         this, a.values, a.rows, b.values, b.leadingDimension, if (right) b.rows else b.cols,
         structure.isLower, transpose, structure.isUnitDiagonal, right, alpha, solve, arrays, a.offset,

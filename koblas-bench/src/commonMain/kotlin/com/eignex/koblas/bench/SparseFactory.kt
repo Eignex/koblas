@@ -24,12 +24,12 @@ internal fun sparseFactoryWork(case: BenchCase): CaseWork {
         values[k] = fixture.values[source] / copies
     }
     fun build() = SparseMatrix.ofTriplets(rows, columns, indices, columnIndices, values)
-    val expected = Array(rows) { DoubleArray(columns) }
+    val expected = DoubleArray(rows * columns)
     val support = Array(rows) { BooleanArray(columns) }
     for (k in indices.indices) {
         val i = indices[k]
         val j = columnIndices[k]
-        expected[i][j] = if (support[i][j]) expected[i][j] + values[k] else values[k]
+        expected[i + j * rows] = if (support[i][j]) expected[i + j * rows] + values[k] else values[k]
         support[i][j] = true
     }
     var result = build()

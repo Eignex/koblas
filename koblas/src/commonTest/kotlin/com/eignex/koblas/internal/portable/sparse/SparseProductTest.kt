@@ -348,7 +348,7 @@ class SparseProductTest {
             for (transpose in booleanArrayOf(false, true)) {
                 for (a in patterns) {
                     val order = if (transpose) a.cols else a.rows
-                    withSymmetricRankScratch(workspace.arrays, order, a.rows, a.nnz) {
+                    withSymmetricRankScratch(workspace, order, a.rows, a.nnz) {
                             sums,
                             marks,
                             touched,

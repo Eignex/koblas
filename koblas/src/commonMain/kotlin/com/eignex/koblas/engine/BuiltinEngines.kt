@@ -44,10 +44,8 @@ public object BuiltinEngines {
     @get:kotlin.jvm.JvmStatic
     public val simd: KoblasEngine? by lazy {
         simdBackend()?.let { parts ->
-            val rules = parts.groupBy { it.id }.map { (source, providers) ->
-                EngineRule(source, providers.flatMapTo(mutableSetOf()) { it.implementations })
-            }
-            combine(EngineProfile("jvm-simd", rules), *parts.toTypedArray())
+            val rule = EngineRule("jvm-simd", parts.flatMapTo(mutableSetOf()) { it.implementations })
+            combine(EngineProfile("jvm-simd", listOf(rule)), *parts.toTypedArray())
         }
     }
 }

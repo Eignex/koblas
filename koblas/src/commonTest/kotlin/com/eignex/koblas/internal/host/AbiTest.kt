@@ -1,6 +1,5 @@
 package com.eignex.koblas.internal.host
 
-import com.eignex.koblas.engine.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -20,17 +19,6 @@ class AbiTest {
         }
         for (control in ThreadControl.entries.filterNot { it == ThreadControl.OpenMp }) {
             assertTrue(!control.permitsAbsentControl("library.dll"))
-        }
-    }
-
-    @Test
-    fun `missing exports remove only their own capabilities`() {
-        for (missing in listOf("cblas_dgemmt", "cblas_dtrsm", "cblas_dnrm2")) {
-            val supplied = exportedImplementations { it != missing }
-
-            assertTrue(EngineImplementation.Dot in supplied)
-            assertTrue(EngineImplementation.Gemm in supplied)
-            assertTrue(supplied.none { it.entryPoint == missing })
         }
     }
 

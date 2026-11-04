@@ -9,12 +9,7 @@ import com.eignex.koblas.engine.*
  */
 
 /** [block] over [values], or over a copy of it when [aliased]. */
-internal inline fun <T> staged(
-    arrays: ArraySupplier?,
-    values: DoubleArray,
-    aliased: Boolean,
-    block: (DoubleArray) -> T,
-): T {
+internal inline fun <T> staged(arrays: Scratch?, values: DoubleArray, aliased: Boolean, block: (DoubleArray) -> T): T {
     if (!aliased) return block(values)
     return arrays.borrow(values.size) { copy ->
         values.copyInto(copy)
@@ -29,12 +24,7 @@ internal inline fun <T> staged(
  * alone.
  */
 @OptIn(UnsafeKoblasApi::class)
-internal inline fun <T> staged(
-    arrays: ArraySupplier?,
-    a: SparseMatrix,
-    aliased: Boolean,
-    block: (SparseMatrix) -> T,
-): T {
+internal inline fun <T> staged(arrays: Scratch?, a: SparseMatrix, aliased: Boolean, block: (SparseMatrix) -> T): T {
     if (!aliased) return block(a)
     return arrays.borrow(a.nnz) { copy ->
         a.values.copyInto(copy)
@@ -46,16 +36,11 @@ internal inline fun <T> staged(
  * Adapts a non-sparse operand into dense storage borrowed for [block]. Dense operands pass through unchanged.
  * Both extents are retained even when empty; sparse operands must be dispatched before reaching this helper.
  */
-internal inline fun <T> denseOperand(arrays: ArraySupplier?, matrix: Matrix, block: (DenseMatrixRegion) -> T): T {
+internal inline fun <T> denseOperand(arrays: Scratch?, matrix: Matrix, block: (DenseMatrixRegion) -> T): T {
     if (matrix is DenseMatrixRegion) return block(matrix)
     val rows = matrix.rows
     val cols = matrix.cols
-    requireNonNegativeShape(rows, cols)
-    val entries = rows.toLong() * cols
-    requireShape(entries <= Int.MAX_VALUE) {
-        "operand ${rows}x$cols needs $entries entries, more than one array can hold"
-    }
-    return arrays.borrow(entries.toInt()) { values ->
+    return arrays.borrow(DenseMatrix.entryCount(rows, cols)) { values ->
         for (j in 0 until cols) {
             val base = j * rows
             for (i in 0 until rows) values[base + i] = matrix[i, j]

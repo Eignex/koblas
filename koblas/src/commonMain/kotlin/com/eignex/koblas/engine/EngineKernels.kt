@@ -22,6 +22,17 @@ internal interface EngineKernels : KoblasEngine {
     /** Smallest run the contribution can execute. The composer checks it before calling the provider. */
     fun minimumLength(implementation: EngineImplementation): Int = 0
 
+    /** The body a panel of these extents reaches, which is this engine's own unless it hands some shapes on. */
+    fun implementationFor(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean = true): String = name
+
+    /** The bodies a [productBlock] of these extents reaches, in the order its row sweep takes them. */
+    fun implementationsFor(rows: Int, columns: Int, depth: Int): List<String> =
+        if (rows <= 0 || columns <= 0 || depth <= 0) emptyList() else listOf(name)
+
+    /** The bodies a diagonal block of [order] steps over [sides] right-hand sides reaches. */
+    fun implementationsFor(order: Int, sides: Int, contiguous: Boolean): List<String> =
+        if (order <= 0 || sides <= 0) emptyList() else listOf(name)
+
     /**
      * How many columns of [work] this engine recommends processing together, for a panel of [rows] by
      * [columns].

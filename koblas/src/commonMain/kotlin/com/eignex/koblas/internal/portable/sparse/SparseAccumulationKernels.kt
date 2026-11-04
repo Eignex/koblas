@@ -174,8 +174,6 @@ internal object SparseAccumulationKernels {
         rightValues: DoubleArray,
         rightStart: Int,
         rightEnd: Int,
-        firstRow: Int,
-        lastRow: Int,
         destination: DoubleArray,
         destinationOffset: Int,
     ) {
@@ -183,10 +181,8 @@ internal object SparseAccumulationKernels {
             val leftColumn = rightRows[rightPosition]
             val rightValue = rightValues[rightPosition]
             for (leftPosition in leftPointers[leftColumn] until leftPointers[leftColumn + 1]) {
-                val row = leftRows[leftPosition]
-                if (row >= firstRow && row < lastRow) {
-                    destination[destinationOffset + row] += alpha * (leftValues[leftPosition] * rightValue)
-                }
+                destination[destinationOffset + leftRows[leftPosition]] +=
+                    alpha * (leftValues[leftPosition] * rightValue)
             }
         }
     }
@@ -227,8 +223,6 @@ internal object SparseAccumulationKernels {
         rowIndices: IntArray,
         start: Int,
         end: Int,
-        firstRow: Int,
-        lastRow: Int,
         epoch: Int,
         sums: DoubleArray,
         marks: IntArray,
@@ -238,7 +232,7 @@ internal object SparseAccumulationKernels {
         var used = touchedCount
         for (position in start until end) {
             val row = rowIndices[position]
-            if (row < firstRow || row >= lastRow || marks[row] == epoch) continue
+            if (marks[row] == epoch) continue
             marks[row] = epoch
             sums[row] = 0.0
             touched[used++] = row
@@ -288,12 +282,11 @@ internal object SparseAccumulationKernels {
      * [sweepsTouchedRows].
      */
     @Suppress("LongParameterList")
-    inline fun collectTouchedRows(marks: IntArray, epoch: Int, firstRow: Int, lastRow: Int, touched: IntArray): Int {
+    inline fun collectTouchedRows(marks: IntArray, epoch: Int, firstRow: Int, lastRow: Int, touched: IntArray) {
         var used = 0
         for (row in firstRow until lastRow) {
             if (marks[row] == epoch) touched[used++] = row
         }
-        return used
     }
 
     @Suppress("LongParameterList")

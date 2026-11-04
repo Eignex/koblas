@@ -11,23 +11,7 @@ import platform.posix.fgets
 import platform.posix.fopen
 
 /** Resolved once; none of these facts change while the process runs. */
-private val host: HostPlatform by lazy {
-    val os = operatingSystem()
-    val arch = architecture()
-    val flags = if (os == OperatingSystem.MacOs && arch == Architecture.Arm64) {
-        "asimd"
-    } else {
-        cpuInfo(if (arch == Architecture.Arm64) "Features" else "flags")
-    }
-    val instructionClass = cpuClass(arch, flags)
-    HostPlatform(
-        os,
-        arch,
-        cpuInfo("model name"),
-        instructionClass,
-        if (instructionClass == CpuClass.Sve) sveVectorBits() else null,
-    )
-}
+private val host: HostPlatform by lazy { detectHost(operatingSystem(), architecture(), ::cpuInfo, ::sveVectorBits) }
 
 /** Linux reports the current thread's SVE width without changing its vector configuration. */
 internal expect fun sveVectorBits(): Int?
@@ -52,7 +36,6 @@ private fun architecture(): Architecture = when (Platform.cpuArchitecture) {
 /** Linux supplies the model and instruction flags used by calibrated profiles. */
 @OptIn(ExperimentalForeignApi::class)
 private fun cpuInfo(key: String): String? {
-    if (operatingSystem() != OperatingSystem.Linux) return null
     val file = fopen("/proc/cpuinfo", "r") ?: return null
     try {
         memScoped {
