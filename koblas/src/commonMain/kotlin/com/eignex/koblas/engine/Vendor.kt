@@ -1,16 +1,9 @@
 package com.eignex.koblas.engine
 
+import com.eignex.koblas.internal.engine.USER_HOME
 import com.eignex.koblas.internal.engine.isWindowsAbsolutePath
 import com.eignex.koblas.internal.host.ACCELERATE_THREAD_LIMIT
 import com.eignex.koblas.internal.host.ThreadControl
-
-/**
- * Stands in for the user's home directory inside a candidate path.
- *
- * At file level rather than in the companion because the enum entries are constructed before a companion of
- * their own class is initialized.
- */
-private const val USER_HOME: String = "{home}"
 
 /**
  * The closed set of BLAS libraries Koblas can bind.

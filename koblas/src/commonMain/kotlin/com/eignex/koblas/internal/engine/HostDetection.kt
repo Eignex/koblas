@@ -45,3 +45,11 @@ internal fun detectHost(
 internal fun String.isWindowsAbsolutePath(): Boolean =
     (length >= 3 && this[0].isLetter() && this[1] == ':' && this[2] == '/') ||
         (startsWith("//") && split('/').filter { it.isNotEmpty() }.size >= 2)
+
+/**
+ * Stands in for the user's home directory inside a vendor's candidate library path.
+ *
+ * Outside [Vendor] because its entries are constructed before a companion of their own class is initialized,
+ * and outside the public package so the JVM facade a file-level constant needs is not published.
+ */
+internal const val USER_HOME: String = "{home}"
