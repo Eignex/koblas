@@ -76,120 +76,46 @@ internal fun symmetricProduct(
     rows: Int,
     columns: Int,
     right: Boolean,
-    arrays: ArraySupplier?,
+    arrays: Scratch?,
     aOffset: Int = 0,
     lda: Int = order,
     bOffset: Int = 0,
     cOffset: Int = 0,
 ) {
-    if (order == 0 || rows == 0 || columns == 0) return
+    // One window with op(S), a piece of the symmetric operand spanning these steps of the order down and across.
+    // Its rows are the shared dimension when the dense operand is on the left, and the destination's otherwise.
+    fun window(
+        s: DoubleArray,
+        at: Int,
+        lds: Int,
+        transposeS: Boolean,
+        rowStart: Int,
+        opRows: Int,
+        columnStart: Int,
+        opColumns: Int,
+    ) {
+        if (right) {
+            productWindow(
+                engine, alpha, b, bOffset + rowStart * ldb, ldb, false, s, at, lds, transposeS, 1.0, c,
+                cOffset + columnStart * ldc, ldc, rows, opColumns, opRows, OutputTriangle.Full, arrays,
+            )
+        } else {
+            productWindow(
+                engine, alpha, s, at, lds, transposeS, b, bOffset + columnStart, ldb, false, 1.0, c,
+                cOffset + rowStart, ldc, opRows, columns, opColumns, OutputTriangle.Full, arrays,
+            )
+        }
+    }
     val block = if (SYMMETRIC_BLOCK < order) SYMMETRIC_BLOCK else order
     arrays.borrowOptional(block * block) { square ->
         forEachSymmetricBlock(order, block, lower) { start, size, stripStart, stripCount ->
             expandSymmetric(a, lda, lower, start, size, square, aOffset)
-            forEachSymmetricWindow(rows, columns, right, lda, ldb, ldc, start, size, stripStart, stripCount) {
-                    expanded,
-                    leftOffset,
-                    rightOffset,
-                    targetOffset,
-                    m,
-                    n,
-                    k,
-                    transposeA,
-                    transposeB,
-                ->
-                val left = if (right) {
-                    b
-                } else if (expanded) {
-                    square
-                } else {
-                    a
-                }
-                val rightValues = if (!right) {
-                    b
-                } else if (expanded) {
-                    square
-                } else {
-                    a
-                }
-                val leftOrigin = if (right) {
-                    bOffset
-                } else if (expanded) {
-                    0
-                } else {
-                    aOffset
-                }
-                val rightOrigin = if (!right) {
-                    bOffset
-                } else if (expanded) {
-                    0
-                } else {
-                    aOffset
-                }
-                val leftStride = if (right) {
-                    ldb
-                } else if (expanded) {
-                    size
-                } else {
-                    lda
-                }
-                val rightStride = if (!right) {
-                    ldb
-                } else if (expanded) {
-                    size
-                } else {
-                    lda
-                }
-                productWindow(
-                    engine, alpha, left, leftOrigin + leftOffset, leftStride, transposeA, rightValues,
-                    rightOrigin + rightOffset, rightStride, transposeB, 1.0, c,
-                    cOffset + targetOffset, ldc, m, n, k, OutputTriangle.Full, arrays,
-                )
+            window(square, 0, size, false, start, size, start, size)
+            if (stripCount > 0) {
+                val strip = aOffset + stripStart + start * lda
+                window(a, strip, lda, false, stripStart, stripCount, start, size)
+                window(a, strip, lda, true, start, size, stripStart, stripCount)
             }
-        }
-    }
-}
-
-/**
- * Ordinary product windows contributed by one symmetric diagonal block and its stored strip.
- * Offsets are relative to original storage, except the expanded square which starts at zero.
- * Execution and inspection enumerate this same sequence of windows without reading coefficients.
- */
-internal inline fun forEachSymmetricWindow(
-    rows: Int,
-    columns: Int,
-    right: Boolean,
-    lda: Int,
-    ldb: Int,
-    ldc: Int,
-    start: Int,
-    size: Int,
-    stripStart: Int,
-    stripCount: Int,
-    action: (
-        square: Boolean,
-        aOffset: Int,
-        bOffset: Int,
-        cOffset: Int,
-        m: Int,
-        n: Int,
-        k: Int,
-        transposeA: Boolean,
-        transposeB: Boolean,
-    ) -> Unit,
-) {
-    val strip = stripStart + start * lda
-    if (right) {
-        action(true, start * ldb, 0, start * ldc, rows, size, size, false, false)
-        if (stripCount > 0) {
-            action(false, stripStart * ldb, strip, start * ldc, rows, size, stripCount, false, false)
-            action(false, start * ldb, strip, stripStart * ldc, rows, stripCount, size, false, true)
-        }
-    } else {
-        action(true, 0, start, start, size, columns, size, false, false)
-        if (stripCount > 0) {
-            action(false, strip, start, stripStart, stripCount, columns, size, false, false)
-            action(false, strip, stripStart, start, size, columns, stripCount, true, false)
         }
     }
 }

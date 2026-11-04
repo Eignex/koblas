@@ -139,11 +139,13 @@ internal open class RecordingBlas(
         structure: MatrixStructure,
     ) = record(EngineImplementation.Syr2, a)
 
-    override fun cblasTrsv(a: DenseMatrixRegion, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) =
-        record(EngineImplementation.Trsv, a)
-
-    override fun cblasTrmv(a: DenseMatrixRegion, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) =
-        record(EngineImplementation.Trmv, a)
+    override fun cblasTriangularVector(
+        operation: EngineImplementation,
+        a: DenseMatrixRegion,
+        structure: MatrixStructure,
+        transposeA: Boolean,
+        x: DenseVector,
+    ) = record(operation, a)
 
     override fun cblasGemm(
         alpha: Double,
@@ -195,21 +197,13 @@ internal open class RecordingBlas(
         structure: MatrixStructure,
     ) = record(EngineImplementation.Syr2k, a, b, c)
 
-    override fun cblasTrmm(
+    override fun cblasTriangularMatrix(
+        operation: EngineImplementation,
         alpha: Double,
         a: DenseMatrixRegion,
         structure: MatrixStructure,
         transposeA: Boolean,
         b: DenseMatrixRegion,
         rightSide: Boolean,
-    ) = record(EngineImplementation.Trmm, a, b)
-
-    override fun cblasTrsm(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        structure: MatrixStructure,
-        transposeA: Boolean,
-        b: DenseMatrixRegion,
-        rightSide: Boolean,
-    ) = record(EngineImplementation.Trsm, a, b)
+    ) = record(operation, a, b)
 }

@@ -40,7 +40,7 @@ class BuiltinEnginesTest {
     fun `without the Vector API the owned matrix backends are portable`() {
         if (BuiltinEngines.simd != null) return
 
-        assertEquals(PortableEngine.name, koblas.implementationFor(PanelWork.RankUpdate, WIDE, 4))
+        assertEquals(PortableEngine.name, koblas.panelProvider.implementationFor(PanelWork.RankUpdate, WIDE, 4))
     }
 
     /** Below any arm's threshold the call overhead outweighs the arithmetic, so the portable loop runs. */

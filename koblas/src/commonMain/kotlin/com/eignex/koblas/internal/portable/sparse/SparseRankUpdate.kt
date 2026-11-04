@@ -106,20 +106,10 @@ private fun nonzeroIndices(values: DoubleArray): IntArray {
 }
 
 private fun triangleStart(indices: IntArray, column: Int, lower: Boolean): Int =
-    if (lower) lowerBound(indices, column) else 0
+    if (lower) lowerBound(indices, 0, indices.size, column) else 0
 
 private fun triangleEnd(indices: IntArray, column: Int, lower: Boolean): Int =
-    if (lower) indices.size else lowerBound(indices, column + 1)
-
-private fun lowerBound(indices: IntArray, value: Int): Int {
-    var low = 0
-    var high = indices.size
-    while (low < high) {
-        val middle = (low + high) ushr 1
-        if (indices[middle] < value) low = middle + 1 else high = middle
-    }
-    return low
-}
+    if (lower) indices.size else lowerBound(indices, 0, indices.size, column + 1)
 
 @OptIn(UnsafeKoblasApi::class)
 private class SparseRankMatrixBuilder(private val rows: Int, private val cols: Int, expectedEntries: Int) {

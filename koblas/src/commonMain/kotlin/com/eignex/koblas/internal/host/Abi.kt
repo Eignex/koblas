@@ -63,10 +63,6 @@ internal enum class ThreadControl(
  */
 internal const val ACCELERATE_THREAD_LIMIT: String = "VECLIB_MAXIMUM_THREADS"
 
-/** Positive vendor contributions resolved from that library's own exported symbols. */
-internal fun exportedImplementations(exports: (String) -> Boolean): Set<EngineImplementation> =
-    EngineImplementation.entries.filterTo(LinkedHashSet()) { it.entryPoint.isNotEmpty() && exports(it.entryPoint) }
-
 /**
  * Whether a library's own configuration string says it was built with 64-bit BLAS integers.
  *
@@ -130,3 +126,120 @@ internal object AbiProbe {
     /** A 2x2 column-major operand; the identity product must return it unchanged. */
     val operand: DoubleArray get() = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
 }
+
+/** oneMKL's `MKL_THREADING_SEQUENTIAL`. */
+internal const val MKL_SEQUENTIAL: Int = 1
+
+/** The longest version string a binding reads. */
+internal const val VERSION_BUFFER: Int = 256
+
+/**
+ * The raw calls a binding makes into a candidate library while admitting it, each by symbol name and each
+ * answering null when the library does not export that symbol. [admit] owns the order they are made in.
+ */
+internal interface AdmissionCalls {
+    /** Which vendor the candidate is. */
+    val vendor: Vendor
+
+    /** The file that opened. */
+    val candidate: String
+
+    /** The library's own version, read through [readVersion] on first use. */
+    val version: String
+
+    /** Calls `int name(int)`. */
+    fun callIntToInt(name: String, argument: Int): Int?
+
+    /** Calls `void name(int)`, doing nothing when it is absent. */
+    fun callIntToUnit(name: String, argument: Int)
+
+    /** Calls `int name(void)`. */
+    fun callToInt(name: String): Int?
+
+    /** Calls `void name(char *buffer, int size)` and reads the buffer back. */
+    fun callIntoBuffer(name: String, size: Int): String?
+
+    /** Calls `const char *name(void)` and reads the string, or null for a null pointer. */
+    fun callToString(name: String): String?
+
+    /** Sets a variable in this process's environment, replacing an inherited value. */
+    fun setEnvironmentVariable(name: String, value: String)
+
+    /** Applies the vendor's one-thread setter on the calling thread, even if it already did, and records it. */
+    fun holdThisThread()
+
+    /** Whether the library's own `ddot` and `dgemm` return the exact [AbiProbe] answers. */
+    fun knownAnswersMatch(): Boolean
+}
+
+/**
+ * Admits a candidate, returning how its single compute thread is known, or null to refuse it.
+ *
+ * oneMKL's integer interface is selected before any other oneMKL call, including the thread controls, the
+ * version read and the probes. The thread configuration precedes the probes because a probe can resolve
+ * oneMKL's threading layer, and the count is read back after them.
+ */
+internal fun AdmissionCalls.admit(): ThreadEvidence? {
+    if (!establishIntegerInterface()) return null
+    enforceSingleThread()
+    if (!verifiedAbi()) return null
+    return confirmSingleThread()
+}
+
+/**
+ * Selects and verifies oneMKL's LP64 interface. The setter overrides an inherited `MKL_INTERFACE_LAYER` and
+ * returns the selected interface, so a missing setter or a runtime already fixed to another interface fails.
+ */
+private fun AdmissionCalls.establishIntegerInterface(): Boolean =
+    vendor != Vendor.OneMkl || callIntToInt("MKL_Set_Interface_Layer", MKL_LP64) == MKL_LP64
+
+/**
+ * Configures one compute thread before any arithmetic. oneMKL takes its sequential layer, which needs no OpenMP
+ * runtime, and has dynamic expansion switched off. Accelerate has no entry point and is held through
+ * [ACCELERATE_THREAD_LIMIT].
+ */
+private fun AdmissionCalls.enforceSingleThread() {
+    if (vendor.threadControl == ThreadControl.Environment) setEnvironmentVariable(ACCELERATE_THREAD_LIMIT, "1")
+    if (vendor.threadControl == ThreadControl.Mkl) {
+        callIntToInt("MKL_Set_Threading_Layer", MKL_SEQUENTIAL)
+        callIntToUnit("MKL_Set_Dynamic", 0)
+    }
+    // Unconditional: this thread may have held an earlier candidate of the same vendor that was then refused.
+    holdThisThread()
+}
+
+/**
+ * Whether the library matches the ABI Koblas binds and computes correctly through it. The integer width is
+ * read from what the build says about itself, through [declaresWideIntegers] and [BLIS_INTEGER_WIDTH], since a
+ * call cannot distinguish it; whether the library computes at all is settled by the known-answer probes.
+ */
+private fun AdmissionCalls.verifiedAbi(): Boolean {
+    if (declaresWideIntegers(version)) return false
+    val width = callToInt(BLIS_INTEGER_WIDTH)
+    if (width != null && width != LP64_INTEGER_BITS) return false
+    return knownAnswersMatch()
+}
+
+/** Reads back the thread count, refusing a library that still reports more than one. */
+private fun AdmissionCalls.confirmSingleThread(): ThreadEvidence? {
+    val control = vendor.threadControl
+    // Accelerate, held through the environment and unable to answer. Declared, not discovered.
+    val getter = control.getter ?: return ThreadEvidence.Unconfirmed
+    val count = callToInt(getter)
+    return when {
+        // A build of a known vendor without its control is refused, except a declared serial build.
+        count == null -> ThreadEvidence.Confirmed.takeIf { control.permitsAbsentControl(candidate) }
+
+        count == 1 -> ThreadEvidence.Confirmed
+
+        else -> null
+    }
+}
+
+/** The library's own version string, or a note that it reports none. */
+internal fun AdmissionCalls.readVersion(): String = callIntoBuffer("MKL_Get_Version_String", VERSION_BUFFER).nonBlank()
+    ?: callToString("openblas_get_config").nonBlank()
+    ?: callToString("bli_info_get_version_str").nonBlank()
+    ?: if (vendor == Vendor.Accelerate) "system framework" else "unreported"
+
+private fun String?.nonBlank(): String? = this?.trim()?.ifEmpty { null }

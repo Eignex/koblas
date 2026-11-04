@@ -10,15 +10,7 @@ import com.eignex.koblas.sparse.*
 /** Backends are bound once; arithmetic never resolves identifiers or capabilities. */
 internal class CompiledRouting(profile: EngineProfile, engines: List<EngineKernels>) {
     private val portable = PortableEngine
-    val backends: List<EngineKernels> = engines.flatMap {
-        if (it is CombinedEngine) {
-            it.routing.backends
-        } else {
-            listOf(
-                it,
-            )
-        }
-    }
+    val backends: List<EngineKernels> = engines.flatMap { (it as? CombinedEngine)?.routing?.backends ?: listOf(it) }
         .filterNot { it === portable }.distinct() + portable
     init {
         val known = backends.map { it.id } + "jvm-simd" + Vendor.entries.map { it.vendorName.lowercase() }
@@ -52,21 +44,16 @@ internal class CompiledRouting(profile: EngineProfile, engines: List<EngineKerne
         )
     }
 
+    /** The leaf a whole matrix call or a scheduled family binds; a vector run dispatches on [compileLength]. */
     fun select(
         operation: EngineImplementation,
         rows: Int = 0,
         columns: Int = 1,
         depth: Int = 1,
-        contiguous: Boolean = true,
         borrowed: Boolean = false,
     ): EngineKernels {
-        val vector = operation.vector
-        val width = if (vector) 1 else columns
-        val shared = if (vector) 1 else depth
         for ((rule, backend) in routes[operation.ordinal]) {
-            if (vector && rows < backend.minimumLength(operation)) continue
-            if (vector && !contiguous && backend.requiresUnitStride(operation)) continue
-            if (rule.matches(rows, width, shared, contiguous, borrowed && !vector)) return backend
+            if (rule.matches(rows, columns, depth, true, borrowed)) return backend
         }
         return portable
     }
@@ -100,28 +87,43 @@ private inline fun <R> LengthDispatch.withBackend(
 /** One primitive-window interface serves leaves and the immutable routed composition. */
 internal class CombinedEngine(val routing: CompiledRouting, override val name: String) : EngineKernels {
     override val implementations = PortableEngine.implementations.filterTo(mutableSetOf()) { it.vector }
-    private val dotRoute = routing.compileLength(EngineImplementation.Dot)
-    private val sumRoute = routing.compileLength(EngineImplementation.Sum)
-    private val nrm2Route = routing.compileLength(EngineImplementation.Nrm2)
-    private val asumRoute = routing.compileLength(EngineImplementation.Asum)
-    private val iamaxRoute = routing.compileLength(EngineImplementation.Iamax)
-    private val axpyRoute = routing.compileLength(EngineImplementation.Axpy)
-    private val scaleRoute = routing.compileLength(EngineImplementation.Scale)
-    private val swapRoute = routing.compileLength(EngineImplementation.Swap)
-    private val rotRoute = routing.compileLength(EngineImplementation.Rot)
-    private val copyRoute = routing.compileLength(EngineImplementation.Copy)
-    private val indexedDotRoute = routing.compileLength(EngineImplementation.IndexedDot)
-    private val indexedSparseDotRoute = routing.compileLength(EngineImplementation.IndexedSparseDot)
-    private val indexedAxpyRoute = routing.compileLength(EngineImplementation.IndexedAxpy)
-    private val indexedScatterRoute = routing.compileLength(EngineImplementation.IndexedScatter)
-    private val indexedGatherRoute = routing.compileLength(EngineImplementation.IndexedGather)
-    private val indexedGatherZeroRoute = routing.compileLength(EngineImplementation.IndexedGatherZero)
-    private val indexedNrm2Route = routing.compileLength(EngineImplementation.IndexedNrm2)
+
+    // Indexed by ordinal; only vector entries are read. Each kernel below keeps its own final field.
+    private val lengthRoutes = EngineImplementation.entries.map { routing.compileLength(it) }
+    private val dotRoute = lengthRoutes[EngineImplementation.Dot.ordinal]
+    private val sumRoute = lengthRoutes[EngineImplementation.Sum.ordinal]
+    private val nrm2Route = lengthRoutes[EngineImplementation.Nrm2.ordinal]
+    private val asumRoute = lengthRoutes[EngineImplementation.Asum.ordinal]
+    private val iamaxRoute = lengthRoutes[EngineImplementation.Iamax.ordinal]
+    private val axpyRoute = lengthRoutes[EngineImplementation.Axpy.ordinal]
+    private val scaleRoute = lengthRoutes[EngineImplementation.Scale.ordinal]
+    private val swapRoute = lengthRoutes[EngineImplementation.Swap.ordinal]
+    private val rotRoute = lengthRoutes[EngineImplementation.Rot.ordinal]
+    private val copyRoute = lengthRoutes[EngineImplementation.Copy.ordinal]
+    private val indexedDotRoute = lengthRoutes[EngineImplementation.IndexedDot.ordinal]
+    private val indexedSparseDotRoute = lengthRoutes[EngineImplementation.IndexedSparseDot.ordinal]
+    private val indexedAxpyRoute = lengthRoutes[EngineImplementation.IndexedAxpy.ordinal]
+    private val indexedScatterRoute = lengthRoutes[EngineImplementation.IndexedScatter.ordinal]
+    private val indexedGatherRoute = lengthRoutes[EngineImplementation.IndexedGather.ordinal]
+    private val indexedGatherZeroRoute = lengthRoutes[EngineImplementation.IndexedGatherZero.ordinal]
+    private val indexedNrm2Route = lengthRoutes[EngineImplementation.IndexedNrm2.ordinal]
     internal val panelImplementation = routing.select(EngineImplementation.Panels)
     internal val productImplementation = routing.select(EngineImplementation.Products)
     internal val triangularImplementation = routing.select(EngineImplementation.Triangular)
-    internal fun copyProvider(length: Int, contiguous: Boolean): EngineKernels =
-        copyRoute.withBackend(length, contiguous) { it }
+
+    /** The leaf a vector [operation] over [length] entries dispatches to, read from the same windows it runs. */
+    internal fun vectorProvider(operation: EngineImplementation, length: Int, contiguous: Boolean): EngineKernels =
+        lengthRoutes[operation.ordinal].withBackend(length, contiguous) { it }
+
+    override fun implementationFor(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean): String =
+        panelImplementation.implementationFor(work, rows, columns, contiguous)
+
+    override fun implementationsFor(rows: Int, columns: Int, depth: Int): List<String> =
+        productImplementation.implementationsFor(rows, columns, depth)
+
+    override fun implementationsFor(order: Int, sides: Int, contiguous: Boolean): List<String> =
+        triangularImplementation.implementationsFor(order, sides, contiguous)
+
     override fun dot(
         a: DoubleArray,
         aOff: Int,

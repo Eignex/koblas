@@ -62,3 +62,13 @@ internal fun sideFor(rightSide: Boolean): Int = if (rightSide) Cblas.RIGHT else 
 
 /** A singleton never advances, and its legal stride may have an unrepresentable positive magnitude. */
 internal fun positiveIncrement(stride: Int, size: Int): Int = if (size == 1) 1 else abs(stride)
+
+/**
+ * Lowest storage index passed to BLAS. Negative increments retain their sign but start at the
+ * low address, allowing BLAS to reconstruct the logical first entry at the high end.
+ */
+internal fun baseIndex(vector: DenseVector): Int = baseIndex(vector.offset, vector.stride, vector.size)
+
+/** The same rule over a raw run, which is what the Level 1 entry points hand BLAS. */
+internal fun baseIndex(offset: Int, stride: Int, size: Int): Int =
+    if (size <= 1 || stride >= 0) offset else offset + (size - 1) * stride

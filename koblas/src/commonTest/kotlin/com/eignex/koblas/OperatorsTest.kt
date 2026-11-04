@@ -89,9 +89,24 @@ class OperatorsTest {
         }
     }
 
+    // The matrix holds no elements, so sizing the result before checking the vector would fail on allocation.
+    @Test
+    fun `matrix vector product rejects an incompatible vector before result capacity`() {
+        val failure = assertFailsWith<DimensionMismatch> { DenseMatrix.zero(Int.MAX_VALUE, 0) * x }
+
+        assertEquals(
+            "gemv: ${Int.MAX_VALUE}x0 with transpose=false needs x=0 and y=${Int.MAX_VALUE}, " +
+                "got x=2 and y=${Int.MAX_VALUE}",
+            failure.message,
+        )
+    }
+
     @Test
     fun `matrix vector product agrees with gemv`() {
-        assertEquals(DenseVector.wrap(koblas.gemv(a, x.values)), a * x)
+        val y = DenseVector.zero(2)
+        koblas.gemv(1.0, a, x, 0.0, y)
+
+        assertEquals(y, a * x)
         assertClose(doubleArrayOf(0.0, 2.0), (a * x).values, "a * x")
     }
 

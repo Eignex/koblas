@@ -14,8 +14,8 @@ class ScratchTest {
     fun `a repeated loan of one length returns the same buffer`() {
         val workspace = Scratch()
 
-        val first = workspace.arrays.borrow(64) { it }
-        val second = workspace.arrays.borrow(64) { it }
+        val first = workspace.borrow(64) { it }
+        val second = workspace.borrow(64) { it }
 
         assertSame(first, second, "a returned buffer was not lent again")
         assertEquals(1, workspace.available(64))
@@ -25,8 +25,8 @@ class ScratchTest {
     fun `nested loans of one length are distinct buffers`() {
         val workspace = Scratch()
 
-        workspace.arrays.borrow(32) { outer ->
-            workspace.arrays.borrow(32) { inner ->
+        workspace.borrow(32) { outer ->
+            workspace.borrow(32) { inner ->
                 assertTrue(outer !== inner, "one buffer was lent twice at the same time")
                 inner[0] = 1.0
             }
@@ -40,7 +40,7 @@ class ScratchTest {
         val workspace = Scratch()
 
         assertFailsWith<IllegalStateException> {
-            workspace.arrays.borrow(16) { error("the kernel failed") }
+            workspace.borrow(16) { error("the kernel failed") }
         }
 
         assertEquals(1, workspace.available(16), "a failed call stranded its loan")
@@ -50,8 +50,8 @@ class ScratchTest {
     fun `index loans behave as floating point ones do`() {
         val workspace = Scratch()
 
-        val first = workspace.arrays.borrowI32(8) { it }
-        workspace.arrays.borrowI32(8) { inner -> assertSame(first, inner) }
+        val first = workspace.borrowI32(8) { it }
+        workspace.borrowI32(8) { inner -> assertSame(first, inner) }
 
         assertEquals(1, workspace.availableI32(8))
     }
@@ -61,9 +61,9 @@ class ScratchTest {
     fun `a sweep over changing lengths retains a bounded number of them`() {
         val workspace = Scratch()
 
-        for (length in 1..64) workspace.arrays.borrow(length) { it[0] = length.toDouble() }
+        for (length in 1..64) workspace.borrow(length) { it[0] = length.toDouble() }
         val floating = workspace.idleLengths()
-        for (length in 1..64) workspace.arrays.borrowI32(length) { it[0] = length }
+        for (length in 1..64) workspace.borrowI32(length) { it[0] = length }
 
         assertTrue(floating in 1..8, "retained $floating floating-point lengths")
         assertTrue(workspace.idleI32Lengths() in 1..8, "retained ${workspace.idleI32Lengths()} index lengths")
@@ -73,7 +73,7 @@ class ScratchTest {
     fun `a sweep keeps the most recently returned lengths`() {
         val workspace = Scratch()
 
-        for (length in 1..64) workspace.arrays.borrow(length) { it[0] = length.toDouble() }
+        for (length in 1..64) workspace.borrow(length) { it[0] = length.toDouble() }
 
         assertEquals(1, workspace.available(64), "the last length asked for was dropped")
         assertEquals(0, workspace.available(1), "the first length asked for was kept")
@@ -83,12 +83,12 @@ class ScratchTest {
     @Test
     fun `alternating between two lengths keeps both resident`() {
         val workspace = Scratch()
-        workspace.arrays.borrow(128) { it[0] = 1.0 }
-        workspace.arrays.borrow(256) { it[0] = 1.0 }
+        workspace.borrow(128) { it[0] = 1.0 }
+        workspace.borrow(256) { it[0] = 1.0 }
 
         repeat(8) {
-            workspace.arrays.borrow(128) { buffer -> assertEquals(128, buffer.size) }
-            workspace.arrays.borrow(256) { buffer -> assertEquals(256, buffer.size) }
+            workspace.borrow(128) { buffer -> assertEquals(128, buffer.size) }
+            workspace.borrow(256) { buffer -> assertEquals(256, buffer.size) }
         }
 
         assertEquals(1, workspace.available(128))
@@ -99,6 +99,6 @@ class ScratchTest {
     fun `a negative length is rejected rather than allocated`() {
         val workspace = Scratch()
 
-        assertFailsWith<IllegalArgumentException> { workspace.arrays.borrow(-1) { it } }
+        assertFailsWith<IllegalArgumentException> { workspace.borrow(-1) { it } }
     }
 }

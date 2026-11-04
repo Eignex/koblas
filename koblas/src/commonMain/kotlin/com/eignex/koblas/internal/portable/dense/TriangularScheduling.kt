@@ -109,12 +109,11 @@ internal fun triangularMatrix(
     right: Boolean,
     alpha: Double,
     solve: Boolean,
-    arrays: ArraySupplier?,
+    arrays: Scratch?,
     tOffset: Int = 0,
     ldt: Int = order,
     bOffset: Int = 0,
 ) {
-    if (order == 0 || sides == 0) return
     if (alpha != 1.0) {
         val rows = if (right) sides else order
         val cols = if (right) order else sides
@@ -276,27 +275,18 @@ private fun triangularUpdate(
     targetCount: Int,
     sourceStart: Int,
     sourceCount: Int,
-    arrays: ArraySupplier?,
+    arrays: Scratch?,
 ) {
-    forTriangularProductWindow(
-        order, ldb, sides, right, transposed, targetStart, targetCount, sourceStart,
-        sourceCount,
-    ) {
-            leftOffset,
-            rightOffset,
-            targetOffset,
-            m,
-            n,
-            k,
-            transposeA,
-            transposeB,
-        ->
+    val triangle = tOffset + triangleWindow(order, transposed, targetStart, sourceStart)
+    if (right) {
         productWindow(
-            engine, coefficient, if (right) b else t,
-            (if (right) bOffset else tOffset) + leftOffset, if (right) ldb else order, transposeA,
-            if (right) t else b,
-            (if (right) tOffset else bOffset) + rightOffset, if (right) order else ldb, transposeB, 1.0, b,
-            bOffset + targetOffset, ldb, m, n, k, OutputTriangle.Full, arrays,
+            engine, coefficient, b, bOffset + sourceStart * ldb, ldb, false, t, triangle, order, !transposed, 1.0,
+            b, bOffset + targetStart * ldb, ldb, sides, targetCount, sourceCount, OutputTriangle.Full, arrays,
+        )
+    } else {
+        productWindow(
+            engine, coefficient, t, triangle, order, transposed, b, bOffset + sourceStart, ldb, false, 1.0,
+            b, bOffset + targetStart, ldb, targetCount, sides, sourceCount, OutputTriangle.Full, arrays,
         )
     }
 }
@@ -310,43 +300,3 @@ private fun triangularUpdate(
  */
 internal fun triangleWindow(order: Int, transposed: Boolean, rowStart: Int, columnStart: Int): Int =
     if (transposed) columnStart + rowStart * order else rowStart + columnStart * order
-
-/** A between-block triangular product, with exactly the orientation and dimensions execution uses. */
-internal inline fun forTriangularProductWindow(
-    ldt: Int,
-    ldb: Int,
-    sides: Int,
-    right: Boolean,
-    transposed: Boolean,
-    targetStart: Int,
-    targetCount: Int,
-    sourceStart: Int,
-    sourceCount: Int,
-    action: (
-        leftOffset: Int,
-        rightOffset: Int,
-        targetOffset: Int,
-        m: Int,
-        n: Int,
-        k: Int,
-        transposeA: Boolean,
-        transposeB: Boolean,
-    ) -> Unit,
-) {
-    if (targetCount <= 0 || sourceCount <= 0) return
-    val triangle = triangleWindow(ldt, transposed, targetStart, sourceStart)
-    if (right) {
-        action(
-            sourceStart * ldb,
-            triangle,
-            targetStart * ldb,
-            sides,
-            targetCount,
-            sourceCount,
-            false,
-            !transposed,
-        )
-    } else {
-        action(triangle, sourceStart, targetStart, targetCount, sides, sourceCount, transposed, false)
-    }
-}

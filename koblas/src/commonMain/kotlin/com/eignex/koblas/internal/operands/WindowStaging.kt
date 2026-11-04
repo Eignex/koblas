@@ -68,7 +68,7 @@ internal fun windowsOverlap(
 
 /** [block] over the window, or over a contiguous copy of its entries when [aliased]. */
 internal inline fun <T> stagedWindow(
-    arrays: ArraySupplier?,
+    arrays: Scratch?,
     values: DoubleArray,
     offset: Int,
     count: Int,
@@ -85,7 +85,7 @@ internal inline fun <T> stagedWindow(
 
 /** [block] over [a], or over a snapshot of it when its logical entries overlap the destination window. */
 internal inline fun <T> stagedRegionAgainst(
-    arrays: ArraySupplier?,
+    arrays: Scratch?,
     a: DenseMatrixRegion,
     values: DoubleArray,
     offset: Int,
@@ -101,7 +101,7 @@ internal inline fun <T> stagedRegionAgainst(
 
 /** Stages two vector windows against a matrix destination, sharing the snapshot of identical windows. */
 internal inline fun <T> stagedWindows(
-    arrays: ArraySupplier?,
+    arrays: Scratch?,
     x: DoubleArray,
     xOffset: Int,
     xCount: Int,

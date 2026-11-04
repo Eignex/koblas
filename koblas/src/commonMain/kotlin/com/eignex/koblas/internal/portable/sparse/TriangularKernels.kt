@@ -1,49 +1,6 @@
 package com.eignex.koblas.internal.portable.sparse
 
 import com.eignex.koblas.*
-import com.eignex.koblas.internal.sparse.*
-
-/** The strictly off-diagonal part of one triangular column, added into a single right-hand side. */
-@Suppress("LongParameterList") // the column slice and its triangle flag
-internal fun sparseTriangularAxpy(
-    column: Int,
-    lower: Boolean,
-    rowIndices: IntArray,
-    values: DoubleArray,
-    fromIndex: Int,
-    toIndex: Int,
-    alpha: Double,
-    destination: DoubleArray,
-) {
-    for (position in fromIndex until toIndex) {
-        val row = rowIndices[position]
-        if (if (lower) row > column else row < column) destination[row] += alpha * values[position]
-    }
-}
-
-/** The strictly off-diagonal part of one triangular column, reduced against a single right-hand side. */
-@Suppress("LongParameterList") // the column slice, its triangle flag, and the running sum
-internal fun sparseTriangularReduce(
-    column: Int,
-    lower: Boolean,
-    rowIndices: IntArray,
-    values: DoubleArray,
-    fromIndex: Int,
-    toIndex: Int,
-    source: DoubleArray,
-    initial: Double,
-    subtract: Boolean,
-): Double {
-    var sum = initial
-    for (position in fromIndex until toIndex) {
-        val row = rowIndices[position]
-        if (if (lower) row > column else row < column) {
-            val term = values[position] * source[row]
-            sum = if (subtract) sum - term else sum + term
-        }
-    }
-    return sum
-}
 
 /**
  * [sparseTriangularPanelScatter] with one right-hand side, written out for the reason [sparseGatherProductColumn]
@@ -53,12 +10,11 @@ internal fun sparseTriangularReduce(
  * a second half of a scratch array, and the one live right-hand side takes the same arithmetic the panel
  * takes when none of its own are masked.
  */
-@Suppress("LongParameterList") // the column slice, its three triangle flags, and the dense window
+@Suppress("LongParameterList") // the column slice, its two triangle flags, and the dense window
 internal fun sparseTriangularScatterSingle(
     solve: Boolean,
     column: Int,
     lower: Boolean,
-    unitDiagonal: Boolean,
     diagonal: Double,
     rowIndices: IntArray,
     values: DoubleArray,
@@ -73,11 +29,7 @@ internal fun sparseTriangularScatterSingle(
     // Skip a zero right-hand side to preserve its pivot and avoid spreading nonfinite coefficients.
     if (raw == 0.0) return
     val coefficient = if (solve) raw / diagonal else raw
-    dense[pivot] = when {
-        solve -> coefficient
-        unitDiagonal -> raw
-        else -> diagonal * raw
-    }
+    dense[pivot] = if (solve) coefficient else diagonal * raw
     val start = strictRunStart(rowIndices, fromIndex, toIndex, column, lower)
     val end = strictRunEnd(rowIndices, fromIndex, toIndex, column, lower)
     for (position in start until end) {
@@ -97,12 +49,11 @@ internal fun sparseTriangularScatterSingle(
  * The accumulator is a local rather than an entry of a scratch array, which is the whole of what a group
  * of one has to gain over the panel: the pivot is read once, summed into, and written back once.
  */
-@Suppress("LongParameterList") // the column slice, its three triangle flags, and the dense window
+@Suppress("LongParameterList") // the column slice, its two triangle flags, and the dense window
 internal fun sparseTriangularGatherSingle(
     solve: Boolean,
     column: Int,
     lower: Boolean,
-    unitDiagonal: Boolean,
     diagonal: Double,
     rowIndices: IntArray,
     values: DoubleArray,
@@ -114,7 +65,7 @@ internal fun sparseTriangularGatherSingle(
 ) {
     val pivot = offset + column * indexStride
     val raw = dense[pivot]
-    var sum = if (solve || unitDiagonal) raw else diagonal * raw
+    var sum = if (solve) raw else diagonal * raw
     val start = strictRunStart(rowIndices, fromIndex, toIndex, column, lower)
     val end = strictRunEnd(rowIndices, fromIndex, toIndex, column, lower)
     for (position in start until end) {
@@ -125,78 +76,33 @@ internal fun sparseTriangularGatherSingle(
 }
 
 /**
- * Sparse `dtrmv`. The direction preserves each source before its destination is written, so no work buffer is
- * needed for the ordinary in-place case.
+ * Sparse `dtrsv` when [solve] and `dtrmv` otherwise, in place over [x]. The direction preserves each source
+ * before its destination is written, so no work buffer is needed for the ordinary in-place case.
  *
- * The diagonal is probed as `A(j, j)`, a binary search per column. That is `trmv`'s to pay: `trmm` walks
- * several right-hand sides against one triangle and precomputes the diagonal for itself instead.
+ * The diagonal is probed as `A(j, j)`, a binary search per column, and a unit diagonal is taken as 1, which
+ * multiplies and divides exactly. That is the vector routines' to pay: the matrix ones walk several
+ * right-hand sides against one triangle and precompute the diagonal for themselves instead.
  */
 @OptIn(UnsafeKoblasApi::class)
-@Suppress("LongParameterList") // the three BLAS triangle flags
-internal fun trmvCore(
+@Suppress("LongParameterList") // the triangle, the vector, and the four BLAS triangle flags
+internal fun triangularVectorCore(
     a: SparseMatrix,
     x: DoubleArray,
     lower: Boolean,
     transpose: Boolean,
     unitDiag: Boolean,
+    solve: Boolean,
 ) {
-    forEachTriangleColumn(a.rows, lower == transpose) { j ->
-        if (!transpose) {
-            val xj = x[j]
-            if (xj != 0.0) {
-                x[j] = if (unitDiag) xj else a[j, j] * xj
-                sparseTriangularAxpy(
-                    j,
-                    lower,
-                    a.rowIndices,
-                    a.values,
-                    a.colPointers[j],
-                    a.colPointers[j + 1],
-                    xj,
-                    x,
-                )
-            }
+    forEachTriangleColumn(a.rows, triangularForward(lower, transpose, solve)) { j ->
+        // A zero scattered pivot is skipped before its diagonal is searched for.
+        if (!transpose && x[j] == 0.0) return@forEachTriangleColumn
+        val diagonal = if (unitDiag) 1.0 else a[j, j]
+        val from = a.colPointers[j]
+        val to = a.colPointers[j + 1]
+        if (transpose) {
+            sparseTriangularGatherSingle(solve, j, lower, diagonal, a.rowIndices, a.values, from, to, x, 0, 1)
         } else {
-            val scaled = if (unitDiag) x[j] else a[j, j] * x[j]
-            x[j] = sparseTriangularReduce(
-                j, lower, a.rowIndices, a.values, a.colPointers[j], a.colPointers[j + 1], x, scaled, subtract = false,
-            )
-        }
-    }
-}
-
-/** `trsv` over the `n` entries of [x], with the triangle flags resolved once by the caller. */
-@OptIn(UnsafeKoblasApi::class)
-@Suppress("LongParameterList") // the three BLAS triangle flags
-internal fun trsvCore(
-    a: SparseMatrix,
-    x: DoubleArray,
-    lower: Boolean,
-    transpose: Boolean,
-    unitDiag: Boolean,
-) {
-    // Forward when a finished unknown feeds later columns, backward when it feeds earlier ones.
-    forEachTriangleColumn(a.rows, lower != transpose) { j ->
-        if (!transpose) {
-            val raw = x[j]
-            if (raw == 0.0) return@forEachTriangleColumn
-            val xj = if (unitDiag) raw else raw / a[j, j]
-            x[j] = xj
-            sparseTriangularAxpy(
-                j,
-                lower,
-                a.rowIndices,
-                a.values,
-                a.colPointers[j],
-                a.colPointers[j + 1],
-                -xj,
-                x,
-            )
-        } else {
-            val s = sparseTriangularReduce(
-                j, lower, a.rowIndices, a.values, a.colPointers[j], a.colPointers[j + 1], x, x[j], subtract = true,
-            )
-            x[j] = if (unitDiag) s else s / a[j, j]
+            sparseTriangularScatterSingle(solve, j, lower, diagonal, a.rowIndices, a.values, from, to, x, 0, 1)
         }
     }
 }

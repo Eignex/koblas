@@ -2,6 +2,7 @@ package com.eignex.koblas.internal.jvm25.host
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
+import com.eignex.koblas.internal.host.baseIndex
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout.JAVA_DOUBLE
@@ -121,10 +122,3 @@ private fun storedEntry(structure: MatrixStructure, row: Int, column: Int): Bool
     MatrixStructure.UnitLower -> row > column
     MatrixStructure.UnitUpper -> row < column
 }
-
-/**
- * Lowest storage index passed to BLAS. Negative increments retain their sign but start at the
- * low address, allowing BLAS to reconstruct the logical first entry at the high end.
- */
-internal fun baseIndex(vector: DenseVector): Int =
-    if (vector.size <= 1 || vector.stride >= 0) vector.offset else vector.offset + (vector.size - 1) * vector.stride

@@ -212,6 +212,27 @@ internal fun cpuClass(architecture: Architecture, flags: String?): CpuClass? = w
 }
 
 /**
+ * Host facts from one platform's probes. Only Linux has a CPU information file to read, and Apple silicon
+ * has Advanced SIMD without reporting it anywhere.
+ */
+internal fun detectHost(
+    os: OperatingSystem,
+    arch: Architecture,
+    cpuInfo: (key: String) -> String?,
+    sveVectorBits: () -> Int?,
+): HostPlatform {
+    val read = { key: String -> if (os == OperatingSystem.Linux) cpuInfo(key) else null }
+    val flags = if (os == OperatingSystem.MacOs && arch == Architecture.Arm64) {
+        "asimd"
+    } else {
+        read(if (arch == Architecture.Arm64) "Features" else "flags")
+    }
+    val instructionClass = cpuClass(arch, flags)
+    val bits = if (instructionClass == CpuClass.Sve) sveVectorBits() else null
+    return HostPlatform(os, arch, read("model name"), instructionClass, bits)
+}
+
+/**
  * The host facts measured profiles match. Resolved once per process; none of these change while it runs.
  */
 public class HostPlatform(

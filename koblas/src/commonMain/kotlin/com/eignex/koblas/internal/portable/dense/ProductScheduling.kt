@@ -77,7 +77,7 @@ internal fun productWindow(
     n: Int,
     k: Int,
     selected: OutputTriangle,
-    arrays: ArraySupplier?,
+    arrays: Scratch?,
 ) {
     if (m <= 0 || n <= 0) return
     if (k <= 0) {
@@ -124,7 +124,7 @@ internal fun blockedProduct(
     n: Int,
     k: Int,
     selected: OutputTriangle,
-    arrays: ArraySupplier?,
+    arrays: Scratch?,
 ) {
     val blockRows = productBlockRows(kernels, m)
     val blockColumns = productBlockColumns(kernels, n)
@@ -293,7 +293,6 @@ private fun blockedProductCore(
     var packedColumn = -1
     var packedStep = -1
     var rightStride = 0
-    var rightBase = 0
     forEachProductBlock(
         m,
         n,
@@ -306,27 +305,23 @@ private fun blockedProductCore(
         if (!outsideTriangle(row, rowCount, column, columnCount, selected)) {
             // Reuse the right panel across row blocks for the same column and depth block.
             if (column != packedColumn || step != packedStep) {
-                packRightPanel(
-                    b, bOffset, ldb, transposeB, step, column, depth, columnCount, right, 0, tileColumns,
-                )
+                packLeftPanel(b, bOffset, ldb, !transposeB, column, step, columnCount, depth, right, 0, tileColumns)
                 rightStride = depth * tileColumns
-                rightBase = 0
                 packedColumn = column
                 packedStep = step
             }
             packLeftPanel(a, aOffset, lda, transposeA, row, step, rowCount, depth, left, 0, tileRows)
             val leftStride = depth * tileRows
-            val leftBase = 0
             // Apply beta only in the first depth block; later blocks accumulate.
             val blockBeta = if (step == 0) beta else 1.0
             if (insideTriangle(row, rowCount, column, columnCount, selected)) {
                 kernels.productBlock(
-                    alpha, left, leftBase, leftStride, right, rightBase, rightStride,
+                    alpha, left, 0, leftStride, right, 0, rightStride,
                     rowCount, columnCount, depth, blockBeta, c, cOffset + row + column * ldc, ldc,
                 )
             } else {
                 selectedBlock(
-                    kernels, alpha, left, leftBase, leftStride, right, rightBase, rightStride,
+                    kernels, alpha, left, leftStride, right, rightStride,
                     row, rowCount, column, columnCount, depth, blockBeta, c, cOffset, ldc, selected, edge,
                 )
             }
@@ -352,10 +347,8 @@ private fun selectedBlock(
     kernels: EngineKernels,
     alpha: Double,
     leftPanel: DoubleArray,
-    leftBase: Int,
     leftStride: Int,
     rightPanel: DoubleArray,
-    rightBase: Int,
     rightStride: Int,
     row: Int,
     rowCount: Int,
@@ -378,8 +371,8 @@ private fun selectedBlock(
         columnCount,
         selected,
     ) { tileRow, rows, tileColumn, columns, whole ->
-        val leftTile = leftBase + tileRow / tileRows * leftStride
-        val rightTile = rightBase + tileColumn / kernels.tileColumns * rightStride
+        val leftTile = tileRow / tileRows * leftStride
+        val rightTile = tileColumn / kernels.tileColumns * rightStride
         val at = row + tileRow
         val from = column + tileColumn
         val target = cOffset + at + from * ldc
@@ -470,7 +463,7 @@ internal fun directProduct(
     n: Int,
     k: Int,
     selected: OutputTriangle,
-    arrays: ArraySupplier?,
+    arrays: Scratch?,
 ) {
     val coefficientStride = if (transposeB) ldb else 1
     if (transposeA) {
@@ -509,16 +502,11 @@ internal fun directProduct(
 internal fun directColumnBlock(m: Int): Int = if (m < PRODUCT_BLOCK_ROWS) m else PRODUCT_BLOCK_ROWS
 
 /**
- * The panel the unpacked path's arithmetic is, and how many of its columns the backend recommends handing
- * over at a time.
+ * How many columns of the unpacked path's panel the backend recommends handing over at a time.
  *
  * A transposed left operand reduces down stored columns and an untransposed one accumulates them into the
- * destination, which are different panels over different shapes.
+ * destination, which are different panels over different shapes, so each is grouped over the shape it cuts.
  */
-internal fun directPanelWork(transposeA: Boolean): PanelWork =
-    if (transposeA) PanelWork.MultiDot else PanelWork.ColumnUpdate
-
-/** The grouping for [directPanelWork], over the panel shape that path really cuts. */
 internal fun directPanelGroup(panels: EngineKernels, m: Int, k: Int, transposeA: Boolean): Int = if (transposeA) {
     panels.executionGroup(PanelWork.MultiDot, k, m)
 } else {
@@ -545,7 +533,7 @@ private fun reducedProduct(
     n: Int,
     k: Int,
     selected: OutputTriangle,
-    arrays: ArraySupplier?,
+    arrays: Scratch?,
 ) {
     val group = directPanelGroup(panels, m, k, transposeA = true)
     val gathers = gathersCoefficients(panels, m, k, coefficientStride != 1)

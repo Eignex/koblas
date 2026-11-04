@@ -26,13 +26,11 @@ public object StandardEngineProfiles {
     private val profiles = listOf(
         EngineProfile(
             "jvm-linux-arm64-sve256-v1",
-            listOf(Vendor.OpenBlas, Vendor.ArmPl).flatMap { it.jvmProductRules(128) } + listOf(
+            listOf(Vendor.OpenBlas, Vendor.ArmPl).flatMap { it.jvmProductRules(128) } + jvmOwned(
                 owned(setOf(Dot, Asum), minimum = 32),
                 owned(setOf(Sum, Nrm2), minimum = 16),
                 owned(setOf(Iamax), minimum = 256),
                 owned(setOf(Axpy), minimum = 1048576),
-                owned(setOf(IndexedDot), minimum = 16, contiguous = null),
-                owned(setOf(Panels, Products, Triangular), contiguous = null),
             ),
             EngineRuntime.Jvm,
             HostPlatform(OperatingSystem.Linux, Architecture.Arm64, cpuClass = CpuClass.Sve, sveVectorBits = 256),
@@ -41,13 +39,11 @@ public object StandardEngineProfiles {
         ),
         EngineProfile(
             "jvm-linux-x86_64-avx2-v1",
-            listOf(Vendor.OpenBlas, Vendor.OneMkl, Vendor.Aocl).flatMap { it.jvmProductRules(128) } + listOf(
+            listOf(Vendor.OpenBlas, Vendor.OneMkl, Vendor.Aocl).flatMap { it.jvmProductRules(128) } + jvmOwned(
                 owned(setOf(Dot, Asum, Sum), minimum = 32),
                 owned(setOf(Nrm2), minimum = 16),
                 owned(setOf(Iamax), minimum = 1024),
                 owned(setOf(Axpy), minimum = 1048576),
-                owned(setOf(IndexedDot), minimum = 16, contiguous = null),
-                owned(setOf(Panels, Products, Triangular), contiguous = null),
             ),
             EngineRuntime.Jvm,
             HostPlatform(OperatingSystem.Linux, Architecture.X86_64, cpuClass = CpuClass.Avx2),
@@ -56,14 +52,12 @@ public object StandardEngineProfiles {
         ),
         EngineProfile(
             "jvm-linux-x86_64-avx512-v1",
-            listOf(Vendor.OneMkl, Vendor.OpenBlas, Vendor.Aocl).flatMap { it.jvmProductRules(64) } + listOf(
+            listOf(Vendor.OneMkl, Vendor.OpenBlas, Vendor.Aocl).flatMap { it.jvmProductRules(64) } + jvmOwned(
                 owned(setOf(Dot, Asum), minimum = 8),
                 owned(setOf(Nrm2), minimum = 16),
                 owned(setOf(Sum), minimum = 32),
                 owned(setOf(Iamax), minimum = 1024),
                 owned(setOf(Axpy), minimum = 1048576),
-                owned(setOf(IndexedDot), minimum = 16, contiguous = null),
-                owned(setOf(Panels, Products, Triangular), contiguous = null),
             ),
             EngineRuntime.Jvm,
             HostPlatform(OperatingSystem.Linux, Architecture.X86_64, cpuClass = CpuClass.Avx512),
@@ -72,11 +66,9 @@ public object StandardEngineProfiles {
         ),
         EngineProfile(
             "jvm-macos-arm64-v1",
-            Vendor.Accelerate.jvmProductRules(64) + listOf(
+            Vendor.Accelerate.jvmProductRules(64) + jvmOwned(
                 owned(setOf(Dot, Sum, Asum, Nrm2, Axpy), minimum = 32),
                 owned(setOf(Iamax), minimum = 256),
-                owned(setOf(IndexedDot), minimum = 16, contiguous = null),
-                owned(setOf(Panels, Products, Triangular), contiguous = null),
             ),
             EngineRuntime.Jvm,
             HostPlatform(OperatingSystem.MacOs, Architecture.Arm64, cpuClass = CpuClass.Arm64),
@@ -295,3 +287,8 @@ private fun owned(
     minimum: Int = 0,
     contiguous: Boolean? = true,
 ): EngineRule = EngineRule("jvm-simd", implementations, rows = minimum..Int.MAX_VALUE, contiguous = contiguous)
+
+/** Measured Level 1 rules, then the indexed dot and scheduled families every JVM profile keeps owned. */
+private fun jvmOwned(vararg level1: EngineRule): List<EngineRule> = level1.asList() +
+    owned(setOf(IndexedDot), minimum = 16, contiguous = null) +
+    owned(setOf(Panels, Products, Triangular), contiguous = null)

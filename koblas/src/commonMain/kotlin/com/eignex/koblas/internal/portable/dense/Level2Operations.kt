@@ -6,6 +6,8 @@ import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
 
+// Each routine here runs after its preparation has settled an empty operand and a zero alpha.
+
 internal fun KoblasEngine.portableGemv(
     alpha: Double,
     a: DenseMatrixRegion,
@@ -18,10 +20,6 @@ internal fun KoblasEngine.portableGemv(
     yStride: Int,
     transpose: Boolean,
 ) {
-    if (alpha == 0.0 || a.rows == 0 || a.cols == 0) {
-        applyBeta(this, y, yOffset, if (transpose) a.cols else a.rows, beta, yStride)
-        return
-    }
     val panels = panelProvider
     val rows = a.rows
     if (transpose) {
@@ -62,13 +60,9 @@ internal fun KoblasEngine.portableSymv(
     yStride: Int,
     lower: Boolean,
 ) {
-    if (alpha == 0.0 || a.rows == 0) {
-        applyBeta(this, y, yOffset, a.rows, beta, yStride)
-        return
-    }
     val panels = panelProvider
     val n = a.rows
-    applyBeta(this, y, yOffset, a.rows, beta, yStride)
+    applyBeta(this, y, yOffset, n, beta, yStride)
     val group = panels.executionGroup(PanelWork.CoupledDotUpdate, n, n, xStride == 1 && yStride == 1)
     forEachTrianglePanel(n, group, lower, fromDiagonal = false) { start, width, window, rows ->
         symmetricCorner(alpha, a, x, xOffset, xStride, y, yOffset, yStride, start, width, lower)
@@ -133,7 +127,6 @@ internal fun KoblasEngine.portableGer(
     rows: Int,
     columns: Int,
 ) {
-    if (alpha == 0.0 || a.rows == 0 || a.cols == 0) return
     val panels = panelProvider
     forEachPanel(
         columns,
@@ -158,7 +151,6 @@ internal fun KoblasEngine.portableSyr2(
     a: DenseMatrixRegion,
     lower: Boolean,
 ) {
-    if (alpha == 0.0 || a.rows == 0 || a.cols == 0) return
     val panels = panelProvider
     val n = a.rows
     val lda = a.leadingDimension
@@ -201,36 +193,9 @@ internal fun KoblasEngine.portableTrsv(
     lower: Boolean,
     transpose: Boolean,
     unitDiag: Boolean,
-) {
-    val panels = panelProvider
-    val triangles = triangularProvider
-    val n = a.rows
-    val lda = a.leadingDimension
-    val ascending = lower != transpose
-    forEachTriangularBlock(n, ascending) { start, end ->
-        // The rest of the stored triangle beside this block: below it when lower, above it when upper.
-        val outside = if (lower) end else 0
-        val outsideRows = if (lower) n - end else start
-        val block = a.offset + outside + start * lda
-        if (transpose && outsideRows > 0) {
-            panels.multiDot(
-                -1.0, a.values, block, lda, x, xOffset + outside * xStride, xStride, outsideRows, end - start,
-                1.0, x, xOffset + start * xStride, xStride,
-            )
-        }
-        triangles.diagonalSolve(
-            a.values, lda, start, end - start, transpose, lower != transpose, unitDiag,
-            x, xOffset + start * xStride, xStride, 1, 1, a.offset,
-        )
-        if (!transpose && outsideRows > 0) {
-            panels.columnUpdate(
-                -1.0, a.values, block, lda, x, xOffset + start * xStride, xStride, outsideRows, end - start,
-                x, xOffset + outside * xStride, xStride,
-            )
-        }
-    }
-}
+) = triangularVector(a, x, xOffset, xStride, lower, transpose, unitDiag, solve = true)
 
+/** `x = op(T) · x` in place, the multiply counterpart of [portableTrsv]. */
 internal fun KoblasEngine.portableTrmv(
     a: DenseMatrixRegion,
     x: DoubleArray,
@@ -239,34 +204,60 @@ internal fun KoblasEngine.portableTrmv(
     lower: Boolean,
     transpose: Boolean,
     unitDiag: Boolean,
+) = triangularVector(a, x, xOffset, xStride, lower, transpose, unitDiag, solve = false)
+
+/**
+ * [portableTrsv] or, when not [solve], [portableTrmv]. A multiply walks the blocks against the solve's
+ * dependency order and takes its panel on the other side of the diagonal step, so every entry is read before
+ * it is overwritten.
+ */
+private fun KoblasEngine.triangularVector(
+    a: DenseMatrixRegion,
+    x: DoubleArray,
+    xOffset: Int,
+    xStride: Int,
+    lower: Boolean,
+    transpose: Boolean,
+    unitDiag: Boolean,
+    solve: Boolean,
 ) {
     val panels = panelProvider
     val triangles = triangularProvider
     val n = a.rows
     val lda = a.leadingDimension
-    // Traverse in opposite directions for transpose variants to preserve values until their last use.
-    val ascending = transpose == lower
-    forEachTriangularBlock(n, ascending) { start, end ->
-        // The rest of the stored triangle beside this block: below it when lower, above it when upper.
-        val outside = if (lower) end else 0
-        val outsideRows = if (lower) n - end else start
+    val coefficient = if (solve) -1.0 else 1.0
+
+    // The rest of the stored triangle beside a block: below it when lower, above it when upper.
+    fun panel(start: Int, size: Int) {
+        val outside = if (lower) start + size else 0
+        val outsideRows = if (lower) n - outside else start
+        if (outsideRows == 0) return
         val block = a.offset + outside + start * lda
-        if (!transpose && outsideRows > 0) {
+        if (transpose) {
+            panels.multiDot(
+                coefficient, a.values, block, lda, x, xOffset + outside * xStride, xStride, outsideRows, size,
+                1.0, x, xOffset + start * xStride, xStride,
+            )
+        } else {
             panels.columnUpdate(
-                1.0, a.values, block, lda, x, xOffset + start * xStride, xStride, outsideRows, end - start,
+                coefficient, a.values, block, lda, x, xOffset + start * xStride, xStride, outsideRows, size,
                 x, xOffset + outside * xStride, xStride,
             )
         }
-        triangles.diagonalMultiply(
-            a.values, lda, start, end - start, transpose, lower != transpose, unitDiag,
-            x, xOffset + start * xStride, xStride, 1, 1, a.offset,
-        )
-        if (transpose && outsideRows > 0) {
-            panels.multiDot(
-                1.0, a.values, block, lda, x, xOffset + outside * xStride, xStride, outsideRows, end - start,
-                1.0, x, xOffset + start * xStride, xStride,
+    }
+    forEachTriangularBlock(n, TRIANGULAR_VECTOR_BLOCK, lower != transpose, solve) { start, size, _, _, _, _ ->
+        if (transpose == solve) panel(start, size)
+        val origin = xOffset + start * xStride
+        if (solve) {
+            triangles.diagonalSolve(
+                a.values, lda, start, size, transpose, lower != transpose, unitDiag, x, origin, xStride, 1, 1, a.offset,
+            )
+        } else {
+            triangles.diagonalMultiply(
+                a.values, lda, start, size, transpose, lower != transpose, unitDiag, x, origin, xStride, 1, 1, a.offset,
             )
         }
+        if (transpose != solve) panel(start, size)
     }
 }
 
@@ -278,7 +269,6 @@ internal fun KoblasEngine.portableSyr(
     a: DenseMatrixRegion,
     lower: Boolean,
 ) {
-    if (alpha == 0.0 || a.rows == 0 || a.cols == 0) return
     val n = a.rows
     val panels = panelProvider
     val group = panels.executionGroup(PanelWork.RankUpdate, n, n, step == 1)

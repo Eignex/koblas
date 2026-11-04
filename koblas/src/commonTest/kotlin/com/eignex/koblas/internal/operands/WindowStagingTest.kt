@@ -23,7 +23,7 @@ class WindowStagingTest {
             val scratch = Scratch()
 
             stagedWindow(
-                scratch.arrays,
+                scratch,
                 backing,
                 offset,
                 count,
@@ -44,7 +44,7 @@ class WindowStagingTest {
         val backing = DoubleArray(64)
         val scratch = Scratch()
 
-        stagedWindow(scratch.arrays, backing, 33, 4, -8, aliased = false) { values, offset, stride ->
+        stagedWindow(scratch, backing, 33, 4, -8, aliased = false) { values, offset, stride ->
             assertSame(backing, values)
             assertEquals(33, offset)
             assertEquals(-8, stride)

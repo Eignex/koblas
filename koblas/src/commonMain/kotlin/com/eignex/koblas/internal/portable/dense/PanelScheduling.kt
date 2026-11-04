@@ -46,25 +46,3 @@ internal inline fun forEachTrianglePanel(
  * one makes each panel narrower.
  */
 internal const val TRIANGULAR_VECTOR_BLOCK: Int = 64
-
-/**
- * The diagonal blocks of an order-[n] triangular vector routine, in the order the dependence reaches them,
- * each as the half-open range of steps it covers.
- */
-internal inline fun forEachTriangularBlock(n: Int, ascending: Boolean, action: (start: Int, end: Int) -> Unit) {
-    if (ascending) {
-        var start = 0
-        while (start < n) {
-            val end = if (n - start < TRIANGULAR_VECTOR_BLOCK) n else start + TRIANGULAR_VECTOR_BLOCK
-            action(start, end)
-            start = end
-        }
-    } else {
-        var end = n
-        while (end > 0) {
-            val start = if (end < TRIANGULAR_VECTOR_BLOCK) 0 else end - TRIANGULAR_VECTOR_BLOCK
-            action(start, end)
-            end = start
-        }
-    }
-}

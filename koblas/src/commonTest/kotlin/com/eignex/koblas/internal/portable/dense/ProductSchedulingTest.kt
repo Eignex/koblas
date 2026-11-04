@@ -463,7 +463,7 @@ class ProductSchedulingTest {
             ),
             ALPHA, left, A_ORIGIN, a.rows + 3, transposeA, right, B_ORIGIN, b.rows + 5, transposeB,
             BETA, destination, C_ORIGIN,
-            order + 7, order, order, depth, selected, Scratch().arrays,
+            order + 7, order, order, depth, selected, Scratch(),
         )
 
         assertContentEquals(leftBefore, left, "$context: the left operand was written")

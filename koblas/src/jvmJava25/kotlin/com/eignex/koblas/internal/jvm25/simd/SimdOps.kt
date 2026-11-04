@@ -55,7 +55,6 @@ internal object SimdOps {
     @Suppress("LongParameterList") // two independently addressed vector windows and their multiplier
     private fun axpyUnrolled(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
         val multiplier = DoubleVector.broadcast(SPECIES, alpha)
-        val bound = SPECIES.loopBound(len)
         val unrolled = len - len % (4 * LANE)
         var i = 0
         while (i < unrolled) {
@@ -69,15 +68,7 @@ internal object SimdOps {
                 .add(DoubleVector.fromArray(SPECIES, y, yOff + i + 3 * LANE)).intoArray(y, yOff + i + 3 * LANE)
             i += 4 * LANE
         }
-        while (i < bound) {
-            val increment = DoubleVector.fromArray(SPECIES, x, xOff + i).mul(multiplier)
-            increment.add(DoubleVector.fromArray(SPECIES, y, yOff + i)).intoArray(y, yOff + i)
-            i += LANE
-        }
-        while (i < len) {
-            y[yOff + i] += alpha * x[xOff + i]
-            i++
-        }
+        axpyShort(y, yOff + i, alpha, x, xOff + i, len - i)
     }
 
     /** Run length for four accumulators, scaled by the machine's lane count. */

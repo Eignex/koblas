@@ -7,6 +7,7 @@ import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.internal.operands.staged
 import com.eignex.koblas.internal.portable.dense.forEachPanel
+import com.eignex.koblas.internal.portable.dense.scalarEvaluatedAxpy
 import com.eignex.koblas.internal.sparse.*
 import kotlin.math.min
 
@@ -129,51 +130,67 @@ internal fun rhsWidth(plan: Int): Int = if (plan < 0) -plan else plan
 internal fun rhsStaged(plan: Int): Boolean = plan < 0
 
 /**
- * Copies one panel of right-hand sides into right-hand-side-major order.
+ * Copies [actual] right-hand sides of a dense block into [panel], or back out of it when not [toPanel].
  *
- * The destination holds [width] adjacent right-hand sides per index, [stride] apart, which is the layout
- * whose right-hand-side axis a vector body can load. [count] is how far the indexed axis runs.
+ * Right-hand side `r` at index `i` of the block is `values(origin + r · rhsStride + i · indexStride)`, and
+ * [count] is how far the indexed axis runs. The panel holds [width] adjacent right-hand sides per index,
+ * which is the layout whose right-hand-side axis a vector body can load. Writing back covers every position,
+ * including one the arithmetic never reached: a destination is staged by copying it rather than by starting
+ * from zero, so an untouched entry returns bit for bit and a negative zero stays negative.
  */
-@Suppress("LongParameterList") // the source window with its two strides, and the staged panel
-internal fun stageRhsPanel(
-    source: DoubleArray,
-    sourceOffset: Int,
-    sourceRhsStride: Int,
-    sourceIndexStride: Int,
+@Suppress("LongParameterList") // the block window with its two strides, and the staged panel
+internal fun copyRhsPanel(
+    values: DoubleArray,
+    origin: Int,
+    rhsStride: Int,
+    indexStride: Int,
     count: Int,
+    actual: Int,
+    panel: DoubleArray,
     width: Int,
-    destination: DoubleArray,
-    stride: Int,
+    toPanel: Boolean,
 ) {
     for (index in 0 until count) {
-        val from = sourceOffset + index * sourceIndexStride
-        val to = index * stride
-        for (rhs in 0 until width) destination[to + rhs] = source[from + rhs * sourceRhsStride]
+        val at = origin + index * indexStride
+        val staged = index * width
+        for (rhs in 0 until actual) {
+            if (toPanel) {
+                panel[staged + rhs] = values[at + rhs * rhsStride]
+            } else {
+                values[at + rhs * rhsStride] = panel[staged + rhs]
+            }
+        }
     }
 }
 
 /**
- * Writes a staged panel back where it came from.
- *
- * Every position is written, including one the arithmetic never reached, and what goes back there is what
- * was read: a destination is staged by copying it rather than by starting from zero, so an untouched entry
- * returns bit for bit and a negative zero stays negative.
+ * Runs [body] over [actual] right-hand sides of a dense block, staged by [copyRhsPanel] into [panel] when
+ * [staged] and in place otherwise. [body] receives the window to address as the block is addressed, and
+ * [writeBack] copies a staged panel back afterwards.
  */
-@Suppress("LongParameterList") // the destination window with its two strides, and the staged panel
-internal fun unstageRhsPanel(
-    staged: DoubleArray,
-    stride: Int,
-    destination: DoubleArray,
-    destinationOffset: Int,
-    destinationRhsStride: Int,
-    destinationIndexStride: Int,
+@Suppress("LongParameterList") // the block window with its two strides, and the staged panel
+internal inline fun withRhsPanel(
+    values: DoubleArray,
+    origin: Int,
+    rhsStride: Int,
+    indexStride: Int,
     count: Int,
+    actual: Int,
+    staged: Boolean,
+    panel: DoubleArray,
     width: Int,
+    writeBack: Boolean,
+    body: (dense: DoubleArray, offset: Int, rhsStride: Int, indexStride: Int) -> Unit,
 ) {
-    for (index in 0 until count) {
-        val to = destinationOffset + index * destinationIndexStride
-        val from = index * stride
-        for (rhs in 0 until width) destination[to + rhs * destinationRhsStride] = staged[from + rhs]
+    if (staged) copyRhsPanel(values, origin, rhsStride, indexStride, count, actual, panel, width, toPanel = true)
+    body(
+        if (staged) panel else values,
+        if (staged) 0 else origin,
+        if (staged) 1 else rhsStride,
+        if (staged) width else indexStride,
+    )
+    if (staged && writeBack) {
+        copyRhsPanel(values, origin, rhsStride, indexStride, count, actual, panel, width, toPanel = false)
     }
 }
 
@@ -199,7 +216,7 @@ internal fun multiplyFromTheLeft(
     m: Int,
     n: Int,
     k: Int,
-    arrays: ArraySupplier?,
+    arrays: Scratch?,
 ) {
     // Return before staging or traversing: an empty axis may be paired with an enormous one.
     if (m == 0 || n == 0 || k == 0) return
@@ -248,37 +265,26 @@ private fun gatherPanel(
     panel: DoubleArray,
     work: DoubleArray,
 ) {
-    val source: DoubleArray
-    val offset: Int
-    val rhsStride: Int
-    val indexStride: Int
-    if (staged) {
-        stageRhsPanel(b.values, b.offset + columnStart * bRhsStride, bRhsStride, bIndexStride, k, actual, panel, width)
-        source = panel
-        offset = 0
-        rhsStride = 1
-        indexStride = width
-    } else {
-        source = b.values
-        offset = b.offset + columnStart * bRhsStride
-        rhsStride = bRhsStride
-        indexStride = bIndexStride
-    }
-    if (actual == 1) {
-        forEachSparseColumn(a) { outputRow, from, to ->
-            sparseGatherProductColumn(
-                alpha, a.rowIndices, a.values, from, to,
-                source, offset, indexStride, c.values, c.offset + outputRow + columnStart * c.leadingDimension,
-            )
+    val origin = b.offset + columnStart * bRhsStride
+    val cOrigin = c.offset + columnStart * c.leadingDimension
+    withRhsPanel(
+        b.values, origin, bRhsStride, bIndexStride, k, actual, staged, panel, width, writeBack = false,
+    ) { source, offset, rhsStride, indexStride ->
+        if (actual == 1) {
+            forEachSparseColumn(a) { outputRow, from, to ->
+                sparseGatherProductColumn(
+                    alpha, a.rowIndices, a.values, from, to, source, offset, indexStride, c.values, cOrigin + outputRow,
+                )
+            }
+        } else {
+            forEachSparseColumn(a) { outputRow, from, to ->
+                kernels.sparseGatherProductPanel(
+                    alpha, a.rowIndices, a.values, from, to,
+                    source, offset, rhsStride, indexStride, actual,
+                    c.values, cOrigin + outputRow, c.leadingDimension, work,
+                )
+            }
         }
-        return
-    }
-    forEachSparseColumn(a) { outputRow, from, to ->
-        kernels.sparseGatherProductPanel(
-            alpha, a.rowIndices, a.values, from, to,
-            source, offset, rhsStride, indexStride, actual,
-            c.values, c.offset + outputRow + columnStart * c.leadingDimension, c.leadingDimension, work,
-        )
     }
 }
 
@@ -301,50 +307,27 @@ private fun scatterPanel(
     panel: DoubleArray,
     work: DoubleArray,
 ) {
-    val destination = if (staged) panel else c.values
-    val offset = if (staged) 0 else c.offset + columnStart * c.leadingDimension
-    val rhsStride = if (staged) 1 else c.leadingDimension
-    val indexStride = if (staged) width else 1
-    if (staged) {
-        stageRhsPanel(
-            c.values,
-            c.offset + columnStart * c.leadingDimension,
-            c.leadingDimension,
-            1,
-            m,
-            actual,
-            panel,
-            width,
-        )
-    }
-    if (actual == 1) {
-        forEachSparseColumn(a) { inner, from, to ->
-            sparseScatterProductColumn(
-                alpha, a.rowIndices, a.values, from, to,
-                b.values, b.offset + columnStart * bRhsStride + inner * bIndexStride,
-                destination, offset, indexStride,
-            )
+    val origin = c.offset + columnStart * c.leadingDimension
+    val bOrigin = b.offset + columnStart * bRhsStride
+    withRhsPanel(
+        c.values, origin, c.leadingDimension, 1, m, actual, staged, panel, width, writeBack = true,
+    ) { destination, offset, rhsStride, indexStride ->
+        if (actual == 1) {
+            forEachSparseColumn(a) { inner, from, to ->
+                sparseScatterProductColumn(
+                    alpha, a.rowIndices, a.values, from, to,
+                    b.values, bOrigin + inner * bIndexStride, destination, offset, indexStride,
+                )
+            }
+        } else {
+            forEachSparseColumn(a) { inner, from, to ->
+                kernels.sparseScatterProductPanel(
+                    alpha, a.rowIndices, a.values, from, to,
+                    b.values, bOrigin + inner * bIndexStride, bRhsStride, actual,
+                    destination, offset, rhsStride, indexStride, work,
+                )
+            }
         }
-    } else {
-        forEachSparseColumn(a) { inner, from, to ->
-            kernels.sparseScatterProductPanel(
-                alpha, a.rowIndices, a.values, from, to,
-                b.values, b.offset + columnStart * bRhsStride + inner * bIndexStride, bRhsStride, actual,
-                destination, offset, rhsStride, indexStride, work,
-            )
-        }
-    }
-    if (staged) {
-        unstageRhsPanel(
-            panel,
-            width,
-            c.values,
-            c.offset + columnStart * c.leadingDimension,
-            c.leadingDimension,
-            1,
-            m,
-            actual,
-        )
     }
 }
 
@@ -365,11 +348,12 @@ internal fun multiplySymmetricFromTheLeft(
     b: DenseMatrixRegion,
     c: DenseMatrixRegion,
     lower: Boolean,
-    arrays: ArraySupplier?,
+    arrays: Scratch?,
 ) {
     val n = a.rows
     val sides = b.cols
     val ld = b.leadingDimension
+    val ldc = c.leadingDimension
     if (n == 0 || sides == 0) return
     val plan = symmetricRhsPlan(kernels, n, sides, a.nnz)
     val width = rhsWidth(plan)
@@ -378,53 +362,29 @@ internal fun multiplySymmetricFromTheLeft(
     arrays.borrowOptional(panelSize) { source ->
         arrays.borrowOptional(panelSize) { destination ->
             forEachPanel(sides, width) { columnStart, actual ->
-                val sourceValues = if (staged) source else b.values
-                val into = if (staged) destination else c.values
-                val offset = if (staged) 0 else b.offset + columnStart * ld
-                val destinationOffset = if (staged) 0 else c.offset + columnStart * c.leadingDimension
-                val destinationStride = if (staged) 1 else c.leadingDimension
-                val rhsStride = if (staged) 1 else ld
-                val indexStride = if (staged) width else 1
-                if (staged) {
-                    stageRhsPanel(b.values, b.offset + columnStart * ld, ld, 1, n, actual, source, width)
-                    stageRhsPanel(
-                        c.values,
-                        c.offset + columnStart * c.leadingDimension,
-                        c.leadingDimension,
-                        1,
-                        n,
-                        actual,
-                        destination,
-                        width,
-                    )
-                }
-                forEachSparseColumn(a, SparseColumnShape.Selected, lower) { column, from, to ->
-                    if (actual == 1) {
-                        sparseSymmetricLeftColumnSingle(
-                            alpha, column, a.rowIndices, a.values,
-                            from, to,
-                            sourceValues, into, offset, indexStride, lower, destinationOffset,
-                        )
-                    } else {
-                        kernels.sparseSymmetricLeftColumn(
-                            alpha, column, a.rowIndices, a.values,
-                            from, to,
-                            sourceValues, into, offset, rhsStride, indexStride, actual, lower, destinationOffset,
-                            destinationStride,
-                        )
+                val bOrigin = b.offset + columnStart * ld
+                val cOrigin = c.offset + columnStart * ldc
+                withRhsPanel(
+                    b.values, bOrigin, ld, 1, n, actual, staged, source, width, writeBack = false,
+                ) { sourceValues, offset, rhsStride, indexStride ->
+                    withRhsPanel(
+                        c.values, cOrigin, ldc, 1, n, actual, staged, destination, width, writeBack = true,
+                    ) { into, destinationOffset, destinationStride, _ ->
+                        forEachSparseColumn(a) { column, from, to ->
+                            if (actual == 1) {
+                                sparseSymmetricLeftColumnSingle(
+                                    alpha, column, a.rowIndices, a.values, from, to,
+                                    sourceValues, into, offset, indexStride, lower, destinationOffset,
+                                )
+                            } else {
+                                kernels.sparseSymmetricLeftColumn(
+                                    alpha, column, a.rowIndices, a.values, from, to,
+                                    sourceValues, into, offset, rhsStride, indexStride, actual, lower,
+                                    destinationOffset, destinationStride,
+                                )
+                            }
+                        }
                     }
-                }
-                if (staged) {
-                    unstageRhsPanel(
-                        destination,
-                        width,
-                        c.values,
-                        c.offset + columnStart * c.leadingDimension,
-                        c.leadingDimension,
-                        1,
-                        n,
-                        actual,
-                    )
                 }
             }
         }
@@ -447,50 +407,58 @@ internal fun multiplyFromTheRight(
     transposeB: Boolean,
     c: DenseMatrixRegion,
     m: Int,
-    arrays: ArraySupplier?,
+    arrays: Scratch?,
 ) {
     if (transposeB) {
         arrays.borrow(DenseMatrix.entryCount(b.rows, b.cols)) { packed ->
             for (j in 0 until b.cols) {
                 for (i in 0 until b.rows) packed[j + i * b.cols] = b.values[b.offset + i + j * b.leadingDimension]
             }
-            multiplyFromTheRightColumns(
-                kernels, alpha, a, transposeA, c.values, packed, m, m, 0, c.offset,
-                c.leadingDimension,
-            )
+            multiplyFromTheRightColumns(kernels, alpha, a, transposeA, packed, 0, m, c, m)
         }
     } else {
-        multiplyFromTheRightColumns(
-            kernels, alpha, a, transposeA, c.values, b.values, m, b.leadingDimension,
-            b.offset, c.offset, c.leadingDimension,
-        )
+        multiplyFromTheRightColumns(kernels, alpha, a, transposeA, b.values, b.offset, b.leadingDimension, c, m)
     }
 }
 
+/** One whole contiguous dense column update per stored entry of [a], and therefore the selected Level 1 `axpy`. */
 @OptIn(UnsafeKoblasApi::class)
 @Suppress("LongParameterList") // the operands, their flags, and both dense windows
-internal fun multiplyFromTheRightColumns(
+private fun multiplyFromTheRightColumns(
     kernels: KoblasEngine,
     alpha: Double,
     a: SparseMatrix,
     transposeA: Boolean,
-    c: DoubleArray,
     b: DoubleArray,
+    bOffset: Int,
+    ldb: Int,
+    c: DenseMatrixRegion,
     rows: Int,
-    leadingDimension: Int,
-    bOffset: Int = 0,
-    cOffset: Int = 0,
-    ldc: Int = rows,
 ) {
+    val rowIndices = a.rowIndices
+    val values = a.values
     forEachSparseColumn(a) { column, from, to ->
-        kernels.sparseRightProductColumn(
-            alpha, column, a.rowIndices, a.values, from, to, transposeA,
-            b, leadingDimension, c, rows, bOffset, cOffset, ldc,
-        )
+        for (position in from until to) {
+            val row = rowIndices[position]
+            val cColumn = if (transposeA) row else column
+            val bColumn = if (transposeA) column else row
+            kernels.sparseEvaluatedAxpy(
+                c.values,
+                c.offset + cColumn * c.leadingDimension,
+                alpha * values[position],
+                b,
+                bOffset + bColumn * ldb,
+                rows,
+            )
+        }
     }
 }
 
-/** A sparse symmetric operand on the right updates whole contiguous dense columns. */
+/**
+ * A sparse symmetric operand on the right, whose every selected entry updates one whole contiguous dense
+ * column and, off the diagonal, the mirrored one too.
+ */
+@OptIn(UnsafeKoblasApi::class)
 @Suppress("LongParameterList") // Two operands, a destination and the stored triangle.
 internal fun multiplySymmetricFromTheRight(
     engine: KoblasEngine,
@@ -500,18 +468,58 @@ internal fun multiplySymmetricFromTheRight(
     c: DenseMatrixRegion,
     lower: Boolean,
 ) {
-    for (column in 0 until a.cols) {
-        engine.sparseSymmetricRightColumn(
-            alpha,
-            column,
-            a.rowIndices,
-            a.values,
-            a.colPointers[column],
-            a.colPointers[column + 1],
-            b.values,
-            c.values,
-            b.rows,
-            lower, b.offset, b.leadingDimension, c.offset, c.leadingDimension,
-        )
+    val rows = b.rows
+    val ldb = b.leadingDimension
+    val ldc = c.leadingDimension
+    val rowIndices = a.rowIndices
+    val values = a.values
+    forEachSparseColumn(a) { column, from, to ->
+        for (position in from until to) {
+            val row = rowIndices[position]
+            if (if (lower) row >= column else row <= column) {
+                val coefficient = alpha * values[position]
+                engine.sparseEvaluatedAxpy(
+                    c.values,
+                    c.offset + row * ldc,
+                    coefficient,
+                    b.values,
+                    b.offset + column * ldb,
+                    rows,
+                )
+                if (row != column) {
+                    engine.sparseEvaluatedAxpy(
+                        c.values,
+                        c.offset + column * ldc,
+                        coefficient,
+                        b.values,
+                        b.offset + row * ldb,
+                        rows,
+                    )
+                }
+            }
+        }
     }
+}
+
+/**
+ * `y += alpha · x` over a contiguous run, forming the product even where [alpha] is zero.
+ *
+ * This update represents a stored sparse position, including an explicit zero. Its participation is
+ * required by the sparse structural contract, unlike a zero coefficient in a dense update. Level 1
+ * `axpy` skips a zero multiplier, so that case needs its own loop here.
+ */
+@Suppress("LongParameterList") // the two windows and the run length
+private fun KoblasEngine.sparseEvaluatedAxpy(
+    y: DoubleArray,
+    yOffset: Int,
+    alpha: Double,
+    x: DoubleArray,
+    xOffset: Int,
+    length: Int,
+) {
+    if (alpha != 0.0) {
+        this.axpy(y, yOffset, alpha, x, xOffset, length)
+        return
+    }
+    scalarEvaluatedAxpy(y, yOffset, alpha, x, xOffset, length)
 }

@@ -10,11 +10,6 @@ import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.internal.portable.dense.euclideanNorm
 import com.eignex.koblas.internal.sparse.*
-import com.eignex.koblas.gemm as matrixGemm
-
-/** Fresh dense product using portable CSC traversal and this engine's arithmetic. */
-public fun KoblasEngine.gemm(a: SparseMatrix, b: DenseMatrixRegion, scratch: Scratch? = null): DenseMatrix =
-    matrixGemm(1.0, a, false, b, false, scratch) as DenseMatrix
 
 /** Fresh CSC product owning its arrays, with stored zeros retained. */
 public fun KoblasEngine.gemm(a: SparseMatrix, b: SparseMatrix): SparseMatrix = gemm(1.0, a, false, b, false)
@@ -61,7 +56,8 @@ public fun KoblasEngine.dot(x: SparseVector, y: DoubleArray): Double {
  * @throws IllegalArgumentException if [dense] has the wrong length.
  */
 public fun KoblasEngine.dotColumn(matrix: SparseMatrix, column: Int, dense: DoubleArray): Double {
-    validateColumnDot(matrix, column, dense)
+    requireIndex(column in 0 until matrix.cols) { "column $column is outside [0, ${matrix.cols})" }
+    requireShape(matrix.rows == dense.size) { "dotColumn: sizes differ, ${matrix.rows} vs ${dense.size}" }
     val start = matrix.colPointers[column]
     val count = matrix.colPointers[column + 1] - start
     return this.dot(matrix.rowIndices, start, matrix.values, start, count, dense)

@@ -181,16 +181,15 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
     return when (case.operation) {
         "spgemv" -> {
             val a = Fixtures.sparse(d[0], d[1], density, 1, support = support)
-            val reference = a.toArray()
             val x = Fixtures.vector(if (transpose) d[0] else d[1], 2)
             val y0 = Fixtures.vector(if (transpose) d[1] else d[0], 3)
             val y = y0.copyOf()
-            val expected = SparseReference.gemv(alpha, reference, transpose, x, beta, y0)
+            val expected = DenseReference.gemv(alpha, SparseReference.dense(a), transpose, x, beta, y0)
             arm(
                 verify = {
                     y0.copyInto(y)
                     engine.gemv(alpha, a, x, beta, y, transpose)
-                    SparseReference.check(expected, y, "${case.id} gemv")
+                    DenseReference.check(expected, y, "${case.id} gemv")
                 },
             ) { y0.copyInto(y); engine.gemv(alpha, a, x, beta, y, transpose); y[0] }
         }
@@ -198,23 +197,19 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
         "spmm", "spmm-generic" -> {
             val (m, n, k) = d
             val a = Fixtures.sparse(if (transpose) k else m, if (transpose) m else k, density, 1, support = support)
-            val reference = a.toArray()
             // Transposed storage puts the right-hand sides in adjacent rows. The seeded fixture is
             // reshaped for this layout; the reference uses these same stored values and transpose flag.
             val b = if (transposeDense) Fixtures.matrix(n, k, 2) else Fixtures.matrix(k, n, 2)
             val c0 = Fixtures.matrix(m, n, 3)
             val c = Fixtures.matrix(m, n, 3)
-            val expected = SparseReference.gemm(
-                alpha, reference, transpose, SparseReference.dense(b), transposeDense, beta,
-                SparseReference.dense(c0),
-            )
+            val expected = DenseReference.gemm(alpha, SparseReference.dense(a), transpose, b, transposeDense, beta, c0)
             if (case.operation == "spmm-generic") {
                 genericArm(
                     case, engine,
                     verify = {
                         c0.values.copyInto(c.values)
                         engine.gemm(alpha, a as Matrix, transpose, b as Matrix, transposeDense, beta, c, scratch = scratch)
-                        SparseReference.check(expected, SparseReference.dense(c), "${case.id} generic product")
+                        DenseReference.check(expected, c.values, "${case.id} generic product")
                     },
                 ) {
                     c0.values.copyInto(c.values)
@@ -226,7 +221,7 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
                     verify = {
                         c0.values.copyInto(c.values)
                         engine.gemm(alpha, a, transpose, b, transposeDense, beta, c, scratch = scratch)
-                        SparseReference.check(expected, SparseReference.dense(c), "${case.id} product")
+                        DenseReference.check(expected, c.values, "${case.id} product")
                     },
                 ) {
                     c0.values.copyInto(c.values)
@@ -244,14 +239,11 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             val a = Fixtures.sparse(
                 if (transpose) k else m, if (transpose) m else k, density, 1, support = support,
             )
-            val reference = a.toArray()
             val leftDense = Fixtures.matrix(n, m, 2)
             val mirror0 = Fixtures.matrix(n, k, 3)
             val mirror = Fixtures.matrix(n, k, 3)
-            val expected = SparseReference.gemm(
-                alpha, SparseReference.dense(leftDense), false, reference, transpose,
-                beta, SparseReference.dense(mirror0),
-            )
+            val expected =
+                DenseReference.gemm(alpha, leftDense, false, SparseReference.dense(a), transpose, beta, mirror0)
             arm(
                 verify = {
                     mirror0.values.copyInto(mirror.values)
@@ -266,7 +258,7 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
                         right = true,
                         scratch = scratch,
                     )
-                    SparseReference.check(expected, SparseReference.dense(mirror), "${case.id} product")
+                    DenseReference.check(expected, mirror.values, "${case.id} product")
                 },
             ) {
                 mirror0.values.copyInto(mirror.values)
@@ -281,20 +273,17 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
         "spmm-generic-right" -> {
             val (m, n, k) = d
             val a = Fixtures.sparse(if (transpose) k else m, if (transpose) m else k, density, 1, support = support)
-            val reference = a.toArray()
             val leftDense = Fixtures.matrix(n, m, 2)
             val mirror0 = Fixtures.matrix(n, k, 3)
             val mirror = Fixtures.matrix(n, k, 3)
-            val expected = SparseReference.gemm(
-                alpha, SparseReference.dense(leftDense), false, reference, transpose,
-                beta, SparseReference.dense(mirror0),
-            )
+            val expected =
+                DenseReference.gemm(alpha, leftDense, false, SparseReference.dense(a), transpose, beta, mirror0)
             genericArm(
                 case, engine,
                 verify = {
                     mirror0.values.copyInto(mirror.values)
                     engine.gemm(alpha, leftDense as Matrix, false, a as Matrix, transpose, beta, mirror, scratch = scratch)
-                    SparseReference.check(expected, SparseReference.dense(mirror), "${case.id} generic product")
+                    DenseReference.check(expected, mirror.values, "${case.id} generic product")
                 },
             ) {
                 mirror0.values.copyInto(mirror.values)
@@ -307,8 +296,8 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             val (m, n, k) = d
             val a = Fixtures.sparse(if (transpose) k else m, if (transpose) m else k, density, 1, support = support)
             val b = Fixtures.sparse(k, n, density, 2, support = support)
-            val expected = SparseReference.gemm(
-                1.0, a.toArray(), transpose, b.toArray(), false, 0.0, Array(m) { DoubleArray(n) },
+            val expected = DenseReference.gemm(
+                1.0, SparseReference.dense(a), transpose, SparseReference.dense(b), false, 0.0, DenseMatrix.zero(m, n),
             )
             val support = SparseReference.productSupport(a, transpose, b, false)
             if (case.operation == "spgemm-generic") {
@@ -339,14 +328,12 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             val x = Fixtures.vector(d[0], 2)
             val y0 = Fixtures.vector(d[0], 3)
             val y = y0.copyOf()
-            val expected = SparseReference.gemv(
-                alpha, SparseReference.mirrored(a.toArray(), lower), false, x, beta, y0,
-            )
+            val expected = DenseReference.symv(alpha, SparseReference.dense(a), lower, x, beta, y0)
             arm(
                 verify = {
                     y0.copyInto(y)
                     engine.symv(alpha, a, x, beta, y, lower)
-                    SparseReference.check(expected, y, "${case.id} symmetric product")
+                    DenseReference.check(expected, y, "${case.id} symmetric product")
                 },
             ) { y0.copyInto(y); engine.symv(alpha, a, x, beta, y, lower); y[0] }
         }
@@ -357,21 +344,12 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             val b = if (right) Fixtures.matrix(rhs, n, 2) else Fixtures.matrix(n, rhs, 2)
             val c0 = Fixtures.matrix(b.rows, b.cols, 3)
             val c = Fixtures.matrix(b.rows, b.cols, 3)
-            val full = SparseReference.mirrored(a.toArray(), lower)
-            val expected = if (right) {
-                SparseReference.gemm(
-                    alpha, SparseReference.dense(b), false, full, false, beta, SparseReference.dense(c0),
-                )
-            } else {
-                SparseReference.gemm(
-                    alpha, full, false, SparseReference.dense(b), false, beta, SparseReference.dense(c0),
-                )
-            }
+            val expected = DenseReference.symm(alpha, SparseReference.dense(a), lower, right, b, beta, c0)
             arm(
                 verify = {
                     c0.values.copyInto(c.values)
                     engine.symm(alpha, a, b, beta, c, lower, right, scratch = scratch)
-                    SparseReference.check(expected, SparseReference.dense(c), "${case.id} symmetric product")
+                    DenseReference.check(expected, c.values, "${case.id} symmetric product")
                 },
             ) {
                 c0.values.copyInto(c.values)
@@ -385,17 +363,17 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             val x0 = Fixtures.vector(d[0], 2)
             val x = x0.copyOf()
             val solve = case.operation == "sptrsv"
-            val triangle = SparseReference.triangle(a.toArray(), lower, unit)
+            val triangle = SparseReference.dense(a)
             val expected = if (solve) {
-                SparseReference.trsv(triangle, lower, transpose, x0)
+                DenseReference.trsv(triangle, x0, lower, transpose, unit)
             } else {
-                SparseReference.trmv(triangle, transpose, x0)
+                DenseReference.trmv(triangle, x0, lower, transpose, unit)
             }
             arm(
                 verify = {
                     x0.copyInto(x)
                     if (solve) engine.trsv(a, x, lower, transpose, unit) else engine.trmv(a, x, lower, transpose, unit)
-                    SparseReference.check(expected, x, "${case.id} triangular")
+                    DenseReference.check(expected, x, "${case.id} triangular")
                 },
             ) {
                 x0.copyInto(x)
@@ -410,11 +388,11 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             val original = Fixtures.matrix(if (right) rhs else order, if (right) order else rhs, 2)
             val b = Fixtures.matrix(original.rows, original.cols, 2)
             val solve = case.operation == "sptrsm"
-            val triangle = SparseReference.triangle(a.toArray(), lower, unit)
+            val triangle = SparseReference.dense(a)
             val expected = if (solve) {
-                SparseReference.trsm(triangle, lower, transpose, right, alpha, SparseReference.dense(original))
+                DenseReference.trsm(triangle, original, lower, transpose, unit, right, alpha)
             } else {
-                SparseReference.trmm(triangle, transpose, right, alpha, SparseReference.dense(original))
+                DenseReference.trmm(triangle, original, lower, transpose, unit, right, alpha)
             }
             arm(
                 verify = {
@@ -424,7 +402,7 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
                     } else {
                         engine.trmm(a, b, lower, transpose, unit, right, alpha, scratch = scratch)
                     }
-                    SparseReference.check(expected, SparseReference.dense(b), "${case.id} triangular block")
+                    DenseReference.check(expected, b.values, "${case.id} triangular block")
                 },
             ) {
                 original.values.copyInto(b.values)
@@ -443,20 +421,20 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             val c0 = Fixtures.matrix(n, n, 2)
             val c = Fixtures.matrix(n, n, 2)
             val dense = case.operation == "spsyrk-dense"
-            val reference = a.toArray()
+            val reference = SparseReference.dense(a)
             arm(
                 verify = {
                     if (dense) {
                         c0.values.copyInto(c.values)
                         engine.syrk(alpha, a, false, beta, c, lower, scratch = scratch)
-                        SparseReference.check(
-                            SparseReference.syrk(alpha, reference, false, beta, SparseReference.dense(c0), lower),
-                            SparseReference.dense(c), "${case.id} rank update",
+                        DenseReference.check(
+                            DenseReference.syrk(alpha, reference, reference, false, beta, c0, lower, doubled = false),
+                            c.values, "${case.id} rank update",
                         )
                     } else {
-                        val zero = Array(n) { DoubleArray(n) }
+                        val zero = DenseMatrix.zero(n, n)
                         SparseReference.checkSparse(
-                            SparseReference.syrk(1.0, reference, false, 0.0, zero, lower),
+                            DenseReference.syrk(1.0, reference, reference, false, 0.0, zero, lower, doubled = false),
                             SparseReference.rankSupport(a, transpose = false, lower = lower),
                             engine.syrk(a, false, lower), "${case.id} rank update",
                         )
@@ -477,7 +455,7 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             val (m, n) = d
             val a = Fixtures.sparse(m, n, density, 1, support = support)
             val b = Fixtures.sparse(m, n, density, 2, support = support)
-            val expected = SparseReference.addScaled(alpha, a.toArray(), false, b.toArray())
+            val expected = SparseReference.addScaled(alpha, a, b)
             val support = SparseReference.unionSupport(a, transposeA = false, b = b)
             arm(
                 verify = {
@@ -493,17 +471,8 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
 }
 
 /** A timed row for a sparse matrix call on [engine], refused when one of the case's extents is empty. */
-private fun publish(
-    engine: KoblasEngine,
-    case: BenchCase,
-    timing: String,
-    verify: () -> Unit,
-    run: () -> Double,
-): ArmChoice {
-    if (case.dimensions.any { it == 0 }) return declined()
-    verify()
-    return ArmChoice(engineWork(engine, case.operation, timing, run), null)
-}
+private fun publish(engine: KoblasEngine, case: BenchCase, timing: String, verify: () -> Unit, run: () -> Double) =
+    level23(engine, case, timing, verify, run)?.let { ArmChoice(it, null) } ?: declined()
 
 /**
  * A row for the common `Matrix` product, which is a default-policy measurement rather than an exact arm.

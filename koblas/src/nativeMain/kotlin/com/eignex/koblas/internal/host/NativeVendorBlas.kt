@@ -37,21 +37,18 @@ private typealias GemvFn = CFunction<(Int, Int, Int, Int, Double, Ptr?, Int, Ptr
 private typealias SymvFn = CFunction<(Int, Int, Int, Double, Ptr?, Int, Ptr?, Int, Double, Ptr?, Int) -> Unit>
 private typealias GerFn = CFunction<(Int, Int, Int, Double, Ptr?, Int, Ptr?, Int, Ptr?, Int) -> Unit>
 private typealias SyrFn = CFunction<(Int, Int, Int, Double, Ptr?, Int, Ptr?, Int) -> Unit>
-private typealias Syr2Fn = CFunction<(Int, Int, Int, Double, Ptr?, Int, Ptr?, Int, Ptr?, Int) -> Unit>
 private typealias TriangularVectorFn = CFunction<(Int, Int, Int, Int, Int, Ptr?, Int, Ptr?, Int) -> Unit>
 private typealias GemmFn =
     CFunction<(Int, Int, Int, Int, Int, Int, Double, Ptr?, Int, Ptr?, Int, Double, Ptr?, Int) -> Unit>
 private typealias SymmFn = CFunction<(Int, Int, Int, Int, Int, Double, Ptr?, Int, Ptr?, Int, Double, Ptr?, Int) -> Unit>
 private typealias SyrkFn = CFunction<(Int, Int, Int, Int, Int, Double, Ptr?, Int, Double, Ptr?, Int) -> Unit>
-private typealias Syr2kFn =
-    CFunction<(Int, Int, Int, Int, Int, Double, Ptr?, Int, Ptr?, Int, Double, Ptr?, Int) -> Unit>
 private typealias TriangularMatrixFn =
     CFunction<(Int, Int, Int, Int, Int, Int, Int, Double, Ptr?, Int, Ptr?, Int) -> Unit>
-private typealias VersionFn = CFunction<(Bytes?, Int) -> Unit>
+private typealias BufferFn = CFunction<(Bytes?, Int) -> Unit>
 private typealias StringFn = CFunction<() -> Bytes?>
-private typealias SetLayerFn = CFunction<(Int) -> Int>
-private typealias SetThreadsFn = CFunction<(Int) -> Unit>
-private typealias GetThreadsFn = CFunction<() -> Int>
+private typealias IntToIntFn = CFunction<(Int) -> Int>
+private typealias IntToUnitFn = CFunction<(Int) -> Unit>
+private typealias ToIntFn = CFunction<() -> Int>
 
 /** Bit [Vendor.ordinal] is set once this thread has applied that vendor's one-thread setter. */
 @kotlin.native.concurrent.ThreadLocal
@@ -66,9 +63,10 @@ private var heldVendors: Int = 0
  */
 internal class NativeVendorBlas private constructor(
     override val vendor: Vendor,
-    private val candidate: String,
+    override val candidate: String,
     private val library: NativeLibrary,
-) : HostBlas() {
+) : HostBlas(),
+    AdmissionCalls {
     override val name: String get() = "${vendor.vendorName.lowercase()}"
 
     /**
@@ -79,42 +77,35 @@ internal class NativeVendorBlas private constructor(
 
     override val version: String by lazy { readVersion() }
 
-    /**
-     * Select and verify oneMKL's LP64 interface before any other oneMKL call.
-     *
-     * The setter overrides an inherited `MKL_INTERFACE_LAYER` and returns the selected interface.
-     * A missing setter or a runtime already fixed to another interface must not reach ABI probes.
-     */
-    private fun establishIntegerInterface(): Boolean {
-        if (vendor != Vendor.OneMkl) return true
-        val fn = library.symbol("MKL_Set_Interface_Layer")?.reinterpret<SetLayerFn>() ?: return false
-        return fn(MKL_LP64) == MKL_LP64
+    override fun callIntToInt(name: String, argument: Int): Int? =
+        library.symbol(name)?.reinterpret<IntToIntFn>()?.invoke(argument)
+
+    override fun callIntToUnit(name: String, argument: Int) {
+        library.symbol(name)?.reinterpret<IntToUnitFn>()?.invoke(argument)
     }
 
-    /**
-     * Configure one compute thread after integer interface selection and before any arithmetic.
-     *
-     * oneMKL must select its sequential layer before first use to avoid resolving a threaded layer
-     * that requires an unavailable OpenMP runtime. Thread count and dynamic expansion are fixed too.
-     * [confirmSingleThread] checks the result after the ABI probe; configuration precedes the probe
-     * because the probe itself can resolve the threading layer.
-     */
-    private fun enforceSingleThread() {
-        // Accelerate has no thread-count entry point; see ACCELERATE_THREAD_LIMIT. Overwrite is on so a value
-        // inherited from the launching shell cannot weaken the invariant.
-        if (vendor.threadControl == ThreadControl.Environment) {
-            setNativeEnvironmentVariable(ACCELERATE_THREAD_LIMIT, "1")
+    override fun callToInt(name: String): Int? = library.symbol(name)?.reinterpret<ToIntFn>()?.invoke()
+
+    override fun callIntoBuffer(name: String, size: Int): String? {
+        val fn = library.symbol(name)?.reinterpret<BufferFn>() ?: return null
+        return memScoped {
+            val buffer = allocArray<ByteVar>(size)
+            fn(buffer, size)
+            buffer.toKString()
         }
-        if (vendor.threadControl == ThreadControl.Mkl) {
-            library.symbol("MKL_Set_Threading_Layer")?.reinterpret<SetLayerFn>()?.invoke(MKL_SEQUENTIAL)
-            library.symbol("MKL_Set_Dynamic")?.reinterpret<SetThreadsFn>()?.invoke(0)
-        }
-        // Unconditional: this thread may have held an earlier candidate of the same vendor that was then refused.
+    }
+
+    override fun callToString(name: String): String? =
+        library.symbol(name)?.reinterpret<StringFn>()?.invoke()?.toKString()
+
+    override fun setEnvironmentVariable(name: String, value: String) = setNativeEnvironmentVariable(name, value)
+
+    override fun holdThisThread() {
         threadSetter?.invoke(1)
         heldVendors = heldVendors or (1 shl vendor.ordinal)
     }
 
-    private val threadSetter = vendor.threadControl.setter?.let(library::symbol)?.reinterpret<SetThreadsFn>()
+    private val threadSetter = vendor.threadControl.setter?.let(library::symbol)?.reinterpret<IntToUnitFn>()
 
     /**
      * Apply the one-thread setter on the calling thread, once per thread.
@@ -125,64 +116,14 @@ internal class NativeVendorBlas private constructor(
      * first call.
      */
     private fun holdCallingThread() {
-        val bit = 1 shl vendor.ordinal
-        if (heldVendors and bit != 0) return
-        threadSetter?.invoke(1)
-        heldVendors = heldVendors or bit
+        if (heldVendors and (1 shl vendor.ordinal) == 0) holdThisThread()
     }
 
-    /** Set once at load, after [enforceSingleThread], and never again. */
+    /** Set once at load by [admit], and never again. */
     override var threadEvidence: ThreadEvidence = ThreadEvidence.Unconfirmed
         private set
 
-    /**
-     * Check the configured thread count, rejecting libraries that still report multiple threads.
-     * [Vendor.Accelerate] has no read-back entry point and is accepted using its environment control.
-     */
-    private fun confirmSingleThread(): Boolean {
-        val control = vendor.threadControl
-        val getter = control.getter
-        if (getter == null) {
-            // Accelerate, held through the environment and unable to answer. Declared, not discovered.
-            threadEvidence = ThreadEvidence.Unconfirmed
-            return true
-        }
-        val fn = library.symbol(getter)?.reinterpret<GetThreadsFn>()
-        if (fn == null) {
-            // A build of a known vendor without that vendor's control is not one this code knows; see
-            // ThreadControl.permitsAbsentControl for the serial-build exception.
-            if (!control.permitsAbsentControl(candidate)) return false
-            threadEvidence = ThreadEvidence.Confirmed
-            return true
-        }
-        if (fn() != 1) return false
-        threadEvidence = ThreadEvidence.Confirmed
-        return true
-    }
-
-    /**
-     * Whether the library matches the ABI Koblas binds and computes correctly through it.
-     *
-     * The integer width is read from what the build says about itself, because a call cannot distinguish it:
-     * a 32-bit argument arrives in a register whose upper half is zeroed, so an ILP64 routine reading 64 bits
-     * sees the same small value. Whether the library computes at all is settled by calling it with operands
-     * whose exact answer is known.
-     */
-    private fun verifiedAbi(): Boolean {
-        if (declaresWideIntegers(version)) return false
-        if (!declaredIntegerWidthMatches()) return false
-        return probeDot() && probeGemm()
-    }
-
-    /**
-     * BLIS answers the integer-width question directly; see [BLIS_INTEGER_WIDTH].
-     *
-     * It takes no arguments and returns an `int`, which is the shape [GetThreadsFn] already names.
-     */
-    private fun declaredIntegerWidthMatches(): Boolean {
-        val fn = library.symbol(BLIS_INTEGER_WIDTH)?.reinterpret<GetThreadsFn>() ?: return true
-        return fn() == LP64_INTEGER_BITS
-    }
+    override fun knownAnswersMatch(): Boolean = probeDot() && probeGemm()
 
     private fun probeDot(): Boolean {
         val fn = library.symbol(EngineImplementation.Dot.entryPoint)?.reinterpret<DotFn>() ?: return false
@@ -315,25 +256,25 @@ internal class NativeVendorBlas private constructor(
         }
     }
 
-    override fun copy(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) {
-        if (len == 0) return
-        val fn = symbol(EngineImplementation.Copy).reinterpret<CopyFn>()
-        a.usePinned { px ->
-            b.usePinned { py ->
-                fn(
-                    len,
-                    px.runAddress(aOff, aStride, len),
-                    aStride,
-                    py.runAddress(bOff, bStride, len),
-                    bStride,
-                )
-            }
-        }
-    }
+    override fun copy(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) =
+        pair(EngineImplementation.Copy, a, aOff, b, bOff, len, aStride, bStride)
 
-    override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) {
+    override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) =
+        pair(EngineImplementation.Swap, a, aOff, b, bOff, len, aStride, bStride)
+
+    /** `cblas_dcopy` or `cblas_dswap`, which share one signature. */
+    private fun pair(
+        operation: EngineImplementation,
+        a: DoubleArray,
+        aOff: Int,
+        b: DoubleArray,
+        bOff: Int,
+        len: Int,
+        aStride: Int,
+        bStride: Int,
+    ) {
         if (len == 0) return
-        val fn = symbol(EngineImplementation.Swap).reinterpret<CopyFn>()
+        val fn = symbol(operation).reinterpret<CopyFn>()
         a.usePinned { px ->
             b.usePinned { py ->
                 fn(
@@ -463,7 +404,7 @@ internal class NativeVendorBlas private constructor(
             val pa = pins.stage(a)
             val px = pins.stage(x)
             val py = pins.stage(y)
-            val fn = symbol(EngineImplementation.Syr2).reinterpret<Syr2Fn>()
+            val fn = symbol(EngineImplementation.Syr2).reinterpret<GerFn>()
             fn(
                 Cblas.COL_MAJOR, uploFor(structure), a.rows, alpha,
                 px.pointer, px.increment, py.pointer, py.increment, pa.pointer, pa.leadingDimension,
@@ -471,19 +412,12 @@ internal class NativeVendorBlas private constructor(
         }
     }
 
-    override fun cblasTrsv(a: DenseMatrixRegion, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) =
-        triangularVector(a, structure, transposeA, x, EngineImplementation.Trsv)
-
-    override fun cblasTrmv(a: DenseMatrixRegion, structure: MatrixStructure, transposeA: Boolean, x: DenseVector) =
-        triangularVector(a, structure, transposeA, x, EngineImplementation.Trmv)
-
-    @Suppress("LongParameterList") // the shared triangular vector signature plus its entry point
-    private fun triangularVector(
+    override fun cblasTriangularVector(
+        operation: EngineImplementation,
         a: DenseMatrixRegion,
         structure: MatrixStructure,
         transposeA: Boolean,
         x: DenseVector,
-        operation: EngineImplementation,
     ) {
         withPins { pins ->
             val pa = pins.stage(a)
@@ -498,7 +432,6 @@ internal class NativeVendorBlas private constructor(
 
     // Level 3. Every operand is column-major with unit row stride, so the layout is fixed and a transpose is a flag.
 
-    @Suppress("LongParameterList") // the BLAS dgemm signature
     override fun cblasGemm(
         alpha: Double,
         a: DenseMatrixRegion,
@@ -523,7 +456,6 @@ internal class NativeVendorBlas private constructor(
         }
     }
 
-    @Suppress("LongParameterList") // the BLAS dsymm signature
     override fun cblasSymm(
         alpha: Double,
         a: DenseMatrixRegion,
@@ -546,7 +478,6 @@ internal class NativeVendorBlas private constructor(
         }
     }
 
-    @Suppress("LongParameterList") // the BLAS dsyrk signature
     override fun cblasSyrk(
         alpha: Double,
         a: DenseMatrixRegion,
@@ -568,7 +499,6 @@ internal class NativeVendorBlas private constructor(
         }
     }
 
-    @Suppress("LongParameterList") // the BLAS dsyr2k signature
     override fun cblasSyr2k(
         alpha: Double,
         a: DenseMatrixRegion,
@@ -583,7 +513,7 @@ internal class NativeVendorBlas private constructor(
             val pa = pins.stage(a)
             val pb = pins.stage(b)
             val pc = pins.stage(c)
-            val fn = symbol(EngineImplementation.Syr2k).reinterpret<Syr2kFn>()
+            val fn = symbol(EngineImplementation.Syr2k).reinterpret<SymmFn>()
             fn(
                 Cblas.COL_MAJOR, uploFor(structure), transposeFor(transposeA),
                 c.rows, depth, alpha, pa.pointer, pa.leadingDimension,
@@ -592,35 +522,14 @@ internal class NativeVendorBlas private constructor(
         }
     }
 
-    @Suppress("LongParameterList") // the BLAS dtrmm signature
-    override fun cblasTrmm(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        structure: MatrixStructure,
-        transposeA: Boolean,
-        b: DenseMatrixRegion,
-        rightSide: Boolean,
-    ) = triangularMatrix(alpha, a, structure, transposeA, b, rightSide, EngineImplementation.Trmm)
-
-    @Suppress("LongParameterList") // the BLAS dtrsm signature
-    override fun cblasTrsm(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        structure: MatrixStructure,
-        transposeA: Boolean,
-        b: DenseMatrixRegion,
-        rightSide: Boolean,
-    ) = triangularMatrix(alpha, a, structure, transposeA, b, rightSide, EngineImplementation.Trsm)
-
-    @Suppress("LongParameterList") // the shared triangular matrix signature plus its entry point
-    private fun triangularMatrix(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        structure: MatrixStructure,
-        transposeA: Boolean,
-        b: DenseMatrixRegion,
-        rightSide: Boolean,
+    override fun cblasTriangularMatrix(
         operation: EngineImplementation,
+        alpha: Double,
+        a: DenseMatrixRegion,
+        structure: MatrixStructure,
+        transposeA: Boolean,
+        b: DenseMatrixRegion,
+        rightSide: Boolean,
     ) {
         withPins { pins ->
             val pa = pins.stage(a)
@@ -635,7 +544,6 @@ internal class NativeVendorBlas private constructor(
     }
 
     /** Calls only this library's exported `cblas_dgemmt`. */
-    @Suppress("LongParameterList") // the BLAS gemmt signature
     override fun cblasGemmt(
         alpha: Double,
         a: DenseMatrixRegion,
@@ -660,35 +568,8 @@ internal class NativeVendorBlas private constructor(
             )
         }
     }
-    private fun readVersion(): String {
-        mklVersion()?.let { return it }
-        stringVersion("openblas_get_config")?.let { return it }
-        stringVersion("bli_info_get_version_str")?.let { return it }
-        return if (vendor == Vendor.Accelerate) "system framework" else "unreported"
-    }
-
-    private fun mklVersion(): String? {
-        val address = library.symbol("MKL_Get_Version_String") ?: return null
-        val fn = address.reinterpret<VersionFn>()
-        return memScoped {
-            val buffer = allocArray<ByteVar>(VERSION_BUFFER)
-            fn(buffer, VERSION_BUFFER)
-            buffer.toKString().trim().ifEmpty { null }
-        }
-    }
-
-    private fun stringVersion(symbol: String): String? {
-        val address = library.symbol(symbol) ?: return null
-        val fn = address.reinterpret<StringFn>()
-        return fn()?.toKString()?.trim()?.ifEmpty { null }
-    }
 
     internal companion object {
-        private const val VERSION_BUFFER = 256
-
-        /** `MKL_THREADING_SEQUENTIAL`. */
-        private const val MKL_SEQUENTIAL = 1
-
         /**
          * Open the first [vendor] candidate that passes the LP64 probes and single-thread checks.
          * Missing non-probe exports remain absent capabilities.
@@ -702,11 +583,7 @@ internal class NativeVendorBlas private constructor(
             for (candidate in installed) {
                 val library = NativeLibrary.open(candidate) ?: continue
                 val blas = NativeVendorBlas(vendor, candidate, library)
-                // oneMKL interface selection must precede dynamic/thread controls, version reads and probes.
-                if (!blas.establishIntegerInterface()) continue
-                blas.enforceSingleThread()
-                if (!blas.verifiedAbi()) continue
-                if (!blas.confirmSingleThread()) continue
+                blas.threadEvidence = blas.admit() ?: continue
                 return blas
             }
             return null

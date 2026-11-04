@@ -4,7 +4,6 @@ import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.assertIamaxHonoursItsContract
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.portable.PortableEngine
-import com.eignex.koblas.internal.sparse.snapshot
 import com.eignex.koblas.sparse.*
 import kotlin.random.Random
 import kotlin.test.*

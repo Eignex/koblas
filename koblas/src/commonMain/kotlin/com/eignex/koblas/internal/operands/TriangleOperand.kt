@@ -5,7 +5,7 @@ import com.eignex.koblas.engine.*
 
 /** Reads a custom triangle once, excluding the unselected half and an implicit diagonal. */
 internal inline fun <T> triangleOperand(
-    arrays: ArraySupplier?,
+    arrays: Scratch?,
     a: Matrix,
     lower: Boolean,
     unitDiag: Boolean,
@@ -13,11 +13,27 @@ internal inline fun <T> triangleOperand(
 ): T {
     if (a is DenseMatrixRegion) return block(a)
     return arrays.borrow(DenseMatrix.entryCount(a.rows, a.cols)) { values ->
-        for (j in 0 until a.cols) {
-            for (i in 0 until a.rows) {
-                if (if (lower) i >= j else i <= j) values[i + j * a.rows] = if (unitDiag && i == j) 1.0 else a[i, j]
-            }
-        }
+        copyTriangle(a.rows, a.cols, lower, unitDiag, values) { i, j -> a[i, j] }
         block(DenseMatrix.wrap(a.rows, a.cols, values))
+    }
+}
+
+/**
+ * Writes the [lower] or upper triangle of a [rows] by [columns] operand, or all of it when [lower] is null,
+ * into [copy] with [rows] as its leading dimension. A [unitDiag] diagonal is written as 1 without calling
+ * [entry]; the other triangle is neither read nor written.
+ */
+internal inline fun copyTriangle(
+    rows: Int,
+    columns: Int,
+    lower: Boolean?,
+    unitDiag: Boolean,
+    copy: DoubleArray,
+    entry: (i: Int, j: Int) -> Double,
+) {
+    for (j in 0 until columns) {
+        val first = if (lower == true) j else 0
+        val last = if (lower == false && j < rows) j + 1 else rows
+        for (i in first until last) copy[i + j * rows] = if (unitDiag && i == j) 1.0 else entry(i, j)
     }
 }
