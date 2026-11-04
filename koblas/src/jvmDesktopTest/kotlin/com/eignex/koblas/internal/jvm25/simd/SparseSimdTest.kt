@@ -42,7 +42,7 @@ class SparseSimdTest {
     }
 
     private fun assertDotDenseAgreesWithReference(x: Pattern) {
-        val expected = PortableEngine.dotDense(
+        val expected = PortableEngine.dot(
             x.indices,
             x.indexOffset,
             x.values,
@@ -51,9 +51,9 @@ class SparseSimdTest {
             x.dense,
         )
 
-        val actual = SparseSimd.dotDense(x.indices, x.indexOffset, x.values, x.valueOffset, x.count, x.dense)
+        val actual = SparseSimd.dot(x.indices, x.indexOffset, x.values, x.valueOffset, x.count, x.dense)
 
-        assertClose(expected, actual, "dotDense ${x.context}")
+        assertClose(expected, actual, "dot ${x.context}")
     }
 
     private fun forEachPattern(block: (Pattern) -> Unit) {

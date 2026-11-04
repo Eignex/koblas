@@ -197,14 +197,12 @@ public abstract interface class com/eignex/koblas/KoblasEngine {
 	public fun axpy ([DID[DIIII)V
 	public fun axpy ([II[DIID[D)V
 	public static synthetic fun axpy$default (Lcom/eignex/koblas/KoblasEngine;[DID[DIIIIILjava/lang/Object;)V
-	public fun computeIndexedNrm2 ([III[D)D
-	public fun computeIndexedScatter ([II[DII[D)V
 	public fun copy ([DI[DIIII)V
 	public static synthetic fun copy$default (Lcom/eignex/koblas/KoblasEngine;[DI[DIIIIILjava/lang/Object;)V
 	public fun dot ([DI[DIIII)D
+	public fun dot ([II[DII[D)D
+	public fun dot ([II[DII[II[DII)D
 	public static synthetic fun dot$default (Lcom/eignex/koblas/KoblasEngine;[DI[DIIIIILjava/lang/Object;)D
-	public fun dotDense ([II[DII[D)D
-	public fun dotSparse ([II[DII[II[DII)D
 	public fun gather ([II[DII[D)V
 	public fun gatherZero ([II[DII[D)V
 	public fun gemm (DLcom/eignex/koblas/DenseMatrixRegion;ZLcom/eignex/koblas/DenseMatrixRegion;ZDLcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/Scratch;)V
@@ -232,11 +230,13 @@ public abstract interface class com/eignex/koblas/KoblasEngine {
 	public fun iamax ([DIII)I
 	public static synthetic fun iamax$default (Lcom/eignex/koblas/KoblasEngine;[DIIIILjava/lang/Object;)I
 	public fun nrm2 ([DIII)D
+	public fun nrm2 ([III[D)D
 	public static synthetic fun nrm2$default (Lcom/eignex/koblas/KoblasEngine;[DIIIILjava/lang/Object;)D
 	public fun rot ([DI[DIIDDII)V
 	public static synthetic fun rot$default (Lcom/eignex/koblas/KoblasEngine;[DI[DIIDDIIILjava/lang/Object;)V
 	public fun scale ([DIDII)V
 	public static synthetic fun scale$default (Lcom/eignex/koblas/KoblasEngine;[DIDIIILjava/lang/Object;)V
+	public fun scatter ([II[DII[D)V
 	public fun sum ([DIII)D
 	public static synthetic fun sum$default (Lcom/eignex/koblas/KoblasEngine;[DIIIILjava/lang/Object;)D
 	public fun swap ([DI[DIIII)V
@@ -286,14 +286,12 @@ public final class com/eignex/koblas/KoblasEngine$DefaultImpls {
 	public static fun axpy (Lcom/eignex/koblas/KoblasEngine;[DID[DIIII)V
 	public static fun axpy (Lcom/eignex/koblas/KoblasEngine;[II[DIID[D)V
 	public static synthetic fun axpy$default (Lcom/eignex/koblas/KoblasEngine;[DID[DIIIIILjava/lang/Object;)V
-	public static fun computeIndexedNrm2 (Lcom/eignex/koblas/KoblasEngine;[III[D)D
-	public static fun computeIndexedScatter (Lcom/eignex/koblas/KoblasEngine;[II[DII[D)V
 	public static fun copy (Lcom/eignex/koblas/KoblasEngine;[DI[DIIII)V
 	public static synthetic fun copy$default (Lcom/eignex/koblas/KoblasEngine;[DI[DIIIIILjava/lang/Object;)V
 	public static fun dot (Lcom/eignex/koblas/KoblasEngine;[DI[DIIII)D
+	public static fun dot (Lcom/eignex/koblas/KoblasEngine;[II[DII[D)D
+	public static fun dot (Lcom/eignex/koblas/KoblasEngine;[II[DII[II[DII)D
 	public static synthetic fun dot$default (Lcom/eignex/koblas/KoblasEngine;[DI[DIIIIILjava/lang/Object;)D
-	public static fun dotDense (Lcom/eignex/koblas/KoblasEngine;[II[DII[D)D
-	public static fun dotSparse (Lcom/eignex/koblas/KoblasEngine;[II[DII[II[DII)D
 	public static fun gather (Lcom/eignex/koblas/KoblasEngine;[II[DII[D)V
 	public static fun gatherZero (Lcom/eignex/koblas/KoblasEngine;[II[DII[D)V
 	public static fun gemm (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseMatrixRegion;ZLcom/eignex/koblas/DenseMatrixRegion;ZDLcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/Scratch;)V
@@ -320,11 +318,13 @@ public final class com/eignex/koblas/KoblasEngine$DefaultImpls {
 	public static fun iamax (Lcom/eignex/koblas/KoblasEngine;[DIII)I
 	public static synthetic fun iamax$default (Lcom/eignex/koblas/KoblasEngine;[DIIIILjava/lang/Object;)I
 	public static fun nrm2 (Lcom/eignex/koblas/KoblasEngine;[DIII)D
+	public static fun nrm2 (Lcom/eignex/koblas/KoblasEngine;[III[D)D
 	public static synthetic fun nrm2$default (Lcom/eignex/koblas/KoblasEngine;[DIIIILjava/lang/Object;)D
 	public static fun rot (Lcom/eignex/koblas/KoblasEngine;[DI[DIIDDII)V
 	public static synthetic fun rot$default (Lcom/eignex/koblas/KoblasEngine;[DI[DIIDDIIILjava/lang/Object;)V
 	public static fun scale (Lcom/eignex/koblas/KoblasEngine;[DIDII)V
 	public static synthetic fun scale$default (Lcom/eignex/koblas/KoblasEngine;[DIDIIILjava/lang/Object;)V
+	public static fun scatter (Lcom/eignex/koblas/KoblasEngine;[II[DII[D)V
 	public static fun sum (Lcom/eignex/koblas/KoblasEngine;[DIII)D
 	public static synthetic fun sum$default (Lcom/eignex/koblas/KoblasEngine;[DIIIILjava/lang/Object;)D
 	public static fun swap (Lcom/eignex/koblas/KoblasEngine;[DI[DIIII)V
@@ -711,10 +711,8 @@ public final class com/eignex/koblas/engine/Vendor : java/lang/Enum {
 public final class com/eignex/koblas/sparse/SparseBlas {
 	public static final fun asum (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/SparseVector;)D
 	public static final fun axpy (Lcom/eignex/koblas/KoblasEngine;[DDLcom/eignex/koblas/SparseVector;)V
-	public static final fun axpy (Lcom/eignex/koblas/KoblasEngine;[DD[II[DII)V
 	public static final fun dot (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/SparseVector;Lcom/eignex/koblas/SparseVector;)D
 	public static final fun dot (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/SparseVector;[D)D
-	public static final fun dot (Lcom/eignex/koblas/KoblasEngine;[II[DII[D)D
 	public static final fun dotColumn (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/SparseMatrix;I[D)D
 	public static final fun gather (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/SparseVector;[D)V
 	public static final fun gatherZero (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/SparseVector;[D)V
@@ -724,9 +722,7 @@ public final class com/eignex/koblas/sparse/SparseBlas {
 	public static final fun gemv (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/SparseMatrix;[DZLcom/eignex/koblas/Scratch;)[D
 	public static synthetic fun gemv$default (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/SparseMatrix;[DZLcom/eignex/koblas/Scratch;ILjava/lang/Object;)[D
 	public static final fun nrm2 (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/SparseVector;)D
-	public static final fun nrm2 (Lcom/eignex/koblas/KoblasEngine;[III[D)D
 	public static final fun scatter (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/SparseVector;[D)V
-	public static final fun scatter (Lcom/eignex/koblas/KoblasEngine;[II[DII[D)V
 	public static final fun transpose (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/SparseMatrix;)Lcom/eignex/koblas/SparseMatrix;
 }
 

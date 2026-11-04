@@ -22,7 +22,8 @@ import com.eignex.koblas.internal.sparse.withSymmetricRankScratch
  *
  * Level 2 and 3 routines validate shapes, preserve BLAS no-read rules and snapshot an input that shares the
  * destination's storage, borrowing from a [Scratch] when one is given. Level 1 members address primitive array
- * windows that must be valid; callers stage destructive overlaps. Rounding, reduction order and unspecified
+ * windows: one outside its array throws from the array access, a host library binding checks each window before
+ * passing it on, and callers stage destructive overlaps. Rounding, reduction order and unspecified
  * exceptional results belong to the selected arithmetic.
  */
 public interface KoblasEngine {
@@ -143,8 +144,11 @@ public interface KoblasEngine {
      */
     public fun sum(v: DoubleArray, vOff: Int, len: Int, vStride: Int = 1): Double = unsupported()
 
-    /** Dot product of the stored entries and their addressed dense positions. The caller validates and stages aliases before dispatch. */
-    public fun dotDense(
+    /**
+     * `Σ values(k) · dense(indices(k))` over [count] stored entries (Sparse BLAS `usdot`). Repeated and unsorted
+     * indices are permitted. Indices are not checked here; [SparseVector] and [SparseMatrix] check theirs once.
+     */
+    public fun dot(
         indices: IntArray,
         indexOffset: Int,
         values: DoubleArray,
@@ -153,8 +157,8 @@ public interface KoblasEngine {
         dense: DoubleArray,
     ): Double = unsupported()
 
-    /** Dot product of matching stored positions in two sorted sparse runs. The caller validates and stages aliases before dispatch. */
-    public fun dotSparse(
+    /** `Σ x(k) · y(k)` over the positions two stored runs share. Both index runs must be strictly increasing. */
+    public fun dot(
         xIndices: IntArray,
         xIndexOffset: Int,
         xValues: DoubleArray,
@@ -167,7 +171,11 @@ public interface KoblasEngine {
         yCount: Int,
     ): Double = unsupported()
 
-    /** Adds the scaled stored run at its addressed dense positions. */
+    /**
+     * `destination(indices(k)) += alpha · values(k)` (Sparse BLAS `usaxpy`). Indices must be strictly increasing,
+     * and [values] must not be [destination]. Every stored product is formed, even for a zero [alpha], which is how a
+     * sparse traversal keeps a stored zero's product; the [SparseVector] form skips a zero [alpha] as BLAS does.
+     */
     public fun axpy(
         indices: IntArray,
         indexOffset: Int,
@@ -178,8 +186,8 @@ public interface KoblasEngine {
         destination: DoubleArray,
     ): Unit = unsupported()
 
-    /** Copies stored values to their addressed dense positions. The caller validates and stages aliases before dispatch. */
-    public fun computeIndexedScatter(
+    /** `destination(indices(k)) = values(k)` (Sparse BLAS `ussc`), with the index and buffer rules of [axpy]. */
+    public fun scatter(
         indices: IntArray,
         indexOffset: Int,
         values: DoubleArray,
@@ -188,7 +196,7 @@ public interface KoblasEngine {
         destination: DoubleArray,
     ): Unit = unsupported()
 
-    /** Copies addressed dense entries to the stored value run. The caller validates and stages aliases before dispatch. */
+    /** `values(k) = source(indices(k))` (Sparse BLAS `usga`). [values] must not be [source]. */
     public fun gather(
         indices: IntArray,
         indexOffset: Int,
@@ -198,7 +206,7 @@ public interface KoblasEngine {
         source: DoubleArray,
     ): Unit = unsupported()
 
-    /** Gathers addressed entries and replaces those dense positions with zero. The caller validates and stages aliases before dispatch. */
+    /** [gather], then zero each position read in [source] (Sparse BLAS `usgz`). Indices must be strictly increasing. */
     public fun gatherZero(
         indices: IntArray,
         indexOffset: Int,
@@ -208,9 +216,8 @@ public interface KoblasEngine {
         source: DoubleArray,
     ): Unit = unsupported()
 
-    /** Euclidean norm over the addressed dense positions. The caller validates and stages aliases before dispatch. */
-    public fun computeIndexedNrm2(indices: IntArray, indexOffset: Int, count: Int, values: DoubleArray): Double =
-        unsupported()
+    /** `‖values(indices(k))‖₂` over [count] addressed positions, rescaled as the dense [nrm2] is. */
+    public fun nrm2(indices: IntArray, indexOffset: Int, count: Int, values: DoubleArray): Double = unsupported()
 
     /**
      * `y = alpha · op(A) · x + beta · y` (BLAS `dgemv`), with `op(A)` being `Aᵀ` when [transpose]. `x` is the

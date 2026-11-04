@@ -3,6 +3,7 @@
 package com.eignex.koblas.internal.host
 
 import com.eignex.koblas.*
+import com.eignex.koblas.internal.operands.requireVectorWindow
 import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.DoubleVar
 import kotlinx.cinterop.Pinned
@@ -80,6 +81,12 @@ internal fun baseIndex(vector: DenseVector): Int = baseIndex(vector.offset, vect
 /** The same rule over a raw run, which is what the Level 1 entry points hand BLAS. */
 internal fun baseIndex(offset: Int, stride: Int, size: Int): Int =
     if (stride >= 0) offset else offset + (size - 1) * stride
+
+/** The address of a raw run's lowest entry, once the whole run is checked to lie inside the pinned array. */
+internal fun Pinned<DoubleArray>.runAddress(offset: Int, stride: Int, size: Int): CPointer<DoubleVar> {
+    requireVectorWindow(get().size, offset, size, stride, "vector")
+    return addressOf(baseIndex(offset, stride, size))
+}
 
 /** Releases every pin when [block] returns or throws. */
 internal inline fun <T> withPins(block: (Pins) -> T): T {

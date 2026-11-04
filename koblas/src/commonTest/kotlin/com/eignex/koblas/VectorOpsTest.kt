@@ -146,15 +146,7 @@ class VectorOpsTest {
             val destination = StridedVector(backing, 0, size)
             val source = if (size == 0) sparse(0) else sparse(size, 0 to 2.0, 2 to -1.0)
             val expected = backing.copyOf()
-            BuiltinEngines.scalar.axpy(
-                expected,
-                2.0,
-                source.indices,
-                0,
-                source.values,
-                0,
-                source.indices.size,
-            )
+            BuiltinEngines.scalar.axpy(source.indices, 0, source.values, 0, source.indices.size, 2.0, expected)
 
             destination.axpy(2.0, source)
 

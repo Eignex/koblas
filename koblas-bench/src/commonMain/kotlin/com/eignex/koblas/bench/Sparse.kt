@@ -97,7 +97,7 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
             val y0 = Fixtures.vector(d[0], 2); val y = y0.copyOf()
             arm(x.values.size, "reset-and-arithmetic") {
                 y0.copyInto(y)
-                kernels.axpy(y, 0.875, indices, 0, x.values, 0, x.values.size)
+                kernels.axpy(indices, 0, x.values, 0, x.values.size, 0.875, y)
                 y[0]
             }
         }
