@@ -26,7 +26,6 @@ internal object Cases {
         "spdot-column" to 1, "spdot-column-raw" to 1,
         "spnrm2" to 1, "spnrm2-indexed" to 1, "spasum" to 1,
         "spscatter" to 1, "spscatter-raw" to 1, "spgather" to 1, "spgather-zero" to 1,
-        "spaccumulate" to 1,
         "spdot-slice" to 1, "spnrm2-slice" to 1, "spaxpy-slice" to 1, "spscatter-slice" to 1,
         "spbuild-triplets" to 2, "spbuild-duplicates" to 2,
         "spgemv" to 2, "spmm" to 3, "spmm-right" to 3, "spgemm" to 3,

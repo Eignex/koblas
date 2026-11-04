@@ -4,11 +4,9 @@ import com.eignex.koblas.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.sparse.*
 import kotlin.test.Test
-import kotlin.test.assertContains
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class SparseTest {
@@ -24,23 +22,6 @@ class SparseTest {
             arithmetic.run()
             assertContentEquals(reset.result, arithmetic.result)
         }
-    }
-
-    @Test
-    fun `the generic primitives are timed once rather than under each engine label`() {
-        val case = Cases.parse("spaccumulate+4096+sparse-uniform+density=0.01").single()
-
-        val scalar = assertNotNull(sparseArm(case, BuiltinEngines.scalar))
-        val work = assertNotNull(scalar.work)
-
-        assertEquals("composed", work.comparisonKind)
-        assertEquals("primitives/scatterWorkspace plus gatherWorkspace", work.kernel)
-        assertTrue(work.run() > 0.0, "the primitive case must gather the entries it scattered")
-
-        val simd = BuiltinEngines.simd ?: return
-        val declined = assertNotNull(sparseArm(case, simd))
-        assertNull(declined.work)
-        assertContains(assertNotNull(declined.reason), "one implementation")
     }
 
     @Test

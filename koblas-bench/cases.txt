@@ -143,7 +143,6 @@ sptrsm+129x64+sparse-triangular+density=0.1+mode=oneshot+side=L+uplo=L+transA=N+
 sptrsm+129x64+sparse-triangular+density=0.1+mode=oneshot+side=L+uplo=L+transA=T+diag=N
 sptrmm+129x64+sparse-triangular+density=0.1+mode=oneshot+side=L+uplo=L+transA=N+diag=N
 sptrsm+129x64+sparse-triangular+density=0.1+support=banded+mode=oneshot+side=L+uplo=L+transA=N+diag=N
-spaccumulate+4096+sparse-uniform+density=0.01
 
 # Skinny, depth tails, and single through many RHS transition baselines.
 gemm+257x3x1+uniform
