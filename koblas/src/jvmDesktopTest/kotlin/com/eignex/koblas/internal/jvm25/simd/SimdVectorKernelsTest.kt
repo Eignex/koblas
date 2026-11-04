@@ -4,6 +4,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.engine.hostPlatform
+import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.jvm25.simd.simdAvailable
 import com.eignex.koblas.internal.jvm25.simd.simdContributions
 import com.eignex.koblas.internal.portable.PortableEngine

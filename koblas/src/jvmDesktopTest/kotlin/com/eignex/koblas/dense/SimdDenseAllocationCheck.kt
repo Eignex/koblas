@@ -4,8 +4,10 @@ import com.eignex.koblas.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.engineWithHost
 import com.eignex.koblas.engineWithKernels
+import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.jvm25.simd.SimdPanelKernels
 import com.eignex.koblas.internal.jvm25.simd.SimdProductKernels
+import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.internal.portable.dense.TRIANGULAR_DIAGONAL_BLOCK
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.testutil.allocation.AllocationProbe

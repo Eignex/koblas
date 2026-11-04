@@ -32,8 +32,8 @@ while IFS= read -r name; do
     base_count=$((base_count + 1))
   fi
 done <"$temporary/entries"
-grep -Fxq com/eignex/koblas/JvmBackend.class "$temporary/entries" || fail 'Missing base backend'
-grep -Fxq META-INF/versions/25/com/eignex/koblas/JvmBackend.class "$temporary/entries" || fail 'Missing desktop backend'
+grep -Fxq com/eignex/koblas/internal/jvm/JvmBackend.class "$temporary/entries" || fail 'Missing base backend'
+grep -Fxq META-INF/versions/25/com/eignex/koblas/internal/jvm/JvmBackend.class "$temporary/entries" || fail 'Missing desktop backend'
 ((base_count && versioned_count)) || fail 'Missing base or desktop classes'
 jq -e 'all(.variants[]; if .attributes["org.gradle.category"] == "library" then .attributes["org.gradle.jvm.version"] == 17 else true end)' "$metadata" >/dev/null
 echo "Verified $base_count base and $versioned_count desktop classes; published JVM baseline is 17"

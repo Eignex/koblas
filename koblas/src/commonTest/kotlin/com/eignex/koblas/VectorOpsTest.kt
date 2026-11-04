@@ -3,6 +3,7 @@ package com.eignex.koblas
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.assertIamaxHonoursItsContract
 import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.portable.PortableEngine
 import com.eignex.koblas.sparse.*
 import kotlin.random.Random
@@ -47,7 +48,7 @@ class VectorOpsTest {
         for ((source, destination) in identicalDenseMappings()) {
             val expected = source.values.copyOf()
 
-            copy(source, destination)
+            destination.copyFrom(source)
 
             assertContentEquals(expected, source.values)
         }
@@ -58,7 +59,7 @@ class VectorOpsTest {
         for ((source, destination) in identicalDenseMappings()) {
             val expected = source.values.copyOf()
 
-            swap(source, destination)
+            source.swap(destination)
 
             assertContentEquals(expected, source.values)
         }
@@ -298,21 +299,21 @@ class VectorOpsTest {
     @Test
     fun `copy replicates dense and sparse sources and rejects size mismatch`() {
         val dst = DenseVector.of(doubleArrayOf(9.0, 9.0, 9.0, 9.0, 9.0, 9.0))
-        copy(sparse, dst) // sparse: must zero-fill the unstored slots
+        dst.copyFrom(sparse) // sparse: must zero-fill the unstored slots
         assertContentEquals(denseOfSparse.values, dst.values)
-        copy(DenseVector.of(doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0)), dst)
+        dst.copyFrom(DenseVector.of(doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0)))
         assertContentEquals(doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0), dst.values)
-        assertFailsWith<DimensionMismatch> { copy(DenseVector.zero(2), DenseVector.zero(3)) }
+        assertFailsWith<DimensionMismatch> { DenseVector.zero(3).copyFrom(DenseVector.zero(2)) }
     }
 
     @Test
     fun `swap exchanges contents and rejects size mismatch`() {
         val a = DenseVector.of(doubleArrayOf(1.0, 2.0))
         val b = DenseVector.of(doubleArrayOf(3.0, 4.0))
-        swap(a, b)
+        a.swap(b)
         assertContentEquals(doubleArrayOf(3.0, 4.0), a.values)
         assertContentEquals(doubleArrayOf(1.0, 2.0), b.values)
-        assertFailsWith<DimensionMismatch> { swap(DenseVector.zero(2), DenseVector.zero(3)) }
+        assertFailsWith<DimensionMismatch> { DenseVector.zero(2).swap(DenseVector.zero(3)) }
     }
 
     @Test
@@ -371,7 +372,7 @@ class VectorOpsTest {
             val snapshot = source.toDoubleArray()
             snapshot.copyInto(expected, destination.offset)
 
-            copy(source, destination)
+            destination.copyFrom(source)
 
             assertContentEquals(expected, backing)
         }
@@ -403,7 +404,7 @@ class VectorOpsTest {
             val source = StridedVector(backing, if (reverse) 3 else 0, 4, if (reverse) -1 else 1)
             val expected = source.toDoubleArray()
 
-            copy(source, DenseVector.wrap(backing))
+            DenseVector.wrap(backing).copyFrom(source)
 
             assertContentEquals(expected, backing)
         }
@@ -417,9 +418,9 @@ class VectorOpsTest {
             val expected = if (borrowed) backing.reversedArray() else backing.copyOf()
 
             if (borrowed) {
-                copy(source, StridedVector(backing, 2, 3, -1))
+                StridedVector(backing, 2, 3, -1).copyFrom(source)
             } else {
-                copy(source, DenseVector.wrap(backing))
+                DenseVector.wrap(backing).copyFrom(source)
             }
 
             assertContentEquals(expected, backing)
@@ -523,7 +524,7 @@ class VectorOpsTest {
         val source = foreignRamp(6)
         val destination = DenseVector.zero(6)
 
-        copy(source, destination)
+        destination.copyFrom(source)
 
         assertContentEquals(source.toDoubleArray(), destination.values)
     }
@@ -568,7 +569,7 @@ class VectorOpsTest {
         val x = DenseVector.of(doubleArrayOf(3.0, 1.0, 2.0))
         val y = DenseVector.of(doubleArrayOf(4.0, -1.0, 0.5))
 
-        rot(x, y, 0.6, 0.8)
+        x.rot(y, 0.6, 0.8)
 
         assertEquals(0.0, y[0], 1e-12, "the leading entry of y was not eliminated")
         assertEquals(5.0, x[0], 1e-12)
@@ -590,7 +591,7 @@ class VectorOpsTest {
         val expectedY = ys.copyOf()
         PortableEngine.rot(expectedX, pad, expectedY, pad, n, 0.6, 0.8)
 
-        rot(StridedVector(xs, pad, n), StridedVector(ys, pad, n), c = 0.6, s = 0.8)
+        StridedVector(xs, pad, n).rot(StridedVector(ys, pad, n), c = 0.6, s = 0.8)
 
         assertClose(expectedX, xs, "rotation x backing")
         assertClose(expectedY, ys, "rotation y backing")
@@ -604,13 +605,13 @@ class VectorOpsTest {
     fun `gather rejects a dense vector of another length`() {
         val pattern = SparseVector.of(6, intArrayOf(1, 4), doubleArrayOf(9.0, 9.0))
 
-        assertFailsWith<DimensionMismatch> { gather(pattern, DenseVector.of(DoubleArray(7))) }
+        assertFailsWith<DimensionMismatch> { pattern.gather(DenseVector.of(DoubleArray(7))) }
     }
 
     @Test
     fun `gatherZero rejects a dense vector of another length`() {
         val pattern = SparseVector.of(6, intArrayOf(1, 4), doubleArrayOf(9.0, 9.0))
 
-        assertFailsWith<DimensionMismatch> { gatherZero(pattern, DenseVector.of(DoubleArray(7))) }
+        assertFailsWith<DimensionMismatch> { pattern.gatherZero(DenseVector.of(DoubleArray(7))) }
     }
 }

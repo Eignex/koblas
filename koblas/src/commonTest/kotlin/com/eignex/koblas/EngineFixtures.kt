@@ -2,6 +2,7 @@ package com.eignex.koblas
 
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.engine.EngineImplementation.*
+import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.portable.PortableEngine
 
 internal fun engineWithKernels(

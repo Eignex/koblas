@@ -16,10 +16,10 @@ echo '<testsuite tests="2" failures="0" errors="0" skipped="1"/>' >"$temporary/r
 bash "$scripts/verify-test-results.sh" "$temporary/reports"
 
 jar="$temporary/jar"
-mkdir -p "$jar/com/eignex/koblas" "$jar/META-INF/versions/25/com/eignex/koblas"
+mkdir -p "$jar/com/eignex/koblas/internal/jvm" "$jar/META-INF/versions/25/com/eignex/koblas/internal/jvm"
 printf 'Manifest-Version: 1.0\nMulti-Release: true\n' >"$jar/META-INF/MANIFEST.MF"
-printf '\312\376\272\276\000\000\000\075' >"$jar/com/eignex/koblas/JvmBackend.class"
-printf '\312\376\272\276\000\000\000\105' >"$jar/META-INF/versions/25/com/eignex/koblas/JvmBackend.class"
+printf '\312\376\272\276\000\000\000\075' >"$jar/com/eignex/koblas/internal/jvm/JvmBackend.class"
+printf '\312\376\272\276\000\000\000\105' >"$jar/META-INF/versions/25/com/eignex/koblas/internal/jvm/JvmBackend.class"
 metadata="$temporary/module.json"
 echo '{"variants":[{"attributes":{"org.gradle.category":"library","org.gradle.jvm.version":17}}]}' >"$metadata"
 verify() {
@@ -28,9 +28,9 @@ verify() {
   bash "$scripts/verify-jvm-artifact.sh" "$temporary/library.jar" "$metadata" "$@"
 }
 verify
-echo 'java/lang/foreign/' >>"$jar/com/eignex/koblas/JvmBackend.class"
+echo 'java/lang/foreign/' >>"$jar/com/eignex/koblas/internal/jvm/JvmBackend.class"
 reject verify
-printf '\312\376\272\276\000\000\000\075' >"$jar/com/eignex/koblas/JvmBackend.class"
+printf '\312\376\272\276\000\000\000\075' >"$jar/com/eignex/koblas/internal/jvm/JvmBackend.class"
 echo '{}' >"$jar/native.so"
 reject verify
 rm "$jar/native.so"

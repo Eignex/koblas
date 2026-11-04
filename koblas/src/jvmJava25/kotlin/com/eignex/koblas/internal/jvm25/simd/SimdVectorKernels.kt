@@ -4,6 +4,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.engine.EngineImplementation.*
+import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.portable.dense.MIN_NORMAL
 import com.eignex.koblas.internal.portable.dense.rescaledEuclideanNorm
 import com.eignex.koblas.sparse.*

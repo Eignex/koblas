@@ -1,7 +1,7 @@
 package com.eignex.koblas;
 
 import com.eignex.koblas.engine.BuiltinEngines;
-import com.eignex.koblas.engine.Engines;
+import com.eignex.koblas.engine.HostPlatforms;
 import static com.eignex.koblas.dense.DenseBlas.*;
 import static com.eignex.koblas.sparse.SparseBlas.*;
 
@@ -22,7 +22,7 @@ final class JavaInteropSmoke {
         assertEquals(34.0, Koblas.dot(vector, vector));
 
         DenseVector destination = DenseVector.wrap(new double[2]);
-        gemv(Engines.getDefault(), 1.0, matrix, vector, 0.0, destination, false, null);
+        gemv(Koblas.getDefault(), 1.0, matrix, vector, 0.0, destination);
         assertArrayEquals(result.toDoubleArray(), destination.toDoubleArray());
         assertEquals(8.0, Koblas.asum(vector));
 
@@ -38,13 +38,13 @@ final class JavaInteropSmoke {
             new double[] {2.0, 3.0}
         );
         double[] scattered = new double[2];
-        scatter(Engines.getDefault(), Koblas.column(sparse, 0), scattered);
+        scatter(Koblas.getDefault(), Koblas.column(sparse, 0), scattered);
         assertArrayEquals(new double[] {2.0, 0.0}, scattered);
 
         double[] gemvResult = new double[2];
-        Engines.getDefault().gemv(1.0, sparse, new double[] {4.0, 5.0}, 0.0, gemvResult, false, null);
+        Koblas.getDefault().gemv(1.0, sparse, new double[] {4.0, 5.0}, 0.0, gemvResult, false, null);
         assertArrayEquals(new double[] {8.0, 15.0}, gemvResult);
-        assertArrayEquals(new double[] {8.0, 15.0}, gemv(Engines.getDefault(), sparse, new double[] {4.0, 5.0}, false, null));
+        assertArrayEquals(new double[] {8.0, 15.0}, gemv(Koblas.getDefault(), sparse, new double[] {4.0, 5.0}));
 
         KoblasEngine engine = BuiltinEngines.getScalar();
         DenseMatrixRegion outputRegion = DenseMatrix.zero(5, 5).view(1, 1, 2, 2);
@@ -66,8 +66,11 @@ final class JavaInteropSmoke {
         Koblas.rot(rotatedX, rotatedY, 0.6, 0.8);
         assertEquals(5.0, rotatedX.get(0));
 
-        if (Engines.getDefault() == null || BuiltinEngines.getScalar() == null) {
+        if (Koblas.getDefault() == null || BuiltinEngines.getScalar() == null) {
             throw new AssertionError("Java engine accessors must return engines");
+        }
+        if (Koblas.getDefault().getProviders().isEmpty() || HostPlatforms.hostPlatform() == null) {
+            throw new AssertionError("Java engine inspection must report providers and the host");
         }
     }
 

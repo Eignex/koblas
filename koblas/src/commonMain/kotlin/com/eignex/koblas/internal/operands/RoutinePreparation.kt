@@ -4,7 +4,7 @@ package com.eignex.koblas.internal.operands
 
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.*
-import com.eignex.koblas.internal.portable.dense.applyBeta
+import com.eignex.koblas.internal.operands.applyBeta
 
 /*
  * What every implementation of a dense routine does around its arithmetic after checking the routine's shapes:

@@ -2,6 +2,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.portable.PortableEngine
 
 /** Runs each available panel implementation once, including the mandatory portable implementation. */

@@ -3,6 +3,8 @@ package com.eignex.koblas.engine
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.engine.EngineImplementation.*
+import com.eignex.koblas.internal.engine.*
+import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.internal.portable.PortableEngine
 import kotlin.test.*
 
