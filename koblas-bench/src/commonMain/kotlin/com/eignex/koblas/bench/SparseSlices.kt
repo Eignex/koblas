@@ -28,7 +28,7 @@ internal fun sparseSlicesArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
             else -> {
                 initial.copyInto(destination)
                 if (operation == "spaxpy-slice") {
-                    kernels.axpy(destination, 0.875, indices, INDEX_OFFSET, values, VALUE_OFFSET, count)
+                    kernels.axpy(indices, INDEX_OFFSET, values, VALUE_OFFSET, count, 0.875, destination)
                 } else {
                     kernels.scatter(indices, INDEX_OFFSET, values, VALUE_OFFSET, count, destination)
                 }
@@ -39,7 +39,7 @@ internal fun sparseSlicesArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
     if (mutation) {
         val expected = initial.copyOf()
         if (operation == "spaxpy-slice") {
-            scalar.axpy(expected, 0.875, indices, INDEX_OFFSET, values, VALUE_OFFSET, count)
+            scalar.axpy(indices, INDEX_OFFSET, values, VALUE_OFFSET, count, 0.875, expected)
         } else {
             scalar.scatter(indices, INDEX_OFFSET, values, VALUE_OFFSET, count, expected)
         }

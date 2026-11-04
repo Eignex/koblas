@@ -45,7 +45,7 @@ public fun KoblasEngine.gemv(
 /** `xᵀ·y` for a sparse [x] against a dense [y] (Sparse BLAS `usdot`); walks only the stored entries. */
 public fun KoblasEngine.dot(x: SparseVector, y: DoubleArray): Double {
     requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
-    return this.dotDense(x.indices, 0, x.values, 0, x.values.size, y)
+    return this.dot(x.indices, 0, x.values, 0, x.values.size, y)
 }
 
 /**
@@ -54,8 +54,7 @@ public fun KoblasEngine.dot(x: SparseVector, y: DoubleArray): Double {
  * Reads the current [SparseMatrix.values] on every call and permits that array to be [dense].
  *
  * Built-in implementations reuse the matrix's validated CSC support and call the indexed dot leaf
- * at the column's offsets without copying or rescanning indices. Custom implementations default to the
- * validated raw [dot] overload. The matrix's structural arrays must remain unchanged, as
+ * at the column's offsets without copying or rescanning indices. The matrix's structural arrays must remain unchanged, as
  * [SparseMatrix.wrap] requires; this call retains no arrays or column view after returning.
  *
  * @throws IndexOutOfBoundsException if [column] is outside the matrix's columns.
@@ -65,28 +64,7 @@ public fun KoblasEngine.dotColumn(matrix: SparseMatrix, column: Int, dense: Doub
     validateColumnDot(matrix, column, dense)
     val start = matrix.colPointers[column]
     val count = matrix.colPointers[column + 1] - start
-    return this.dotDense(matrix.rowIndices, start, matrix.values, start, count, dense)
-}
-
-/**
- * Returns the dot product of [count] indexed [values] and [dense]. Index and value windows are independent.
- * Repeated and unsorted indices are permitted: every supplied entry contributes once. A zero [count] permits
- * offsets at the corresponding array ends. Both windows and every selected index are validated before
- * arithmetic. [values] may be [dense] because this operation only reads its inputs.
- */
-@Suppress("LongParameterList")
-public fun KoblasEngine.dot(
-    indices: IntArray,
-    indexOffset: Int,
-    values: DoubleArray,
-    valueOffset: Int,
-    count: Int,
-    dense: DoubleArray,
-): Double {
-    requireSparseWindow(indices.size, indexOffset, count, "indices")
-    requireSparseWindow(values.size, valueOffset, count, "values")
-    validateSparseIndices(indices, indexOffset, count, dense.size, strictlyIncreasing = false)
-    return this.dotDense(indices, indexOffset, values, valueOffset, count, dense)
+    return this.dot(matrix.rowIndices, start, matrix.values, start, count, dense)
 }
 
 /**
@@ -95,7 +73,7 @@ public fun KoblasEngine.dot(
  */
 public fun KoblasEngine.dot(x: SparseVector, y: SparseVector): Double {
     requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
-    return this.dotSparse(x.indices, 0, x.values, 0, x.values.size, y.indices, 0, y.values, 0, y.values.size)
+    return this.dot(x.indices, 0, x.values, 0, x.values.size, y.indices, 0, y.values, 0, y.values.size)
 }
 
 /** `y += alpha·x` for a sparse [x] into a dense [y] (Sparse BLAS `usaxpy`), touching only x's stored
@@ -106,52 +84,11 @@ public fun KoblasEngine.axpy(y: DoubleArray, alpha: Double, x: SparseVector) {
     this.axpy(x.indices, 0, x.values, 0, x.values.size, alpha, y)
 }
 
-/**
- * Performs `destination[indices(k)] += alpha * values(k)` over the supplied windows.
- *
- * Selected indices must be strictly increasing, making every destination unique. [values] and [destination]
- * must be distinct arrays. All preconditions are validated before mutation. When [alpha] is either signed
- * zero, no value or destination element is read and [destination] is unchanged, following BLAS `axpy`.
- */
-@Suppress("LongParameterList")
-public fun KoblasEngine.axpy(
-    destination: DoubleArray,
-    alpha: Double,
-    indices: IntArray,
-    indexOffset: Int,
-    values: DoubleArray,
-    valueOffset: Int,
-    count: Int,
-) {
-    validateMutation(indices, indexOffset, values, valueOffset, count, destination)
-    if (alpha == 0.0) return
-    this.axpy(indices, indexOffset, values, valueOffset, count, alpha, destination)
-}
-
 /** Write [x]'s stored entries into [out] at their positions, leaving the rest of [out] alone (Sparse
  *  BLAS `ussc`). Zero-fill [out] first for a plain densification. */
 public fun KoblasEngine.scatter(x: SparseVector, out: DoubleArray) {
     requireShape(x.size == out.size) { "scatter: sizes differ, ${x.size} vs ${out.size}" }
-    computeIndexedScatter(x.indices, 0, x.values, 0, x.values.size, out)
-}
-
-/**
- * Assigns [count] indexed [values] into [destination], leaving every other element unchanged.
- * Selected indices must be strictly increasing, so duplicate-destination assignment is not permitted.
- * [values] and [destination] must be distinct arrays. Windows, indices, ordering, and aliasing are validated
- * before mutation; explicit stored values, including either signed zero, are assigned unchanged.
- */
-@Suppress("LongParameterList")
-public fun KoblasEngine.scatter(
-    indices: IntArray,
-    indexOffset: Int,
-    values: DoubleArray,
-    valueOffset: Int,
-    count: Int,
-    destination: DoubleArray,
-) {
-    validateMutation(indices, indexOffset, values, valueOffset, count, destination)
-    computeIndexedScatter(indices, indexOffset, values, valueOffset, count, destination)
+    scatter(x.indices, 0, x.values, 0, x.values.size, out)
 }
 
 /**
@@ -186,31 +123,5 @@ public fun KoblasEngine.gatherZero(x: SparseVector, from: DoubleArray) {
 /** Euclidean norm over the stored entries, rescaled as the dense [euclideanNorm] is. */
 public fun KoblasEngine.nrm2(x: SparseVector): Double = this.nrm2(x.values, 0, x.values.size)
 
-/**
- * Euclidean norm of [values] at the [count] positions in [indices]. Repeated and unsorted indices are
- * permitted and each occurrence contributes once. Finite-range rescaling protects against avoidable
- * square-sum overflow or underflow; unspecified exceptional results follow the selected implementation.
- * The touched window and all selected indices are validated before arithmetic.
- */
-public fun KoblasEngine.nrm2(indices: IntArray, indexOffset: Int, count: Int, values: DoubleArray): Double {
-    requireSparseWindow(indices.size, indexOffset, count, "indices")
-    validateSparseIndices(indices, indexOffset, count, values.size, strictlyIncreasing = false)
-    return computeIndexedNrm2(indices, indexOffset, count, values)
-}
-
 /** `Sum |x_i|` over the stored entries. */
 public fun KoblasEngine.asum(x: SparseVector): Double = this.asum(x.values, 0, x.values.size)
-
-private fun KoblasEngine.validateMutation(
-    indices: IntArray,
-    indexOffset: Int,
-    values: DoubleArray,
-    valueOffset: Int,
-    count: Int,
-    destination: DoubleArray,
-) {
-    requireSparseWindow(indices.size, indexOffset, count, "indices")
-    requireSparseWindow(values.size, valueOffset, count, "values")
-    require(values !== destination) { "values and destination must use distinct buffers" }
-    validateSparseIndices(indices, indexOffset, count, destination.size, strictlyIncreasing = true)
-}

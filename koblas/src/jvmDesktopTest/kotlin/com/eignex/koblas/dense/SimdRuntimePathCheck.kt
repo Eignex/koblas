@@ -222,8 +222,8 @@ internal object SimdRuntimePathCheck {
             val values = DoubleArray(count + 3) { rng.nextDouble(-1.0, 1.0) }
             val dense = DoubleArray(3 * count + 8) { rng.nextDouble(-1.0, 1.0) }
 
-            val expected = PortableEngine.dotDense(indices, 1, values, 2, count, dense)
-            val actual = engine.dotDense(indices, 1, values, 2, count, dense)
+            val expected = PortableEngine.dot(indices, 1, values, 2, count, dense)
+            val actual = engine.dot(indices, 1, values, 2, count, dense)
 
             assertClose(expected, actual, "sparse dot count=$count engine=${engine.name}")
         }

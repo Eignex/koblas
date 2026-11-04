@@ -42,7 +42,7 @@ class SparseOperationsAllocationTest internal constructor(private val case: Allo
             },
             with(IndexedSliceFixture()) {
                 AllocationCase("indexed axpy with independent offsets allocates nothing", 1_000) {
-                    engine.axpy(dense, 1e-12, indices, INDEX_OFFSET, values, VALUE_OFFSET, ENTRIES)
+                    engine.axpy(indices, INDEX_OFFSET, values, VALUE_OFFSET, ENTRIES, 1e-12, dense)
                     dense
                 }
             },

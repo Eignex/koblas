@@ -20,7 +20,7 @@ internal fun KoblasEngine.portableSparseGemv(
             val start = a.colPointers[j]
             val end = a.colPointers[j + 1]
             if (start == end) continue
-            val sum = this.dotDense(
+            val sum = this.dot(
                 a.rowIndices,
                 start,
                 a.values,

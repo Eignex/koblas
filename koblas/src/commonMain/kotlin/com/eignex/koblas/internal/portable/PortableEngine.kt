@@ -74,7 +74,7 @@ internal object PortableEngine : EngineKernels {
 
     override fun sum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double = scalarSum(v, vOff, vStride, len)
 
-    override fun dotDense(
+    override fun dot(
         indices: IntArray,
         indexOffset: Int,
         values: DoubleArray,
@@ -83,7 +83,7 @@ internal object PortableEngine : EngineKernels {
         dense: DoubleArray,
     ): Double = indexedDotDense(indices, indexOffset, values, valueOffset, count, dense)
 
-    override fun dotSparse(
+    override fun dot(
         xIndices: IntArray,
         xIndexOffset: Int,
         xValues: DoubleArray,
@@ -109,7 +109,7 @@ internal object PortableEngine : EngineKernels {
         destination: DoubleArray,
     ) = indexedAxpy(indices, indexOffset, values, valueOffset, count, alpha, destination)
 
-    override fun computeIndexedScatter(
+    override fun scatter(
         indices: IntArray,
         indexOffset: Int,
         values: DoubleArray,
@@ -136,7 +136,7 @@ internal object PortableEngine : EngineKernels {
         source: DoubleArray,
     ) = indexedGatherZero(indices, indexOffset, values, valueOffset, count, source)
 
-    override fun computeIndexedNrm2(indices: IntArray, indexOffset: Int, count: Int, values: DoubleArray): Double =
+    override fun nrm2(indices: IntArray, indexOffset: Int, count: Int, values: DoubleArray): Double =
         indexedNrm2(indices, indexOffset, count, values)
 
     /** Share each vector load across four dot/update columns, or two coupled/rank columns. */

@@ -13,7 +13,6 @@ import kotlinx.cinterop.CFunction
 import kotlinx.cinterop.COpaquePointer
 import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.DoubleVar
-import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.allocArray
 import kotlinx.cinterop.get
 import kotlinx.cinterop.invoke
@@ -249,9 +248,9 @@ internal class NativeVendorBlas private constructor(
             b.usePinned { pb ->
                 return fn(
                     len,
-                    pa.addressOf(baseIndex(aOff, aStride, len)),
+                    pa.runAddress(aOff, aStride, len),
                     aStride,
-                    pb.addressOf(baseIndex(bOff, bStride, len)),
+                    pb.runAddress(bOff, bStride, len),
                     bStride,
                 )
             }
@@ -268,7 +267,7 @@ internal class NativeVendorBlas private constructor(
         if (n == 0) return 0.0
         val fn = symbol(operation).reinterpret<ReduceFn>()
         a.usePinned { pinned ->
-            return fn(n, pinned.addressOf(baseIndex(offset, stride, n)), positiveIncrement(stride, n))
+            return fn(n, pinned.runAddress(offset, stride, n), positiveIncrement(stride, n))
         }
     }
 
@@ -277,7 +276,7 @@ internal class NativeVendorBlas private constructor(
         if (len == 0) return -1
         val fn = symbol(EngineImplementation.Iamax).reinterpret<IndexFn>()
         v.usePinned { pinned ->
-            val found = fn(len, pinned.addressOf(baseIndex(vOff, vStride, len)), positiveIncrement(vStride, len))
+            val found = fn(len, pinned.runAddress(vOff, vStride, len), positiveIncrement(vStride, len))
             return if (vStride >= 0) found else len - 1 - found
         }
     }
@@ -299,9 +298,9 @@ internal class NativeVendorBlas private constructor(
                 fn(
                     len,
                     alpha,
-                    px.addressOf(baseIndex(xOff, xStride, len)),
+                    px.runAddress(xOff, xStride, len),
                     xStride,
-                    py.addressOf(baseIndex(yOff, yStride, len)),
+                    py.runAddress(yOff, yStride, len),
                     yStride,
                 )
             }
@@ -312,7 +311,7 @@ internal class NativeVendorBlas private constructor(
         if (len == 0) return
         val fn = symbol(EngineImplementation.Scale).reinterpret<ScalFn>()
         v.usePinned { pinned ->
-            fn(len, alpha, pinned.addressOf(baseIndex(vOff, vStride, len)), positiveIncrement(vStride, len))
+            fn(len, alpha, pinned.runAddress(vOff, vStride, len), positiveIncrement(vStride, len))
         }
     }
 
@@ -323,9 +322,9 @@ internal class NativeVendorBlas private constructor(
             b.usePinned { py ->
                 fn(
                     len,
-                    px.addressOf(baseIndex(aOff, aStride, len)),
+                    px.runAddress(aOff, aStride, len),
                     aStride,
-                    py.addressOf(baseIndex(bOff, bStride, len)),
+                    py.runAddress(bOff, bStride, len),
                     bStride,
                 )
             }
@@ -339,9 +338,9 @@ internal class NativeVendorBlas private constructor(
             b.usePinned { py ->
                 fn(
                     len,
-                    px.addressOf(baseIndex(aOff, aStride, len)),
+                    px.runAddress(aOff, aStride, len),
                     aStride,
-                    py.addressOf(baseIndex(bOff, bStride, len)),
+                    py.runAddress(bOff, bStride, len),
                     bStride,
                 )
             }
@@ -369,9 +368,9 @@ internal class NativeVendorBlas private constructor(
             y.usePinned { py ->
                 fn(
                     len,
-                    px.addressOf(baseIndex(stableOffset, stableStride, len)),
+                    px.runAddress(stableOffset, stableStride, len),
                     stableStride,
-                    py.addressOf(baseIndex(yOff, yStride, len)),
+                    py.runAddress(yOff, yStride, len),
                     yStride,
                     c,
                     s,

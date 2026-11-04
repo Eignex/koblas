@@ -157,7 +157,7 @@ class CombinedEngineTest {
             override val name: String = "indexed"
 
             @Suppress("LongParameterList")
-            override fun dotDense(
+            override fun dot(
                 indices: IntArray,
                 indexOffset: Int,
                 values: DoubleArray,
@@ -168,7 +168,7 @@ class CombinedEngineTest {
                 counts += count
                 assertEquals(2, indexOffset)
                 assertEquals(1, valueOffset)
-                return PortableEngine.dotDense(indices, indexOffset, values, valueOffset, count, dense)
+                return PortableEngine.dot(indices, indexOffset, values, valueOffset, count, dense)
             }
         }
         val engine = combine(
@@ -183,9 +183,9 @@ class CombinedEngineTest {
         val indices = intArrayOf(9, 8, 1, 3)
         val values = doubleArrayOf(77.0, 0.5, -0.75)
         val dense = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
-        val expected = BuiltinEngines.scalar.dotDense(indices, 2, values, 1, 2, dense)
+        val expected = BuiltinEngines.scalar.dot(indices, 2, values, 1, 2, dense)
 
-        assertEquals(expected, engine.dotDense(indices, 2, values, 1, 2, dense))
+        assertEquals(expected, engine.dot(indices, 2, values, 1, 2, dense))
         assertEquals(listOf(2), counts)
     }
 
@@ -263,7 +263,7 @@ class CombinedEngineTest {
         val actualProduct = DenseMatrix.zero(2, 2)
 
         assertEquals(PortableEngine.dot(values, 0, values, 0, 2), nested.dot(values, 0, values, 0, 2))
-        engine.axpy(destination, 1.0, intArrayOf(0, 1), 0, values, 0, 2)
+        engine.axpy(intArrayOf(0, 1), 0, values, 0, 2, 1.0, destination)
         engine.gemm(1.0, matrix, false, matrix, false, 0.0, actualProduct)
 
         assertContentEquals(values, destination)

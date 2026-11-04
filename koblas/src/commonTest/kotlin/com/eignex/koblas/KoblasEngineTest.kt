@@ -30,7 +30,7 @@ class KoblasEngineTest {
     fun `a partial provider never inherits portable arithmetic`() {
         assertFailsWith<UnsupportedOperationException> { partial.sum(doubleArrayOf(1.0), 0, 1) }
         assertFailsWith<UnsupportedOperationException> {
-            partial.dotDense(
+            partial.dot(
                 intArrayOf(0),
                 0,
                 doubleArrayOf(1.0),

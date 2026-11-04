@@ -109,7 +109,7 @@ class SparseOperationsTest {
         val scattered = DoubleArray(dense.size) { 8.0 }
 
         val dot = koblas.dot(indices, 1, values, 2, 3, dense)
-        koblas.axpy(updated, 0.5, indices, 1, values, 2, 3)
+        koblas.axpy(indices, 1, values, 2, 3, 0.5, updated)
         koblas.scatter(indices, 1, values, 2, 3, scattered)
 
         assertEquals(-19.0, dot)
@@ -134,7 +134,7 @@ class SparseOperationsTest {
         val destination = doubleArrayOf(3.0)
 
         val dot = koblas.dot(intArrayOf(9), 1, doubleArrayOf(9.0), 1, 0, DoubleArray(0))
-        koblas.axpy(destination, 2.0, intArrayOf(9), 1, doubleArrayOf(9.0), 1, 0)
+        koblas.axpy(intArrayOf(9), 1, doubleArrayOf(9.0), 1, 0, 2.0, destination)
         koblas.scatter(intArrayOf(9), 1, doubleArrayOf(9.0), 1, 0, destination)
         val norm = koblas.nrm2(intArrayOf(9), 1, 0, DoubleArray(0))
 
@@ -144,52 +144,11 @@ class SparseOperationsTest {
     }
 
     @Test
-    fun `raw mutations validate before changing the destination`() {
-        val outOfRangeDestination = doubleArrayOf(5.0, 6.0, 7.0)
-        assertFailsWith<IndexOutOfBoundsException> {
-            koblas.axpy(outOfRangeDestination, 1.0, intArrayOf(0, 3), 0, doubleArrayOf(2.0, 3.0), 0, 2)
-        }
-        assertContentEquals(doubleArrayOf(5.0, 6.0, 7.0), outOfRangeDestination)
-        for (indices in listOf(intArrayOf(1, 1), intArrayOf(2, 0))) {
-            val unorderedDestination = doubleArrayOf(5.0, 6.0, 7.0)
-            assertFailsWith<IllegalArgumentException> {
-                koblas.axpy(unorderedDestination, 1.0, indices, 0, doubleArrayOf(2.0, 3.0), 0, 2)
-            }
-            assertContentEquals(doubleArrayOf(5.0, 6.0, 7.0), unorderedDestination)
-        }
-        val destination = doubleArrayOf(5.0, 6.0)
-        assertFailsWith<IllegalArgumentException> {
-            koblas.scatter(intArrayOf(0, 1), 0, destination, 0, 2, destination)
-        }
-        assertContentEquals(doubleArrayOf(5.0, 6.0), destination)
-    }
-
-    @Test
-    fun `raw operations reject invalid windows and dimensions`() {
-        val destination = doubleArrayOf(7.0)
-
-        assertFailsWith<IllegalArgumentException> {
-            koblas.dot(intArrayOf(0), 1, doubleArrayOf(1.0), 0, 1, doubleArrayOf(2.0))
-        }
-        assertFailsWith<IllegalArgumentException> {
-            koblas.dot(intArrayOf(0), 0, doubleArrayOf(1.0), 0, -1, doubleArrayOf(2.0))
-        }
-        assertFailsWith<IndexOutOfBoundsException> {
-            koblas.nrm2(intArrayOf(1), 0, 1, doubleArrayOf(2.0))
-        }
-        assertFailsWith<IllegalArgumentException> {
-            koblas.scatter(intArrayOf(0), 0, doubleArrayOf(1.0), 1, 1, destination)
-        }
-        assertContentEquals(doubleArrayOf(7.0), destination)
-    }
-
-    @Test
-    fun `raw axpy with zero alpha does not evaluate values`() {
+    fun `axpy of a sparse vector with zero alpha does not evaluate values`() {
         val destination = doubleArrayOf(Double.NaN, -0.0)
+        val poisoned = SparseVector.of(2, intArrayOf(0, 1), doubleArrayOf(Double.POSITIVE_INFINITY, Double.NaN))
 
-        val poisoned = doubleArrayOf(Double.POSITIVE_INFINITY, Double.NaN)
-
-        koblas.axpy(destination, -0.0, intArrayOf(0, 1), 0, poisoned, 0, 2)
+        koblas.axpy(destination, -0.0, poisoned)
 
         assertTrue(destination[0].isNaN())
         assertEquals((-0.0).toBits(), destination[1].toBits())
@@ -228,7 +187,7 @@ class SparseOperationsTest {
         val rawScatter = DoubleArray(6)
 
         koblas.axpy(containerUpdate, 0.25, x)
-        koblas.axpy(rawUpdate, 0.25, x.indices, 0, x.values, 0, x.values.size)
+        koblas.axpy(x.indices, 0, x.values, 0, x.values.size, 0.25, rawUpdate)
         koblas.scatter(x, containerScatter)
         koblas.scatter(x.indices, 0, x.values, 0, x.values.size, rawScatter)
 
@@ -283,7 +242,7 @@ class SparseOperationsTest {
             override val implementations = setOf(EngineImplementation.IndexedDot)
             override val name: String = "test-SparseOperationsTest"
 
-            override fun dotDense(
+            override fun dot(
                 indices: IntArray,
                 indexOffset: Int,
                 values: DoubleArray,

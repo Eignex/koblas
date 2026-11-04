@@ -172,7 +172,7 @@ internal class CombinedEngine(val routing: CompiledRouting, override val name: S
     ) = rotRoute.withBackend(len, xStride == 1 && yStride == 1) {
         it.rot(x, xOff, y, yOff, len, c, s, xStride, yStride)
     }
-    override fun dotDense(
+    override fun dot(
         indices: IntArray,
         indexOffset: Int,
         values: DoubleArray,
@@ -180,10 +180,10 @@ internal class CombinedEngine(val routing: CompiledRouting, override val name: S
         count: Int,
         dense: DoubleArray,
     ): Double = indexedDotRoute.withBackend(count) {
-        it.dotDense(indices, indexOffset, values, valueOffset, count, dense)
+        it.dot(indices, indexOffset, values, valueOffset, count, dense)
     }
 
-    override fun dotSparse(
+    override fun dot(
         xIndices: IntArray,
         xIndexOffset: Int,
         xValues: DoubleArray,
@@ -195,7 +195,7 @@ internal class CombinedEngine(val routing: CompiledRouting, override val name: S
         yValueOffset: Int,
         yCount: Int,
     ): Double = indexedSparseDotRoute.withBackend(maxOf(xCount, yCount)) {
-        it.dotSparse(
+        it.dot(
             xIndices, xIndexOffset, xValues, xValueOffset, xCount,
             yIndices, yIndexOffset, yValues, yValueOffset, yCount,
         )
@@ -213,7 +213,7 @@ internal class CombinedEngine(val routing: CompiledRouting, override val name: S
         it.axpy(indices, indexOffset, values, valueOffset, count, alpha, destination)
     }
 
-    override fun computeIndexedScatter(
+    override fun scatter(
         indices: IntArray,
         indexOffset: Int,
         values: DoubleArray,
@@ -221,7 +221,7 @@ internal class CombinedEngine(val routing: CompiledRouting, override val name: S
         count: Int,
         destination: DoubleArray,
     ): Unit = indexedScatterRoute.withBackend(count) {
-        it.computeIndexedScatter(indices, indexOffset, values, valueOffset, count, destination)
+        it.scatter(indices, indexOffset, values, valueOffset, count, destination)
     }
 
     override fun gather(
@@ -246,8 +246,8 @@ internal class CombinedEngine(val routing: CompiledRouting, override val name: S
         it.gatherZero(indices, indexOffset, values, valueOffset, count, source)
     }
 
-    override fun computeIndexedNrm2(indices: IntArray, indexOffset: Int, count: Int, values: DoubleArray): Double =
-        indexedNrm2Route.withBackend(count) { it.computeIndexedNrm2(indices, indexOffset, count, values) }
+    override fun nrm2(indices: IntArray, indexOffset: Int, count: Int, values: DoubleArray): Double =
+        indexedNrm2Route.withBackend(count) { it.nrm2(indices, indexOffset, count, values) }
 
     override fun copy(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) =
         copyRoute.withBackend(len, aStride == 1 && bStride == 1) {

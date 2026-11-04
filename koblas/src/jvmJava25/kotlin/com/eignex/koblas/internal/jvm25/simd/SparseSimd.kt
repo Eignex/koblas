@@ -33,7 +33,7 @@ internal object SparseSimd : EngineKernels {
     override val implementations = if (vectorDot) setOf(EngineImplementation.IndexedDot) else emptySet()
 
     @Suppress("LongParameterList")
-    override fun dotDense(
+    override fun dot(
         indices: IntArray,
         indexOffset: Int,
         values: DoubleArray,

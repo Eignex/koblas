@@ -58,7 +58,7 @@ internal object SimdSparseAllocationCheck {
         val dense = DoubleArray(DIMENSION) { 1.0 + (it % 17) * 0.03125 }
 
         assertAllocationFree("dispatched indexed dot") {
-            engine.dotDense(indices, 0, values, 0, values.size, dense)
+            engine.dot(indices, 0, values, 0, values.size, dense)
         }
         checkPublicSlices(engine)
         checkPanels(engine)

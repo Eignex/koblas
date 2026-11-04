@@ -17,6 +17,7 @@ import kotlin.native.concurrent.Worker
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
@@ -120,6 +121,30 @@ class NativeVendorBlasTest {
                 vendor.threadEvidence.label.startsWith("1-thread-"),
                 "${vendor.name} was not held to one compute thread",
             )
+        }
+    }
+
+    /**
+     * A Level 1 window that leaves its array is refused before the library sees a pointer: three entries from
+     * offset 1 run past a three-entry array, and a stride of -2 from offset 1 starts before it.
+     */
+    @Test
+    fun `a library binding refuses a level one window outside its array`() {
+        val vendor = koblas.providers.firstOrNull { it.vendor != null }
+            ?: return println("SKIPPED: no host binding; level one windows were not checked")
+        for ((offset, stride) in listOf(1 to 1, 1 to -2)) {
+            val inside = DoubleArray(3)
+            val outside = DoubleArray(3)
+
+            assertFailsWith<DimensionMismatch>("dot offset=$offset stride=$stride") {
+                vendor.dot(outside, offset, inside, 0, 3, stride, 1)
+            }
+            assertFailsWith<DimensionMismatch>("axpy offset=$offset stride=$stride") {
+                vendor.axpy(inside, 0, 1.0, outside, offset, 3, 1, stride)
+            }
+            assertFailsWith<DimensionMismatch>("nrm2 offset=$offset stride=$stride") {
+                vendor.nrm2(outside, offset, 3, stride)
+            }
         }
     }
 
