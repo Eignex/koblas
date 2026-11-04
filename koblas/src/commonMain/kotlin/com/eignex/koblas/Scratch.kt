@@ -1,3 +1,6 @@
+@file:kotlin.jvm.JvmName("Koblas")
+@file:kotlin.jvm.JvmMultifileClass
+
 package com.eignex.koblas
 
 import com.eignex.koblas.internal.operands.PooledBuffers
@@ -17,10 +20,12 @@ public class Scratch {
     private val doubles = PooledBuffers<DoubleArray>()
     private val indices = PooledBuffers<IntArray>()
 
+    @PublishedApi
     internal fun take(size: Int): DoubleArray = doubles.take(size, ::DoubleArray)
 
     internal fun takeI32(size: Int): IntArray = indices.take(size, ::IntArray)
 
+    @PublishedApi
     internal fun release(buffer: DoubleArray): Unit = doubles.release(buffer)
 
     internal fun release(buffer: IntArray): Unit = indices.release(buffer)
@@ -36,4 +41,21 @@ public class Scratch {
 
     /** Distinct idle index lengths retained; the counterpart of [idleLengths]. */
     internal fun idleI32Lengths(): Int = indices.idleLengths()
+}
+
+/**
+ * Lends [block] a floating-point array of exactly [size] entries from this scratch, or a fresh one when there is
+ * no scratch, and returns it afterwards even if [block] throws.
+ *
+ * The array holds whatever its previous borrower left, so [block] must write every entry it reads. It is valid
+ * only inside [block]; keeping a reference past it shares the buffer with the next borrower.
+ */
+@kotlin.jvm.JvmSynthetic
+public inline fun <T> Scratch?.borrow(size: Int, block: (DoubleArray) -> T): T {
+    val buffer = this?.take(size) ?: DoubleArray(size)
+    try {
+        return block(buffer)
+    } finally {
+        this?.release(buffer)
+    }
 }

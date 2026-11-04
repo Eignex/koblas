@@ -1,6 +1,7 @@
 package com.eignex.koblas.internal.operands
 
 import com.eignex.koblas.Scratch
+import com.eignex.koblas.borrow
 
 /**
  * Primitive buffers lent by exact length and retained under a bound on idle lengths.
@@ -85,16 +86,6 @@ internal class PooledBuffers<A : Any> {
  * alternating between two shapes. A ninth length evicts the least recently returned one.
  */
 internal const val MAX_IDLE_LENGTHS = 8
-
-/** Always return loans, including when operand reads or arithmetic throw. */
-internal inline fun <T> Scratch?.borrow(size: Int, block: (DoubleArray) -> T): T {
-    val buffer = this?.take(size) ?: DoubleArray(size)
-    try {
-        return block(buffer)
-    } finally {
-        this?.release(buffer)
-    }
-}
 
 internal inline fun <T> Scratch?.borrowI32(size: Int, block: (IntArray) -> T): T {
     val buffer = this?.takeI32(size) ?: IntArray(size)
