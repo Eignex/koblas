@@ -52,3 +52,11 @@ internal inline fun <T> denseOperand(arrays: Scratch?, matrix: Matrix, block: (D
 /** Identical logical vector addressing can share one immutable snapshot. */
 internal fun sameVectorMapping(a: DenseVector, b: DenseVector): Boolean =
     a.values === b.values && a.offset == b.offset && a.size == b.size && (a.size <= 1 || a.stride == b.stride)
+
+/** Equal mappings have no cross-index dependency; partial aliases need a snapshot. */
+internal fun DenseVector.stableFor(destination: DenseVector): DenseVector =
+    if (!sameVectorMapping(this, destination) && overlaps(destination)) DenseVector.wrap(toDoubleArray()) else this
+
+/** Whether this vector spans its entire backing array in order. */
+internal val DenseVector.isWholeArray: Boolean
+    get() = offset == 0 && stride == 1 && values.size == size

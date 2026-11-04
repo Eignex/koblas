@@ -1,5 +1,6 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.internal.operands.*
 import kotlin.jvm.JvmStatic
 
 /**

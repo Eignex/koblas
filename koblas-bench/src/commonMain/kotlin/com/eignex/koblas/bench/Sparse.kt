@@ -1,11 +1,10 @@
 package com.eignex.koblas.bench
 
-
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.sparse.SparsePrimitives
 import com.eignex.koblas.sparse.*
-import com.eignex.koblas.sparse.SparsePrimitives
 
 /**
  * The sparse work for one case on [engine], or the reason this engine cannot measure it, or null when the case

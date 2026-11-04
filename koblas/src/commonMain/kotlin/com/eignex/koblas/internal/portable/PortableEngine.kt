@@ -5,8 +5,8 @@ package com.eignex.koblas.internal.portable
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.EngineImplementation
-import com.eignex.koblas.engine.EngineKernels
-import com.eignex.koblas.engine.PanelWork
+import com.eignex.koblas.internal.engine.EngineKernels
+import com.eignex.koblas.internal.engine.PanelWork
 import com.eignex.koblas.internal.portable.dense.*
 import com.eignex.koblas.internal.portable.dense.packsProductByWork
 import com.eignex.koblas.internal.portable.sparse.*

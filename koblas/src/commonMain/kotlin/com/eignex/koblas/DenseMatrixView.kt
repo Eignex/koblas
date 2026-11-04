@@ -1,5 +1,7 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.internal.operands.*
+
 /**
  * Mutable column-major storage with unit row stride, shared by [DenseMatrix] and [DenseMatrixView].
  * Entry `A(i, j)` is at `offset + i + j * leadingDimension` in [values].
@@ -81,6 +83,8 @@ public class DenseMatrixView private constructor(
          * at least [rows]. For an empty shape, [offset] can be any boundary in `0..values.size`.
          * Shape, spacing and buffer bounds are validated using overflow-safe arithmetic.
          */
+        @kotlin.jvm.JvmStatic
+        @kotlin.jvm.JvmOverloads
         public fun wrap(
             rows: Int,
             cols: Int,

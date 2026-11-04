@@ -25,6 +25,10 @@ public operator fun DenseMatrix.times(other: SparseMatrix): DenseMatrix = koblas
 @kotlin.jvm.JvmName("multiply")
 public operator fun SparseMatrix.times(other: SparseMatrix): SparseMatrix = koblas.sparseGemm(this, other)
 
+/** Allocating product through [koblas]: two sparse operands give CSC storage, any other pairing dense. */
+@kotlin.jvm.JvmName("multiplyMatrices")
+public operator fun Matrix.times(other: Matrix): Matrix = koblas.gemm(this, other)
+
 /** `A + B`, allocating an owned CSC structural union. */
 @kotlin.jvm.JvmName("add")
 public operator fun SparseMatrix.plus(other: SparseMatrix): SparseMatrix = koblas.addScaled(1.0, this, false, other)

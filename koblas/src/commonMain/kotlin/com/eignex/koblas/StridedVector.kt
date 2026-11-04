@@ -3,6 +3,7 @@
 
 package com.eignex.koblas
 
+import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.internal.operands.requireVectorWindow
 import com.eignex.koblas.internal.operands.windowsOverlap
 import kotlin.jvm.JvmOverloads

@@ -1,0 +1,296 @@
+package com.eignex.koblas
+
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.engine.*
+import com.eignex.koblas.sparse.*
+import com.eignex.koblas.sparse.ReferenceSparseBlas
+import kotlin.random.Random
+import kotlin.test.Test
+import kotlin.test.assertContentEquals
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.fail
+
+class MatrixOpsTest {
+
+    /** A [Matrix] from outside the library, which has only [Matrix.get] to be read through. */
+    private class ForeignMatrix(private val backing: DenseMatrix) : Matrix {
+        override val rows: Int get() = backing.rows
+        override val cols: Int get() = backing.cols
+        override fun get(i: Int, j: Int): Double = backing[i, j]
+        override fun toArray(): Array<DoubleArray> = backing.toArray()
+    }
+
+    /** A [Matrix] whose entries cannot be read at all, for the calls whose contract says they are not. */
+    private class PoisonMatrix(override val rows: Int, override val cols: Int) : Matrix {
+        override fun get(i: Int, j: Int): Double = fail("a matrix this call must not read was read at ($i, $j)")
+        override fun toArray(): Array<DoubleArray> = fail("a matrix this call must not read was materialised")
+    }
+
+    @Test
+    fun `generic product supports transpose beta alias and reusable workspace`() {
+        val backing = doubleArrayOf(1.0, 3.0, 2.0, 4.0)
+        val left: Matrix = DenseMatrix.wrap(2, 2, backing)
+        val right: Matrix = DenseMatrix.diagonal(2, 2.0)
+        val destination = DenseMatrix.wrap(2, 2, backing)
+
+        koblas.gemm(1.0, left, true, right, false, 0.5, destination, scratch = Scratch())
+
+        assertContentEquals(doubleArrayOf(2.5, 5.5, 7.0, 10.0), destination.values)
+    }
+
+    @Test
+    fun `fresh result storage follows the runtime storage pair`() {
+        val dense: Matrix = DenseMatrix.diagonal(3, 2.0)
+        val sparse: Matrix = SparseMatrix.ofColumns(3, 3, List(3) { j -> listOf(j to 3.0) })
+
+        assertEquals(DenseMatrix::class, (dense * dense)::class, "dense by dense")
+        assertEquals(DenseMatrix::class, (dense * sparse)::class, "dense by sparse")
+        assertEquals(DenseMatrix::class, (sparse * dense)::class, "sparse by dense")
+        assertEquals(SparseMatrix::class, (sparse * sparse)::class, "sparse by sparse")
+        assertEquals(3, ((sparse * sparse) as SparseMatrix).nnz, "sparse result keeps CSC support")
+    }
+
+    @Test
+    fun `every pairing agrees with the storage specific call through variables typed as Matrix`() {
+        val rng = Random(20260924)
+        val denseLeft = randomMatrix(4, 3, rng)
+        val denseRight = randomMatrix(3, 5, rng)
+        val sparseLeft = sparseOf(4, 3, rng)
+        val sparseRight = sparseOf(3, 5, rng)
+
+        val denseProduct = DenseMatrix.zero(4, 5)
+        koblas.gemm(1.0, denseLeft, false, denseRight, false, 0.0, denseProduct)
+        assertClose(denseProduct, koblas.gemm(denseLeft as Matrix, denseRight) as DenseMatrix, "dense by dense")
+        val sparseProduct = DenseMatrix.zero(4, 5)
+        koblas.gemm(1.0, sparseLeft, false, denseRight, false, 0.0, sparseProduct)
+        assertClose(sparseProduct, koblas.gemm(sparseLeft as Matrix, denseRight) as DenseMatrix, "sparse by dense")
+        val mirrored = DenseMatrix.zero(4, 5)
+        koblas.gemm(1.0, sparseRight, false, denseLeft, false, 0.0, mirrored, right = true)
+        assertClose(mirrored, koblas.gemm(denseLeft as Matrix, sparseRight) as DenseMatrix, "dense by sparse")
+
+        assertEquals(
+            ReferenceSparseBlas.gemm(1.0, sparseLeft, false, sparseRight, false),
+            koblas.gemm(sparseLeft as Matrix, sparseRight) as SparseMatrix,
+            "sparse by sparse",
+        )
+    }
+
+    @Test
+    fun `every transpose pair reaches the same result as the storage specific call`() {
+        val rng = Random(20260925)
+        for (transpose in booleanArrayOf(false, true)) {
+            for (transposeOther in booleanArrayOf(false, true)) {
+                // op(S) is 4x3 and op(D) is 3x5, so the sparse operand is on the left of a 4x5 destination.
+                val sparse = sparseOf(if (transpose) 3 else 4, if (transpose) 4 else 3, rng)
+                val dense = randomMatrix(if (transposeOther) 5 else 3, if (transposeOther) 3 else 5, rng)
+                val expected = randomMatrix(4, 5, rng)
+                val actual = DenseMatrix.wrap(4, 5, expected.values.copyOf())
+
+                koblas.gemm(0.75, sparse, transpose, dense, transposeOther, -0.5, expected)
+                koblas.gemm(0.75, sparse as Matrix, transpose, dense, transposeOther, -0.5, actual)
+
+                assertClose(expected, actual, "sparse-dense transpose=$transpose other=$transposeOther")
+
+                // The mirror: op(D) is 5x4 and op(S) is 4x3, so the sparse operand is on the right of 5x3.
+                val leftDense = randomMatrix(if (transpose) 4 else 5, if (transpose) 5 else 4, rng)
+                val rightSparse = sparseOf(if (transposeOther) 3 else 4, if (transposeOther) 4 else 3, rng)
+                val mirroredExpected = randomMatrix(5, 3, rng)
+                val mirroredActual = DenseMatrix.wrap(5, 3, mirroredExpected.values.copyOf())
+
+                koblas.gemm(
+                    0.75,
+                    rightSparse,
+                    transposeOther,
+                    leftDense,
+                    transpose,
+                    -0.5,
+                    mirroredExpected,
+                    right = true,
+                )
+                koblas.gemm(0.75, leftDense as Matrix, transpose, rightSparse, transposeOther, -0.5, mirroredActual)
+
+                assertClose(
+                    mirroredExpected,
+                    mirroredActual,
+                    "dense-sparse transpose=$transpose other=$transposeOther",
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `a generic product stages aliases in either operand position`() {
+        val backing = doubleArrayOf(2.0, 3.0, 5.0, 7.0)
+        val sparse = SparseMatrix.wrap(2, 2, intArrayOf(0, 2, 4), intArrayOf(0, 1, 0, 1), backing)
+        val identity: Matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 1.0)))
+        val destination = DenseMatrix.wrap(2, 2, backing)
+
+        koblas.gemm(1.0, sparse as Matrix, false, identity, false, 0.0, destination, scratch = Scratch())
+
+        assertContentEquals(doubleArrayOf(2.0, 3.0, 5.0, 7.0), destination.values, "left operand alias")
+
+        val denseBacking = doubleArrayOf(1.0, 0.0, 0.0, 1.0)
+        val dense = DenseMatrix.wrap(2, 2, denseBacking)
+        val denseDestination = DenseMatrix.wrap(2, 2, denseBacking)
+        val scale: Matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 2.0)))
+
+        koblas.gemm(1.0, dense as Matrix, false, scale, false, 0.0, denseDestination, scratch = Scratch())
+
+        assertContentEquals(doubleArrayOf(2.0, 0.0, 0.0, 2.0), denseDestination.values, "right operand alias")
+    }
+
+    @Test
+    fun `empty products do not adapt a foreign operand`() {
+        val order = Int.MAX_VALUE
+        for (foreignOnLeft in booleanArrayOf(false, true)) {
+            for (transpose in booleanArrayOf(false, true)) {
+                for (transposeOther in booleanArrayOf(false, true)) {
+                    val foreign: Matrix = PoisonMatrix(order, order)
+                    val empty: Matrix = if (foreignOnLeft) {
+                        if (transposeOther) DenseMatrix.zero(0, order) else DenseMatrix.zero(order, 0)
+                    } else {
+                        if (transpose) DenseMatrix.zero(order, 0) else DenseMatrix.zero(0, order)
+                    }
+                    val left = if (foreignOnLeft) foreign else empty
+                    val right = if (foreignOnLeft) empty else foreign
+                    val rows = if (foreignOnLeft) order else 0
+                    val cols = if (foreignOnLeft) 0 else order
+                    val destination = DenseMatrix.zero(rows, cols)
+
+                    koblas.gemm(
+                        1.0,
+                        left,
+                        transpose,
+                        right,
+                        transposeOther,
+                        0.0,
+                        destination,
+                        scratch =
+                        Scratch(),
+                    )
+                    val result = koblas.gemm(1.0, left, transpose, right, transposeOther)
+
+                    assertEquals(rows, result.rows)
+                    assertEquals(cols, result.cols)
+                    assertContentEquals(DoubleArray(0), (result as DenseMatrix).values)
+                    assertContentEquals(DoubleArray(0), destination.values)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `empty products reject incompatible operands before returning`() {
+        val left: Matrix = PoisonMatrix(2, 3)
+        val right: Matrix = DenseMatrix.zero(4, 0)
+        val destination = DenseMatrix.zero(2, 0)
+
+        assertFailsWith<DimensionMismatch> {
+            koblas.gemm(1.0, left, false, right, false, 0.0, destination)
+        }
+    }
+
+    @Test
+    fun `a zero alpha never reads either operand`() {
+        val destination = DenseMatrix.wrap(2, 2, doubleArrayOf(1.0, 2.0, 3.0, 4.0))
+
+        koblas.gemm(0.0, PoisonMatrix(2, 2), false, PoisonMatrix(2, 2), false, 2.0, destination)
+
+        assertContentEquals(doubleArrayOf(2.0, 4.0, 6.0, 8.0), destination.values)
+    }
+
+    @Test
+    fun `a zero alpha and a zero beta overwrite without reading anything`() {
+        val destination = DenseMatrix.wrap(1, 1, doubleArrayOf(Double.NaN))
+
+        koblas.gemm(0.0, PoisonMatrix(1, 1), false, DenseMatrix.diagonal(1) as Matrix, false, 0.0, destination)
+
+        assertContentEquals(doubleArrayOf(0.0), destination.values)
+    }
+
+    @Test
+    fun `an invalid shape is rejected before the destination is touched`() {
+        val destination = DenseMatrix.wrap(2, 2, doubleArrayOf(1.0, 2.0, 3.0, 4.0))
+        val before = destination.values.copyOf()
+        val sparse: Matrix = SparseMatrix.ofColumns(2, 3, List(3) { emptyList() })
+
+        assertFailsWith<DimensionMismatch> {
+            koblas.gemm(1.0, sparse, false, DenseMatrix.diagonal(2) as Matrix, false, 0.0, destination)
+        }
+        assertFailsWith<DimensionMismatch> { koblas.gemm(sparse, DenseMatrix.diagonal(2)) }
+
+        assertContentEquals(before, destination.values)
+    }
+
+    @Test
+    fun `a matrix from outside the library is read through its logical accessor`() {
+        val rng = Random(20260926)
+        val backing = randomMatrix(3, 2, rng)
+        val foreign: Matrix = ForeignMatrix(backing)
+        val sparse = sparseOf(2, 4, rng)
+
+        val expected = DenseMatrix.zero(3, 4)
+        koblas.gemm(1.0, sparse, false, backing, false, 0.0, expected, right = true)
+        val actual = DenseMatrix.zero(3, 4)
+        koblas.gemm(1.0, foreign, false, sparse, false, 0.0, actual)
+
+        assertClose(expected, actual, "foreign matrix beside a sparse operand")
+        assertEquals(DenseMatrix::class, (foreign * (backing.transpose() as Matrix))::class)
+    }
+
+    @Test
+    fun `a foreign operand is adapted into the workspace and handed back`() {
+        val foreign: Matrix = ForeignMatrix(randomMatrix(3, 2, Random(20260927)))
+        val right: Matrix = DenseMatrix.diagonal(2, 2.0)
+        val destination = DenseMatrix.zero(3, 2)
+        val workspace = Scratch()
+
+        repeat(2) { koblas.gemm(1.0, foreign, false, right, false, 0.0, destination, scratch = workspace) }
+
+        assertEquals(1, workspace.available(6), "the second call adapted into fresh storage")
+    }
+
+    @Test
+    fun `a foreign operand reading the destination is adapted before it is written`() {
+        val backing = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
+        val foreign: Matrix = ForeignMatrix(DenseMatrix.wrap(2, 2, backing))
+        val destination = DenseMatrix.wrap(2, 2, backing)
+
+        koblas.gemm(
+            1.0,
+            foreign,
+            false,
+            DenseMatrix.diagonal(2, 2.0) as Matrix,
+            false,
+            0.0,
+            destination,
+            scratch =
+            Scratch(),
+        )
+
+        assertContentEquals(doubleArrayOf(2.0, 4.0, 6.0, 8.0), destination.values)
+    }
+
+    @Test
+    fun `a foreign operand with no columns keeps its rows`() {
+        val foreign: Matrix = ForeignMatrix(DenseMatrix.zero(3, 0))
+        val right: Matrix = DenseMatrix.zero(0, 2)
+        val destination = DenseMatrix.wrap(3, 2, doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0))
+
+        koblas.gemm(1.0, foreign, false, right, false, 2.0, destination)
+
+        assertContentEquals(doubleArrayOf(2.0, 4.0, 6.0, 8.0, 10.0, 12.0), destination.values)
+        assertEquals(3, (foreign * right).rows, "the allocating product keeps the row count too")
+    }
+
+    private fun sparseOf(rows: Int, cols: Int, rng: Random): SparseMatrix = SparseMatrix.ofColumns(
+        rows,
+        cols,
+        List(cols) { j ->
+            (0 until rows).mapNotNull { i ->
+                if ((i + j) % 2 == 0) i to rng.nextDouble(-1.0, 1.0) else null
+            }
+        },
+    )
+}

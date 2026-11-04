@@ -5,7 +5,6 @@ package com.eignex.koblas.internal.operands
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
-import com.eignex.koblas.internal.portable.dense.applyBeta
 
 /** Snapshots a region only when it shares the destination buffer. */
 internal inline fun <T> stagedRegion(
@@ -80,3 +79,20 @@ internal fun scaleRegion(a: DenseMatrixRegion, beta: Double, lower: Boolean? = n
 internal fun sameRegion(a: DenseMatrixRegion, b: DenseMatrixRegion): Boolean =
     a.values === b.values && a.offset == b.offset && a.rows == b.rows && a.cols == b.cols &&
         a.leadingDimension == b.leadingDimension
+
+/** `v = beta * v` over the [len] entries from [off], honoring the `beta == 0` overwrite convention. */
+internal fun applyBeta(k: KoblasEngine, v: DoubleArray, off: Int, len: Int, beta: Double, stride: Int = 1) {
+    when {
+        beta == 0.0 -> if (stride == 1) {
+            v.fill(
+                0.0,
+                off,
+                off + len,
+            )
+        } else {
+            for (i in 0 until len) v[off + i * stride] = 0.0
+        }
+
+        beta != 1.0 -> k.scale(v, off, beta, len, stride)
+    }
+}

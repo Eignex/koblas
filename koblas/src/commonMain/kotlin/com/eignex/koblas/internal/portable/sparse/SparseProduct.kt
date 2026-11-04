@@ -3,8 +3,8 @@ package com.eignex.koblas.internal.portable.sparse
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.internal.operands.*
+import com.eignex.koblas.internal.operands.requireShape
 import com.eignex.koblas.internal.sparse.*
-import com.eignex.koblas.requireShape
 import com.eignex.koblas.sparse.*
 
 /**

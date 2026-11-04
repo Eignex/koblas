@@ -9,7 +9,7 @@ import com.eignex.koblas.internal.sparse.*
  * Portable numerical leaves for the sparse accumulation contracts the matrix algorithms share.
  *
  * Product accumulation assigns a row's first contribution and adds to it afterwards, which is what the epoch
- * marks are for. The workspace accumulation [com.eignex.koblas.sparse.SparsePrimitives] publishes starts from
+ * marks are for. The workspace accumulation in [SparsePrimitives] starts from
  * the zero it was cleared to instead, which is why the two are separate entry points rather than one with a
  * flag.
  *

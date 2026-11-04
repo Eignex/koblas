@@ -5,6 +5,8 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.engineWithKernels
+import com.eignex.koblas.internal.engine.*
+import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.internal.portable.PortableEngine
 import com.eignex.koblas.internal.portable.dense.OutputTriangle
 import com.eignex.koblas.internal.portable.dense.insideTriangle

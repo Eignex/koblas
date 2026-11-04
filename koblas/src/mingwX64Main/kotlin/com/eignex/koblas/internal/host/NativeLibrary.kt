@@ -2,7 +2,7 @@
 
 package com.eignex.koblas.internal.host
 
-import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.engine.isWindowsAbsolutePath
 import kotlinx.cinterop.COpaquePointer
 import kotlinx.cinterop.alloc
 import kotlinx.cinterop.allocArray

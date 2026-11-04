@@ -1,5 +1,6 @@
 package com.eignex.koblas.engine
 
+import com.eignex.koblas.internal.engine.isWindowsAbsolutePath
 import com.eignex.koblas.internal.host.ACCELERATE_THREAD_LIMIT
 import com.eignex.koblas.internal.host.ThreadControl
 
@@ -147,123 +148,6 @@ public enum class Vendor(
         else -> candidates
     }
 }
-
-/** Operating systems the binding layer distinguishes. */
-public enum class OperatingSystem {
-    /** Any Linux distribution. */
-    Linux,
-
-    /** macOS, where Accelerate is part of the system. */
-    MacOs,
-
-    /** Windows, with optional installed BLAS DLLs. */
-    Windows,
-
-    /** Anything else, which has no supported vendor. */
-    Other,
-}
-
-/** Instruction set architectures the binding layer distinguishes. */
-public enum class Architecture {
-    /** 64-bit x86. */
-    X86_64,
-
-    /** 64-bit Arm. */
-    Arm64,
-
-    /** Anything else, which has no supported vendor. */
-    Other,
-}
-
-/** SIMD instruction classes distinguished by measured profiles. */
-public enum class CpuClass {
-    /** x86-64 without a reported AVX2 extension. */
-    X86_64,
-
-    /** x86-64 with AVX2. */
-    Avx2,
-
-    /** x86-64 with AVX-512 foundation instructions. */
-    Avx512,
-
-    /** 64-bit Arm with its fixed-width platform SIMD. */
-    Arm64,
-
-    /** 64-bit Arm with Scalable Vector Extension instructions. */
-    Sve,
-}
-
-internal fun cpuClass(architecture: Architecture, flags: String?): CpuClass? = when {
-    flags.isNullOrBlank() -> null
-
-    architecture == Architecture.Arm64 -> when {
-        "sve" in flags.split(' ') -> CpuClass.Sve
-        "asimd" in flags.split(' ') || "neon" in flags.split(' ') -> CpuClass.Arm64
-        else -> null
-    }
-
-    architecture != Architecture.X86_64 -> null
-
-    "avx512f" in flags.split(' ') -> CpuClass.Avx512
-
-    "avx2" in flags.split(' ') -> CpuClass.Avx2
-
-    else -> CpuClass.X86_64
-}
-
-/**
- * Host facts from one platform's probes. Only Linux has a CPU information file to read, and Apple silicon
- * has Advanced SIMD without reporting it anywhere.
- */
-internal fun detectHost(
-    os: OperatingSystem,
-    arch: Architecture,
-    cpuInfo: (key: String) -> String?,
-    sveVectorBits: () -> Int?,
-): HostPlatform {
-    val read = { key: String -> if (os == OperatingSystem.Linux) cpuInfo(key) else null }
-    val flags = if (os == OperatingSystem.MacOs && arch == Architecture.Arm64) {
-        "asimd"
-    } else {
-        read(if (arch == Architecture.Arm64) "Features" else "flags")
-    }
-    val instructionClass = cpuClass(arch, flags)
-    val bits = if (instructionClass == CpuClass.Sve) sveVectorBits() else null
-    return HostPlatform(os, arch, read("model name"), instructionClass, bits)
-}
-
-/**
- * The host facts measured profiles match. Resolved once per process; none of these change while it runs.
- */
-public class HostPlatform(
-    /** The operating system. */
-    public val operatingSystem: OperatingSystem,
-    /** The instruction set architecture. */
-    public val architecture: Architecture,
-    /** The reported CPU model, or null when it could not be identified. */
-    public val cpuModel: String? = null,
-    /** Reported SIMD instruction class, or null when it cannot be established. */
-    public val cpuClass: CpuClass? = null,
-    /** Active SVE vector width in bits, or null when SVE is unavailable or its width is unknown. */
-    public val sveVectorBits: Int? = null,
-) {
-    init {
-        if (sveVectorBits != null) {
-            require(cpuClass == CpuClass.Sve)
-            require(sveVectorBits in 128..2048 && sveVectorBits % 128 == 0)
-        }
-    }
-
-    override fun toString(): String = "$operatingSystem/$architecture/${cpuModel ?: "unknown"}"
-}
-
-/** The platform this process is running on. */
-public expect fun hostPlatform(): HostPlatform
-
-/** Drive rooted and UNC paths are independent of the current directory and the current drive. */
-internal fun String.isWindowsAbsolutePath(): Boolean =
-    (length >= 3 && this[0].isLetter() && this[1] == ':' && this[2] == '/') ||
-        (startsWith("//") && split('/').filter { it.isNotEmpty() }.size >= 2)
 
 /**
  * Whether the single compute thread the binding requires was confirmed against the library itself.

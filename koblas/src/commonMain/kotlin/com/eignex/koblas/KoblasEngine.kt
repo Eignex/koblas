@@ -4,12 +4,16 @@
 
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.triangle
 import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.internal.portable.dense.*
 import com.eignex.koblas.internal.portable.sparse.*
 import com.eignex.koblas.internal.sparse.withSymmetricRankScratch
+
+/** The immutable platform-selected BLAS engine used by top-level convenience operations. */
+@get:kotlin.jvm.JvmName("getDefault")
+public val koblas: KoblasEngine by lazy { platformEngine() }
 
 /**
  * Dense and sparse BLAS through one immutable engine.
@@ -48,6 +52,9 @@ public interface KoblasEngine {
 
     /** Evidence for the host library's compute thread count. */
     public val threadEvidence: ThreadEvidence get() = ThreadEvidence.Unconfirmed
+
+    /** Leaf providers in routing order, including their own capabilities and host provenance. */
+    public val providers: List<KoblasEngine> get() = listOf(this)
 
     /** Returns `sum(a[aOff + i] * b[bOff + i])` over [len] entries, or zero for an empty run. */
     public fun dot(

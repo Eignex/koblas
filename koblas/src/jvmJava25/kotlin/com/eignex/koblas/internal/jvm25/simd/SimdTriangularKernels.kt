@@ -5,6 +5,7 @@ package com.eignex.koblas.internal.jvm25.simd
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.portable.PortableEngine
 import com.eignex.koblas.internal.portable.dense.triangleEntry
 import jdk.incubator.vector.DoubleVector

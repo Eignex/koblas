@@ -12,7 +12,7 @@ public enum class EngineRuntime {
 }
 
 /** One positive routing preference. Earlier matching rules take precedence over later ones. */
-public class EngineRule(
+public class EngineRule @kotlin.jvm.JvmOverloads constructor(
     /** Identifier of a backend supplying the requested implementations. */
     public val source: String,
     implementations: Set<EngineImplementation>,
@@ -55,7 +55,7 @@ public class EngineRule(
 }
 
 /** A reproducible routing configuration. Missing or inapplicable preferences retain portable coverage. */
-public class EngineProfile(
+public class EngineProfile @kotlin.jvm.JvmOverloads constructor(
     /** Stable profile identifier, including its revision. */
     public val name: String,
     rules: List<EngineRule>,

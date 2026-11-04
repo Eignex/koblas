@@ -3,6 +3,7 @@ package com.eignex.koblas.internal.portable.sparse
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.portable.dense.scalarDivide
 import com.eignex.koblas.internal.sparse.*
 import com.eignex.koblas.sparse.*

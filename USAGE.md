@@ -98,21 +98,22 @@ matrices for singularity or poor conditioning.
 ## Java and mobile projects
 
 From Java, factories are static methods and container conveniences use `Koblas`.
-Dense operations use `DenseBlas`, with `Engines.getDefault()` selecting the default engine:
+Dense operations use `DenseBlas`, with `Koblas.getDefault()` selecting the default engine.
+These functions have Java overloads for their optional parameters, so trailing defaults can be left out;
+`KoblasEngine` members take every argument:
 
 ```java
 import com.eignex.koblas.DenseMatrix;
 import com.eignex.koblas.DenseVector;
 import com.eignex.koblas.Koblas;
 import com.eignex.koblas.dense.DenseBlas;
-import com.eignex.koblas.engine.Engines;
 
 DenseMatrix a = DenseMatrix.ofRows(new double[][] {{2.0, 1.0}, {1.0, 3.0}});
 DenseVector x = DenseVector.of(new double[] {3.0, 5.0});
 DenseVector y = Koblas.multiply(a, x);
 
 DenseVector destination = DenseVector.wrap(new double[a.getRows()]);
-DenseBlas.gemv(Engines.getDefault(), 1.0, a, x, 0.0, destination, false, null);
+DenseBlas.gemv(Koblas.getDefault(), 1.0, a, x, 0.0, destination);
 ```
 
 Android uses the same dependency as desktop JVM projects, with Java 17 bytecode support in your Android

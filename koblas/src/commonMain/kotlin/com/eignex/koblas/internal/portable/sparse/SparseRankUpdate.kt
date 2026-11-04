@@ -3,8 +3,8 @@
 package com.eignex.koblas.internal.portable.sparse
 
 import com.eignex.koblas.*
+import com.eignex.koblas.internal.operands.requireShape
 import com.eignex.koblas.internal.sparse.*
-import com.eignex.koblas.requireShape
 
 /*
  * The symmetric rank-one and rank-two updates over a CSC matrix, which build a new pattern rather than

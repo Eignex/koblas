@@ -1,17 +1,8 @@
-@file:kotlin.jvm.JvmName("Engines")
-@file:kotlin.jvm.JvmMultifileClass
-
 package com.eignex.koblas.engine
 
 import com.eignex.koblas.*
+import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.portable.PortableEngine
-
-/** The immutable platform-selected BLAS engine used by top-level convenience operations. */
-@get:kotlin.jvm.JvmName("getDefault")
-public val koblas: KoblasEngine by lazy { platformEngine() }
-
-/** Platform kernels with eligible whole-call host composition and portable fallbacks. */
-internal expect fun platformEngine(): KoblasEngine
 
 /**
  * Exact portable and JVM SIMD engines for tests and benchmarks, without changing the default [koblas].
@@ -21,6 +12,7 @@ internal expect fun platformEngine(): KoblasEngine
  */
 public object BuiltinEngines {
     /** Opens exactly [vendor] when available. Unsupported operations remain unsupported. */
+    @kotlin.jvm.JvmStatic
     public fun vendor(vendor: Vendor): KoblasEngine? = vendorEngine(vendor)
 
     /**
@@ -29,6 +21,7 @@ public object BuiltinEngines {
      * Unknown source identifiers fail.
      * The caller checks [EngineProfile.appliesTo] before choosing this configuration.
      */
+    @kotlin.jvm.JvmStatic
     public fun configured(profile: EngineProfile): KoblasEngine = configuredEngine(profile)
 
     /** Portable Kotlin across all three levels. */
@@ -48,19 +41,4 @@ public object BuiltinEngines {
             combine(EngineProfile("jvm-simd", listOf(rule)), *parts.toTypedArray())
         }
     }
-}
-
-internal expect fun simdBackend(): List<EngineKernels>?
-
-internal expect fun vendorEngine(vendor: Vendor): KoblasEngine?
-
-/** One composition path for automatic selection, explicit profiles and benchmark configurations. */
-internal fun configuredEngine(
-    profile: EngineProfile,
-    owned: KoblasEngine? = if (profile.rules.any { it.source == "jvm-simd" }) BuiltinEngines.simd else null,
-    openVendor: (Vendor) -> KoblasEngine? = BuiltinEngines::vendor,
-): KoblasEngine {
-    val vendors = Vendor.entries.filter { vendor -> profile.rules.any { it.source == vendor.vendorName.lowercase() } }
-        .mapNotNull(openVendor)
-    return combine(profile, *(vendors + listOfNotNull(owned)).toTypedArray())
 }

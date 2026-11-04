@@ -1,11 +1,13 @@
 package com.eignex.koblas.engine
 
-import com.eignex.koblas.*
 import com.eignex.koblas.engine.EngineImplementation.*
+import com.eignex.koblas.internal.engine.bestEffortProfile
 
 /** Complete target configurations with measured profiles and documented best-effort preferences. */
 public object StandardEngineProfiles {
     /** One prebuilt profile, borrowing documented best-effort preferences when the target is unmeasured. */
+    @kotlin.jvm.JvmStatic
+    @kotlin.jvm.JvmOverloads
     public fun forTarget(runtime: EngineRuntime, host: HostPlatform, nativeAccess: Boolean = true): EngineProfile {
         val selected = profiles.firstOrNull { it.appliesTo(runtime, host) }
             ?: bestEffortProfile(runtime, host, profiles) ?: portable
@@ -181,114 +183,63 @@ public object StandardEngineProfiles {
                 "Coarse estimates informed by retained measurements; favor host on Native",
         ),
     )
-}
 
-/** Borrow performance preferences while keeping runtime bindings and available arithmetic independent. */
-internal fun bestEffortProfile(
-    runtime: EngineRuntime,
-    host: HostPlatform,
-    profiles: List<EngineProfile>,
-): EngineProfile? {
-    if (host.architecture == Architecture.Other) return null
-    val vendors = when {
-        host.operatingSystem == OperatingSystem.Other -> emptySet()
-        host.operatingSystem == OperatingSystem.MacOs -> setOf(Vendor.Accelerate)
-        host.architecture == Architecture.X86_64 -> setOf(Vendor.OneMkl, Vendor.OpenBlas, Vendor.Aocl)
-        else -> setOf(Vendor.OpenBlas, Vendor.ArmPl)
-    }
-    val allowed = vendors.map { it.vendorName.lowercase() }
-    fun closest(vendor: Boolean): EngineProfile? = profiles.filter { profile ->
-        profile.runtime == runtime && profile.target != null && profile.rules.any {
-            if (vendor) it.source in allowed else it.source == "jvm-simd"
-        }
-    }.maxByOrNull { profile ->
-        val target = requireNotNull(profile.target)
-        (if (vendor && target.operatingSystem == host.operatingSystem) 100 else 0) +
-            (if (target.architecture == host.architecture) 10 else 0) +
-            (if (target.cpuClass == host.cpuClass) 2 else 0) +
-            (if (target.sveVectorBits == host.sveVectorBits) 1 else 0)
-    }
-    val vendor = closest(true)
-    val owned = if (runtime == EngineRuntime.Jvm) closest(false) else null
-    val donors = listOfNotNull(vendor, owned).distinct()
-    if (donors.isEmpty()) return null
-    return EngineProfile(
-        "best-effort-$runtime-${host.operatingSystem}-${host.architecture}-${donors.joinToString("+") { it.name }}",
-        vendor?.rules.orEmpty().filter { it.source in allowed } +
-            owned?.rules.orEmpty().filter { it.source == "jvm-simd" },
-        runtime,
-        HostPlatform(host.operatingSystem, host.architecture),
-        "Unmeasured best effort; " + listOfNotNull(
-            vendor?.let { "vendor preferences from ${it.name}" },
-            owned?.let { "owned preferences from ${it.name}" },
-        ).joinToString("; "),
+    private fun Vendor.jvmProductRules(minimum: Int): List<EngineRule> = listOf(
+        rule(setOf(Gemm), rows = minimum, columns = minimum, depth = minimum, work = 262144),
+        rule(setOf(Gemm), rows = 16, columns = 16, depth = 256, work = 65536, borrowed = false),
+        rule(
+            setOf(Symm, Syrk, Syr2k, Trmm, Trsm),
+            rows = minimum,
+            columns = minimum,
+            depth = minimum,
+            work = 1048576,
+            borrowed = false,
+        ),
     )
+
+    private fun Vendor.nativeX86Rules(reduction: Int, norm: Int, level2: Int): List<EngineRule> = listOf(
+        rule(setOf(Dot, Asum), rows = reduction, contiguous = true),
+        rule(setOf(Nrm2, Iamax), rows = norm, contiguous = true),
+        rule(setOf(Axpy, Scale, Swap, Rot), rows = 4096, contiguous = true),
+        rule(setOf(Gemm, Symm, Syr2k, Trmm, Trsm), rows = 8, columns = 8, depth = 8, work = 512, borrowed = false),
+        rule(setOf(Gemm), rows = 16, columns = 16, depth = 16, work = 65536, borrowed = true),
+        rule(setOf(Gemmt, Syrk), rows = 16, columns = 16, depth = 16, work = 4096, borrowed = false),
+        rule(
+            setOf(Gemv, GemvTransposed, Ger, Symv, Syr, Syr2, Trmv, TrmvTransposed, Trsv, TrsvTransposed),
+            rows = level2,
+            columns = level2,
+            work = level2.toLong() * level2,
+            borrowed = false,
+        ),
+    )
+
+    private fun Vendor.rule(
+        implementations: Set<EngineImplementation>,
+        rows: Int = 0,
+        columns: Int = 0,
+        depth: Int = 0,
+        work: Long = 0,
+        contiguous: Boolean? = null,
+        borrowed: Boolean? = null,
+    ): EngineRule = EngineRule(
+        vendorName.lowercase(),
+        implementations,
+        rows..Int.MAX_VALUE,
+        columns..Int.MAX_VALUE,
+        depth..Int.MAX_VALUE,
+        work,
+        contiguous,
+        borrowed,
+    )
+
+    private fun owned(
+        implementations: Set<EngineImplementation>,
+        minimum: Int = 0,
+        contiguous: Boolean? = true,
+    ): EngineRule = EngineRule("jvm-simd", implementations, rows = minimum..Int.MAX_VALUE, contiguous = contiguous)
+
+    /** Measured Level 1 rules, then the indexed dot and scheduled families every JVM profile keeps owned. */
+    private fun jvmOwned(vararg level1: EngineRule): List<EngineRule> = level1.asList() +
+        owned(setOf(IndexedDot), minimum = 16, contiguous = null) +
+        owned(setOf(Panels, Products, Triangular), contiguous = null)
 }
-
-/** Platform code supplies access facts; target data and available providers determine the composition. */
-internal fun standardEngine(
-    runtime: EngineRuntime,
-    nativeAccess: Boolean = true,
-    host: HostPlatform = hostPlatform(),
-    owned: KoblasEngine? = BuiltinEngines.simd,
-    openVendor: (Vendor) -> KoblasEngine? = BuiltinEngines::vendor,
-): KoblasEngine = configuredEngine(StandardEngineProfiles.forTarget(runtime, host, nativeAccess), owned, openVendor)
-
-private fun Vendor.jvmProductRules(minimum: Int): List<EngineRule> = listOf(
-    rule(setOf(Gemm), rows = minimum, columns = minimum, depth = minimum, work = 262144),
-    rule(setOf(Gemm), rows = 16, columns = 16, depth = 256, work = 65536, borrowed = false),
-    rule(
-        setOf(Symm, Syrk, Syr2k, Trmm, Trsm),
-        rows = minimum,
-        columns = minimum,
-        depth = minimum,
-        work = 1048576,
-        borrowed = false,
-    ),
-)
-
-private fun Vendor.nativeX86Rules(reduction: Int, norm: Int, level2: Int): List<EngineRule> = listOf(
-    rule(setOf(Dot, Asum), rows = reduction, contiguous = true),
-    rule(setOf(Nrm2, Iamax), rows = norm, contiguous = true),
-    rule(setOf(Axpy, Scale, Swap, Rot), rows = 4096, contiguous = true),
-    rule(setOf(Gemm, Symm, Syr2k, Trmm, Trsm), rows = 8, columns = 8, depth = 8, work = 512, borrowed = false),
-    rule(setOf(Gemm), rows = 16, columns = 16, depth = 16, work = 65536, borrowed = true),
-    rule(setOf(Gemmt, Syrk), rows = 16, columns = 16, depth = 16, work = 4096, borrowed = false),
-    rule(
-        setOf(Gemv, GemvTransposed, Ger, Symv, Syr, Syr2, Trmv, TrmvTransposed, Trsv, TrsvTransposed),
-        rows = level2,
-        columns = level2,
-        work = level2.toLong() * level2,
-        borrowed = false,
-    ),
-)
-
-private fun Vendor.rule(
-    implementations: Set<EngineImplementation>,
-    rows: Int = 0,
-    columns: Int = 0,
-    depth: Int = 0,
-    work: Long = 0,
-    contiguous: Boolean? = null,
-    borrowed: Boolean? = null,
-): EngineRule = EngineRule(
-    vendorName.lowercase(),
-    implementations,
-    rows..Int.MAX_VALUE,
-    columns..Int.MAX_VALUE,
-    depth..Int.MAX_VALUE,
-    work,
-    contiguous,
-    borrowed,
-)
-
-private fun owned(
-    implementations: Set<EngineImplementation>,
-    minimum: Int = 0,
-    contiguous: Boolean? = true,
-): EngineRule = EngineRule("jvm-simd", implementations, rows = minimum..Int.MAX_VALUE, contiguous = contiguous)
-
-/** Measured Level 1 rules, then the indexed dot and scheduled families every JVM profile keeps owned. */
-private fun jvmOwned(vararg level1: EngineRule): List<EngineRule> = level1.asList() +
-    owned(setOf(IndexedDot), minimum = 16, contiguous = null) +
-    owned(setOf(Panels, Products, Triangular), contiguous = null)

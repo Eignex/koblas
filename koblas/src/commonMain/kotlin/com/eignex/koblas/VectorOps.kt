@@ -7,7 +7,6 @@ package com.eignex.koblas
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.operands.*
-import com.eignex.koblas.internal.operands.sameVectorMapping
 import com.eignex.koblas.internal.portable.dense.euclideanNorm
 import com.eignex.koblas.sparse.*
 import kotlin.math.abs
@@ -129,30 +128,30 @@ public fun Vector.iamax(): Int {
 }
 
 /**
- * `dst = src` (BLAS `dcopy`). A sparse source zero-fills the destination first, so nothing survives.
+ * `this = src` (BLAS `dcopy`). A sparse source zero-fills this vector first, so nothing survives.
  * Identical dense mappings are a no-op. Portable contiguous copies use an overlap-safe block move;
  * other overlapping sources are snapshotted before writing.
  * Custom [Vector] implementations are also snapshotted, since their backing storage is opaque.
  *
- * One entry point for both dense spacings: [dst] is written through its own origin and step, so a contiguous
- * destination and a borrowed slice of a longer buffer are the same call.
+ * One entry point for both dense spacings: this vector is written through its own origin and step, so a
+ * contiguous destination and a borrowed slice of a longer buffer are the same call.
  */
-public fun copy(src: Vector, dst: DenseVector) {
-    if (src is DenseVector) return koblas.copy(src, dst)
-    requireSameSize(src.size, dst.size, "copy")
-    val source = src.stableFor(dst)
+public fun DenseVector.copyFrom(src: Vector) {
+    if (src is DenseVector) return koblas.copy(src, this)
+    requireSameSize(src.size, size, "copy")
+    val source = src.stableFor(this)
     if (source is SparseVector) {
         // Only contiguous destinations can use the indexed kernel, whose seam carries no increment.
-        if (dst.isWholeArray) {
-            dst.values.fill(0.0)
-            koblas.scatter(source, dst.values)
+        if (isWholeArray) {
+            values.fill(0.0)
+            koblas.scatter(source, values)
         } else {
-            for (i in 0 until dst.size) dst[i] = 0.0
-            source.forEachStored { i, v -> dst[i] = v }
+            for (i in 0 until size) this[i] = 0.0
+            source.forEachStored { i, v -> this[i] = v }
         }
         return
     }
-    koblas.copy(source as DenseVector, dst)
+    koblas.copy(source as DenseVector, this)
 }
 
 /** Snapshots partial aliases and opaque storage, which may read [destination] without exposing its buffer. */
@@ -162,46 +161,40 @@ private fun Vector.stableFor(destination: DenseVector): Vector = when (this) {
     else -> DenseVector.wrap(toDoubleArray())
 }
 
-/** Equal mappings have no cross-index dependency; partial aliases need a snapshot. */
-internal fun DenseVector.stableFor(destination: DenseVector): DenseVector =
-    if (!sameVectorMapping(this, destination) && overlaps(destination)) DenseVector.wrap(toDoubleArray()) else this
-
-/** Whether this vector spans its entire backing array in order. */
-internal val DenseVector.isWholeArray: Boolean
-    get() = offset == 0 && stride == 1 && values.size == size
-
 /**
- * Read [from] at [x]'s stored positions into [x] (Sparse BLAS `usga`), the inverse of [copy] from a sparse
- * source. [x] keeps its pattern, so a nonzero of [from] at an unstored position is not read.
+ * Read [from] at this vector's stored positions into it (Sparse BLAS `usga`), the inverse of [copyFrom] from
+ * a sparse source. This vector keeps its pattern, so a nonzero of [from] at an unstored position is not read.
  *
  * [from] is the adjacent shape rather than any dense one. A pattern indexes its operand directly, which is
  * what makes these routines worth having, and there is no increment to hand a stored position; the type says
  * so instead of a check that would refuse a caller at run time.
  */
-public fun gather(x: SparseVector, from: ContiguousVector) {
-    requireSameSize(x.size, from.size, "gather")
-    koblas.gather(x, from.values)
+public fun SparseVector.gather(from: ContiguousVector) {
+    requireSameSize(size, from.size, "gather")
+    koblas.gather(this, from.values)
 }
 
 /** [gather], and zero in [from] the positions it read (Sparse BLAS `usgz`). */
-public fun gatherZero(x: SparseVector, from: ContiguousVector) {
-    requireSameSize(x.size, from.size, "gatherZero")
-    koblas.gatherZero(x, from.values)
+public fun SparseVector.gatherZero(from: ContiguousVector) {
+    requireSameSize(size, from.size, "gatherZero")
+    koblas.gatherZero(this, from.values)
 }
 
 /**
- * Exchange the contents of [a] and [b] (BLAS `dswap`), including rows and columns of a dense matrix.
+ * Exchange the contents of this vector and [other] (BLAS `dswap`), including rows and columns of a dense
+ * matrix.
  *
  * Identical mappings are a no-op. Other overlapping operands are snapshotted; at a shared physical entry
- * the final write is from [b].
+ * the final write is from [other].
  */
-public fun swap(a: DenseVector, b: DenseVector): Unit = koblas.swap(a, b)
+public fun DenseVector.swap(other: DenseVector): Unit = koblas.swap(this, other)
 
 /**
- * Applies a plane rotation: `(x(i), y(i)) = (c*x(i) + s*y(i), c*y(i) - s*x(i))` (BLAS `drot`).
+ * Applies a plane rotation to this vector `x` and [y]: `(x(i), y(i)) = (c*x(i) + s*y(i), c*y(i) - s*x(i))`
+ * (BLAS `drot`).
  * Negative strides are supported. Overlaps are snapshotted; at a shared entry the final write is from [y].
  */
-public fun rot(x: DenseVector, y: DenseVector, c: Double, s: Double): Unit = koblas.rot(x, y, c, s)
+public fun DenseVector.rot(y: DenseVector, c: Double, s: Double): Unit = koblas.rot(this, y, c, s)
 
 /**
  * `y = y + alpha * x`. A sparse `x` touches only the positions it stores. A dense [x] with an identical

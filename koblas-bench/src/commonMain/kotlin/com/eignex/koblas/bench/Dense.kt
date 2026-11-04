@@ -1,11 +1,9 @@
 package com.eignex.koblas.bench
 
-
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.sparse.*
-
 
 internal data class CaseWork(
     val comparisonKind: String,

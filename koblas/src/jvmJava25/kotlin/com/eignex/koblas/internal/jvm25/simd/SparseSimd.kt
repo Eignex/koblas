@@ -2,6 +2,7 @@ package com.eignex.koblas.internal.jvm25.simd
 
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.engine.*
 import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
 

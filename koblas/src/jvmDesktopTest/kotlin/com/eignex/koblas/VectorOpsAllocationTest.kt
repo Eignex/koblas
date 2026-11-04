@@ -22,7 +22,7 @@ class VectorOpsAllocationTest internal constructor(private val case: AllocationC
             listOf(
                 with(SharedBufferFixture()) {
                     AllocationCase("disjoint shared buffer vector copy allocates nothing", 1_000) {
-                        copy(source, destination)
+                        destination.copyFrom(source)
                         backing
                     }
                 },
@@ -34,13 +34,13 @@ class VectorOpsAllocationTest internal constructor(private val case: AllocationC
                 },
                 with(SharedBufferFixture()) {
                     AllocationCase("disjoint shared buffer vector swap allocates nothing", 1_000) {
-                        swap(source, destination)
+                        source.swap(destination)
                         backing
                     }
                 },
                 with(OverlappingFixture()) {
                     AllocationCase("overlapping contiguous copy allocates nothing", 1_000) {
-                        copy(source, destination)
+                        destination.copyFrom(source)
                         backing
                     }
                 },
@@ -52,13 +52,13 @@ class VectorOpsAllocationTest internal constructor(private val case: AllocationC
         private fun identicalMappingCases(): List<AllocationCase> = listOf(
             with(IdenticalMappingFixture(1)) {
                 AllocationCase("identical contiguous vector copy allocates nothing", 1_000) {
-                    copy(source, destination)
+                    destination.copyFrom(source)
                     backing
                 }
             },
             with(IdenticalMappingFixture(1)) {
                 AllocationCase("identical contiguous vector swap allocates nothing", 1_000) {
-                    swap(source, destination)
+                    source.swap(destination)
                     backing
                 }
             },

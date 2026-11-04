@@ -1,10 +1,8 @@
 package com.eignex.koblas.bench
 
-
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.sparse.*
-
 
 /** An addressed product, including reset and checks over every borrowed backing-buffer entry. */
 internal fun borrowedProductWork(case: BenchCase, engine: KoblasEngine): CaseWork {

@@ -2,7 +2,7 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.*
 import com.eignex.koblas.axpy
-import com.eignex.koblas.copy
+import com.eignex.koblas.copyFrom
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.sparse.*
@@ -49,9 +49,9 @@ internal fun vectorViewsArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
     val run = {
         initial.copyInto(backing)
         when (case.operation) {
-            "copy-overlap" -> copy(source, destination)
+            "copy-overlap" -> destination.copyFrom(source)
             "axpy-views" -> destination.axpy(0.875, source)
-            "swap-views" -> swap(source, destination)
+            "swap-views" -> source.swap(destination)
         }
         backing[0] + backing.last()
     }
