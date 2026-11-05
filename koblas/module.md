@@ -21,6 +21,12 @@ implement. Products accept at most one sparse operand, on either side, and produ
 No sparse operand is densified. Products of two sparse matrices are unsupported. Windowed rank updates and
 sparse column dots are [KoblasEngine.ger] and [KoblasEngine.dotColumn] members.
 
+The matrix facade provides total and axis-wise [Matrix.sum] for dense, sparse and custom storage.
+On [DenseMatrixRegion], [gemvInto] and [gemmInto] default to replacing the destination, [ger] and [syr]
+default to unit scaling, and [trsv] and [trsm] solve triangular systems in place. These conveniences
+use the default engine. Vector arguments are [DenseVector] views with exact logical lengths; their
+offsets and strides are passed to the engine. [KoblasEngine] remains the full BLAS surface.
+
 # Package com.eignex.koblas.engine
 
 Exact engines, standard profiles, host platform facts and vendor metadata.

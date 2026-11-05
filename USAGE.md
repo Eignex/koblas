@@ -24,14 +24,14 @@ val x = DenseVector.of(doubleArrayOf(3.0, 5.0))
 val b = DenseMatrix.diagonal(2) // Identity matrix
 
 val y = DenseVector.zero(a.rows)
-koblas.gemv(1.0, a, x.values, x.offset, x.stride, 0.0, y.values, y.offset, y.stride)
+a.gemvInto(x, y)
 val product = DenseMatrix.zero(a.rows, b.cols)
-koblas.gemm(1.0, a, false, b, false, 0.0, product)
+a.gemmInto(b, product)
 val scaled = DenseVector.wrap(x.toDoubleArray()).also { it.scale(2.0) }
 val squaredLength = x dot x
 ```
 
-GEMV writes a matrix-vector product into `y`; GEMM writes a matrix product into `product`.
+`gemvInto` writes a matrix-vector product into `y`; `gemmInto` writes a matrix product into `product`.
 `scale` changes a vector in place, and a dot product returns a scalar. Access individual elements
 with `a[row, column]` or `x[index]`.
 
@@ -40,6 +40,33 @@ when most entries are absent. Matrix products accept a sparse operand on either 
 and produce a dense result. Sparse inputs stay sparse during the computation. Products of two sparse
 matrices are unsupported. See the [API overview](koblas/module.md) for construction and the full
 operation set.
+
+The dense matrix facade supplies ordinary product and unit-scaling defaults, and takes vectors without
+unpacking their backing arrays, offsets and strides:
+
+```kotlin
+a.gemvInto(x, y)                         // y = A * x
+a.gemmInto(b, product)                   // product = A * B
+a.ger(x, x, alpha = -0.5)                // A -= 0.5 * x * xT
+a.syr(x)                                // Lower triangle of A += x * xT
+val total = a.sum()                      // Sum of all entries
+val columnSums = a.sum(axis = 0)          // Reduce rows, one result per column
+val rowSums = a.sum(axis = 1)             // Reduce columns, one result per row
+```
+
+`sum()` and `sum(axis)` also accept sparse and custom matrices; sparse sums visit stored entries
+without densifying. Axis sums return a fresh dense vector, with zero for each empty reduction.
+`trsv` and `trsm` solve triangular systems in place with vector and matrix right-hand sides:
+
+```kotlin
+a.trsv(x, lower = true)                  // Solve A * x = b with b initially in x
+a.trsm(b, lower = true)                  // Solve A * X = B with B initially in b
+```
+
+These conveniences use the default engine, accept matrix views, and preserve dense vector offsets
+and strides. Vector lengths must match the matrix
+dimensions exactly. Wrap a whole array with `DenseVector.wrap` to borrow it without copying.
+Use `KoblasEngine` members for explicit engines and the full dense and sparse BLAS surface.
 
 ## Reusing arrays
 
@@ -62,11 +89,7 @@ val result = DenseMatrix.zero(a.rows, b.cols)
 val scratch = Scratch()
 
 repeat(1_000) {
-    koblas.gemm(
-        alpha = 1.0, a = a, transposeA = false,
-        b = b, transposeB = false, beta = 0.0, c = result,
-        scratch = scratch,
-    )
+    a.gemmInto(b, result, scratch = scratch)
 }
 ```
 
