@@ -42,14 +42,4 @@ class KoblasEngineTest {
         assertFailsWith<UnsupportedOperationException> { partial.tileRows }
         assertNull(partial.implementationFor(EngineImplementation.Sum, 1))
     }
-
-    @Test
-    fun `conditional product geometry is rejected before packing`() {
-        val profile = EngineTuning(
-            "test",
-            listOf(EngineRule("portable", setOf(EngineImplementation.Products), rows = 32)),
-        )
-
-        assertFailsWith<IllegalArgumentException> { combine(profile, BuiltinEngines.scalar) }
-    }
 }

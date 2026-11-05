@@ -16,8 +16,8 @@ import com.eignex.koblas.internal.storage.*
  * Dense and sparse BLAS through one immutable engine.
  *
  * Each BLAS routine is one member. The portable engine runs the shared schedule over its own kernels; a
- * composed engine such as [koblas] routes each call to the provider its internal tuning selects and otherwise runs the
- * same schedule over its own kernels; a vendor engine from [BuiltinEngines.vendor] calls its library for the
+ * built-in engine such as [koblas] uses one optional host library above its cutoffs and otherwise runs the
+ * same schedule over its owned kernels; a vendor engine from [BuiltinEngines.vendor] calls its library for the
  * routines it exports and fails for the rest. [BuiltinEngines] names exact engines, while [koblas] selects its
  * platform engine once unless startup configuration overrides it.
  *
@@ -37,7 +37,7 @@ public interface KoblasEngine {
     /** Stable provider identifier for diagnostics and internal routing. */
     public val id: String get() = vendor?.vendorName?.lowercase() ?: name
 
-    /** Callbacks supplied by this provider, trusted by the composer. Shared matrix schedules select arithmetic directly from leaf [providers]. */
+    /** Callbacks supplied by this provider. Shared matrix schedules select arithmetic directly from leaf [providers]. */
     public val implementations: Set<EngineImplementation> get() = emptySet()
 
     /** Library provenance, when applicable. */
@@ -52,7 +52,7 @@ public interface KoblasEngine {
     /** Evidence for the host library's compute thread count. */
     public val threadEvidence: ThreadEvidence get() = ThreadEvidence.Unconfirmed
 
-    /** Leaf providers in routing order, including their own capabilities and host provenance. */
+    /** Kernel providers and the selected host library, including capabilities and host provenance. */
     public val providers: List<KoblasEngine> get() = listOf(this)
 
     // Primitive dense vector windows.

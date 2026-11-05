@@ -29,7 +29,7 @@ class CalibrationCaptureTest {
             }
 
             assertFailsWith<IllegalArgumentException>(failure) {
-                readCalibration(listOf(root), "native", "onemkl", profileName = if (failure == "profile") "different" else null)
+                readCalibration(listOf(root), "native", "onemkl", engineName = if (failure == "profile") "different" else null)
             }
         }
     }

@@ -4,7 +4,7 @@ package com.eignex.koblas.internal.operations
 
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.EngineImplementation
-import com.eignex.koblas.internal.engine.CombinedEngine
+import com.eignex.koblas.internal.engine.BuiltinEngine
 import com.eignex.koblas.internal.kernels.scalar.*
 import com.eignex.koblas.internal.kernels.scalar.sparse.*
 import com.eignex.koblas.internal.storage.sameVectorMapping
@@ -73,7 +73,7 @@ private fun KoblasEngine.copyDense(x: DenseVector, y: DenseVector) {
     requireSameSize(x.size, y.size, "copy")
     if (sameVectorMapping(x, y)) return
     val contiguous = x.stride == 1 && y.stride == 1
-    val provider = if (this is CombinedEngine) vectorProvider(EngineImplementation.Copy, x.size, contiguous) else this
+    val provider = if (this is BuiltinEngine) vectorProvider(EngineImplementation.Copy, x.size, contiguous) else this
     // Portable contiguous copy is a memmove, so it needs no alias snapshot.
     val source = if (provider === ScalarEngine && contiguous) x else x.stableFor(y)
     provider.copy(source.values, source.offset, y.values, y.offset, x.size, source.stride, y.stride)

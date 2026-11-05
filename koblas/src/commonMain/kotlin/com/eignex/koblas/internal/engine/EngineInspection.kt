@@ -5,21 +5,21 @@ import com.eignex.koblas.engine.EngineImplementation
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 
-/** The kernels a shared schedule run on this engine calls, which a composed engine binds once. */
+/** The kernels a shared schedule run on this engine calls, which a built-in engine binds once. */
 internal val KoblasEngine.panelProvider: EngineKernels get() = when (this) {
-    is CombinedEngine -> panelImplementation
+    is BuiltinEngine -> kernels.panels
     is EngineKernels -> this
     else -> unsupported()
 }
 
 internal val KoblasEngine.productProvider: EngineKernels get() = when (this) {
-    is CombinedEngine -> productImplementation
+    is BuiltinEngine -> kernels.products
     is EngineKernels -> this
     else -> unsupported()
 }
 
 internal val KoblasEngine.triangularProvider: EngineKernels get() = when (this) {
-    is CombinedEngine -> triangularImplementation
+    is BuiltinEngine -> kernels.triangular
     is EngineKernels -> this
     else -> unsupported()
 }
@@ -33,7 +33,7 @@ internal fun KoblasEngine.providerFor(
     contiguous: Boolean,
     borrowed: Boolean,
 ): String = if (operation.vector) {
-    (if (this is CombinedEngine) vectorProvider(operation, rows, contiguous) else this).id
+    (if (this is BuiltinEngine) vectorProvider(operation, rows, contiguous) else this).id
 } else {
     wholeCallFor(operation, rows, columns, depth, borrowed)?.id ?: "scheduled"
 }
@@ -46,7 +46,7 @@ internal fun KoblasEngine.wholeCallFor(
     depth: Int = 1,
     borrowed: Boolean = false,
 ): KoblasEngine? {
-    val provider = (this as? CombinedEngine)?.routing?.select(operation, rows, columns, depth, borrowed) ?: this
+    val provider = (this as? BuiltinEngine)?.hostFor(operation, rows, columns, depth, borrowed) ?: this
     // Portable schedules retain the caller's selected kernels instead of a portable leaf's.
     return provider.takeIf { it !== ScalarEngine && operation in it.implementations }
 }
@@ -54,7 +54,7 @@ internal fun KoblasEngine.wholeCallFor(
 /**
  * The engine a whole call on this one is handed to, or null when this engine runs the shared schedule itself.
  *
- * Only a composition hands calls over, and every leaf it routes to supplies the operation and is not itself.
+ * Only a built-in engine hands calls to its selected host library, which must export the operation.
  */
 internal fun KoblasEngine.routedWholeCall(
     operation: EngineImplementation,
@@ -62,7 +62,7 @@ internal fun KoblasEngine.routedWholeCall(
     columns: Int,
     depth: Int,
     borrowed: Boolean,
-): KoblasEngine? = (this as? CombinedEngine)?.routing?.select(operation, rows, columns, depth, borrowed)
+): KoblasEngine? = (this as? BuiltinEngine)?.hostFor(operation, rows, columns, depth, borrowed)
     ?.takeIf { it !== ScalarEngine }
 
 internal fun KoblasEngine.implementationFor(
@@ -70,7 +70,7 @@ internal fun KoblasEngine.implementationFor(
     length: Int,
     contiguous: Boolean = true,
 ): String? {
-    val provider = (this as? CombinedEngine)?.vectorProvider(operation, length, contiguous) ?: this
+    val provider = (this as? BuiltinEngine)?.vectorProvider(operation, length, contiguous) ?: this
     return provider.takeIf {
         operation in it.implementations && !(it is EngineKernels && it.dynamicAttribution(operation))
     }?.name

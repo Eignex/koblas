@@ -1,9 +1,7 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.engine.*
-import com.eignex.koblas.engine.EngineImplementation.*
 import com.eignex.koblas.internal.engine.*
-import com.eignex.koblas.internal.engine.combine
+import com.eignex.koblas.internal.kernels.EngineKernels
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 
 internal fun engineWithKernels(
@@ -12,43 +10,20 @@ internal fun engineWithKernels(
     products: KoblasEngine = ScalarEngine,
     triangles: KoblasEngine = ScalarEngine,
     indexed: KoblasEngine = ScalarEngine,
-): KoblasEngine = combine(
-    EngineTuning(
-        "test",
-        listOf(
-            vectors to EngineImplementation.entries.filter { it.vector && !it.name.startsWith("Indexed") }.toSet(),
-            indexed to setOf(IndexedDot),
-            panels to setOf(Panels),
-            products to setOf(Products),
-            triangles to setOf(Triangular),
-        ).flatMap { (engine, operations) ->
-            engine.providers.map { EngineRule(it.id, operations) }
-        },
+): KoblasEngine = BuiltinEngine(
+    "test",
+    KernelSet(
+        (vectors as? BuiltinEngine)?.kernels?.vectors ?: vectors as EngineKernels,
+        (indexed as? BuiltinEngine)?.kernels?.indexed ?: indexed as EngineKernels,
+        panels.panelProvider,
+        products.productProvider,
+        triangles.triangularProvider,
     ),
-    panels,
-    products,
-    triangles,
-    indexed,
-    vectors,
 )
 
-internal fun engineWithHost(
-    portable: KoblasEngine,
-    host: KoblasEngine,
-    eligible: Boolean = true,
-    borrowed: Boolean = true,
-): KoblasEngine = combine(
-    EngineTuning(
+internal fun engineWithHost(portable: KoblasEngine, host: KoblasEngine, eligible: Boolean = true): KoblasEngine =
+    BuiltinEngine(
         "host-test",
-        buildList {
-            if (eligible && host.implementations.isNotEmpty()) {
-                add(EngineRule(host.id, host.implementations, borrowed = if (borrowed) null else false))
-            }
-            portable.providers.filter { it.implementations.isNotEmpty() }.forEach {
-                add(EngineRule(it.id, it.implementations))
-            }
-        },
-    ),
-    host,
-    portable,
-)
+        (portable as? BuiltinEngine)?.kernels ?: KernelSet(),
+        (host as EngineKernels).takeIf { eligible },
+    )

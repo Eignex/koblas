@@ -30,7 +30,7 @@ private fun architecture(): Architecture = when (Platform.cpuArchitecture) {
     else -> Architecture.Other
 }
 
-/** Linux supplies the model and instruction flags used by calibrated profiles. */
+/** Linux supplies the model and instruction flags used by measured cutoffs. */
 @OptIn(ExperimentalForeignApi::class)
 private fun cpuInfo(key: String): String? {
     val file = fopen("/proc/cpuinfo", "r") ?: return null

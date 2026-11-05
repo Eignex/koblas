@@ -45,8 +45,9 @@ Vendor calls need compatible LP64 libraries with 32-bit BLAS indices, discoverab
 Windows DLLs and their dependencies need an absolute directory on PATH. Linux oneMKL is also searched
 under `~/intel/oneapi/mkl/latest` and `/opt/intel/oneapi/mkl/latest`.
 
-Automatic selection uses internal measured cutoffs and documented estimates; explicitly naming a vendor
-uses it for every operation it exports. JDK 17–24, Android and iOS automatically use portable Kotlin.
+Automatic selection tries compatible host libraries in platform order and keeps the first available vendor.
+That library handles calls above internal measured cutoffs or documented estimates; other calls and missing
+exports use the owned SIMD/scalar kernels. Explicitly naming a vendor uses it for every operation it exports. JDK 17–24, Android and iOS automatically use portable Kotlin.
 Sparse operations always keep portable CSC traversal. See the [benchmark reference](koblas-bench/REFERENCE.md)
 for tuning and measurement details.
 

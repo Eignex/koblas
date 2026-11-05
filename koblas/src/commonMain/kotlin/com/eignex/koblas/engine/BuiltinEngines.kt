@@ -22,14 +22,9 @@ public object BuiltinEngines {
     /**
      * Every JVM Vector API kernel this library owns, or null when the module is unavailable.
      *
-     * On the JVM, [koblas] retains these kernels when available, including in its host composition.
+     * On the JVM, [koblas] retains these kernels when available, alongside its selected host library.
      * A window too short or too strided for a vector body runs a portable fallback.
      */
     @get:kotlin.jvm.JvmStatic
-    public val simd: KoblasEngine? by lazy {
-        simdBackend()?.let { parts ->
-            val rule = EngineRule("jvm-simd", parts.flatMapTo(mutableSetOf()) { it.implementations })
-            combine(EngineTuning("jvm-simd", listOf(rule)), *parts.toTypedArray())
-        }
-    }
+    public val simd: KoblasEngine? by lazy { simdBackend() }
 }

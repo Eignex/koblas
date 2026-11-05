@@ -1,198 +1,141 @@
 package com.eignex.koblas.internal.engine
 
-import com.eignex.koblas.engine.*
+import com.eignex.koblas.engine.EngineImplementation
 import com.eignex.koblas.engine.EngineImplementation.*
+import com.eignex.koblas.engine.Vendor
 
-/** Ordered internal cutoffs and their retained measurement provenance. */
-internal data class EngineTuning(
-    val name: String,
-    val rules: List<EngineRule>,
-    val evidence: String = "explicit configuration",
-)
+/**
+ * Fixed crossovers for one selected library and the owned JVM kernels.
+ *
+ * Retained measurements: lab.eignex.com/jobs/10584, 10566, 10607, 10583, 10565, 10628 and 10630.
+ * AOCL, ArmPL and unmeasured platforms use the compatible library or instruction-class estimates.
+ */
+internal class EngineTuning(private val runtime: EngineRuntime, private val platform: HostPlatform) {
+    private val x86 = platform.architecture == Architecture.X86_64
+    private val wide = platform.cpuClass == CpuClass.Avx512
+    private val arm = !x86 && platform.cpuClass != CpuClass.Sve
 
-/** Select fixed tuning by runtime and instruction class; other hosts borrow compatible estimates. */
-internal fun standardTuning(runtime: EngineRuntime, host: HostPlatform, nativeAccess: Boolean = true): EngineTuning {
-    if (host.architecture == Architecture.Other) return EngineTuning("portable", emptyList())
-    val x86 = host.architecture == Architecture.X86_64
-    val wide = host.cpuClass == CpuClass.Avx512
-    val mac = host.operatingSystem == OperatingSystem.MacOs
-    val owned = when {
-        runtime == EngineRuntime.Native -> null
-        x86 -> if (wide) jvmAvx512 else jvmAvx2
-        host.cpuClass == CpuClass.Sve -> jvmArm
-        else -> jvmMac
+    fun simdMinimum(operation: EngineImplementation): Int = when (operation) {
+        Dot, Asum -> if (wide) 8 else 32
+        Sum -> if (!x86 && !arm) 16 else 32
+        Nrm2 -> if (arm) 32 else 16
+        Iamax -> if (x86) 1024 else 256
+        Axpy -> if (arm) 32 else 1048576
+        IndexedDot -> 16
+        else -> 0
     }
-    val vendor = when {
-        mac -> if (runtime == EngineRuntime.Jvm) jvmMac else nativeMac
-        host.operatingSystem == OperatingSystem.Other -> null
-        runtime == EngineRuntime.Jvm -> if (x86) owned else jvmArm
-        x86 -> if (wide) nativeAvx512 else nativeAvx2
-        else -> nativeArm
+
+    fun hostMinimum(vendor: Vendor?, operation: EngineImplementation, contiguous: Boolean): Int {
+        if (runtime == EngineRuntime.Jvm) return -1
+        if (vendor == Vendor.Accelerate) {
+            return if (!contiguous) {
+                -1
+            } else {
+                when (operation) {
+                    Asum, Iamax -> 64
+                    Dot, Nrm2 -> 96
+                    Axpy, Swap -> 4194304
+                    else -> -1
+                }
+            }
+        }
+        if (!x86) {
+            return when (operation) {
+                Dot -> if (contiguous) 64 else 4194304
+                Iamax -> if (contiguous) 96 else 256
+                Asum -> if (contiguous) 1024 else -1
+                Nrm2, Scale -> if (contiguous) 256 else -1
+                Axpy, Rot, Swap -> if (contiguous) 4194304 else -1
+                else -> -1
+            }
+        }
+        if (!contiguous) return -1
+        return when (operation) {
+            Dot, Asum -> if (vendor == Vendor.OneMkl) 256 else 128
+            Nrm2, Iamax -> if (vendor == Vendor.OneMkl) 512 else 256
+            Axpy, Scale, Swap, Rot -> 4096
+            else -> -1
+        }
     }
-    val donors = listOfNotNull(vendor, owned).distinct()
-    if (donors.isEmpty()) return EngineTuning("portable", emptyList())
-    val measured = when {
-        mac -> !x86 && host.cpuClass == CpuClass.Arm64
-        host.operatingSystem != OperatingSystem.Linux -> false
-        x86 -> host.cpuClass == CpuClass.Avx2 || wide
-        else -> host.cpuClass == CpuClass.Sve && host.sveVectorBits == 256
+
+    fun hostEligible(
+        vendor: Vendor?,
+        operation: EngineImplementation,
+        rows: Int,
+        columns: Int,
+        depth: Int,
+        borrowed: Boolean,
+    ): Boolean {
+        fun matrix(minimum: Int, work: Long, shared: Int = minimum): Boolean =
+            rows >= minimum && columns >= minimum && depth >= shared && hasWork(rows, columns, depth, work)
+        if (runtime == EngineRuntime.Jvm) {
+            val minimum = if (wide || platform.operatingSystem == OperatingSystem.MacOs) 64 else 128
+            return when (operation) {
+                Gemm -> matrix(minimum, 262144) || (!borrowed && matrix(16, 65536, shared = 256))
+                Symm, Syrk, Syr2k, Trmm, Trsm -> !borrowed && matrix(minimum, 1048576)
+                else -> false
+            }
+        }
+        if (borrowed) return operation == Gemm && matrix(16, 65536)
+        if (vendor == Vendor.Accelerate) {
+            return when (operation) {
+                Gemm, Symm, Syrk, Trmm, Trsm -> matrix(8, 512)
+                Syr2k -> matrix(16, 4096)
+                Gemv, GemvTransposed -> matrix(16, 4096, shared = 0)
+                Ger -> matrix(16, 1024, shared = 0)
+                Symv -> matrix(256, 65536, shared = 0)
+                Syr, Syr2, TrmvTransposed, Trsv, TrsvTransposed -> matrix(32, 1024, shared = 0)
+                Trmv -> matrix(64, 4096, shared = 0)
+                else -> false
+            }
+        }
+        if (!x86) {
+            return when (operation) {
+                Gemm, Gemmt, Symm, Syr2k, Syrk, Trmm, Trsm -> matrix(8, 512)
+                Gemv, GemvTransposed, Ger -> matrix(16, 1024, shared = 0)
+                Symv, Syr, Trmv, TrmvTransposed, Trsv, TrsvTransposed -> matrix(32, 1024, shared = 0)
+                Syr2 -> matrix(16, 256, shared = 0)
+                else -> false
+            }
+        }
+        val minimum = if (vendor == Vendor.OneMkl) 32 else 64
+        return when (operation) {
+            Gemm, Symm, Syr2k, Trmm, Trsm -> matrix(8, 512)
+
+            Gemmt, Syrk -> matrix(16, 4096)
+
+            Gemv, GemvTransposed, Ger, Symv, Syr, Syr2, Trmv, TrmvTransposed, Trsv, TrsvTransposed ->
+                matrix(minimum, minimum.toLong() * minimum, shared = 0)
+
+            else -> false
+        }
     }
-    val name = if (measured) {
-        requireNotNull(vendor).name
-    } else {
-        "best-effort-$runtime-${host.operatingSystem}-${host.architecture}-${donors.joinToString("+") { it.name }}"
-    }
-    val rules = vendor?.rules.orEmpty().filter { it.source != "jvm-simd" && nativeAccess } +
-        owned?.rules.orEmpty().filter { it.source == "jvm-simd" }
-    val evidence = if (measured) {
-        requireNotNull(vendor).evidence
-    } else {
-        "Unmeasured best effort; " + donors.joinToString { "preferences from ${it.name}" }
-    }
-    return EngineTuning(if (nativeAccess) name else "$name-owned", rules, evidence)
 }
 
-private val jvmArm = EngineTuning(
-    "jvm-linux-arm64-sve256-v1",
-    listOf(Vendor.OpenBlas, Vendor.ArmPl).flatMap { it.jvmProductRules(128) } + jvmOwned(
-        owned(setOf(Dot, Asum), minimum = 32),
-        owned(setOf(Sum, Nrm2), minimum = 16),
-        owned(setOf(Iamax), minimum = 256),
-        owned(setOf(Axpy), minimum = 1048576),
-    ),
-    "https://lab.eignex.com/jobs/10607; " +
-        "Coarse estimates; Unmeasured best effort: ArmPL from OpenBLAS",
-)
+/** Compare work without multiplying three potentially maximum extents. */
+private fun hasWork(rows: Int, columns: Int, depth: Int, minimum: Long): Boolean = depth > 0 &&
+    rows.toLong() * columns >= minimum / depth + if (minimum % depth == 0L) 0 else 1
 
-private val jvmAvx2 = EngineTuning(
-    "jvm-linux-x86_64-avx2-v1",
-    listOf(Vendor.OpenBlas, Vendor.OneMkl, Vendor.Aocl).flatMap { it.jvmProductRules(128) } + jvmOwned(
-        owned(setOf(Dot, Asum, Sum), minimum = 32),
-        owned(setOf(Nrm2), minimum = 16),
-        owned(setOf(Iamax), minimum = 1024),
-        owned(setOf(Axpy), minimum = 1048576),
-    ),
-    "https://lab.eignex.com/jobs/10584; " +
-        "Coarse estimates; Unmeasured best effort: AOCL from OpenBLAS",
-)
+internal fun vendorOrder(runtime: EngineRuntime, platform: HostPlatform): List<Vendor> = when {
+    platform.architecture == Architecture.Other -> emptyList()
 
-private val jvmAvx512 = EngineTuning(
-    "jvm-linux-x86_64-avx512-v1",
-    listOf(Vendor.OneMkl, Vendor.OpenBlas, Vendor.Aocl).flatMap { it.jvmProductRules(64) } + jvmOwned(
-        owned(setOf(Dot, Asum), minimum = 8),
-        owned(setOf(Nrm2), minimum = 16),
-        owned(setOf(Sum), minimum = 32),
-        owned(setOf(Iamax), minimum = 1024),
-        owned(setOf(Axpy), minimum = 1048576),
-    ),
-    "https://lab.eignex.com/jobs/10566; " +
-        "Coarse estimates; Unmeasured best effort: AOCL from OpenBLAS",
-)
+    platform.operatingSystem == OperatingSystem.MacOs -> listOf(Vendor.Accelerate)
 
-private val jvmMac = EngineTuning(
-    "jvm-macos-arm64-v1",
-    Vendor.Accelerate.jvmProductRules(64) + jvmOwned(
-        owned(setOf(Dot, Sum, Asum, Nrm2, Axpy), minimum = 32),
-        owned(setOf(Iamax), minimum = 256),
-    ),
-    "BACKENDS.md; " +
-        "Coarse estimates; Unmeasured best effort: entire macOS JVM profile",
-)
+    platform.operatingSystem == OperatingSystem.Other -> emptyList()
 
-private val nativeArm = EngineTuning(
-    "native-linux-arm64-sve256-v1",
-    listOf(
-        Vendor.OpenBlas.rule(setOf(Asum), rows = 1024, contiguous = true),
-        Vendor.OpenBlas.rule(setOf(Axpy, Rot, Swap), rows = 4194304, contiguous = true),
-        Vendor.OpenBlas.rule(setOf(Dot), rows = 4194304, contiguous = false),
-        Vendor.OpenBlas.rule(setOf(Dot), rows = 64, contiguous = true),
-        Vendor.OpenBlas.matrix(setOf(Gemm, Gemmt, Symm, Syr2k, Syrk, Trmm, Trsm), 8, 512),
-        Vendor.OpenBlas.matrix(setOf(Gemm), 16, 65536, borrowed = true),
-        Vendor.OpenBlas.matrix(setOf(Gemv, GemvTransposed, Ger), 16, 1024, depth = 0),
-        Vendor.OpenBlas.rule(setOf(Iamax), rows = 256, contiguous = false),
-        Vendor.OpenBlas.rule(setOf(Iamax), rows = 96, contiguous = true),
-        Vendor.OpenBlas.rule(setOf(Nrm2, Scale), rows = 256, contiguous = true),
-        Vendor.OpenBlas.matrix(setOf(Symv, Syr, Trmv, TrmvTransposed, Trsv, TrsvTransposed), 32, 1024, depth = 0),
-        Vendor.OpenBlas.matrix(setOf(Syr2), 16, 256, depth = 0),
-    ),
-    "https://lab.eignex.com/jobs/10628; coarse estimates informed by retained measurements; favor host on Native",
-)
+    platform.architecture == Architecture.Arm64 -> listOfNotNull(
+        Vendor.OpenBlas,
+        Vendor.ArmPl.takeIf { runtime == EngineRuntime.Jvm },
+    )
 
-private val nativeAvx2 = EngineTuning(
-    "native-linux-x86_64-avx2-v1",
-    Vendor.OpenBlas.nativeX86Rules(reduction = 128, norm = 256, level2 = 64) +
-        Vendor.OneMkl.nativeX86Rules(reduction = 256, norm = 512, level2 = 32),
-    "https://lab.eignex.com/jobs/10583; " +
-        "Coarse estimates informed by retained measurements; favor host on Native",
-)
-
-private val nativeAvx512 = EngineTuning(
-    "native-linux-x86_64-avx512-v1",
-    Vendor.OneMkl.nativeX86Rules(reduction = 256, norm = 512, level2 = 32) +
-        Vendor.OpenBlas.nativeX86Rules(reduction = 128, norm = 256, level2 = 64),
-    "https://lab.eignex.com/jobs/10565; " +
-        "Coarse estimates informed by retained measurements; favor host on Native",
-)
-
-private val nativeMac = EngineTuning(
-    "native-macos-arm64-v1",
-    listOf(
-        Vendor.Accelerate.rule(setOf(Asum, Iamax), rows = 64, contiguous = true),
-        Vendor.Accelerate.rule(setOf(Axpy), rows = 4194304, contiguous = true),
-        Vendor.Accelerate.rule(setOf(Dot, Nrm2), rows = 96, contiguous = true),
-        Vendor.Accelerate.matrix(setOf(Gemm, Symm, Syrk, Trmm, Trsm), 8, 512),
-        Vendor.Accelerate.matrix(setOf(Gemm), 16, 65536, borrowed = true),
-        Vendor.Accelerate.matrix(setOf(Gemv, GemvTransposed), 16, 4096, depth = 0),
-        Vendor.Accelerate.matrix(setOf(Ger), 16, 1024, depth = 0),
-        Vendor.Accelerate.rule(setOf(Swap), rows = 4194304, contiguous = true),
-        Vendor.Accelerate.matrix(setOf(Symv), 256, 65536, depth = 0),
-        Vendor.Accelerate.matrix(setOf(Syr, Syr2, TrmvTransposed, Trsv, TrsvTransposed), 32, 1024, depth = 0),
-        Vendor.Accelerate.matrix(setOf(Syr2k), 16, 4096),
-        Vendor.Accelerate.matrix(setOf(Trmv), 64, 4096, depth = 0),
-    ),
-    "https://lab.eignex.com/jobs/10630; coarse estimates informed by retained measurements; favor host on Native",
-)
-
-private fun Vendor.jvmProductRules(minimum: Int): List<EngineRule> = listOf(
-    matrix(setOf(Gemm), minimum, 262144, borrowed = null),
-    matrix(setOf(Gemm), 16, 65536, depth = 256),
-    matrix(setOf(Symm, Syrk, Syr2k, Trmm, Trsm), minimum, 1048576),
-)
-
-private fun Vendor.nativeX86Rules(reduction: Int, norm: Int, level2: Int): List<EngineRule> = listOf(
-    rule(setOf(Dot, Asum), rows = reduction, contiguous = true),
-    rule(setOf(Nrm2, Iamax), rows = norm, contiguous = true),
-    rule(setOf(Axpy, Scale, Swap, Rot), rows = 4096, contiguous = true),
-    matrix(setOf(Gemm, Symm, Syr2k, Trmm, Trsm), 8, 512),
-    matrix(setOf(Gemm), 16, 65536, borrowed = true),
-    matrix(setOf(Gemmt, Syrk), 16, 4096),
-    matrix(
-        setOf(Gemv, GemvTransposed, Ger, Symv, Syr, Syr2, Trmv, TrmvTransposed, Trsv, TrsvTransposed),
-        level2,
-        level2.toLong() * level2,
-        depth = 0,
-    ),
-)
-
-private fun Vendor.rule(operations: Set<EngineImplementation>, rows: Int, contiguous: Boolean): EngineRule =
-    EngineRule(vendorName.lowercase(), operations, rows = rows, contiguous = contiguous)
-
-/** Matrix cutoffs share a minimum row and column extent; vector products have no depth cutoff. */
-private fun Vendor.matrix(
-    operations: Set<EngineImplementation>,
-    minimum: Int,
-    work: Long,
-    depth: Int = minimum,
-    borrowed: Boolean? = false,
-): EngineRule = EngineRule(vendorName.lowercase(), operations, minimum, minimum, depth, work, borrowed = borrowed)
-
-private fun owned(
-    implementations: Set<EngineImplementation>,
-    minimum: Int = 0,
-    contiguous: Boolean? = true,
-): EngineRule = EngineRule("jvm-simd", implementations, rows = minimum, contiguous = contiguous)
-
-/** Measured Level 1 rules, then the indexed dot and scheduled families every JVM profile keeps owned. */
-private fun jvmOwned(vararg level1: EngineRule): List<EngineRule> = level1.asList() +
-    owned(setOf(IndexedDot), minimum = 16, contiguous = null) +
-    owned(setOf(Panels, Products, Triangular), contiguous = null)
+    else -> (
+        if (platform.cpuClass == CpuClass.Avx512) {
+            listOf(Vendor.OneMkl, Vendor.OpenBlas)
+        } else {
+            listOf(
+                Vendor.OpenBlas,
+                Vendor.OneMkl,
+            )
+        }
+        ) + listOfNotNull(Vendor.Aocl.takeIf { runtime == EngineRuntime.Jvm })
+}
