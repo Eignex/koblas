@@ -1,11 +1,9 @@
 package com.eignex.koblas.internal.scheduling.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.ReferenceBlas
-import com.eignex.koblas.dense.withEngines
+import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.EngineImplementation
-import com.eignex.koblas.internal.kernels.EngineKernels
-import com.eignex.koblas.internal.kernels.PanelWork
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import kotlin.random.Random
 import kotlin.test.*

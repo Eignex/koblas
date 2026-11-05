@@ -4,9 +4,7 @@ package com.eignex.koblas.internal.scheduling.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.internal.engine.*
-import com.eignex.koblas.internal.kernels.EngineKernels
-import com.eignex.koblas.internal.kernels.PanelWork
-import com.eignex.koblas.internal.kernels.scaleProductWindow
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.operations.applyBeta
 import com.eignex.koblas.internal.storage.borrowOptional
 

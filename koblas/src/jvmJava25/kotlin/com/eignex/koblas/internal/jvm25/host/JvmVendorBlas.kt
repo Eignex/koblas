@@ -4,13 +4,7 @@ package com.eignex.koblas.internal.jvm25.host
 
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.*
-import com.eignex.koblas.internal.host.Cblas
-import com.eignex.koblas.internal.host.HostBlas
-import com.eignex.koblas.internal.host.diagFor
-import com.eignex.koblas.internal.host.positiveIncrement
-import com.eignex.koblas.internal.host.sideFor
-import com.eignex.koblas.internal.host.transposeFor
-import com.eignex.koblas.internal.host.uploFor
+import com.eignex.koblas.internal.host.*
 import com.eignex.koblas.internal.operations.MatrixStructure
 import java.lang.foreign.Arena
 import java.lang.invoke.MethodHandle

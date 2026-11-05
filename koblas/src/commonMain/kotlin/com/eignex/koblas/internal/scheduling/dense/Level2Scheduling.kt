@@ -3,8 +3,7 @@
 package com.eignex.koblas.internal.scheduling.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.internal.engine.panelProvider
-import com.eignex.koblas.internal.engine.triangularProvider
+import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.kernels.PanelWork
 import com.eignex.koblas.internal.operations.applyBeta
 

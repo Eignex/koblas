@@ -4,12 +4,7 @@
 
 package com.eignex.koblas
 
-import com.eignex.koblas.internal.operations.absoluteSumVector
-import com.eignex.koblas.internal.operations.axpyVector
-import com.eignex.koblas.internal.operations.copyVector
-import com.eignex.koblas.internal.operations.dotVector
-import com.eignex.koblas.internal.operations.normVector
-import com.eignex.koblas.internal.operations.sumVector
+import com.eignex.koblas.internal.operations.*
 
 /**
  * Visit each stored entry as (index, value), in ascending index order for any storage. A [SparseVector]

@@ -6,8 +6,7 @@ import com.eignex.koblas.engine.BuiltinEngines
 import com.eignex.koblas.internal.engine.panelProvider
 import com.eignex.koblas.internal.kernels.PanelWork
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
-import com.eignex.koblas.internal.operations.staged
-import com.eignex.koblas.internal.operations.triangle
+import com.eignex.koblas.internal.operations.*
 import kotlin.random.Random
 import kotlin.test.*
 

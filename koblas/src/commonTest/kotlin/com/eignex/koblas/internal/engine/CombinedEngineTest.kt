@@ -1,10 +1,7 @@
 package com.eignex.koblas.internal.engine
 
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.RecordingBlas
-import com.eignex.koblas.dense.ReferenceBlas
-import com.eignex.koblas.dense.assertDenseProductAliasesAgreeWithReference
-import com.eignex.koblas.dense.assertRectangularProductAliasesAgreeWithReference
+import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.kernels.EngineKernels
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine

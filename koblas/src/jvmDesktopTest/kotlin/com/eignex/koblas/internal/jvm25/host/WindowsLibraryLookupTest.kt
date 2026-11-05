@@ -1,7 +1,6 @@
 package com.eignex.koblas.internal.jvm25.host
 
-import com.eignex.koblas.engine.OperatingSystem
-import com.eignex.koblas.engine.hostPlatform
+import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.jvm25.*
 import java.lang.foreign.FunctionDescriptor
 import java.lang.foreign.Linker

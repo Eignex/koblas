@@ -1,8 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.BuiltinEngines
-import com.eignex.koblas.engine.Vendor
+import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import kotlin.test.assertEquals
 

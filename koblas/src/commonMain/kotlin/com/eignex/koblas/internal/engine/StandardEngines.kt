@@ -1,8 +1,7 @@
 package com.eignex.koblas.internal.engine
 
-import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.*
 import com.eignex.koblas.engine.*
-import com.eignex.koblas.koblas
 
 /** Borrow performance preferences while keeping runtime bindings and available arithmetic independent. */
 internal fun bestEffortProfile(

@@ -1,10 +1,6 @@
 package com.eignex.koblas.internal.kernels.scalar.dense
 
-import com.eignex.koblas.dense.assertDepthBlocksAccumulate
-import com.eignex.koblas.dense.assertEmptyProductBlockReadsNothing
-import com.eignex.koblas.dense.assertProductBlockAgreesWithReference
-import com.eignex.koblas.dense.assertZeroBetaOverwritesPoison
-import com.eignex.koblas.dense.withProductKernels
+import com.eignex.koblas.dense.*
 import com.eignex.koblas.koblas
 import kotlin.test.Test
 

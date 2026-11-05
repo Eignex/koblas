@@ -4,9 +4,7 @@ package com.eignex.koblas.internal.scheduling.sparse
 
 import com.eignex.koblas.*
 import com.eignex.koblas.internal.kernels.scalar.dense.scalarEvaluatedAxpy
-import com.eignex.koblas.internal.kernels.scalar.sparse.sparseGatherProductColumn
-import com.eignex.koblas.internal.kernels.scalar.sparse.sparseScatterProductColumn
-import com.eignex.koblas.internal.kernels.scalar.sparse.sparseSymmetricLeftColumnSingle
+import com.eignex.koblas.internal.kernels.scalar.sparse.*
 import com.eignex.koblas.internal.operations.staged
 import com.eignex.koblas.internal.scheduling.dense.forEachPanel
 import com.eignex.koblas.internal.storage.borrowOptional

@@ -3,8 +3,7 @@
 package com.eignex.koblas.internal.operations
 
 import com.eignex.koblas.*
-import com.eignex.koblas.internal.storage.requireVectorWindow
-import com.eignex.koblas.internal.storage.windowsOverlap
+import com.eignex.koblas.internal.storage.*
 
 /*
  * What every implementation of a dense routine does around its arithmetic after checking the routine's shapes:

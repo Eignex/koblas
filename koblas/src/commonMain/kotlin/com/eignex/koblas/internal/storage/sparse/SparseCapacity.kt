@@ -1,8 +1,7 @@
 package com.eignex.koblas.internal.storage.sparse
 
-import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.*
 import com.eignex.koblas.internal.storage.requireShape
-import com.eignex.koblas.koblas
 
 /**
  * Checked arithmetic for the array lengths a CSC result needs.

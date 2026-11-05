@@ -5,14 +5,8 @@ package com.eignex.koblas.internal.operations
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.EngineImplementation
 import com.eignex.koblas.internal.engine.CombinedEngine
-import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
-import com.eignex.koblas.internal.kernels.scalar.scalarVectorAbsoluteSum
-import com.eignex.koblas.internal.kernels.scalar.scalarVectorDot
-import com.eignex.koblas.internal.kernels.scalar.scalarVectorSum
-import com.eignex.koblas.internal.kernels.scalar.sparse.indexedAxpy
-import com.eignex.koblas.internal.kernels.scalar.sparse.indexedDotDense
-import com.eignex.koblas.internal.kernels.scalar.sparse.indexedScatter
-import com.eignex.koblas.internal.kernels.scalar.zeroVector
+import com.eignex.koblas.internal.kernels.scalar.*
+import com.eignex.koblas.internal.kernels.scalar.sparse.*
 import com.eignex.koblas.internal.storage.sameVectorMapping
 
 /** Storage adapters use selected array kernels where possible and portable readers for opaque storage. */

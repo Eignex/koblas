@@ -2,11 +2,9 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.BuiltinEngines
-import com.eignex.koblas.internal.engine.implementationFor
-import com.eignex.koblas.internal.engine.panelProvider
+import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.kernels.PanelWork
-import com.eignex.koblas.testutil.allocation.AllocationProbe
-import com.eignex.koblas.testutil.allocation.bytesPerCall
+import com.eignex.koblas.testutil.allocation.*
 
 /**
  * Runs indexed Level 1, panel and whole-operation allocation checks in an uninstrumented JVM.

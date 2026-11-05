@@ -1,18 +1,10 @@
 package com.eignex.koblas.engine
 
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.assertIamaxHonoursItsContract
-import com.eignex.koblas.dense.assertLevel1KernelsAgreeWithReference
-import com.eignex.koblas.dense.assertNormExtremesAgreeWithReference
-import com.eignex.koblas.dense.assertNormWindowsAgreeWithReference
-import com.eignex.koblas.dense.assertReductionsAgreeWithReference
-import com.eignex.koblas.dense.assertRotKernelAgreesWithReference
-import com.eignex.koblas.dense.assertScaleAgreesWithReference
-import com.eignex.koblas.dense.assertSwapAgreesWithReference
+import com.eignex.koblas.dense.*
 import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.host.environmentVariableOrNull
-import com.eignex.koblas.internal.kernels.EngineKernels
-import com.eignex.koblas.internal.kernels.PanelWork
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import kotlin.test.Test
 import kotlin.test.assertContentEquals

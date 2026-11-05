@@ -1,8 +1,7 @@
 package com.eignex.koblas.consumer
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.BuiltinEngines
-import com.eignex.koblas.engine.Vendor
+import com.eignex.koblas.engine.*
 import kotlin.math.abs
 
 /** Checks the published dependency through its public API on each consuming runtime. */

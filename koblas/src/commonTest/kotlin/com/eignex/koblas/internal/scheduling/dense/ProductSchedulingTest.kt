@@ -1,20 +1,10 @@
 package com.eignex.koblas.internal.scheduling.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.RecordingProducts
-import com.eignex.koblas.dense.ReferenceBlas
-import com.eignex.koblas.dense.assertTriangleProductStaysInTriangle
-import com.eignex.koblas.dense.blockedDepth
-import com.eignex.koblas.dense.blockedOrder
-import com.eignex.koblas.dense.packedSquareOrder
-import com.eignex.koblas.dense.withEngines
-import com.eignex.koblas.dense.withProductKernels
+import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.BuiltinEngines
-import com.eignex.koblas.internal.engine.panelProvider
-import com.eignex.koblas.internal.engine.productProvider
-import com.eignex.koblas.internal.kernels.EngineKernels
-import com.eignex.koblas.internal.kernels.PACKED_PRODUCT_MINIMUM_WORK
-import com.eignex.koblas.internal.kernels.packsProductByWork
+import com.eignex.koblas.internal.engine.*
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import com.eignex.koblas.internal.kernels.scalar.dense.SCALAR_PRODUCT_TILE
 import com.eignex.koblas.internal.operations.staged

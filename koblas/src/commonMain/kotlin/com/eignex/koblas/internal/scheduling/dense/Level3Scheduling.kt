@@ -3,8 +3,7 @@
 package com.eignex.koblas.internal.scheduling.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.internal.operations.MatrixStructure
-import com.eignex.koblas.internal.operations.scaleRegion
+import com.eignex.koblas.internal.operations.*
 
 /*
  * Every entry point here runs inside its routine's preparation, which has already settled an empty

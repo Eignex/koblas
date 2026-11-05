@@ -1,8 +1,6 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.internal.storage.requireInBounds
-import com.eignex.koblas.internal.storage.requireNonNegativeShape
-import com.eignex.koblas.internal.storage.requireShape
+import com.eignex.koblas.internal.storage.*
 
 /**
  * Mutable column-major storage with unit row stride, shared by [DenseMatrix] and [DenseMatrixView].

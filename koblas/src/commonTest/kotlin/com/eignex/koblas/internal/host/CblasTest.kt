@@ -1,16 +1,10 @@
 package com.eignex.koblas.internal.host
 
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.ReferenceBlas
-import com.eignex.koblas.dense.assertIamaxHonoursItsContract
-import com.eignex.koblas.dense.assertShrinkingGerAgreesWithReference
+import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
-import com.eignex.koblas.internal.operations.absoluteSumVector
-import com.eignex.koblas.internal.operations.axpyVector
-import com.eignex.koblas.internal.operations.copyVector
-import com.eignex.koblas.internal.operations.dotVector
-import com.eignex.koblas.internal.operations.normVector
+import com.eignex.koblas.internal.operations.*
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test
