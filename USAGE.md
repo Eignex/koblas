@@ -14,7 +14,6 @@ Create a matrix from rows and a vector from a one-dimensional array:
 
 ```kotlin
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
 
 val a = DenseMatrix.ofRows(arrayOf(
@@ -25,7 +24,7 @@ val x = DenseVector.of(doubleArrayOf(3.0, 5.0))
 val b = DenseMatrix.diagonal(2) // Identity matrix
 
 val y = DenseVector.zero(a.rows)
-koblas.gemv(1.0, a, x, 0.0, y)
+koblas.gemv(1.0, a, x.values, x.offset, x.stride, 0.0, y.values, y.offset, y.stride)
 val product = DenseMatrix.zero(a.rows, b.cols)
 koblas.gemm(1.0, a, false, b, false, 0.0, product)
 val scaled = DenseVector.wrap(x.toDoubleArray()).also { it.scale(2.0) }
@@ -49,11 +48,12 @@ The names come from BLAS: GEMV means general matrix-vector multiplication, and G
 matrix-matrix multiplication.
 
 ```kotlin
-val destination = DenseVector.wrap(DoubleArray(a.rows))
-koblas.gemv(1.0, a, x, 0.0, destination) // y = a * x
+val destination = DoubleArray(a.rows)
+koblas.gemv(1.0, a, x.values, x.offset, x.stride, 0.0, destination, 0, 1) // y = a * x
 ```
 
-The fuller forms can scale the product and add it to the destination in one call. For matrices,
+Dense vector arguments specify their backing array, offset and stride. A whole array starts at zero
+with stride one. These calls can scale the product and add it to the destination in one call. For matrices,
 GEMM computes `c = alpha * a * b + beta * c` when neither operand is transposed. Pass a `Scratch`
 to reuse temporary buffers across calls:
 
@@ -100,20 +100,17 @@ matrices for singularity or poor conditioning.
 ## Java and mobile projects
 
 From Java, factories are static methods and container conveniences use `Koblas`.
-Dense operations use `DenseBlas`, with `Koblas.getDefault()` selecting the default engine.
-These functions have Java overloads for their optional parameters, so trailing defaults can be left out;
-`KoblasEngine` members take every argument:
+BLAS calls use `KoblasEngine` members, with `Koblas.getDefault()` selecting the default engine.
+Pass every argument from Java, including transpose flags and optional scratch:
 
 ```java
 import com.eignex.koblas.DenseMatrix;
-import com.eignex.koblas.DenseVector;
 import com.eignex.koblas.Koblas;
-import com.eignex.koblas.dense.DenseBlas;
 
 DenseMatrix a = DenseMatrix.ofRows(new double[][] {{2.0, 1.0}, {1.0, 3.0}});
-DenseVector x = DenseVector.of(new double[] {3.0, 5.0});
-DenseVector destination = DenseVector.wrap(new double[a.getRows()]);
-DenseBlas.gemv(Koblas.getDefault(), 1.0, a, x, 0.0, destination);
+double[] x = new double[] {3.0, 5.0};
+double[] destination = new double[a.getRows()];
+Koblas.getDefault().gemv(1.0, a, x, 0, 1, 0.0, destination, 0, 1, false, null);
 ```
 
 Android uses the same dependency as desktop JVM projects, with Java 17 bytecode support in your Android

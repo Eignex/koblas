@@ -34,15 +34,14 @@ On desktop JDK 25+, enable SIMD with `--add-modules=jdk.incubator.vector`.
 
 ```kotlin
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.*
 
 val a = DenseMatrix.ofRows(arrayOf(
     doubleArrayOf(2.0, 1.0),
     doubleArrayOf(1.0, 3.0),
 ))
-val x = DenseVector.of(doubleArrayOf(3.0, 5.0))
-val y = DenseVector.zero(a.rows)
-koblas.gemv(1.0, a, x, 0.0, y)
+val x = doubleArrayOf(3.0, 5.0)
+val y = DoubleArray(a.rows)
+koblas.gemv(1.0, a, x, 0, 1, 0.0, y, 0, 1)
 ```
 
 GEMV computes `y = alpha * a * x + beta * y` into the supplied destination.

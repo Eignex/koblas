@@ -32,12 +32,7 @@ class VectorOpsAllocationTest internal constructor(private val case: AllocationC
                         backing
                     }
                 },
-                with(SharedBufferFixture()) {
-                    AllocationCase("disjoint shared buffer vector swap allocates nothing", 1_000) {
-                        source.swap(destination)
-                        backing
-                    }
-                },
+
                 with(OverlappingFixture()) {
                     AllocationCase("overlapping contiguous copy allocates nothing", 1_000) {
                         destination.copyFrom(source)
@@ -47,8 +42,8 @@ class VectorOpsAllocationTest internal constructor(private val case: AllocationC
             ) + identicalMappingCases() + sparseViewCases(),
         )
 
-        // Copy and swap return on an identical mapping before anything depends on the stride, so one
-        // contiguous case each suffices; axpy reads the operand through its stride, so it also runs reversed.
+        // Copy returns on an identical mapping before anything depends on the stride, so one
+        // contiguous case suffices; axpy reads the operand through its stride, so it also runs reversed.
         private fun identicalMappingCases(): List<AllocationCase> = listOf(
             with(IdenticalMappingFixture(1)) {
                 AllocationCase("identical contiguous vector copy allocates nothing", 1_000) {
@@ -56,12 +51,7 @@ class VectorOpsAllocationTest internal constructor(private val case: AllocationC
                     backing
                 }
             },
-            with(IdenticalMappingFixture(1)) {
-                AllocationCase("identical contiguous vector swap allocates nothing", 1_000) {
-                    source.swap(destination)
-                    backing
-                }
-            },
+
         ) + intArrayOf(1, -3).map { stride ->
             with(IdenticalMappingFixture(stride)) {
                 AllocationCase("identical vector axpy at stride $stride allocates nothing", 1_000) {
@@ -86,7 +76,7 @@ class VectorOpsAllocationTest internal constructor(private val case: AllocationC
         val backing = DoubleArray(3 * n + 4) { it * 0.01 }
         val offset = if (stride > 0) 2 else 2 + (n - 1) * -stride
         val source = StridedVector(backing, offset, n, stride)
-        val destination = source.asView()
+        val destination = source.view(0, source.size)
     }
 
     private class SharedBufferFixture {

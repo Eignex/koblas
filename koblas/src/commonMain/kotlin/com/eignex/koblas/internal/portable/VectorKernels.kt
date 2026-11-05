@@ -26,20 +26,6 @@ internal fun portableAbsoluteSum(x: Vector): Double {
     return sum
 }
 
-internal fun portableMaxAbs(x: Vector): Int {
-    if (x.size == 0) return -1
-    var best = 0
-    var bestAbs = 0.0
-    x.forEachStored { i, value ->
-        val magnitude = abs(value)
-        if (magnitude > bestAbs) {
-            bestAbs = magnitude
-            best = i
-        }
-    }
-    return best
-}
-
 /** Assignment is required here: scaling by zero need not erase nonfinite entries or negative zeros. */
 internal fun zeroVector(values: DoubleArray, offset: Int, size: Int, stride: Int) {
     if (stride == 1) {

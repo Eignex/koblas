@@ -12,7 +12,6 @@ import com.eignex.koblas.internal.portable.PortableEngine
 import com.eignex.koblas.partialPanelWidth
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.sparse.*
-import com.eignex.koblas.sparse.ReferenceSparseBlas
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals

@@ -3,7 +3,6 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.engineWithKernels
 import com.eignex.koblas.internal.engine.*
@@ -38,9 +37,9 @@ class SparseOpsTest {
             val size = nnz * 8
             val x = randomSparseVector(size, nnz, rng)
             val y = randomVector(size, rng)
-            val expected = BuiltinEngines.scalar.dot(x, y)
+            val expected = BuiltinEngines.scalar.dot(x.indices, 0, x.values, 0, x.values.size, y)
 
-            val actual = koblas.dot(x, y)
+            val actual = koblas.dot(x.indices, 0, x.values, 0, x.values.size, y)
 
             // A vectorized reduction sums lanes in a different order, so the bound scales with the count.
             assertTrue(
@@ -48,13 +47,6 @@ class SparseOpsTest {
                 "nnz=$nnz: $actual vs $expected",
             )
         }
-    }
-
-    @Test
-    fun `dot rejects a dense operand of the wrong length`() {
-        val x = randomSparseVector(32, 4, Random(4))
-
-        assertFailsWith<DimensionMismatch> { koblas.dot(x, DoubleArray(x.size + 1)) }
     }
 
     @Test
@@ -84,8 +76,8 @@ class SparseOpsTest {
             }
             val kernels = engineWithKernels(vectors = selected)
 
-            kernels.nrm2(x)
-            kernels.asum(x)
+            kernels.normVector(x)
+            kernels.absoluteSumVector(x)
 
             assertEquals(listOf(EngineImplementation.Nrm2, EngineImplementation.Asum), calls, "count=$count")
         }
@@ -136,7 +128,7 @@ class SparseOpsTest {
         val destination = doubleArrayOf(Double.NaN, -0.0)
         val poisoned = SparseVector.of(2, intArrayOf(0, 1), doubleArrayOf(Double.POSITIVE_INFINITY, Double.NaN))
 
-        koblas.axpy(destination, -0.0, poisoned)
+        DenseVector.wrap(destination).axpy(-0.0, poisoned)
 
         assertTrue(destination[0].isNaN())
         assertEquals((-0.0).toBits(), destination[1].toBits())
@@ -152,25 +144,6 @@ class SparseOpsTest {
         assertEquals((-0.0).toBits(), destination[0].toBits())
         assertTrue(destination[1].isNaN())
         assertEquals(Double.NEGATIVE_INFINITY, destination[2])
-    }
-
-    @Test
-    fun `container operations agree with raw indexed operations`() {
-        val x = SparseVector.of(6, intArrayOf(1, 4), doubleArrayOf(2.0, -3.0))
-        val dense = doubleArrayOf(1.0, 5.0, 2.0, 3.0, 7.0, 4.0)
-        val containerUpdate = dense.copyOf()
-        val rawUpdate = dense.copyOf()
-        val containerScatter = DoubleArray(6)
-        val rawScatter = DoubleArray(6)
-
-        koblas.axpy(containerUpdate, 0.25, x)
-        koblas.axpy(x.indices, 0, x.values, 0, x.values.size, 0.25, rawUpdate)
-        koblas.scatter(x, containerScatter)
-        koblas.scatter(x.indices, 0, x.values, 0, x.values.size, rawScatter)
-
-        assertEquals(koblas.dot(x, dense), koblas.dot(x.indices, 0, x.values, 0, x.values.size, dense))
-        assertContentEquals(containerUpdate, rawUpdate)
-        assertContentEquals(containerScatter, rawScatter)
     }
 
     // Column dots.

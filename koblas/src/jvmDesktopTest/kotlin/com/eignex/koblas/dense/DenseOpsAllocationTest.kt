@@ -2,6 +2,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.engine.dotVector
 import com.eignex.koblas.testutil.allocation.ARRAY_HEADER_BYTES
 import com.eignex.koblas.testutil.allocation.AllocationCase
 import com.eignex.koblas.testutil.allocation.FLOOR_BYTES
@@ -29,59 +30,90 @@ class DenseOpsAllocationTest internal constructor(private val case: AllocationCa
 
         private fun levelTwoCases(): List<AllocationCase> = listOf(
             with(StridedDotFixture()) {
-                AllocationCase("strided dense dot allocates nothing", 1_000) { engine.dot(x, y) }
+                AllocationCase("strided dense dot allocates nothing", 1_000) { engine.dotVector(x, y) }
             },
             with(DenseLevelTwoFixture()) {
                 AllocationCase("dense gemv allocates nothing", 400) {
-                    portable.gemv(1e-12, a, x, 1.0, y)
+                    portable.gemv(1e-12, a, x, 0, 1, 1.0, y, 0, 1)
                     y
                 }
             },
             with(DenseLevelTwoFixture()) {
                 AllocationCase("transposed dense gemv allocates nothing", 400) {
-                    portable.gemv(1e-12, a, x, 1.0, y, transpose = true)
+                    portable.gemv(
+                        1e-12,
+                        a,
+                        x,
+                        0,
+                        1,
+                        1.0,
+                        y,
+                        0,
+                        1,
+                        transpose = true,
+                    )
                     y
                 }
             },
             with(DenseLevelTwoFixture()) {
                 AllocationCase("dense symv allocates nothing", 400) {
-                    portable.symv(1e-12, a, x, 1.0, y)
+                    portable.symv(1e-12, a, x, 0, 1, 1.0, y, 0, 1)
                     y
                 }
             },
             with(DenseLevelTwoFixture()) {
                 AllocationCase("dense ger allocates nothing", 400) {
-                    portable.ger(1e-12, x, y, a)
+                    portable.ger(1e-12, x, 0, 1, y, 0, 1, a)
                     a
                 }
             },
             with(DenseLevelTwoFixture()) {
                 AllocationCase("dense syr allocates nothing", 400) {
-                    portable.syr(1e-12, view, a)
+                    portable.syr(1e-12, view.values, view.offset, view.stride, a)
                     a
                 }
             },
             with(DenseLevelTwoFixture()) {
                 AllocationCase("dense trmv allocates nothing", 400) {
-                    portable.trmv(triangle, y, lower = true)
+                    portable.trmv(triangle, y, 0, 1, lower = true)
                     y
                 }
             },
             with(DenseLevelTwoFixture()) {
                 AllocationCase("dense trsv allocates nothing", 400) {
-                    portable.trsv(triangle, y, lower = true)
+                    portable.trsv(triangle, y, 0, 1, lower = true)
                     y
                 }
             },
             with(ContiguousFixture()) {
                 AllocationCase("contiguous gemv allocates nothing", 1_000) {
-                    koblas.gemv(1e-12, a, contiguous, 1.0, destination)
+                    koblas.gemv(
+                        1e-12,
+                        a,
+                        contiguous.values,
+                        contiguous.offset,
+                        contiguous.stride,
+                        1.0,
+                        destination.values,
+                        destination.offset,
+                        destination.stride,
+                    )
                     destination
                 }
             },
             with(ContiguousFixture()) {
                 AllocationCase("contiguous symv allocates nothing", 1_000) {
-                    koblas.symv(1e-12, a, contiguous, 1.0, destination)
+                    koblas.symv(
+                        1e-12,
+                        a,
+                        contiguous.values,
+                        contiguous.offset,
+                        contiguous.stride,
+                        1.0,
+                        destination.values,
+                        destination.offset,
+                        destination.stride,
+                    )
                     destination
                 }
             },
@@ -90,19 +122,52 @@ class DenseOpsAllocationTest internal constructor(private val case: AllocationCa
         private fun workspaceCases(): List<AllocationCase> = listOf(
             with(AliasedLevelTwoFixture()) {
                 AllocationCase("aliased dense gemv reuses a workspace", 400) {
-                    portable.gemv(1e-12, a, y, 1.0, y, scratch = workspace)
+                    portable.gemv(
+                        1e-12,
+                        a,
+                        y,
+                        0,
+                        1,
+                        1.0,
+                        y,
+                        0,
+                        1,
+                        scratch = workspace,
+                    )
                     y
                 }
             },
             with(AliasedLevelTwoFixture()) {
                 AllocationCase("aliased dense symv reuses a workspace", 400) {
-                    portable.symv(1e-12, a, y, 1.0, y, scratch = workspace)
+                    portable.symv(
+                        1e-12,
+                        a,
+                        y,
+                        0,
+                        1,
+                        1.0,
+                        y,
+                        0,
+                        1,
+                        scratch = workspace,
+                    )
                     y
                 }
             },
             with(StridedOperandFixture()) {
                 AllocationCase("a strided operand lent a workspace allocates nothing", 1_000) {
-                    koblas.gemv(1e-12, a, strided, 1.0, destination, scratch = workspace)
+                    koblas.gemv(
+                        1e-12,
+                        a,
+                        strided.values,
+                        strided.offset,
+                        strided.stride,
+                        1.0,
+                        destination.values,
+                        destination.offset,
+                        destination.stride,
+                        scratch = workspace,
+                    )
                     destination
                 }
             },
@@ -148,7 +213,17 @@ class DenseOpsAllocationTest internal constructor(private val case: AllocationCa
             with(StridedOperandFixture()) {
                 val oneGather = n * Double.SIZE_BYTES + ARRAY_HEADER_BYTES
                 AllocationCase("a strided operand is gathered once per call", 1_000, oneGather + FLOOR_BYTES) {
-                    koblas.gemv(1e-12, a, strided, 1.0, destination)
+                    koblas.gemv(
+                        1e-12,
+                        a,
+                        strided.values,
+                        strided.offset,
+                        strided.stride,
+                        1.0,
+                        destination.values,
+                        destination.offset,
+                        destination.stride,
+                    )
                     destination
                 }
             },
@@ -196,7 +271,18 @@ class DenseOpsAllocationTest internal constructor(private val case: AllocationCa
         val destination = DenseVector.wrap(DoubleArray(n))
         val workspace = Scratch()
         init {
-            koblas.gemv(1e-12, a, strided, 1.0, destination, scratch = workspace)
+            koblas.gemv(
+                1e-12,
+                a,
+                strided.values,
+                strided.offset,
+                strided.stride,
+                1.0,
+                destination.values,
+                destination.offset,
+                destination.stride,
+                scratch = workspace,
+            )
         }
     }
 
@@ -207,7 +293,18 @@ class DenseOpsAllocationTest internal constructor(private val case: AllocationCa
         val y = DoubleArray(n) { 1.0 + (it % 7) * 0.25 }
         val workspace = Scratch()
         init {
-            portable.gemv(1e-12, a, y, 1.0, y, scratch = workspace)
+            portable.gemv(
+                1e-12,
+                a,
+                y,
+                0,
+                1,
+                1.0,
+                y,
+                0,
+                1,
+                scratch = workspace,
+            )
         }
     }
 

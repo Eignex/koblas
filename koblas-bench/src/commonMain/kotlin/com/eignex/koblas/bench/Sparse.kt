@@ -1,4 +1,9 @@
+@file:OptIn(com.eignex.koblas.UnsafeKoblasApi::class)
+
 package com.eignex.koblas.bench
+
+import com.eignex.koblas.internal.engine.absoluteSumVector
+import com.eignex.koblas.internal.engine.normVector
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
@@ -40,7 +45,7 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
         "spdot-slice", "spaxpy-slice", "spscatter-slice" -> sparseSlicesArm(case, engine)
         "spdot" -> {
             val x = Fixtures.sparseVector(d[0], density, 1); val y = Fixtures.vector(d[0], 2)
-            arm(x.values.size, "arithmetic") { kernels.dot(x, y) }
+            arm(x.values.size, "arithmetic") { kernels.dot(x.indices, 0, x.values, 0, x.values.size, y) }
         }
         "spdot-raw" -> {
             val x = Fixtures.sparseVector(d[0], density, 1); val y = Fixtures.vector(d[0], 2)
@@ -51,12 +56,12 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
         }
         "spdot-sparse" -> {
             val x = Fixtures.sparseVector(d[0], density, 1); val y = Fixtures.sparseVector(d[0], density, 2)
-            arm(x.values.size, "arithmetic") { kernels.dot(x, y) }
+            arm(x.values.size, "arithmetic") { kernels.dot(x.indices, 0, x.values, 0, x.values.size, y.indices, 0, y.values, 0, y.values.size) }
         }
         "spaxpy" -> {
             val x = Fixtures.sparseVector(d[0], density, 1); val y0 = Fixtures.vector(d[0], 2); val y = y0.copyOf()
             arm(x.values.size, "reset-and-arithmetic") {
-                y0.copyInto(y); kernels.axpy(y, 0.875, x); y[0]
+                y0.copyInto(y); kernels.axpy(x.indices, 0, x.values, 0, x.values.size, 0.875, y); y[0]
             }
         }
         "spaxpy-raw" -> {
@@ -72,7 +77,7 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
             val x = Fixtures.sparseVector(d[0], density, 1)
             val norm = case.operation == "spnrm2"
             arm(x.values.size, "arithmetic") {
-                if (norm) kernels.nrm2(x) else kernels.asum(x)
+                if (norm) kernels.normVector(x) else kernels.absoluteSumVector(x)
             }
         }
         "spscatter-raw" -> {
@@ -101,7 +106,7 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
             val scatter = case.operation == "spscatter"
             arm(x.values.size, "reset-and-arithmetic") {
                 values0.copyInto(x.values); dense0.copyInto(dense)
-                if (scatter) kernels.scatter(x, dense) else kernels.gatherZero(indices, 0, x.values, 0, x.values.size, dense)
+                if (scatter) kernels.scatter(x.indices, 0, x.values, 0, x.values.size, dense) else kernels.gatherZero(indices, 0, x.values, 0, x.values.size, dense)
                 x.values.firstOrNull() ?: dense[0]
             }
         }
@@ -151,7 +156,7 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             ) { y0.copyInto(y); engine.gemv(alpha, a, x, beta, y, transpose); y[0] }
         }
 
-        "spmm", "spmm-generic" -> {
+        "spmm" -> {
             val (m, n, k) = d
             val a = Fixtures.sparse(if (transpose) k else m, if (transpose) m else k, density, 1, support = support)
             // Transposed storage puts the right-hand sides in adjacent rows. The seeded fixture is
@@ -160,37 +165,22 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             val c0 = Fixtures.matrix(m, n, 3)
             val c = Fixtures.matrix(m, n, 3)
             val expected = DenseReference.gemm(alpha, SparseReference.dense(a), transpose, b, transposeDense, beta, c0)
-            if (case.operation == "spmm-generic") {
-                genericArm(
-                    case, engine,
-                    verify = {
-                        c0.values.copyInto(c.values)
-                        engine.gemm(alpha, a as Matrix, transpose, b as Matrix, transposeDense, beta, c, scratch = scratch)
-                        DenseReference.check(expected, c.values, "${case.id} generic product")
-                    },
-                ) {
-                    c0.values.copyInto(c.values)
-                    engine.gemm(alpha, a as Matrix, transpose, b as Matrix, transposeDense, beta, c, scratch = scratch)
-                    c.values[0]
-                }
-            } else {
-                arm(
-                    verify = {
-                        c0.values.copyInto(c.values)
-                        engine.gemm(alpha, a, transpose, b, transposeDense, beta, c, scratch = scratch)
-                        DenseReference.check(expected, c.values, "${case.id} product")
-                    },
-                ) {
+            arm(
+                verify = {
                     c0.values.copyInto(c.values)
                     engine.gemm(alpha, a, transpose, b, transposeDense, beta, c, scratch = scratch)
-                    c.values[0]
-                }
+                    DenseReference.check(expected, c.values, "${case.id} product")
+                },
+            ) {
+                c0.values.copyInto(c.values)
+                engine.gemm(alpha, a, transpose, b, transposeDense, beta, c, scratch = scratch)
+                c.values[0]
             }
+
+
         }
 
-        // The mirror of spmm on an exact arm: a dense operand on the left of the sparse one, through the
-        // engine the row is published under rather than through the generic entry point, which has no
-        // engine to be told and is a default-policy row.
+        // The right-side form multiplies a dense operand by the sparse one on the selected engine.
         "spmm-right" -> {
             val (m, n, k) = d
             val a = Fixtures.sparse(
@@ -224,30 +214,7 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             }
         }
 
-        // The mirror of spmm: a dense operand on the left of the sparse one, through the same generic call.
-        // op(A) is m by k whichever way the sparse operand is stored, so the dense operand is n by m and the
-        // destination n by k.
-        "spmm-generic-right" -> {
-            val (m, n, k) = d
-            val a = Fixtures.sparse(if (transpose) k else m, if (transpose) m else k, density, 1, support = support)
-            val leftDense = Fixtures.matrix(n, m, 2)
-            val mirror0 = Fixtures.matrix(n, k, 3)
-            val mirror = Fixtures.matrix(n, k, 3)
-            val expected =
-                DenseReference.gemm(alpha, leftDense, false, SparseReference.dense(a), transpose, beta, mirror0)
-            genericArm(
-                case, engine,
-                verify = {
-                    mirror0.values.copyInto(mirror.values)
-                    engine.gemm(alpha, leftDense as Matrix, false, a as Matrix, transpose, beta, mirror, scratch = scratch)
-                    DenseReference.check(expected, mirror.values, "${case.id} generic product")
-                },
-            ) {
-                mirror0.values.copyInto(mirror.values)
-                engine.gemm(alpha, leftDense as Matrix, false, a as Matrix, transpose, beta, mirror, scratch = scratch)
-                mirror.values[0]
-            }
-        }
+
 
         "spsymv" -> {
             val a = Fixtures.sparse(d[0], d[0], density, 1, triangular = true, lower = lower, support = support)
@@ -370,16 +337,3 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
 /** A timed row for a sparse matrix call on [engine], refused when one of the case's extents is empty. */
 private fun publish(engine: KoblasEngine, case: BenchCase, timing: String, verify: () -> Unit, run: () -> Double) =
     level23(engine, case, timing, verify, run)?.let { ArmChoice(it, null) } ?: declined()
-
-/**
- * A row for the common `Matrix` product, which is a default-policy measurement rather than an exact arm.
- *
- * The generic entry point uses the platform-selected engine, so its timing mode keeps it apart from the
- * exact rows of the same operation.
- */
-private fun genericArm(
-    case: BenchCase,
-    engine: KoblasEngine,
-    verify: () -> Unit,
-    run: () -> Double,
-): ArmChoice = publish(engine, case, "oneshot-generic", verify, run)

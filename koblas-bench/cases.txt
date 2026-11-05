@@ -77,10 +77,6 @@ spgather-zero+4096+sparse-uniform+density=0.01
 spgemv+257x129+sparse-uniform+density=0.01+mode=oneshot
 spgemv+257x129+sparse-uniform+density=0.01+mode=oneshot+transA=T
 spmm+257x8x129+sparse-uniform+density=0.01+mode=oneshot
-spmm-generic+257x8x129+sparse-uniform+density=0.01+mode=oneshot
-spmm-generic+257x8x129+sparse-uniform+density=0.01+mode=oneshot+transA=T
-spmm-generic-right+257x8x129+sparse-uniform+density=0.01+mode=oneshot
-spmm-generic-right+257x8x129+sparse-uniform+density=0.01+mode=oneshot+transA=T
 spsymv+129+sparse-triangular+density=0.02+mode=oneshot+uplo=L
 spsymm+129x8+sparse-triangular+density=0.02+mode=oneshot+side=L+uplo=L
 spsymm+8x129+sparse-triangular+density=0.02+mode=oneshot+side=R+uplo=U
@@ -149,7 +145,6 @@ gemm+1024x8x1024+uniform
 gemm+8x1024x1024+uniform
 gemm+64x64x128+uniform
 gemm+64x64x129+uniform
-gemm-generic+256x256x256+uniform
 # A thin right operand, where the reduction's coefficient column is strided and gathering it once is the
 # only copy worth making. Paired with the same work stored the other way round, which needs no gather.
 gemm+256x2x512+uniform+transA=T+transB=T
@@ -342,8 +337,6 @@ copy-overlap+64+uniform
 copy-overlap+4096+uniform
 axpy-views+64+uniform
 axpy-views+4096+uniform
-swap-views+64+uniform
-swap-views+4096+uniform
 spdot-view+64+sparse-uniform+density=0.01
 spdot-view+4096+sparse-uniform+density=0.01
 spdot-view+64+sparse-uniform+density=1.0

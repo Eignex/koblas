@@ -32,8 +32,8 @@ object ConsumerCheck {
                 val gram = DenseMatrix.zero(cols, cols)
                 val expectedGram = referenceProduct(a, a, transposeA = true)
                 repeat(8) {
-                    engine.gemv(1.0, a, x, 0.0, y, scratch = scratch)
-                    engine.gemv(1.0, a, y, 0.0, transposed, transpose = true, scratch = scratch)
+                    engine.gemv(1.0, a, x, 0, 1, 0.0, y, 0, 1, scratch = scratch)
+                    engine.gemv(1.0, a, y, 0, 1, 0.0, transposed, 0, 1, transpose = true, scratch = scratch)
                     engine.gemm(1.0, a, true, a, false, 0.0, gram, scratch = scratch)
                     assertAgreesWithReference(expectedY, y)
                     assertAgreesWithReference(expectedTransposed, transposed)
@@ -43,14 +43,14 @@ object ConsumerCheck {
             val matrix = DenseMatrix.wrap(2, 2, doubleArrayOf(2.0, 3.0, 5.0, 7.0))
             val storage = doubleArrayOf(2.0, 3.0)
             val expected = referenceGemv(matrix, storage.copyOf())
-            engine.gemv(1.0, matrix, storage, 0.0, storage, scratch = scratch)
+            engine.gemv(1.0, matrix, storage, 0, 1, 0.0, storage, 0, 1, scratch = scratch)
             assertAgreesWithReference(expected, storage)
             val source = SparseMatrix.ofTriplets(2, 2, intArrayOf(0, 1), intArrayOf(0, 1), doubleArrayOf(2.0, 3.0))
-            val sparse: Matrix = source
-            val identity: Matrix = DenseMatrix.diagonal(2)
+            val sparse = source
+            val identity = DenseMatrix.diagonal(2)
             val parent = DenseMatrix.wrap(6, 6, DoubleArray(36) { -99.0 })
             val destination = parent.view(2, 3, 2, 2)
-            val expectedProduct = referenceProduct(DenseMatrix.ofRows(source.toArray()), identity as DenseMatrix)
+            val expectedProduct = referenceProduct(DenseMatrix.ofRows(source.toArray()), identity)
             engine.gemm(1.0, sparse, false, identity, false, 0.0, destination, scratch = scratch)
             for (j in 0 until 6) for (i in 0 until 6) {
                 val expectedEntry = if (i in 2..3 && j in 3..4) expectedProduct[i - 2, j - 3] else -99.0
@@ -59,7 +59,7 @@ object ConsumerCheck {
             val reversed = StridedVector(doubleArrayOf(3.0, 0.0, 2.0), 2, 2, -2)
             val output = DoubleArray(5) { -99.0 }
             val outputView = StridedVector(output, 3, 2, -2)
-            engine.gemv(1.0, matrix, reversed, 0.0, outputView, scratch = scratch)
+            engine.gemv(1.0, matrix, reversed.values, reversed.offset, reversed.stride, 0.0, outputView.values, outputView.offset, outputView.stride, scratch = scratch)
             val expectedStrided = referenceGemv(matrix, reversed.toDoubleArray())
             assertAgreesWithReference(doubleArrayOf(-99.0, expectedStrided[1], -99.0, expectedStrided[0], -99.0), output)
         }

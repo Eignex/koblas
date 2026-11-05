@@ -76,17 +76,6 @@ public class DenseMatrix internal constructor(
             return DenseMatrix(r, c, flat)
         }
 
-        /** Copy an `Array<DoubleArray>` of columns into a fresh dense matrix, so columns(j) is column j. */
-        @JvmStatic
-        public fun ofColumns(columns: Array<DoubleArray>): DenseMatrix {
-            val c = columns.size
-            val r = if (c == 0) 0 else columns[0].size
-            requireShape(columns.all { it.size == r }) { "all columns must have the same length" }
-            val flat = DoubleArray(entryCount(r, c))
-            for (j in 0 until c) columns[j].copyInto(flat, j * r)
-            return DenseMatrix(r, c, flat)
-        }
-
         /** Create a zero matrix of shape [rows] x [cols], square when [cols] is omitted. */
         @JvmStatic
         @JvmOverloads
@@ -98,15 +87,6 @@ public class DenseMatrix internal constructor(
         public fun diagonal(size: Int, diagonal: Double = 1.0): DenseMatrix {
             val m = DenseMatrix(size, size)
             for (i in 0 until size) m[i, i] = diagonal
-            return m
-        }
-
-        /** Create the square matrix whose diagonal is [values]. */
-        @JvmStatic
-        public fun diagonal(values: DoubleArray): DenseMatrix {
-            val n = values.size
-            val m = DenseMatrix(n, n)
-            for (i in 0 until n) m.values[i + i * n] = values[i]
             return m
         }
 

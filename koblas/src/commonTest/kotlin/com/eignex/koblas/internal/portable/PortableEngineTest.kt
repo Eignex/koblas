@@ -101,22 +101,44 @@ class PortableEngineTest {
                     when (operation) {
                         Gemv -> {
                             ReferenceBlas.gemv(0.75, a, x.values, -0.5, expected, transpose)
-                            PortableEngine.gemv(0.75, a, x, -0.5, actual, transpose)
+                            PortableEngine.gemv(
+                                0.75,
+                                a,
+                                x.values,
+                                x.offset,
+                                x.stride,
+                                -0.5,
+                                actual.values,
+                                actual.offset,
+                                actual.stride,
+                                transpose,
+                            )
                         }
 
                         Symv -> {
                             ReferenceBlas.symv(0.75, a, x.values, -0.5, expected, lower)
-                            PortableEngine.symv(0.75, a, x, -0.5, actual, lower)
+                            PortableEngine.symv(
+                                0.75,
+                                a,
+                                x.values,
+                                x.offset,
+                                x.stride,
+                                -0.5,
+                                actual.values,
+                                actual.offset,
+                                actual.stride,
+                                lower,
+                            )
                         }
 
                         Trsv -> {
                             ReferenceBlas.trsv(a, expected, lower, transpose)
-                            PortableEngine.trsv(a, actual, lower, transpose)
+                            PortableEngine.trsv(a, actual.values, actual.offset, actual.stride, lower, transpose)
                         }
 
                         Trmv -> {
                             ReferenceBlas.trmv(a, expected, lower, transpose)
-                            PortableEngine.trmv(a, actual, lower, transpose)
+                            PortableEngine.trmv(a, actual.values, actual.offset, actual.stride, lower, transpose)
                         }
 
                         else -> error("Unexpected operation $operation")
@@ -130,17 +152,27 @@ class PortableEngineTest {
                 when (operation) {
                     Ger -> {
                         ReferenceBlas.ger(0.75, x.values, y.values, expected)
-                        PortableEngine.ger(0.75, x, y, actual)
+                        PortableEngine.ger(0.75, x.values, x.offset, x.stride, y.values, y.offset, y.stride, actual)
                     }
 
                     Syr -> {
                         ReferenceBlas.syr(0.75, x, expected, lower)
-                        PortableEngine.syr(0.75, x, actual, lower)
+                        PortableEngine.syr(0.75, x.values, x.offset, x.stride, actual, lower)
                     }
 
                     Syr2 -> {
                         ReferenceBlas.syr2(0.75, x, y, expected, lower)
-                        PortableEngine.syr2(0.75, x, y, actual, lower)
+                        PortableEngine.syr2(
+                            0.75,
+                            x.values,
+                            x.offset,
+                            x.stride,
+                            y.values,
+                            y.offset,
+                            y.stride,
+                            actual,
+                            lower,
+                        )
                     }
 
                     else -> error("Unexpected operation $operation")

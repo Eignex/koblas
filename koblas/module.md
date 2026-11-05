@@ -22,8 +22,8 @@ No sparse operand is densified. Products of two sparse matrices are unsupported.
 
 # Package com.eignex.koblas.dense
 
-Dense routines over matrices, views and vector windows with offsets, column spacing and signed strides. `gemmt` is
-the triangle-selected product Netlib calls `GEMMTR`.
+Windowed rank updates into dense matrix regions through [ger]. Other dense BLAS routines are members of
+[KoblasEngine][com.eignex.koblas.KoblasEngine]; `gemmt` is the triangle-selected product Netlib calls `GEMMTR`.
 
 # Package com.eignex.koblas.engine
 
@@ -31,6 +31,6 @@ Exact engines, standard profiles, host platform facts and vendor metadata.
 
 # Package com.eignex.koblas.sparse
 
-Sparse routines over validated CSC storage: an absent position is never evaluated, and a stored zero is multiplied
-wherever the reference BLAS routine would multiply it.
+The [dotColumn] helper reuses validated CSC support without allocating a column view. Sparse BLAS routines
+are members of [KoblasEngine][com.eignex.koblas.KoblasEngine]: absent positions are never evaluated.
 

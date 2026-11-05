@@ -4,10 +4,7 @@
 
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.*
-import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.engine.*
-import com.eignex.koblas.sparse.*
 
 /**
  * Visit each stored entry as (index, value), in ascending index order for any storage. A [SparseVector]
@@ -56,20 +53,6 @@ public fun Vector.sum(): Double = koblas.sumVector(this)
 public fun Vector.asum(): Double = koblas.absoluteSumVector(this)
 
 /**
- * Zero-based logical index of the maximum absolute value (BLAS `idamax`), or `-1` when empty.
- * Dense vectors use [KoblasEngine.iamax]; sparse vectors visit only their stored entries.
- * All-zero nonempty inputs return `0`, as do sparse inputs whose maximum is an implicit zero. Strided views
- * report their logical index rather than a backing-array offset.
- *
- * Which index is returned when the maximum is not unique, and what happens when the largest magnitude is a
- * NaN, is the selected implementation's. `idamax` specifies neither: the portable kernels compare strictly, so
- * ties go to the first and a NaN loses to a later finite entry, while a vendor may report the NaN's index
- * instead. A caller that needs one of those answers specifically has to test for it rather than infer it from
- * this routine.
- */
-public fun Vector.iamax(): Int = koblas.maxAbsVector(this)
-
-/**
  * `this = src` (BLAS `dcopy`). A sparse source zero-fills this vector first, so nothing survives.
  * Identical dense mappings are a no-op. Portable contiguous copies use an overlap-safe block move;
  * other overlapping sources are snapshotted before writing.
@@ -79,22 +62,6 @@ public fun Vector.iamax(): Int = koblas.maxAbsVector(this)
  * contiguous destination and a borrowed slice of a longer buffer are the same call.
  */
 public fun DenseVector.copyFrom(src: Vector): Unit = koblas.copyVector(src, this)
-
-/**
- * Exchange the contents of this vector and [other] (BLAS `dswap`), including rows and columns of a dense
- * matrix.
- *
- * Identical mappings are a no-op. Other overlapping operands are snapshotted; at a shared physical entry
- * the final write is from [other].
- */
-public fun DenseVector.swap(other: DenseVector): Unit = koblas.swap(this, other)
-
-/**
- * Applies a plane rotation to this vector `x` and [y]: `(x(i), y(i)) = (c*x(i) + s*y(i), c*y(i) - s*x(i))`
- * (BLAS `drot`).
- * Negative strides are supported. Overlaps are snapshotted; at a shared entry the final write is from [y].
- */
-public fun DenseVector.rot(y: DenseVector, c: Double, s: Double): Unit = koblas.rot(this, y, c, s)
 
 /**
  * `y = y + alpha * x`. A sparse `x` touches only the positions it stores. A dense [x] with an identical
@@ -110,7 +77,7 @@ public fun DenseVector.axpy(alpha: Double, x: Vector): Unit = koblas.axpyVector(
  * A zero multiplier zeroes the vector rather than necessarily multiplying through it. BLAS does not require
  * the operand to be read at all in that case, and a library that writes zeros directly turns an entry holding
  * a NaN, an infinity, or a negative zero into a positive zero instead of into the product. Which of the two a
- * caller sees is the selected implementation's, as it is for [iamax].
+ * caller sees is the selected implementation's, as it is for [KoblasEngine.iamax].
  */
 public fun DenseVector.scale(alpha: Double) {
     if (alpha == 1.0) return

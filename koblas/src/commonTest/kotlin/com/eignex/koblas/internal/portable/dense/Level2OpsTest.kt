@@ -36,7 +36,7 @@ class Level2OpsTest {
                         val x = DoubleArray(n)
                         ReferenceBlas.gemv(1.0, explicit, xTrue, 0.0, x, transpose)
 
-                        blas.trsv(t, x, lower, transpose, unitDiag)
+                        blas.trsv(t, x, 0, 1, lower, transpose, unitDiag)
 
                         assertClose(
                             xTrue,
@@ -63,7 +63,7 @@ class Level2OpsTest {
                         ReferenceBlas.gemv(1.0, explicit, x, 0.0, expected, transpose)
                         val actual = x.copyOf()
 
-                        blas.trmv(t, actual, lower, transpose, unitDiag)
+                        blas.trmv(t, actual, 0, 1, lower, transpose, unitDiag)
 
                         assertClose(expected, actual, "trmv n=$n lower=$lower t=$transpose unit=$unitDiag")
                     }
@@ -87,7 +87,7 @@ class Level2OpsTest {
                         ReferenceBlas.gemv(alpha, full, x, beta, expected)
                         val actual = y0.copyOf()
 
-                        blas.symv(alpha, poisoned, x, beta, actual, lower)
+                        blas.symv(alpha, poisoned, x, 0, 1, beta, actual, 0, 1, lower)
 
                         assertClose(expected, actual, "symv n=$n a=$alpha b=$beta lower=$lower")
                     }
@@ -112,7 +112,7 @@ class Level2OpsTest {
                         ReferenceBlas.gemv(0.875, a, x, beta, expected, transpose)
                         val actual = y0.copyOf()
 
-                        blas.gemv(0.875, a, x, beta, actual, transpose)
+                        blas.gemv(0.875, a, x, 0, 1, beta, actual, 0, 1, transpose)
 
                         assertClose(expected, actual, "gemv group=$group rows=$rows t=$transpose beta=$beta")
                     }
@@ -135,7 +135,7 @@ class Level2OpsTest {
                     ReferenceBlas.symv(0.875, a, x, -0.25, expected, lower)
                     val actual = y0.copyOf()
 
-                    blas.symv(0.875, a, x, -0.25, actual, lower)
+                    blas.symv(0.875, a, x, 0, 1, -0.25, actual, 0, 1, lower)
 
                     assertClose(expected, actual, "symv group=$group n=$n lower=$lower")
                 }
@@ -156,19 +156,36 @@ class Level2OpsTest {
                     val expected = start.copyOf()
                     ReferenceBlas.syr(0.875, DenseVector.wrap(x), expected, lower)
                     val actual = start.copyOf()
-                    blas.syr(0.875, DenseVector.wrap(x), actual, lower)
+                    blas.syr(
+                        0.875,
+                        x,
+                        0,
+                        1,
+                        actual,
+                        lower,
+                    )
                     assertClose(expected, actual, "syr group=$group n=$n lower=$lower")
 
                     val expectedTwo = start.copyOf()
                     ReferenceBlas.syr2(0.875, DenseVector.wrap(x), DenseVector.wrap(y), expectedTwo, lower)
                     val actualTwo = start.copyOf()
-                    blas.syr2(0.875, DenseVector.wrap(x), DenseVector.wrap(y), actualTwo, lower)
+                    blas.syr2(
+                        0.875,
+                        x,
+                        0,
+                        1,
+                        y,
+                        0,
+                        1,
+                        actualTwo,
+                        lower,
+                    )
                     assertClose(expectedTwo, actualTwo, "syr2 group=$group n=$n lower=$lower")
                 }
                 val expectedGer = start.copyOf()
                 ReferenceBlas.ger(0.875, x, y, expectedGer)
                 val actualGer = start.copyOf()
-                blas.ger(0.875, x, y, actualGer)
+                blas.ger(0.875, x, 0, 1, y, 0, 1, actualGer)
                 assertClose(expectedGer, actualGer, "ger group=$group n=$n")
             }
         }
@@ -191,7 +208,7 @@ class Level2OpsTest {
                 ReferenceBlas.syr(0.875, dense, expected, lower)
                 val actual = start.copyOf()
 
-                blas.syr(0.875, view, actual, lower)
+                blas.syr(0.875, view.values, view.offset, view.stride, actual, lower)
 
                 assertClose(expected, actual, "strided syr stride=$stride lower=$lower")
             }

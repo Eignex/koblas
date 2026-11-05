@@ -153,11 +153,9 @@ class CasesTest {
     // columns; the other sparse operations have no such operand, so the option is refused there.
     @Test
     fun `a transposed dense operand is accepted only where a sparse product takes one`() {
-        for (operation in listOf("spmm", "spmm-generic")) {
-            val case = Cases.parse("$operation+9x4x7+sparse-uniform+density=0.25+mode=oneshot+transB=T").single()
-            assertEquals("T", case.option("transB", "N"))
-            assertEquals("$operation+9x4x7+sparse-uniform+density=0.25+mode=oneshot+transB=T", case.id)
-        }
+        val case = Cases.parse("spmm+9x4x7+sparse-uniform+density=0.25+mode=oneshot+transB=T").single()
+        assertEquals("T", case.option("transB", "N"))
+        assertEquals("spmm+9x4x7+sparse-uniform+density=0.25+mode=oneshot+transB=T", case.id)
         for (id in listOf(
             "spmm-right+9x4x7+sparse-uniform+density=0.25+mode=oneshot+transB=T",
             "spgemv+9x7+sparse-uniform+density=0.25+mode=oneshot+transB=T",

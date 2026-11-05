@@ -70,18 +70,6 @@ class DenseTest {
     }
 
     @Test
-    fun `the generic product runs on every explicitly requested engine`() {
-        val case = Cases.parse("gemm-generic+15x7x31+uniform").single()
-        for (engine in listOfNotNull(koblas, BuiltinEngines.scalar, BuiltinEngines.simd).distinct()) {
-            val work = assertNotNull(denseArm(case, engine)?.work)
-
-            assertEquals(ENGINE_COMPARISON, work.comparisonKind)
-            assertNotNull(work.kernel)
-            assertTrue(work.run().isFinite())
-        }
-    }
-
-    @Test
     fun `borrowed product cases verify padding on every requested engine`() {
         for (transpose in listOf("", "+transA=T", "+transB=T")) {
             val case = Cases.parse("gemm+17x9x31+uniform$transpose+workspace=retained+layout=borrowed").single()

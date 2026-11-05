@@ -38,28 +38,6 @@ class SparseTest {
         }
     }
 
-    // The generic entry point uses the selected engine, so an arm naming a different one would publish its
-    // own label over another engine's work.
-    @Test
-    fun `the generic entry point runs on every explicitly requested engine`() {
-        for (id in listOf(
-            "spmm-generic+9x3x7+sparse-uniform+density=0.3+mode=oneshot",
-            "spmm-generic+9x3x7+sparse-uniform+density=0.3+mode=oneshot+transA=T",
-            "spmm-generic-right+9x3x7+sparse-uniform+density=0.3+mode=oneshot",
-            "spmm-generic-right+9x3x7+sparse-uniform+density=0.3+mode=oneshot+transA=T",
-        )) {
-            val case = Cases.parse(id).single()
-            for (engine in listOfNotNull(koblas, BuiltinEngines.scalar, BuiltinEngines.simd).distinct()) {
-                val arm = assertNotNull(sparseArm(case, engine), id)
-                val work = assertNotNull(arm.work, "$id on ${engine.name}")
-                assertEquals(ENGINE_COMPARISON, work.comparisonKind, id)
-                assertEquals("oneshot-generic", work.timingMode, id)
-                assertEquals("${engine.name}/${case.operation}", work.kernel, id)
-                assertTrue(work.run().isFinite(), id)
-            }
-        }
-    }
-
     /**
      * Every sparse matrix operation, verified against the reference before it would be timed. Building an
      * arm runs its check, so this proves the checks execute for every case shape the file can hold. The

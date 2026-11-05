@@ -107,7 +107,7 @@ class BuiltinEnginesTest {
 
         // Using one must not disturb the other: both compute the same answer from the same operands.
         val x = DenseVector.wrap(doubleArrayOf(1.0, 2.0, 3.0, 4.0))
-        assertEquals(first.dot(x, x), second.dot(x, x))
+        assertEquals(first.dot(x.values, 0, x.values, 0, x.size), second.dot(x.values, 0, x.values, 0, x.size))
     }
 
     private fun installed(): KoblasEngine? = Vendor.entries.firstNotNullOfOrNull { BuiltinEngines.vendor(it) }

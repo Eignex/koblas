@@ -42,11 +42,8 @@ public class StridedVector @JvmOverloads constructor(
 }
 
 /** Whether these vectors address at least one common buffer entry. */
-public fun DenseVector.overlaps(other: DenseVector): Boolean =
+internal fun DenseVector.overlaps(other: DenseVector): Boolean =
     windowsOverlap(values, offset, size, stride, other.values, other.offset, other.size, other.stride)
-
-/** A borrowed view over this whole vector, keeping whatever origin and spacing it already has. */
-public fun DenseVector.asView(): StridedVector = StridedVector(values, offset, size, stride)
 
 /**
  * A borrowed strided slice, addressed in this vector's logical indices rather than its buffer's positions.

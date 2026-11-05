@@ -10,7 +10,7 @@ class JvmRunnerTest {
     @Test
     fun `the generic product is built by the measured fork on the default and an exact arm`() {
         // The bridge reads its case file, but its admission rule is independent of the benchmark workload size.
-        val case = Cases.parse("gemm-generic+15x7x31+uniform").single()
+        val case = Cases.parse("gemm+15x7x31+uniform").single()
         val exact = if (BuiltinEngines.simd != null) "jvm-simd" else "jvm-scalar"
         val engines = mapOf("jvm-default" to koblas, exact to (BuiltinEngines.simd ?: BuiltinEngines.scalar))
         val path = Files.createTempFile("koblas-generic-case-", ".txt")

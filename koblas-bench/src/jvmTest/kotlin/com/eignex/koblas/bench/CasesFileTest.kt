@@ -72,7 +72,7 @@ class CasesFileTest {
         val digest = MessageDigest.getInstance("SHA-256").digest(ids.toByteArray()).joinToString("") { "%02x".format(it) }
 
         // The digest protects benchmark identities used to compare captures.
-        assertEquals("4d0c2349af4c3b65e3342e645eced805d7d8561f5358722a4ce21fc4251f927c", digest)
+        assertEquals("c6413cd4a85fa739734bf0cf68f80efbc03f8a80a81a0162d38240275422bbf7", digest)
     }
 
     @Test
@@ -81,8 +81,8 @@ class CasesFileTest {
 
         assertEquals(SWEPT, cases.filter { "sweep" in it.suites }.map { it.operation }.toSet())
         assertEquals(168, cases.count { "sweep" in it.suites })
-        assertEquals(340, cases.size)
-        assertEquals(188, Cases.select(cases).size)
+        assertEquals(333, cases.size)
+        assertEquals(181, Cases.select(cases).size)
         assertEquals(cases.size, cases.map { it.id }.toSet().size)
     }
 

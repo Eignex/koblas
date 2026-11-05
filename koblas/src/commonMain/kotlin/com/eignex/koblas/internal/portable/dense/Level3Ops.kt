@@ -17,7 +17,7 @@ import com.eignex.koblas.internal.operands.scaleRegion
  * The product itself, over operands already staged against an overlap with the destination.
  *
  * Which path runs is the extents' answer rather than the engine's. A destination with one column or one
- * row is a matrix-vector product, so it runs as [gemv] arithmetic over the operand that is a matrix: the
+ * row is a matrix-vector product, so it runs as [KoblasEngine.gemv] arithmetic over the matrix operand: the
  * product schedule would otherwise make a separate panel call for every destination column, which on a
  * single row is one call per entry. A single entry is a dot product either way and stays on the schedule,
  * which measured slightly ahead of the matrix-vector form for a long shared dimension.

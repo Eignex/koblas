@@ -1,12 +1,10 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.dense.assertIamaxHonoursItsContract
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.portable.PortableEngine
 import com.eignex.koblas.sparse.*
-import kotlin.random.Random
 import kotlin.test.*
 
 class VectorOpsTest {
@@ -54,27 +52,16 @@ class VectorOpsTest {
         }
     }
 
-    @Test
-    fun `identical mapping swap preserves the full backing buffer`() {
-        for ((source, destination) in identicalDenseMappings()) {
-            val expected = source.values.copyOf()
-
-            source.swap(destination)
-
-            assertContentEquals(expected, source.values)
-        }
-    }
-
     private fun identicalDenseMappings(): List<Pair<DenseVector, DenseVector>> = buildList {
         for (size in intArrayOf(0, 1, 5, 129)) {
             for (sameWrapper in booleanArrayOf(false, true)) {
                 val whole = DenseVector.wrap(DoubleArray(size) { it + 0.25 })
-                add(whole to if (sameWrapper) whole else whole.asView())
+                add(whole to if (sameWrapper) whole else whole.view(0, whole.size))
                 for (stride in intArrayOf(1, 3, -1, -3)) {
                     val backing = DoubleArray(3 * size + 4) { it + 0.25 }
                     val offset = if (stride > 0 || size == 0) 2 else 2 + (size - 1) * -stride
                     val source = StridedVector(backing, offset, size, stride)
-                    add(source to if (sameWrapper) source else source.asView())
+                    add(source to if (sameWrapper) source else source.view(0, source.size))
                 }
             }
         }
@@ -99,7 +86,7 @@ class VectorOpsTest {
         for (stride in intArrayOf(-3, -1, 1, 3)) {
             val backing = DoubleArray(18) { it * 0.125 - 0.75 }
             val view = StridedVector(backing, if (stride > 0) 2 else 14, 5, stride)
-            val expected = BuiltinEngines.scalar.dot(source, view.toDoubleArray())
+            val expected = BuiltinEngines.scalar.dotVector(source, DenseVector.wrap(view.toDoubleArray()))
 
             assertDotAgreesWithReference(expected, source dot view)
             assertDotAgreesWithReference(expected, view dot source)
@@ -110,7 +97,7 @@ class VectorOpsTest {
     fun `sparse dot against dense views evaluates stored zeros`() {
         val source = sparse(3, 1 to 0.0)
         val view = StridedVector(doubleArrayOf(Double.NaN, 1.0, Double.POSITIVE_INFINITY, 1.0, Double.NaN), 0, 3, 2)
-        val expected = BuiltinEngines.scalar.dot(source, view.toDoubleArray())
+        val expected = BuiltinEngines.scalar.dotVector(source, DenseVector.wrap(view.toDoubleArray()))
 
         assertDotAgreesWithReference(expected, source dot view)
         assertDotAgreesWithReference(expected, view dot source)
@@ -258,45 +245,6 @@ class VectorOpsTest {
     }
 
     @Test
-    fun `iamax returns a maximal index and handles edge cases`() {
-        assertEquals(2, DenseVector.of(doubleArrayOf(1.0, -2.0, 5.0, -4.0)).iamax())
-        assertEquals(4, sparse.iamax())
-        assertEquals(0, DenseVector.zero(3).iamax()) // zero vector: first element
-        assertEquals(0, SparseVector.of(3, IntArray(0), DoubleArray(0)).iamax()) // all-unstored: same
-        assertEquals(-1, DenseVector.zero(0).iamax())
-    }
-
-    @Test
-    fun `public iamax returns logical indices across strides and kernel boundaries`() {
-        // A unit stride reaches the kernel unchanged, and the engine tests already hold it to this contract.
-        for (stride in intArrayOf(2, -2)) {
-            val publicKernels = object : EngineKernels {
-                override val implementations = setOf(EngineImplementation.Iamax)
-                override val name: String = "test-VectorOpsTest"
-
-                override fun iamax(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Int {
-                    val values = DoubleArray(len) { v[vOff + it * vStride] }
-                    val step = if (stride > 0) stride else -stride
-                    val offset = 1 + if (stride < 0) (len - 1).coerceAtLeast(0) * step else 0
-                    val backing = DoubleArray(2 + len * step) { Double.POSITIVE_INFINITY }
-                    for (i in 0 until len) backing[offset + i * stride] = values[i]
-                    return StridedVector(backing, offset, len, stride).iamax()
-                }
-            }
-
-            assertIamaxHonoursItsContract(publicKernels)
-        }
-    }
-
-    @Test
-    fun `iamax reads a stored zero as the zero it is`() {
-        assertEquals(0, SparseVector.of(5, intArrayOf(3), doubleArrayOf(0.0)).iamax())
-        assertEquals(0, SparseVector.of(5, intArrayOf(1, 3), doubleArrayOf(0.0, -0.0)).iamax())
-        assertEquals(DenseVector.zero(5).iamax(), SparseVector.of(5, intArrayOf(3), doubleArrayOf(0.0)).iamax())
-        assertEquals(4, SparseVector.of(5, intArrayOf(1, 4), doubleArrayOf(0.0, -2.0)).iamax())
-    }
-
-    @Test
     fun `copy replicates dense and sparse sources and rejects size mismatch`() {
         val dst = DenseVector.of(doubleArrayOf(9.0, 9.0, 9.0, 9.0, 9.0, 9.0))
         dst.copyFrom(sparse) // sparse: must zero-fill the unstored slots
@@ -304,16 +252,6 @@ class VectorOpsTest {
         dst.copyFrom(DenseVector.of(doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0)))
         assertContentEquals(doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0), dst.values)
         assertFailsWith<DimensionMismatch> { DenseVector.zero(3).copyFrom(DenseVector.zero(2)) }
-    }
-
-    @Test
-    fun `swap exchanges contents and rejects size mismatch`() {
-        val a = DenseVector.of(doubleArrayOf(1.0, 2.0))
-        val b = DenseVector.of(doubleArrayOf(3.0, 4.0))
-        a.swap(b)
-        assertContentEquals(doubleArrayOf(3.0, 4.0), a.values)
-        assertContentEquals(doubleArrayOf(1.0, 2.0), b.values)
-        assertFailsWith<DimensionMismatch> { DenseVector.zero(2).swap(DenseVector.zero(3)) }
     }
 
     @Test
@@ -484,17 +422,6 @@ class VectorOpsTest {
     }
 
     @Test
-    fun `the index search accepts a foreign vector`() {
-        val source = foreignRamp(9)
-        val values = source.toDoubleArray()
-        val expected = PortableEngine.iamax(values, 0, values.size)
-
-        val actual = source.iamax()
-
-        assertEquals(expected, actual)
-    }
-
-    @Test
     fun `dot accepts a foreign vector on either side`() {
         val source = foreignRamp(9)
         val values = source.toDoubleArray()
@@ -560,44 +487,5 @@ class VectorOpsTest {
         y.axpy(0.0, DenseVector.of(doubleArrayOf(9.0, 9.0, 9.0)))
 
         assertContentEquals(doubleArrayOf(1.0, 2.0, 3.0), y.values)
-    }
-
-    /** What the routine is for: a rotation built from the leading pair eliminates the second of them. */
-    @Test
-    fun `a rotation from the leading pair zeroes the target entry`() {
-        // `(0.6, 0.8)` is the rotation `drotg(3, 4)` produces.
-        val x = DenseVector.of(doubleArrayOf(3.0, 1.0, 2.0))
-        val y = DenseVector.of(doubleArrayOf(4.0, -1.0, 0.5))
-
-        x.rot(y, 0.6, 0.8)
-
-        assertEquals(0.0, y[0], 1e-12, "the leading entry of y was not eliminated")
-        assertEquals(5.0, x[0], 1e-12)
-    }
-
-    // `rot` addresses each operand through its own offset and stride, so one that ignored them would rotate the
-    // padding and report nothing. The run vectorises everywhere, and that kernel fuses its multiply and add,
-    // so only the padding is compared exactly.
-    @Test
-    fun `a rotation over strided operands touches only the entries they address`() {
-        val rng = Random(20260916)
-        val n = 8
-        val pad = 2
-        val xs = randomVector(pad + n + pad, rng)
-        val ys = randomVector(pad + n + pad, rng)
-        val x0 = xs.copyOf()
-        val y0 = ys.copyOf()
-        val expectedX = xs.copyOf()
-        val expectedY = ys.copyOf()
-        PortableEngine.rot(expectedX, pad, expectedY, pad, n, 0.6, 0.8)
-
-        StridedVector(xs, pad, n).rot(StridedVector(ys, pad, n), c = 0.6, s = 0.8)
-
-        assertClose(expectedX, xs, "rotation x backing")
-        assertClose(expectedY, ys, "rotation y backing")
-        for (i in listOf(0, 1, pad + n, pad + n + 1)) {
-            assertEquals(x0[i], xs[i], "x padding at $i")
-            assertEquals(y0[i], ys[i], "y padding at $i")
-        }
     }
 }
