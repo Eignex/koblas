@@ -5,7 +5,7 @@ sparse matrices are validated CSC.
 
 Container conveniences use the shared engine [koblas][com.eignex.koblas.koblas], initialized from the
 `koblas.engine` JVM property, `KOBLAS_ENGINE` environment variable or automatic platform selection.
-Applications may override it with [configureKoblas][com.eignex.koblas.configureKoblas] during ordered startup,
+Applications may assign it during ordered startup,
 before library operations or concurrent work. Callers own safe publication; configuration and reads are
 unsynchronized. [KoblasEngine][com.eignex.koblas.KoblasEngine] names
 exact engines, such as portable Kotlin through [KoblasEngine.scalar][com.eignex.koblas.KoblasEngine.scalar].

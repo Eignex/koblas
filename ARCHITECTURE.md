@@ -10,9 +10,9 @@ multiplatform module; platform source sets supply their own runtime and arithmet
 - `KoblasEngine` owns explicit BLAS calls, including windowed `ger` and sparse `dotColumn`. Its default
   matrix methods prepare their operands and invoke shared schedules. Primitive Level 1 methods are implemented
   by engines.
-- `VectorOps.kt` is the small container facade over the shared engine field in `DefaultEngine.kt`.
-- `configureKoblas` assigns the shared engine at startup by name or instance; launch settings initialize its
-  first value. Callers own startup order and safe publication. Reads have no lazy delegate or synchronization.
+- `VectorOps.kt` is the small container facade over the shared `koblas` variable in `KoblasEngine.kt`.
+- Applications may assign `koblas` during startup; launch settings initialize its first value. Callers own
+  startup order and safe publication. Reads and writes have no lazy delegate or synchronization.
 - `KoblasEngine.scalar`, `KoblasEngine.simd` and `KoblasEngine.vendor` expose exact engines;
   `Vendor`, `EngineImplementation` and `ThreadEvidence` describe their capabilities and provenance.
 

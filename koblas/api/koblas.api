@@ -176,14 +176,13 @@ public final class com/eignex/koblas/Koblas {
 	public static final fun asum (Lcom/eignex/koblas/Vector;)D
 	public static final fun axpy (Lcom/eignex/koblas/DenseVector;DLcom/eignex/koblas/Vector;)V
 	public static final synthetic fun borrow (Lcom/eignex/koblas/Scratch;ILkotlin/jvm/functions/Function1;)Ljava/lang/Object;
-	public static final fun configureKoblas (Lcom/eignex/koblas/KoblasEngine;)V
-	public static final fun configureKoblas (Ljava/lang/String;)V
 	public static final fun copyFrom (Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/Vector;)V
 	public static final fun dot (Lcom/eignex/koblas/Vector;Lcom/eignex/koblas/Vector;)D
 	public static final synthetic fun forEachStored (Lcom/eignex/koblas/Vector;Lkotlin/jvm/functions/Function2;)V
 	public static final fun getDefault ()Lcom/eignex/koblas/KoblasEngine;
 	public static final fun norm2 (Lcom/eignex/koblas/Vector;)D
 	public static final fun scale (Lcom/eignex/koblas/DenseVector;D)V
+	public static final fun setDefault (Lcom/eignex/koblas/KoblasEngine;)V
 	public static final fun sum (Lcom/eignex/koblas/Vector;)D
 	public static final fun transpose (Lcom/eignex/koblas/DenseMatrix;)Lcom/eignex/koblas/DenseMatrix;
 	public static final fun transpose (Lcom/eignex/koblas/SparseMatrix;)Lcom/eignex/koblas/SparseMatrix;

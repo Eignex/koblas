@@ -406,8 +406,9 @@ final class com.eignex.koblas/StridedVector : com.eignex.koblas/DenseVector { //
     final fun toString(): kotlin/String // com.eignex.koblas/StridedVector.toString|toString(){}[0]
 }
 
-final val com.eignex.koblas/koblas // com.eignex.koblas/koblas|{}koblas[0]
+final var com.eignex.koblas/koblas // com.eignex.koblas/koblas|{}koblas[0]
     final fun <get-koblas>(): com.eignex.koblas/KoblasEngine // com.eignex.koblas/koblas.<get-koblas>|<get-koblas>(){}[0]
+    final fun <set-koblas>(com.eignex.koblas/KoblasEngine) // com.eignex.koblas/koblas.<set-koblas>|<set-koblas>(com.eignex.koblas.KoblasEngine){}[0]
 
 final fun (com.eignex.koblas/DenseMatrix).com.eignex.koblas/transpose(): com.eignex.koblas/DenseMatrix // com.eignex.koblas/transpose|transpose@com.eignex.koblas.DenseMatrix(){}[0]
 final fun (com.eignex.koblas/DenseVector).com.eignex.koblas/axpy(kotlin/Double, com.eignex.koblas/Vector) // com.eignex.koblas/axpy|axpy@com.eignex.koblas.DenseVector(kotlin.Double;com.eignex.koblas.Vector){}[0]
@@ -419,7 +420,5 @@ final fun (com.eignex.koblas/Vector).com.eignex.koblas/asum(): kotlin/Double // 
 final fun (com.eignex.koblas/Vector).com.eignex.koblas/dot(com.eignex.koblas/Vector): kotlin/Double // com.eignex.koblas/dot|dot@com.eignex.koblas.Vector(com.eignex.koblas.Vector){}[0]
 final fun (com.eignex.koblas/Vector).com.eignex.koblas/norm2(): kotlin/Double // com.eignex.koblas/norm2|norm2@com.eignex.koblas.Vector(){}[0]
 final fun (com.eignex.koblas/Vector).com.eignex.koblas/sum(): kotlin/Double // com.eignex.koblas/sum|sum@com.eignex.koblas.Vector(){}[0]
-final fun com.eignex.koblas/configureKoblas(com.eignex.koblas/KoblasEngine) // com.eignex.koblas/configureKoblas|configureKoblas(com.eignex.koblas.KoblasEngine){}[0]
-final fun com.eignex.koblas/configureKoblas(kotlin/String) // com.eignex.koblas/configureKoblas|configureKoblas(kotlin.String){}[0]
 final inline fun (com.eignex.koblas/Vector).com.eignex.koblas/forEachStored(kotlin/Function2<kotlin/Int, kotlin/Double, kotlin/Unit>) // com.eignex.koblas/forEachStored|forEachStored@com.eignex.koblas.Vector(kotlin.Function2<kotlin.Int,kotlin.Double,kotlin.Unit>){}[0]
 final inline fun <#A: kotlin/Any?> (com.eignex.koblas/Scratch?).com.eignex.koblas/borrow(kotlin/Int, kotlin/Function1<kotlin/DoubleArray, #A>): #A // com.eignex.koblas/borrow|borrow@com.eignex.koblas.Scratch?(kotlin.Int;kotlin.Function1<kotlin.DoubleArray,0:0>){0§<kotlin.Any?>}[0]

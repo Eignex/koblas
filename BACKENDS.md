@@ -8,16 +8,17 @@ convenience operations use it through `koblas`. Most applications need no setup.
 Choose an engine during startup, before libraries use Koblas or concurrent work begins:
 
 ```kotlin
-import com.eignex.koblas.configureKoblas
+import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.koblas
 
 fun main() {
-    configureKoblas("scalar")
+    koblas = KoblasEngine.scalar
     // Start the application and its libraries.
 }
 ```
 
-Use the same names with `KOBLAS_ENGINE=scalar` or, on JVM, `-Dkoblas.engine=scalar`.
-Java applications can call `Koblas.configureKoblas("scalar")`.
+Launch settings accept the names below, for example `KOBLAS_ENGINE=scalar` or, on JVM, `-Dkoblas.engine=scalar`.
+Java applications can call `Koblas.setDefault(KoblasEngine.getScalar())`.
 
 | Name | Selection |
 |---|---|
@@ -26,8 +27,8 @@ Java applications can call `Koblas.configureKoblas("scalar")`.
 | `simd` | Owned JVM Vector API kernels with portable fallbacks. Requires JDK 25+ and the Vector API module. |
 | `accelerate`, `onemkl`, `openblas`, `aocl`, `armpl` | The named vendor, with portable coverage for operations it does not export. |
 
-The initial default uses the JVM property, then the environment variable. `configureKoblas` directly
-replaces that initial value; an existing `KoblasEngine` can also be passed and is used as supplied.
+The initial default uses the JVM property, then the environment variable. Assigning `koblas` directly
+replaces that initial value with any `KoblasEngine`, used as supplied.
 The initial default is constructed before a programmatic override, so launch settings must be valid
 even when overridden. Names ignore case and surrounding whitespace; unknown or unavailable selections
 fail when resolved.
@@ -59,5 +60,5 @@ for tuning and measurement details.
 
 `KoblasEngine.scalar`, `KoblasEngine.simd` and `KoblasEngine.vendor(Vendor.OneMkl)` select exact
 engines for tests and benchmarks. Optional engines return null when unavailable. An exact vendor engine
-supports only its exported operations; startup selection by name includes portable coverage.
+supports only its exported operations; launch selection by name includes portable coverage.
 Calls through an explicit engine instance are independent of the shared default.

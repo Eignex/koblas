@@ -1,6 +1,5 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.KoblasEngine
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Proxy
 import java.net.URLClassLoader
@@ -12,16 +11,6 @@ import kotlin.test.assertSame
 
 class KoblasConfigurationTest {
     @Test
-    fun `named startup selection overrides launch settings`() = isolated("scalar") { loader ->
-        val facade = loader.loadClass("com.eignex.koblas.Koblas")
-        val scalar = loader.loadClass("com.eignex.koblas.KoblasEngine").getMethod("getScalar").invoke(null)
-
-        facade.getMethod("configureKoblas", String::class.java).invoke(null, " SCALAR ")
-
-        assertSame(scalar, facade.getMethod("getDefault").invoke(null))
-    }
-
-    @Test
     fun `programmatic override reaches conveniences`() = isolated("scalar") { loader ->
         val facade = loader.loadClass("com.eignex.koblas.Koblas")
         val engineType = loader.loadClass("com.eignex.koblas.KoblasEngine")
@@ -31,7 +20,7 @@ class KoblasConfigurationTest {
             if (method.name == "sum") calls++
             method.invoke(scalar, *args.orEmpty())
         }
-        facade.getMethod("configureKoblas", engineType).invoke(null, supplied)
+        facade.getMethod("setDefault", engineType).invoke(null, supplied)
         val vectorType = loader.loadClass("com.eignex.koblas.Vector")
         val vector = loader.loadClass("com.eignex.koblas.DenseVector")
             .getMethod("of", DoubleArray::class.java).invoke(null, doubleArrayOf(1.0, -2.0, 3.0))
@@ -53,24 +42,13 @@ class KoblasConfigurationTest {
     }
 
     @Test
-    fun `invalid startup selection fails in the configure call`() = isolated("scalar") { loader ->
-        val facade = loader.loadClass("com.eignex.koblas.Koblas")
-
-        val failure = assertFailsWith<InvocationTargetException> {
-            facade.getMethod("configureKoblas", String::class.java).invoke(null, "invalid")
-        }
-
-        assertIs<IllegalArgumentException>(failure.cause)
-        val scalar = loader.loadClass("com.eignex.koblas.KoblasEngine").getMethod("getScalar").invoke(null)
-        assertSame(scalar, facade.getMethod("getDefault").invoke(null))
-    }
-
-    @Test
     fun `invalid launch settings fail before a programmatic override`() = isolated("invalid") { loader ->
         val facade = loader.loadClass("com.eignex.koblas.Koblas")
+        val engineType = loader.loadClass("com.eignex.koblas.KoblasEngine")
+        val scalar = engineType.getMethod("getScalar").invoke(null)
 
         val failure = assertFailsWith<InvocationTargetException> {
-            facade.getMethod("configureKoblas", String::class.java).invoke(null, "scalar")
+            facade.getMethod("setDefault", engineType).invoke(null, scalar)
         }
 
         val initialization = assertIs<ExceptionInInitializerError>(failure.cause)
