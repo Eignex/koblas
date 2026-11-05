@@ -57,6 +57,13 @@ internal fun sameVectorMapping(a: DenseVector, b: DenseVector): Boolean =
 internal fun DenseVector.stableFor(destination: DenseVector): DenseVector =
     if (!sameVectorMapping(this, destination) && overlaps(destination)) DenseVector.wrap(toDoubleArray()) else this
 
+/** Opaque storage may read the destination without exposing its buffer. */
+internal fun Vector.stableFor(destination: DenseVector): Vector = when (this) {
+    is SparseVector -> if (values === destination.values) SparseVector.wrap(size, indices, values.copyOf()) else this
+    is DenseVector -> stableFor(destination)
+    else -> DenseVector.wrap(toDoubleArray())
+}
+
 /** Whether this vector spans its entire backing array in order. */
 internal val DenseVector.isWholeArray: Boolean
     get() = offset == 0 && stride == 1 && values.size == size
