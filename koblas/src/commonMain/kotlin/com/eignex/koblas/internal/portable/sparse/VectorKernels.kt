@@ -2,10 +2,7 @@
 
 package com.eignex.koblas.internal.portable.sparse
 
-import com.eignex.koblas.internal.portable.dense.MIN_NORMAL
-import com.eignex.koblas.internal.portable.dense.rescaledEuclideanNorm
 import com.eignex.koblas.internal.sparse.*
-import kotlin.math.sqrt
 
 internal fun indexedDotDense(
     indices: IntArray,
@@ -100,34 +97,4 @@ internal fun indexedGatherZero(
         values[valueOffset + k] = source[index]
         source[index] = 0.0
     }
-}
-
-internal fun indexedNrm2(indices: IntArray, indexOffset: Int, count: Int, values: DoubleArray): Double {
-    var squares = 0.0
-    var k = 0
-    if (count >= 64) {
-        // Independent sums avoid serialising every indexed load behind one addition chain.
-        var squares1 = 0.0
-        var squares2 = 0.0
-        var squares3 = 0.0
-        while (k < count - 3) {
-            val value = values[indices[indexOffset + k]]
-            val value1 = values[indices[indexOffset + k + 1]]
-            val value2 = values[indices[indexOffset + k + 2]]
-            val value3 = values[indices[indexOffset + k + 3]]
-            squares += value * value
-            squares1 += value1 * value1
-            squares2 += value2 * value2
-            squares3 += value3 * value3
-            k += 4
-        }
-        squares += squares1 + squares2 + squares3
-    }
-    while (k < count) {
-        val value = values[indices[indexOffset + k]]
-        squares += value * value
-        k++
-    }
-    if (squares.isFinite() && squares >= MIN_NORMAL) return sqrt(squares)
-    return rescaledEuclideanNorm(count, squares) { values[indices[indexOffset + it]] }
 }

@@ -76,25 +76,3 @@ public fun DenseMatrix.transpose(): DenseMatrix = koblas.transpose(this)
  * zeros survive, since the transpose is structural rather than arithmetic.
  */
 public fun SparseMatrix.transpose(): SparseMatrix = koblas.transpose(this)
-
-/**
- * Fresh matrix with column [column] replaced by [entering], still CSC. The replacement is structural, so an
- * explicitly stored zero in [entering] survives as one.
- */
-public fun SparseMatrix.withColumn(column: Int, entering: SparseVector): SparseMatrix {
-    requireIndex(column in 0 until cols) { "withColumn: column $column outside [0,$cols)" }
-    requireShape(entering.size == rows) { "withColumn: entering size ${entering.size}, expected $rows" }
-    val start = colPointers[column]
-    val end = colPointers[column + 1]
-    val delta = entering.indices.size - (end - start)
-    val pointers = IntArray(cols + 1) { colPointers[it] + if (it <= column) 0 else delta }
-    val outIdx = IntArray(rowIndices.size + delta)
-    val outVal = DoubleArray(values.size + delta)
-    rowIndices.copyInto(outIdx, endIndex = start)
-    values.copyInto(outVal, endIndex = start)
-    entering.indices.copyInto(outIdx, start)
-    entering.values.copyInto(outVal, start)
-    rowIndices.copyInto(outIdx, start + entering.indices.size, end)
-    values.copyInto(outVal, start + entering.indices.size, end)
-    return SparseMatrix(rows, cols, pointers, outIdx, outVal)
-}

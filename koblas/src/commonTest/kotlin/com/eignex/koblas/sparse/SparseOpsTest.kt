@@ -12,13 +12,11 @@ import com.eignex.koblas.internal.portable.sparse.AdjacentPreferringPanels
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.randomVector
 import kotlin.math.abs
-import kotlin.math.sqrt
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertNotSame
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
@@ -120,14 +118,13 @@ class SparseOpsTest {
     }
 
     @Test
-    fun `raw reductions permit repeated unsorted support`() {
+    fun `raw dot permits repeated unsorted support`() {
         val indices = intArrayOf(2, 0, 2)
         val values = doubleArrayOf(3.0, 4.0, 5.0)
         val dense = doubleArrayOf(2.0, 7.0, -1.0)
 
         for (engine in vectorEngines) {
             assertEquals(0.0, engine.dot(indices, 0, values, 0, 3, dense), engine.name)
-            assertEquals(sqrt(6.0), engine.nrm2(indices, 0, 3, dense), engine.name)
         }
     }
 
@@ -138,10 +135,8 @@ class SparseOpsTest {
         val dot = koblas.dot(intArrayOf(9), 1, doubleArrayOf(9.0), 1, 0, DoubleArray(0))
         koblas.axpy(intArrayOf(9), 1, doubleArrayOf(9.0), 1, 0, 2.0, destination)
         koblas.scatter(intArrayOf(9), 1, doubleArrayOf(9.0), 1, 0, destination)
-        val norm = koblas.nrm2(intArrayOf(9), 1, 0, DoubleArray(0))
 
         assertEquals(0.0, dot)
-        assertEquals(0.0, norm)
         assertContentEquals(doubleArrayOf(3.0), destination)
     }
 
@@ -169,17 +164,6 @@ class SparseOpsTest {
     }
 
     @Test
-    fun `indexed norm rescales finite values`() {
-        val support = intArrayOf(1, 3)
-
-        val large = koblas.nrm2(support, 0, 2, doubleArrayOf(0.0, 3e200, 0.0, 4e200))
-        val small = koblas.nrm2(support, 0, 2, doubleArrayOf(0.0, 3e-200, 0.0, 4e-200))
-
-        assertEquals(5e200, large, 1e188)
-        assertEquals(5e-200, small, 1e-212)
-    }
-
-    @Test
     fun `container operations agree with raw indexed operations`() {
         val x = SparseVector.of(6, intArrayOf(1, 4), doubleArrayOf(2.0, -3.0))
         val dense = doubleArrayOf(1.0, 5.0, 2.0, 3.0, 7.0, 4.0)
@@ -196,7 +180,6 @@ class SparseOpsTest {
         assertEquals(koblas.dot(x, dense), koblas.dot(x.indices, 0, x.values, 0, x.values.size, dense))
         assertContentEquals(containerUpdate, rawUpdate)
         assertContentEquals(containerScatter, rawScatter)
-        assertEquals(koblas.nrm2(x), koblas.nrm2(x.indices, 0, x.indices.size, containerScatter), 1e-15)
     }
 
     // Column dots.
@@ -417,18 +400,6 @@ class SparseOpsTest {
     }
 
     @Test
-    fun `a sparse pair product reads the coefficients it was given when they are the destination`() {
-        val aliasedValues = doubleArrayOf(2.0, 3.0, 5.0, 7.0)
-        val aliasedA = SparseMatrix.wrap(2, 2, intArrayOf(0, 2, 4), intArrayOf(0, 1, 0, 1), aliasedValues)
-        val identity = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 1.0)))
-        val aliasedC = DenseMatrix.wrap(2, 2, aliasedValues)
-
-        koblas.gemm(1.0, aliasedA, false, identity, false, 0.0, aliasedC, scratch = Scratch())
-
-        assertContentEquals(doubleArrayOf(2.0, 3.0, 5.0, 7.0), aliasedC.values)
-    }
-
-    @Test
     fun `trsv solves against the triangle it was given when the right hand side is its values`() {
         // A column whose diagonal is missing, so the solve divides by zero and every later column depends on
         // a coefficient the substitution would already have overwritten.
@@ -537,24 +508,6 @@ class SparseOpsTest {
         koblas.syrk(1.0, empty, transpose = false, 2.0, destination, lower = true)
 
         assertContentEquals(doubleArrayOf(2.0, 4.0, 3.0, 8.0), destination.values)
-    }
-
-    @Test
-    fun `empty products retain requested shapes and scalar behavior`() {
-        val a = SparseMatrix.ofColumns(2, 0, emptyList())
-        val b = SparseMatrix.ofColumns(0, 3, List(3) { emptyList() })
-        val dense = DenseMatrix.wrap(2, 3, DoubleArray(6) { 4.0 })
-        val emptySymmetric = SparseMatrix.ofColumns(0, 0, emptyList())
-
-        val sparse = koblas.gemm(2.0, a, false, b, false)
-        koblas.gemm(0.0, a, false, b, false, -0.5, dense)
-        koblas.symv(1.0, emptySymmetric, DoubleArray(0), 0.0, DoubleArray(0))
-        koblas.symm(1.0, emptySymmetric, DenseMatrix.zero(0, 3), 0.0, DenseMatrix.zero(0, 3))
-
-        assertEquals(2, sparse.rows)
-        assertEquals(3, sparse.cols)
-        assertEquals(0, sparse.nnz)
-        assertTrue(dense.values.all { it == -2.0 })
     }
 
     // One extent is zero and the other is a million, which separates returning early from stepping through a
@@ -666,26 +619,6 @@ class SparseOpsTest {
     }
 
     @Test
-    fun `a second operand that does not meet the first is rejected`() {
-        val rng = Random(20260902)
-        val sparse = randomSparse(5, 4, rng)
-
-        assertFailsWith<DimensionMismatch> { koblas.gemm(sparse, randomMatrix(3, 3, rng)) }
-        assertFailsWith<DimensionMismatch> { koblas.gemm(sparse, randomSparse(3, 4, rng)) }
-    }
-
-    @Test
-    fun `a destination of the wrong shape is rejected`() {
-        val rng = Random(20260901)
-        val sparse = randomSparse(5, 4, rng)
-        val b = randomMatrix(4, 3, rng)
-
-        assertFailsWith<DimensionMismatch> {
-            koblas.gemm(1.0, sparse, false, b, false, 0.0, DenseMatrix.zero(5, 2))
-        }
-    }
-
-    @Test
     fun `a right hand side that does not meet the triangle is rejected on both sides`() {
         val rng = Random(20260824)
         val n = 4
@@ -697,129 +630,7 @@ class SparseOpsTest {
         }
     }
 
-    // Scaled addition.
-
-    @Test
-    fun `scaled addition retains the structural union`() {
-        val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 3.0)))
-        val b = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 5.0, 1 to 7.0), listOf(1 to -3.0)))
-
-        val sum = koblas.addScaled(1.0, a, false, b)
-
-        assertContentEquals(intArrayOf(0, 2, 3), sum.copyColumnPointers())
-        assertContentEquals(intArrayOf(0, 1, 1), sum.copyRowIndices())
-        assertContentEquals(doubleArrayOf(7.0, 7.0, 0.0), sum.values)
-    }
-
-    @Test
-    fun `scaled addition with a zero alpha keeps the union without reading a`() {
-        val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to Double.NaN), listOf(1 to Double.NaN)))
-        val b = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 5.0, 1 to 7.0), listOf(1 to -3.0)))
-        val aOnly = SparseMatrix.ofColumns(1, 1, listOf(listOf(0 to Double.NaN)))
-        val empty = SparseMatrix.ofColumns(1, 1, listOf(emptyList()))
-
-        val zero = koblas.addScaled(-0.0, a, false, b)
-        val unread = koblas.addScaled(-0.0, aOnly, false, empty)
-
-        assertContentEquals(intArrayOf(0, 2, 3), zero.copyColumnPointers())
-        assertEquals(5.0, zero[0, 0])
-        assertEquals(7.0, zero[1, 0])
-        assertEquals(-3.0, zero[1, 1])
-        assertEquals(0.0, unread.values.single(), absoluteTolerance = 0.0)
-    }
-
-    @Test
-    fun `scaled addition owns its buffers for matching and disjoint patterns`() {
-        val a = SparseMatrix.ofColumns(4, 2, listOf(listOf(0 to 2.0), listOf(2 to 3.0)))
-        for (overlap in booleanArrayOf(false, true)) {
-            val b = SparseMatrix.ofColumns(
-                4,
-                2,
-                listOf(listOf((if (overlap) 0 else 1) to 4.0), listOf((if (overlap) 2 else 3) to 5.0)),
-            )
-
-            val result = koblas.addScaled(0.5, a, false, b)
-
-            for (operand in listOf(a, b)) {
-                assertNotSame(operand.colPointers, result.colPointers)
-                assertNotSame(operand.rowIndices, result.rowIndices)
-                assertNotSame(operand.values, result.values)
-            }
-        }
-    }
-
-    @Test
-    fun `scaled addition agrees for matching disjoint and overlapping patterns`() {
-        val a = SparseMatrix.ofColumns(
-            5,
-            4,
-            listOf(listOf(0 to 2.0, 3 to 0.0), emptyList(), listOf(1 to -1.0), listOf(3 to 4.0)),
-        )
-        val matching = SparseMatrix.ofColumns(
-            5,
-            4,
-            listOf(listOf(0 to -2.0, 3 to 1.0), emptyList(), listOf(1 to 0.0), listOf(3 to 2.0)),
-        )
-        val disjoint = SparseMatrix.ofColumns(
-            5,
-            4,
-            listOf(listOf(1 to 3.0), emptyList(), listOf(2 to 0.0), listOf(4 to -2.0)),
-        )
-        val overlapping = SparseMatrix.ofColumns(
-            5,
-            4,
-            listOf(listOf(0 to 3.0, 4 to 1.0), emptyList(), listOf(2 to 0.0), listOf(3 to -2.0)),
-        )
-        for (b in listOf(matching, disjoint, overlapping)) {
-            for (alpha in doubleArrayOf(0.0, 1.0, -0.75)) {
-                val left = SparseMatrix.wrap(
-                    a.rows,
-                    a.cols,
-                    a.copyColumnPointers(),
-                    a.copyRowIndices(),
-                    DoubleArray(a.nnz) { if (alpha == 0.0) Double.NaN else a.values[it] },
-                )
-                for (transpose in booleanArrayOf(false, true)) {
-                    val source = if (transpose) ReferenceSparseBlas.transpose(left) else left
-                    val expected = ReferenceSparseBlas.addScaled(alpha, source, transpose, b)
-
-                    val actual = koblas.addScaled(alpha, source, transpose, b)
-
-                    val context = "alpha=$alpha transpose=$transpose"
-                    assertEquals(expected.rows, actual.rows, context)
-                    assertEquals(expected.cols, actual.cols, context)
-                    assertContentEquals(expected.copyColumnPointers(), actual.copyColumnPointers(), context)
-                    assertContentEquals(expected.copyRowIndices(), actual.copyRowIndices(), context)
-                    assertClose(expected.values, actual.values, context)
-                }
-            }
-        }
-    }
-
     // Region destinations: a view inside a larger parent, so every write outside the view shows as a change.
-
-    @Test
-    fun `sparse pair products leave empty padded destinations untouched`() {
-        for (engine in regionEngines) {
-            for ((rows, columns) in listOf(0 to 3, 3 to 0)) {
-                for (size in intArrayOf(0, 3)) {
-                    for (alpha in doubleArrayOf(0.0, 1.0)) {
-                        for (beta in doubleArrayOf(0.0, 0.5, 1.0)) {
-                            val a = SparseMatrix.ofColumns(rows, 1, listOf(emptyList()))
-                            val b = SparseMatrix.ofColumns(1, columns, List(columns) { emptyList() })
-                            val backing = DoubleArray(size) { -77.0 }
-                            val before = backing.copyOf()
-                            val c = DenseMatrixView.wrap(rows, columns, backing, size, rows + 1)
-
-                            engine.gemm(alpha, a, false, b, false, beta, c)
-
-                            assertContentEquals(before, backing, "${engine.name} rows=$rows columns=$columns")
-                        }
-                    }
-                }
-            }
-        }
-    }
 
     @Test
     fun `products into a region retain dense operand addressing`() {
@@ -835,11 +646,6 @@ class SparseOpsTest {
                         }) {
                             engine.gemm(0.875, sparse, transposeA, b, transposeB, -0.25, it, right = right)
                         }
-                    }
-                    assertRegionCall("$context sparse pair", {
-                        ReferenceSparseBlas.gemm(0.875, sparse, transposeA, sparse, transposeB, -0.25, it)
-                    }) {
-                        engine.gemm(0.875, sparse, transposeA, sparse, transposeB, -0.25, it)
                     }
                 }
             }

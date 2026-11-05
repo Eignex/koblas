@@ -136,9 +136,6 @@ internal object PortableEngine : EngineKernels {
         source: DoubleArray,
     ) = indexedGatherZero(indices, indexOffset, values, valueOffset, count, source)
 
-    override fun nrm2(indices: IntArray, indexOffset: Int, count: Int, values: DoubleArray): Double =
-        indexedNrm2(indices, indexOffset, count, values)
-
     /** Share each vector load across four dot/update columns, or two coupled/rank columns. */
     override fun executionGroup(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean): Int {
         val preferred = when {

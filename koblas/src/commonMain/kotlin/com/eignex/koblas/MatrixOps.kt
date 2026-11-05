@@ -9,8 +9,8 @@ import com.eignex.koblas.internal.operands.*
 import kotlin.jvm.JvmOverloads
 
 /**
- * Allocates a product using this engine. Two sparse operands produce owned CSC storage;
- * other pairings produce dense storage. Custom [Matrix] operands are read once into dense scratch.
+ * Allocates a dense product using this engine, with at most one sparse operand.
+ * Custom [Matrix] operands are read once into dense scratch.
  */
 @JvmOverloads
 public fun KoblasEngine.gemm(a: Matrix, b: Matrix, scratch: Scratch? = null): Matrix =
@@ -27,15 +27,15 @@ public fun KoblasEngine.gemm(
     scratch: Scratch? = null,
 ): Matrix {
     requireProductOperands(a, transposeA, b, transposeB, "gemm")
-    if (a is SparseMatrix && b is SparseMatrix) return gemm(alpha, a, transposeA, b, transposeB)
+    require(a !is SparseMatrix || b !is SparseMatrix) { "gemm requires at least one dense operand" }
     val result = DenseMatrix.zero(if (transposeA) a.cols else a.rows, if (transposeB) b.rows else b.cols)
     gemm(alpha, a, transposeA, b, transposeB, 0.0, result, scratch)
     return result
 }
 
 /**
- * Writes a product of any two readable matrices through this engine into addressed dense storage. Validation
- * precedes all writes; zero alpha and empty depth read no inputs, and zero beta reads no destination values.
+ * Writes a product of readable matrices, with at most one sparse operand, into addressed dense storage.
+ * Validation precedes all writes; zero alpha and empty depth read no inputs, and zero beta reads no destination values.
  * A custom [Matrix] operand is read once into dense storage borrowed from [scratch] when one is given.
  */
 @JvmOverloads
@@ -50,14 +50,13 @@ public fun KoblasEngine.gemm(
     scratch: Scratch? = null,
 ) {
     requireGemmOperands(a, transposeA, b, transposeB, c)
+    require(a !is SparseMatrix || b !is SparseMatrix) { "gemm requires at least one dense operand" }
     if (c.rows == 0 || c.cols == 0) return
     if (alpha == 0.0 || (if (transposeA) a.rows else a.cols) == 0) {
         scaleRegion(c, beta, vectors = this)
         return
     }
     when {
-        a is SparseMatrix && b is SparseMatrix -> gemm(alpha, a, transposeA, b, transposeB, beta, c, scratch)
-
         a is SparseMatrix -> denseOperand(scratch, b) { right ->
             gemm(alpha, a, transposeA, right, transposeB, beta, c, right = false, scratch = scratch)
         }

@@ -161,16 +161,9 @@ class CasesTest {
         for (id in listOf(
             "spmm-right+9x4x7+sparse-uniform+density=0.25+mode=oneshot+transB=T",
             "spgemv+9x7+sparse-uniform+density=0.25+mode=oneshot+transB=T",
-            "spgemm+9x5x7+sparse-uniform+density=0.25+mode=oneshot+transB=T",
         )) {
             assertFailsWith<IllegalArgumentException> { Cases.parse(id) }
         }
     }
 
-    @Test
-    fun `an option the generic allocating product cannot apply is rejected at parsing`() {
-        assertFailsWith<IllegalArgumentException> {
-            Cases.parse("spgemm-generic+9x5x7+sparse-uniform+density=0.3+mode=oneshot+transA=T")
-        }
-    }
 }

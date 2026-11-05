@@ -54,9 +54,6 @@ public enum class EngineImplementation(
     /** Reading and zeroing a stored support. */
     IndexedGatherZero,
 
-    /** Rescaled norm over indexed dense positions. */
-    IndexedNrm2,
-
     /** Panel arithmetic within shared schedules. */
     Panels,
 

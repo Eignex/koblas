@@ -66,9 +66,6 @@ spaxpy-raw+4096+sparse-uniform+density=0.0625
 spaxpy-raw+65536+sparse-uniform+density=0.015625
 spaxpy-raw+262144+sparse-uniform+density=0.03125
 spnrm2+4096+sparse-uniform+density=0.01
-spnrm2-indexed+4096+sparse-uniform+density=0.01
-spnrm2-indexed+4096+sparse-uniform+density=0.5
-spnrm2-indexed+262144+sparse-uniform+density=0.03125
 spasum+4096+sparse-uniform+density=0.01
 spscatter+4096+sparse-uniform+density=0.01
 spscatter-raw+64+sparse-uniform+density=0.125
@@ -84,8 +81,6 @@ spmm-generic+257x8x129+sparse-uniform+density=0.01+mode=oneshot
 spmm-generic+257x8x129+sparse-uniform+density=0.01+mode=oneshot+transA=T
 spmm-generic-right+257x8x129+sparse-uniform+density=0.01+mode=oneshot
 spmm-generic-right+257x8x129+sparse-uniform+density=0.01+mode=oneshot+transA=T
-spgemm+129x97x65+sparse-uniform+density=0.01+mode=oneshot
-spgemm-generic+129x97x65+sparse-uniform+density=0.01+mode=oneshot
 spsymv+129+sparse-triangular+density=0.02+mode=oneshot+uplo=L
 spsymm+129x8+sparse-triangular+density=0.02+mode=oneshot+side=L+uplo=L
 spsymm+8x129+sparse-triangular+density=0.02+mode=oneshot+side=R+uplo=U
@@ -97,8 +92,6 @@ sptrmm+129x8+sparse-triangular+density=0.02+mode=oneshot+side=L+uplo=U+transA=T+
 sptrmm+8x129+sparse-triangular+density=0.02+mode=oneshot+side=R+uplo=L+transA=N+diag=N
 spsyrk-dense+129x65+sparse-uniform+density=0.02+uplo=U
 spsyrk-dense+129x65+sparse-uniform+density=0.02+uplo=L
-spsyrk-sparse+129x65+sparse-uniform+density=0.02+uplo=L
-spadd+129x65+sparse-uniform+density=0.02
 # The support distributions, at one shape and one density, because where the stored entries are costs as
 # much as how many there are: a band keeps a scatter's destination resident, a skewed support puts most of
 # the work in an eighth of the columns, an empty one leaves a quarter of them with nothing, and a mixed one
@@ -129,12 +122,7 @@ spgemv+257x129+sparse-uniform+density=0.01+support=skewed+mode=oneshot
 spgemv+257x129+sparse-uniform+density=0.01+support=banded+mode=oneshot+transA=T
 spgemv+257x129+sparse-uniform+density=0.1+mode=oneshot
 # Sparse against sparse, where the cost is discovery and accumulation rather than panels.
-spgemm+129x97x65+sparse-uniform+density=0.01+support=banded+mode=oneshot
-spgemm+129x97x65+sparse-uniform+density=0.01+support=skewed+mode=oneshot
-spgemm+129x97x65+sparse-uniform+density=0.1+mode=oneshot
-spgemm+129x97x65+sparse-uniform+density=0.25+mode=oneshot
 spsyrk-dense+129x65+sparse-uniform+density=0.1+uplo=L
-spsyrk-sparse+129x65+sparse-uniform+density=0.1+uplo=L
 # The symmetric and triangular block routines at a denser support and more right-hand sides, which is where
 # a panel of them is worth staging adjacent.
 spsymm+129x64+sparse-triangular+density=0.1+mode=oneshot+side=L+uplo=L
@@ -348,8 +336,6 @@ trsm+256x64+triangular+side=L+uplo=U+transA=T+diag=U
 trmm+256x64+triangular+side=L+uplo=U+transA=T+diag=N
 
 # Sparse addition over identical banded patterns and a larger mixed union.
-spadd+129x65+sparse-uniform+density=0.02+support=banded
-spadd+257x129+sparse-uniform+density=0.1
 
 # Level 1 vector entry points over shared or strided buffers
 copy-overlap+64+uniform
@@ -375,11 +361,6 @@ spdot-slice+128+sparse-uniform+density=0.125
 spdot-slice+512+sparse-uniform+density=0.125
 spdot-slice+2048+sparse-uniform+density=0.125
 spdot-slice+8192+sparse-uniform+density=0.125
-spnrm2-slice+64+sparse-uniform+density=0.0625
-spnrm2-slice+128+sparse-uniform+density=0.125
-spnrm2-slice+512+sparse-uniform+density=0.125
-spnrm2-slice+2048+sparse-uniform+density=0.125
-spnrm2-slice+8192+sparse-uniform+density=0.125
 spaxpy-slice+64+sparse-uniform+density=0.0625
 spaxpy-slice+128+sparse-uniform+density=0.125
 spaxpy-slice+512+sparse-uniform+density=0.125
