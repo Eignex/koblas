@@ -16,8 +16,10 @@ final class JavaInteropSmoke {
         DenseMatrix identity = DenseMatrix.diagonal(2);
         DenseVector vector = DenseVector.of(new double[] {3.0, 5.0});
 
-        DenseMatrix product = Koblas.multiply(matrix, identity);
-        DenseVector result = Koblas.multiply(product, vector);
+        DenseMatrix product = DenseMatrix.zero(2, 2);
+        Koblas.getDefault().gemm(1.0, matrix, false, identity, false, 0.0, product, null);
+        DenseVector result = DenseVector.zero(2);
+        gemv(Koblas.getDefault(), 1.0, product, vector, 0.0, result);
         assertArrayEquals(new double[] {11.0, 18.0}, result.toDoubleArray());
         assertEquals(34.0, Koblas.dot(vector, vector));
 
@@ -38,13 +40,12 @@ final class JavaInteropSmoke {
             new double[] {2.0, 3.0}
         );
         double[] scattered = new double[2];
-        scatter(Koblas.getDefault(), Koblas.column(sparse, 0), scattered);
+        scatter(Koblas.getDefault(), SparseVector.of(2, new int[] {0}, new double[] {2.0}), scattered);
         assertArrayEquals(new double[] {2.0, 0.0}, scattered);
 
         double[] gemvResult = new double[2];
         Koblas.getDefault().gemv(1.0, sparse, new double[] {4.0, 5.0}, 0.0, gemvResult, false, null);
         assertArrayEquals(new double[] {8.0, 15.0}, gemvResult);
-        assertArrayEquals(new double[] {8.0, 15.0}, gemv(Koblas.getDefault(), sparse, new double[] {4.0, 5.0}));
 
         KoblasEngine engine = BuiltinEngines.getScalar();
         DenseMatrixRegion outputRegion = DenseMatrix.zero(5, 5).view(1, 1, 2, 2);

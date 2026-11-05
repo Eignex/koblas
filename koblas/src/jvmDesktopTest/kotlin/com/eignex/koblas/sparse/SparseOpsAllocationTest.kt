@@ -36,7 +36,7 @@ class SparseOpsAllocationTest internal constructor(private val case: AllocationC
             },
             with(IndexedSliceFixture()) {
                 AllocationCase("indexed gather allocates nothing", 1_000) {
-                    engine.gather(gathered, dense)
+                    engine.gather(gathered.indices, 0, gathered.values, 0, gathered.values.size, dense)
                     gathered
                 }
             },

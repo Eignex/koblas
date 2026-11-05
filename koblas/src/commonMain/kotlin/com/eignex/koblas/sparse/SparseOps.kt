@@ -10,7 +10,6 @@ import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.internal.portable.dense.euclideanNorm
 import com.eignex.koblas.internal.sparse.*
-import kotlin.jvm.JvmOverloads
 
 /**
  * Fresh transposed [a], still CSC, which makes this the CSC-to-CSR conversion as well. Explicitly stored
@@ -20,21 +19,6 @@ import kotlin.jvm.JvmOverloads
  * leave a caller with no reason to materialize a transpose unless it means to hold it.
  */
 public fun KoblasEngine.transpose(a: SparseMatrix): SparseMatrix = transposeCsc(a)
-
-/** `A · x`, or `Aᵀ · x` when [transpose], into a fresh result. */
-@JvmOverloads
-public fun KoblasEngine.gemv(
-    a: SparseMatrix,
-    x: DoubleArray,
-    transpose: Boolean = false,
-    scratch: Scratch? = null,
-): DoubleArray {
-    val size = if (transpose) a.cols else a.rows
-    requireGemvOperands(a, transpose, x.size, size)
-    val y = DoubleArray(size)
-    gemv(1.0, a, x, 0.0, y, transpose, scratch)
-    return y
-}
 
 /** `xᵀ·y` for a sparse [x] against a dense [y] (Sparse BLAS `usdot`); walks only the stored entries. */
 public fun KoblasEngine.dot(x: SparseVector, y: DoubleArray): Double {
@@ -84,35 +68,6 @@ public fun KoblasEngine.axpy(y: DoubleArray, alpha: Double, x: SparseVector) {
 public fun KoblasEngine.scatter(x: SparseVector, out: DoubleArray) {
     requireShape(x.size == out.size) { "scatter: sizes differ, ${x.size} vs ${out.size}" }
     scatter(x.indices, 0, x.values, 0, x.values.size, out)
-}
-
-/**
- * Read [from] at [x]'s stored positions into [x]'s values (Sparse BLAS `usga`), the inverse of
- * [scatter]. The pattern is what [x] already stores and does not change; a position of [from] that is
- * nonzero and unstored stays unread, so this narrows a dense vector to a pattern rather than sparsifying
- * it.
- *
- * [x]'s values and [from] must be distinct arrays, as they must be for [scatter]. Reading and writing one
- * array through two index orders has no single answer: a scalar loop moves an entry per step while a
- * vector kernel reads a whole block before storing it, so the two would disagree on the overlap.
- */
-public fun KoblasEngine.gather(x: SparseVector, from: DoubleArray) {
-    requireShape(x.size == from.size) { "gather: sizes differ, ${x.size} vs ${from.size}" }
-    require(x.values !== from) { "values and source must use distinct buffers" }
-    this.gather(x.indices, 0, x.values, 0, x.values.size, from)
-}
-
-/**
- * [gather], and zero in [from] the positions it read (Sparse BLAS `usgz`), leaving the rest of [from]
- * alone. The pair is one pass rather than two because the caller of a gather-and-zero wants [from]
- * emptied of exactly what it took.
- *
- * [x]'s values and [from] must be distinct arrays, for the reason [gather] gives.
- */
-public fun KoblasEngine.gatherZero(x: SparseVector, from: DoubleArray) {
-    requireShape(x.size == from.size) { "gatherZero: sizes differ, ${x.size} vs ${from.size}" }
-    require(x.values !== from) { "values and source must use distinct buffers" }
-    this.gatherZero(x.indices, 0, x.values, 0, x.values.size, from)
 }
 
 /** Euclidean norm over the stored entries, rescaled as the dense [euclideanNorm] is. */

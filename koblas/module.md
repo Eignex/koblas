@@ -3,7 +3,7 @@
 Double-precision dense and sparse BLAS Levels 1–3 for Kotlin Multiplatform. Dense matrices are column-major and
 sparse matrices are validated CSC.
 
-Operators and container conveniences use the immutable default engine [koblas][com.eignex.koblas.koblas],
+Container conveniences use the immutable default engine [koblas][com.eignex.koblas.koblas],
 selected once from the platform's standard profile. [BuiltinEngines][com.eignex.koblas.engine.BuiltinEngines] names
 exact engines, such as portable Kotlin through [BuiltinEngines.scalar][com.eignex.koblas.engine.BuiltinEngines.scalar].
 Each BLAS routine is one member of [KoblasEngine][com.eignex.koblas.KoblasEngine]. Engines share validation, alias
@@ -15,7 +15,7 @@ separate [Scratch][com.eignex.koblas.Scratch].
 
 # Package com.eignex.koblas
 
-Owning dense and sparse containers, vector views, operators, the default [koblas] engine, the [KoblasEngine]
+Owning dense and sparse containers, vector views, the default [koblas] engine, the [KoblasEngine]
 contract, [MatrixStructure] and [Scratch] arrays. [Matrix] and [Vector] are read-only contracts custom types can
 implement. Products accept at most one sparse operand, on either side, and produce dense storage.
 No sparse operand is densified. Products of two sparse matrices are unsupported.

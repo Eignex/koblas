@@ -58,15 +58,6 @@ class SparseOpsTest {
     }
 
     @Test
-    fun `gather rejects a source that is its own destination`() {
-        val x = SparseVector.of(4, intArrayOf(0, 1, 2, 3), doubleArrayOf(0.0, 1.0, 2.0, 3.0))
-
-        assertFailsWith<IllegalArgumentException> { koblas.gather(x, x.values) }
-        assertFailsWith<IllegalArgumentException> { koblas.gatherZero(x, x.values) }
-        assertContentEquals(doubleArrayOf(0.0, 1.0, 2.0, 3.0), x.values)
-    }
-
-    @Test
     fun `stored value reductions call the selected dense kernels`() {
         for (count in listOf(0, 1, 3, 256)) {
             val x = SparseVector.of(1024, IntArray(count) { it * 4 }, DoubleArray(count) { 1.0 + it * 0.125 })
@@ -571,42 +562,7 @@ class SparseOpsTest {
         }
     }
 
-    // Allocating products.
-
-    @Test
-    fun `allocating gemv multiplies a matrix and its transpose`() {
-        val a = SparseMatrix.ofColumns(
-            rows = 2,
-            cols = 3,
-            columns = listOf(
-                listOf(0 to 1.0),
-                listOf(1 to 3.0),
-                listOf(0 to 2.0),
-            ),
-        )
-        assertContentEquals(doubleArrayOf(7.0, 9.0), koblas.gemv(a, doubleArrayOf(1.0, 3.0, 3.0)))
-        assertContentEquals(doubleArrayOf(1.0, 6.0, 2.0), koblas.gemv(a, doubleArrayOf(1.0, 2.0), transpose = true))
-    }
-
     // Shape validation.
-
-    // The extents hold no entries, so a call that sized its result before checking the vector would fail on the
-    // allocation rather than on the shape.
-    @Test
-    fun `allocating gemv rejects incompatible vectors before oversized results`() {
-        val a = SparseMatrix.wrap(Int.MAX_VALUE, 0, intArrayOf(0), intArrayOf(), doubleArrayOf())
-        for (transpose in booleanArrayOf(false, true)) {
-            val x = if (transpose) Int.MAX_VALUE else 0
-            val y = if (transpose) 0 else Int.MAX_VALUE
-
-            val failure = assertFailsWith<DimensionMismatch> { koblas.gemv(a, doubleArrayOf(1.0), transpose) }
-
-            assertEquals(
-                "gemv: ${Int.MAX_VALUE}x0 with transpose=$transpose needs x=$x and y=$y, got x=1 and y=$y",
-                failure.message,
-            )
-        }
-    }
 
     @Test
     fun `a dense operand that does not meet the sparse one from the right is rejected`() {
