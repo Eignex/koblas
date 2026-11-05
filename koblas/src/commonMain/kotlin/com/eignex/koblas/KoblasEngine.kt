@@ -19,7 +19,7 @@ import com.eignex.koblas.internal.storage.*
  * composed engine such as [koblas] routes each call to the provider its profile selects and otherwise runs the
  * same schedule over its own kernels; a vendor engine from [BuiltinEngines.vendor] calls its library for the
  * routines it exports and fails for the rest. [BuiltinEngines] names exact engines, while [koblas] selects its
- * standard platform configuration once.
+ * standard platform configuration once unless startup configuration overrides it.
  *
  * Level 2 and 3 routines validate shapes, preserve BLAS no-read rules and snapshot an input that shares the
  * destination's storage, borrowing from a [Scratch] when one is given. Level 1 members address primitive array
