@@ -256,7 +256,7 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             }
         }
 
-        "spgemm", "spgemm-generic" -> {
+        "spgemm", "spgemm-dense", "spgemm-generic" -> {
             val (m, n, k) = d
             val a = Fixtures.sparse(if (transpose) k else m, if (transpose) m else k, density, 1, support = support)
             val b = Fixtures.sparse(k, n, density, 2, support = support)
@@ -264,7 +264,24 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
                 1.0, SparseReference.dense(a), transpose, SparseReference.dense(b), false, 0.0, DenseMatrix.zero(m, n),
             )
             val support = SparseReference.productSupport(a, transpose, b, false)
-            if (case.operation == "spgemm-generic") {
+            if (case.operation == "spgemm-dense") {
+                val initial = Fixtures.matrix(m, n, 3)
+                val result = Fixtures.matrix(m, n, 3)
+                val expectedDense = DenseReference.gemm(
+                    alpha, SparseReference.dense(a), transpose, SparseReference.dense(b), false, beta, initial,
+                )
+                arm(
+                    verify = {
+                        initial.values.copyInto(result.values)
+                        engine.gemm(alpha, a, transpose, b, false, beta, result, scratch)
+                        DenseReference.check(expectedDense, result.values, "${case.id} dense destination")
+                    },
+                ) {
+                    initial.values.copyInto(result.values)
+                    engine.gemm(alpha, a, transpose, b, false, beta, result, scratch)
+                    result.values[0]
+                }
+            } else if (case.operation == "spgemm-generic") {
                 genericArm(
                     case, engine,
                     verify = {

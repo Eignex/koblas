@@ -49,3 +49,31 @@ check their [definitions](REFERENCE.md#cases) before comparing them.
 - [Capture reference](REFERENCE.md): options, workload definitions, attribution, host setup, lab adapter and scoring.
 - [Case inventory](cases.txt): available workloads and sizes.
 - [Engine guide](../BACKENDS.md): library setup, automatic selection and native thresholds.
+
+## Per-commit status sweep
+
+`lab/recipes/status-sweep.json` runs the default JVM engine on all 44 `KoblasEngine` routine overloads at
+exactly two sizes (88 cases). `lab/cases-status-sweep-v1.txt` freezes membership. Dense vectors and indexed
+vectors use 64/4096 entries, dense Level 2 and sparse matrices use orders 32/128, and dense Level 3 uses
+16/64. Sparse density is 1/8; matrix panels have eight right-hand sides. `spgemm-dense` covers the two-sparse
+operand overload with a dense destination, distinct from the allocating CSC product.
+
+The recipe matches the local Mac arm64 platform used by Klause's status sweep. It checks `main` every 120
+seconds, runs at priority 98 with four vCPUs (up to three single-thread cases), and has a 600-second active-time
+ceiling including preparation. Queue waits and pauses are outside that ceiling. Each workload has one JMH fork,
+one round, three 100ms warmup iterations and three 100ms measurement iterations, Serial GC and a fixed 512MiB
+heap. This is a short change detector; use longer paired captures to measure small differences.
+
+Each case validates numerical results before timing, retains the raw CSV/logs and exports `median_ns` in ns/op.
+A numerical/capture failure or an unsupported default-engine workload fails its case. The lab's `metric-v1`
+confirmation policy selects correctness transitions and timing changes beyond 15%, reuses both accepted revision
+builds and frozen inputs, and runs three paired blocks at priority 99. Each block runs both revisions on one machine
+in one attempt; other rows may use other compatible local machines. A majority must agree. Changed controls,
+missing samples, instrumentation and skipped cases cannot vote. At most 40 affected workloads are confirmed per
+run, prioritizing correctness transitions; the rest stay unconfirmed. Retain failed-attempt costs separately.
+
+After deploying lab support for `metric-v1`, register it with the maintained HTTP client:
+
+```bash
+lab schedule koblas-status-sweep main koblas-bench/lab/recipes/status-sweep.json 120
+```

@@ -1,0 +1,26 @@
+{
+  "main": "com.eignex.koblas.bench.LabAdapter",
+  "classpath": [
+    "koblas-bench/build/lab/classes",
+    "koblas-bench/build/lab/lib/*"
+  ],
+  "buildTasks": [
+    ":koblas-bench:prepareLabBenchmark"
+  ],
+  "jvmArgs": [
+    "-Xmx256m",
+    "--enable-native-access=ALL-UNNAMED",
+    "--add-modules=jdk.incubator.vector"
+  ],
+  "sourceHistory": "snapshot",
+  "runtime": {
+    "java": 25,
+    "requiredTags": [
+      "platform:mac",
+      "arch:arm64"
+    ],
+    "tools": [
+      "bash"
+    ]
+  }
+}
