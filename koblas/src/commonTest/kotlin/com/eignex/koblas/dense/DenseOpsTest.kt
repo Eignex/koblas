@@ -474,7 +474,7 @@ class DenseOpsTest {
 
     @Test
     fun `gemv and gemm reject incompatible shapes`() {
-        assertFailsWith<DimensionMismatch> { DenseMatrix(2, 3) * DenseMatrix(2, 2) }
+        assertFailsWith<DimensionMismatch> { koblas.gemm(DenseMatrix(2, 3), DenseMatrix(2, 2)) }
         assertFailsWith<DimensionMismatch> { koblas.gemv(1.0, DenseMatrix(2, 3), DoubleArray(2), 0.0, DoubleArray(2)) }
         assertFailsWith<DimensionMismatch> {
             koblas.gemv(1.0, DenseMatrix(2, 3), DoubleArray(3), 0.0, DoubleArray(3), transpose = true)

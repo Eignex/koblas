@@ -60,9 +60,9 @@ class MatrixOpsTest {
         val dense: Matrix = DenseMatrix.diagonal(3, 2.0)
         val sparse: Matrix = SparseMatrix.ofColumns(3, 3, List(3) { j -> listOf(j to 3.0) })
 
-        assertEquals(DenseMatrix::class, (dense * dense)::class, "dense by dense")
-        assertEquals(DenseMatrix::class, (dense * sparse)::class, "dense by sparse")
-        assertEquals(DenseMatrix::class, (sparse * dense)::class, "sparse by dense")
+        assertEquals(DenseMatrix::class, koblas.gemm(dense, dense)::class, "dense by dense")
+        assertEquals(DenseMatrix::class, koblas.gemm(dense, sparse)::class, "dense by sparse")
+        assertEquals(DenseMatrix::class, koblas.gemm(sparse, dense)::class, "sparse by dense")
     }
 
     @Test
@@ -244,7 +244,7 @@ class MatrixOpsTest {
         koblas.gemm(1.0, foreign, false, sparse, false, 0.0, actual)
 
         assertClose(expected, actual, "foreign matrix beside a sparse operand")
-        assertEquals(DenseMatrix::class, (foreign * (backing.transpose() as Matrix))::class)
+        assertEquals(DenseMatrix::class, koblas.gemm(foreign, backing.transpose() as Matrix)::class)
     }
 
     @Test
@@ -289,7 +289,7 @@ class MatrixOpsTest {
         koblas.gemm(1.0, foreign, false, right, false, 2.0, destination)
 
         assertContentEquals(doubleArrayOf(2.0, 4.0, 6.0, 8.0, 10.0, 12.0), destination.values)
-        assertEquals(3, (foreign * right).rows, "the allocating product keeps the row count too")
+        assertEquals(3, koblas.gemm(foreign, right).rows, "the allocating product keeps the row count too")
     }
 
     private fun sparseOf(rows: Int, cols: Int, rng: Random): SparseMatrix = SparseMatrix.ofColumns(

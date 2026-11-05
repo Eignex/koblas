@@ -600,18 +600,4 @@ class VectorOpsTest {
             assertEquals(y0[i], ys[i], "y padding at $i")
         }
     }
-
-    @Test
-    fun `gather rejects a dense vector of another length`() {
-        val pattern = SparseVector.of(6, intArrayOf(1, 4), doubleArrayOf(9.0, 9.0))
-
-        assertFailsWith<DimensionMismatch> { pattern.gather(DenseVector.of(DoubleArray(7))) }
-    }
-
-    @Test
-    fun `gatherZero rejects a dense vector of another length`() {
-        val pattern = SparseVector.of(6, intArrayOf(1, 4), doubleArrayOf(9.0, 9.0))
-
-        assertFailsWith<DimensionMismatch> { pattern.gatherZero(DenseVector.of(DoubleArray(7))) }
-    }
 }

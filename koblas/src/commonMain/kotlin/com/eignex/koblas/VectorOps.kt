@@ -162,25 +162,6 @@ private fun Vector.stableFor(destination: DenseVector): Vector = when (this) {
 }
 
 /**
- * Read [from] at this vector's stored positions into it (Sparse BLAS `usga`), the inverse of [copyFrom] from
- * a sparse source. This vector keeps its pattern, so a nonzero of [from] at an unstored position is not read.
- *
- * [from] is the adjacent shape rather than any dense one. A pattern indexes its operand directly, which is
- * what makes these routines worth having, and there is no increment to hand a stored position; the type says
- * so instead of a check that would refuse a caller at run time.
- */
-public fun SparseVector.gather(from: ContiguousVector) {
-    requireSameSize(size, from.size, "gather")
-    koblas.gather(this, from.values)
-}
-
-/** [gather], and zero in [from] the positions it read (Sparse BLAS `usgz`). */
-public fun SparseVector.gatherZero(from: ContiguousVector) {
-    requireSameSize(size, from.size, "gatherZero")
-    koblas.gatherZero(this, from.values)
-}
-
-/**
  * Exchange the contents of this vector and [other] (BLAS `dswap`), including rows and columns of a dense
  * matrix.
  *

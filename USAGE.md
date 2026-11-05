@@ -24,16 +24,16 @@ val a = DenseMatrix.ofRows(arrayOf(
 val x = DenseVector.of(doubleArrayOf(3.0, 5.0))
 val b = DenseMatrix.diagonal(2) // Identity matrix
 
-val y = a * x
-val product = a * b
-val scaled = 2.0 * x
+val y = DenseVector.zero(a.rows)
+koblas.gemv(1.0, a, x, 0.0, y)
+val product = koblas.gemm(a, b)
+val scaled = DenseVector.wrap(x.toDoubleArray()).also { it.scale(2.0) }
 val squaredLength = x dot x
 ```
 
-Here, matrix `*` means matrix multiplication, like `a @ b` in NumPy or PyTorch. Multiplying by a scalar
-scales each element, and `+` and `-` add or subtract matching shapes. These arithmetic operators create
-new vectors or matrices; a dot product returns a scalar. Access individual elements with
-`a[row, column]` or `x[index]`.
+GEMV writes a matrix-vector product into `y`; the short GEMM call returns a fresh matrix product.
+`scale` changes a vector in place, and a dot product returns a scalar. Access individual elements
+with `a[row, column]` or `x[index]`.
 
 Dense containers store every element. Sparse containers store only selected positions and are useful
 when most entries are absent. Matrix products accept a sparse operand on either side of a dense operand
@@ -49,7 +49,7 @@ matrix-matrix multiplication.
 
 ```kotlin
 val destination = DenseVector.wrap(DoubleArray(a.rows))
-koblas.gemv(1.0, a, x, 0.0, destination) // Same calculation as a * x
+koblas.gemv(1.0, a, x, 0.0, destination) // y = a * x
 ```
 
 The fuller forms can scale the product and add it to the destination in one call. For matrices,
@@ -71,8 +71,8 @@ repeat(1_000) {
 
 With beta set to zero, each call replaces the result; setting it to one accumulates into the result.
 Transpose flags let you multiply by a transposed operand without creating a separate transposed matrix.
-A `Scratch` lends temporary buffers to one call at a time and keeps them for the next. It does not remove
-allocations from expressions that return new results. Concurrent calls need separate destinations and
+A `Scratch` lends temporary buffers to one call at a time and keeps them for the next. Calls returning
+new results still allocate their output storage. Concurrent calls need separate destinations and
 separate `Scratch` instances.
 
 You can also reuse storage you already have. The wrapping factories share the supplied array without
@@ -111,8 +111,6 @@ import com.eignex.koblas.dense.DenseBlas;
 
 DenseMatrix a = DenseMatrix.ofRows(new double[][] {{2.0, 1.0}, {1.0, 3.0}});
 DenseVector x = DenseVector.of(new double[] {3.0, 5.0});
-DenseVector y = Koblas.multiply(a, x);
-
 DenseVector destination = DenseVector.wrap(new double[a.getRows()]);
 DenseBlas.gemv(Koblas.getDefault(), 1.0, a, x, 0.0, destination);
 ```

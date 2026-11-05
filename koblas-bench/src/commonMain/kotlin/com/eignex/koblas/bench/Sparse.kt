@@ -85,22 +85,23 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
             }
         }
         "spgather" -> {
-            val x = Fixtures.sparseVector(d[0], density, 1)
+            val x = Fixtures.sparseVector(d[0], density, 1); val indices = x.copyIndices()
             val dense0 = Fixtures.vector(d[0], 2); val dense = dense0.copyOf()
             val timing = case.option("timing", "reset-and-arithmetic")
             arm(x.values.size, timing, result = x.values) {
                 if (timing == "reset-and-arithmetic") dense0.copyInto(dense)
-                kernels.gather(x, dense)
+                kernels.gather(indices, 0, x.values, 0, x.values.size, dense)
                 if (x.values.isEmpty()) 0.0 else x.values[0] + x.values[x.values.lastIndex]
             }
         }
         "spscatter", "spgather-zero" -> {
             val x = Fixtures.sparseVector(d[0], density, 1); val values0 = x.values.copyOf()
+            val indices = x.copyIndices()
             val dense0 = Fixtures.vector(d[0], 2); val dense = dense0.copyOf()
             val scatter = case.operation == "spscatter"
             arm(x.values.size, "reset-and-arithmetic") {
                 values0.copyInto(x.values); dense0.copyInto(dense)
-                if (scatter) kernels.scatter(x, dense) else kernels.gatherZero(x, dense)
+                if (scatter) kernels.scatter(x, dense) else kernels.gatherZero(indices, 0, x.values, 0, x.values.size, dense)
                 x.values.firstOrNull() ?: dense[0]
             }
         }
