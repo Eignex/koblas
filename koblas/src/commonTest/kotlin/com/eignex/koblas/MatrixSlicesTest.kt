@@ -153,32 +153,6 @@ class MatrixSlicesTest {
         assertEquals(0, t.nnz)
     }
 
-    @Test
-    fun `withColumn replaces one column and leaves the rest`() {
-        val a = SparseMatrix.ofColumns(
-            3,
-            2,
-            listOf(
-                listOf(0 to 4.0, 2 to -1.0),
-                listOf(1 to 7.0),
-            ),
-        )
-        val b = a.withColumn(0, SparseVector.of(3, intArrayOf(1), doubleArrayOf(5.0)))
-        assertEquals(0.0, b[0, 0])
-        assertEquals(5.0, b[1, 0])
-        assertEquals(0.0, b[2, 0])
-        assertEquals(7.0, b[1, 1])
-        assertEquals(2, b.nnz)
-    }
-
-    @Test
-    fun `withColumn rejects an entering column of the wrong length`() {
-        val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 1.0)))
-        assertFailsWith<DimensionMismatch> {
-            a.withColumn(0, SparseVector.of(3, intArrayOf(0), doubleArrayOf(1.0)))
-        }
-    }
-
     /** CSC fixture with empty columns, irregular rows, and an explicitly stored zero. */
     private fun sparseStorageExample(): SparseMatrix = SparseMatrix.ofTriplets(
         rows = 3,

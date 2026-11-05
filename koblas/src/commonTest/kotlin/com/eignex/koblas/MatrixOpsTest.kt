@@ -3,7 +3,6 @@ package com.eignex.koblas
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.sparse.*
-import com.eignex.koblas.sparse.ReferenceSparseBlas
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -12,6 +11,23 @@ import kotlin.test.assertFailsWith
 import kotlin.test.fail
 
 class MatrixOpsTest {
+
+    @Test
+    fun `sparse pair products are rejected before destination mutation`() {
+        val sparse: Matrix = SparseMatrix.ofColumns(1, 1, listOf(listOf(0 to 2.0)))
+        for (alpha in listOf(0.0, 1.0)) {
+            val destination = DenseMatrix.wrap(1, 1, doubleArrayOf(7.0))
+
+            assertFailsWith<IllegalArgumentException> {
+                koblas.gemm(alpha, sparse, false, sparse, false, 0.0, destination)
+            }
+            assertFailsWith<IllegalArgumentException> {
+                koblas.gemm(alpha, sparse, false, sparse, false)
+            }
+
+            assertContentEquals(doubleArrayOf(7.0), destination.values)
+        }
+    }
 
     /** A [Matrix] from outside the library, which has only [Matrix.get] to be read through. */
     private class ForeignMatrix(private val backing: DenseMatrix) : Matrix {
@@ -40,19 +56,17 @@ class MatrixOpsTest {
     }
 
     @Test
-    fun `fresh result storage follows the runtime storage pair`() {
+    fun `supported storage pairs produce dense results`() {
         val dense: Matrix = DenseMatrix.diagonal(3, 2.0)
         val sparse: Matrix = SparseMatrix.ofColumns(3, 3, List(3) { j -> listOf(j to 3.0) })
 
         assertEquals(DenseMatrix::class, (dense * dense)::class, "dense by dense")
         assertEquals(DenseMatrix::class, (dense * sparse)::class, "dense by sparse")
         assertEquals(DenseMatrix::class, (sparse * dense)::class, "sparse by dense")
-        assertEquals(SparseMatrix::class, (sparse * sparse)::class, "sparse by sparse")
-        assertEquals(3, ((sparse * sparse) as SparseMatrix).nnz, "sparse result keeps CSC support")
     }
 
     @Test
-    fun `every pairing agrees with the storage specific call through variables typed as Matrix`() {
+    fun `supported pairings agree with the storage specific call through variables typed as Matrix`() {
         val rng = Random(20260924)
         val denseLeft = randomMatrix(4, 3, rng)
         val denseRight = randomMatrix(3, 5, rng)
@@ -68,12 +82,6 @@ class MatrixOpsTest {
         val mirrored = DenseMatrix.zero(4, 5)
         koblas.gemm(1.0, sparseRight, false, denseLeft, false, 0.0, mirrored, right = true)
         assertClose(mirrored, koblas.gemm(denseLeft as Matrix, sparseRight) as DenseMatrix, "dense by sparse")
-
-        assertEquals(
-            ReferenceSparseBlas.gemm(1.0, sparseLeft, false, sparseRight, false),
-            koblas.gemm(sparseLeft as Matrix, sparseRight) as SparseMatrix,
-            "sparse by sparse",
-        )
     }
 
     @Test
@@ -123,7 +131,7 @@ class MatrixOpsTest {
     fun `a generic product stages aliases in either operand position`() {
         val backing = doubleArrayOf(2.0, 3.0, 5.0, 7.0)
         val sparse = SparseMatrix.wrap(2, 2, intArrayOf(0, 2, 4), intArrayOf(0, 1, 0, 1), backing)
-        val identity: Matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 1.0)))
+        val identity: Matrix = DenseMatrix.diagonal(2)
         val destination = DenseMatrix.wrap(2, 2, backing)
 
         koblas.gemm(1.0, sparse as Matrix, false, identity, false, 0.0, destination, scratch = Scratch())

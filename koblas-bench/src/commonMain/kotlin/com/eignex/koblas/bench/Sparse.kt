@@ -37,7 +37,7 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
         }
         "spdot-view" -> vectorViewsArm(case, engine)
         "spdot-column", "spdot-column-raw" -> sparseColumnDotArm(case, engine)
-        "spdot-slice", "spnrm2-slice", "spaxpy-slice", "spscatter-slice" -> sparseSlicesArm(case, engine)
+        "spdot-slice", "spaxpy-slice", "spscatter-slice" -> sparseSlicesArm(case, engine)
         "spdot" -> {
             val x = Fixtures.sparseVector(d[0], density, 1); val y = Fixtures.vector(d[0], 2)
             arm(x.values.size, "arithmetic") { kernels.dot(x, y) }
@@ -73,13 +73,6 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
             val norm = case.operation == "spnrm2"
             arm(x.values.size, "arithmetic") {
                 if (norm) kernels.nrm2(x) else kernels.asum(x)
-            }
-        }
-        "spnrm2-indexed" -> {
-            val x = Fixtures.sparseVector(d[0], density, 1); val indices = x.copyIndices()
-            val dense = Fixtures.vector(d[0], 2)
-            arm(indices.size, "arithmetic") {
-                kernels.nrm2(indices, 0, indices.size, dense)
             }
         }
         "spscatter-raw" -> {
@@ -123,8 +116,7 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
  * ones a given width reached.
  *
  * Every case is verified against [SparseReference] before it is timed. The comparison covers the whole result
- * and, for a fresh CSC result, the support its operands' patterns reach; a case that computes the wrong thing
- * fails the run.
+ * and a case that computes the wrong thing fails the run.
  */
 @Suppress("LongMethod", "CyclomaticComplexMethod") // one branch per benchmarked operation
 internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
@@ -256,54 +248,6 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             }
         }
 
-        "spgemm", "spgemm-dense", "spgemm-generic" -> {
-            val (m, n, k) = d
-            val a = Fixtures.sparse(if (transpose) k else m, if (transpose) m else k, density, 1, support = support)
-            val b = Fixtures.sparse(k, n, density, 2, support = support)
-            val expected = DenseReference.gemm(
-                1.0, SparseReference.dense(a), transpose, SparseReference.dense(b), false, 0.0, DenseMatrix.zero(m, n),
-            )
-            val support = SparseReference.productSupport(a, transpose, b, false)
-            if (case.operation == "spgemm-dense") {
-                val initial = Fixtures.matrix(m, n, 3)
-                val result = Fixtures.matrix(m, n, 3)
-                val expectedDense = DenseReference.gemm(
-                    alpha, SparseReference.dense(a), transpose, SparseReference.dense(b), false, beta, initial,
-                )
-                arm(
-                    verify = {
-                        initial.values.copyInto(result.values)
-                        engine.gemm(alpha, a, transpose, b, false, beta, result, scratch)
-                        DenseReference.check(expectedDense, result.values, "${case.id} dense destination")
-                    },
-                ) {
-                    initial.values.copyInto(result.values)
-                    engine.gemm(alpha, a, transpose, b, false, beta, result, scratch)
-                    result.values[0]
-                }
-            } else if (case.operation == "spgemm-generic") {
-                genericArm(
-                    case, engine,
-                    verify = {
-                        val product = engine.gemm(1.0, a as Matrix, transpose, b as Matrix, false)
-                        SparseReference.checkSparse(
-                            expected, support, product as SparseMatrix, "${case.id} generic product",
-                        )
-                    },
-                ) {
-                    Retained.retain(engine.gemm(1.0, a as Matrix, transpose, b as Matrix, false))
-                }
-            } else {
-                arm(
-                    verify = {
-                        SparseReference.checkSparse(
-                            expected, support, engine.gemm(1.0, a, transpose, b, false), "${case.id} product",
-                        )
-                    },
-                ) { Retained.retain(engine.gemm(1.0, a, transpose, b, false)) }
-            }
-        }
-
         "spsymv" -> {
             val a = Fixtures.sparse(d[0], d[0], density, 1, triangular = true, lower = lower, support = support)
             val x = Fixtures.vector(d[0], 2)
@@ -396,55 +340,26 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             }
         }
 
-        "spsyrk-dense", "spsyrk-sparse" -> {
+        "spsyrk-dense" -> {
             val (n, k) = d
             val a = Fixtures.sparse(n, k, density, 1, support = support)
             val c0 = Fixtures.matrix(n, n, 2)
             val c = Fixtures.matrix(n, n, 2)
-            val dense = case.operation == "spsyrk-dense"
             val reference = SparseReference.dense(a)
             arm(
                 verify = {
-                    if (dense) {
-                        c0.values.copyInto(c.values)
-                        engine.syrk(alpha, a, false, beta, c, lower, scratch = scratch)
-                        DenseReference.check(
-                            DenseReference.syrk(alpha, reference, reference, false, beta, c0, lower, doubled = false),
-                            c.values, "${case.id} rank update",
-                        )
-                    } else {
-                        val zero = DenseMatrix.zero(n, n)
-                        SparseReference.checkSparse(
-                            DenseReference.syrk(1.0, reference, reference, false, 0.0, zero, lower, doubled = false),
-                            SparseReference.rankSupport(a, transpose = false, lower = lower),
-                            engine.syrk(a, false, lower), "${case.id} rank update",
-                        )
-                    }
-                },
-            ) {
-                if (dense) {
                     c0.values.copyInto(c.values)
                     engine.syrk(alpha, a, false, beta, c, lower, scratch = scratch)
-                    c.values[0]
-                } else {
-                    Retained.retain(engine.syrk(a, false, lower))
-                }
-            }
-        }
-
-        "spadd" -> {
-            val (m, n) = d
-            val a = Fixtures.sparse(m, n, density, 1, support = support)
-            val b = Fixtures.sparse(m, n, density, 2, support = support)
-            val expected = SparseReference.addScaled(alpha, a, b)
-            val support = SparseReference.unionSupport(a, transposeA = false, b = b)
-            arm(
-                verify = {
-                    SparseReference.checkSparse(
-                        expected, support, engine.addScaled(alpha, a, false, b), "${case.id} sum",
+                    DenseReference.check(
+                        DenseReference.syrk(alpha, reference, reference, false, beta, c0, lower, doubled = false),
+                        c.values, "${case.id} rank update",
                     )
                 },
-            ) { Retained.retain(engine.addScaled(alpha, a, false, b)) }
+            ) {
+                c0.values.copyInto(c.values)
+                engine.syrk(alpha, a, false, beta, c, lower, scratch = scratch)
+                c.values[0]
+            }
         }
 
         else -> null

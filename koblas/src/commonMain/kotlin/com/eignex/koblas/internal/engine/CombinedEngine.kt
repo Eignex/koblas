@@ -107,7 +107,6 @@ internal class CombinedEngine(val routing: CompiledRouting, override val name: S
     private val indexedScatterRoute = lengthRoutes[EngineImplementation.IndexedScatter.ordinal]
     private val indexedGatherRoute = lengthRoutes[EngineImplementation.IndexedGather.ordinal]
     private val indexedGatherZeroRoute = lengthRoutes[EngineImplementation.IndexedGatherZero.ordinal]
-    private val indexedNrm2Route = lengthRoutes[EngineImplementation.IndexedNrm2.ordinal]
     internal val panelImplementation = routing.select(EngineImplementation.Panels)
     internal val productImplementation = routing.select(EngineImplementation.Products)
     internal val triangularImplementation = routing.select(EngineImplementation.Triangular)
@@ -248,9 +247,6 @@ internal class CombinedEngine(val routing: CompiledRouting, override val name: S
     ): Unit = indexedGatherZeroRoute.withBackend(count) {
         it.gatherZero(indices, indexOffset, values, valueOffset, count, source)
     }
-
-    override fun nrm2(indices: IntArray, indexOffset: Int, count: Int, values: DoubleArray): Double =
-        indexedNrm2Route.withBackend(count) { it.nrm2(indices, indexOffset, count, values) }
 
     override fun copy(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) =
         copyRoute.withBackend(len, aStride == 1 && bStride == 1) {

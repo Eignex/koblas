@@ -206,7 +206,6 @@ internal val BenchCase.implementation: EngineImplementation? get() {
         "spscatter", "spscatter-raw", "spscatter-slice" -> "IndexedScatter"
         "spgather" -> "IndexedGather"
         "spgather-zero" -> "IndexedGatherZero"
-        "spnrm2-indexed", "spnrm2-slice" -> "IndexedNrm2"
         "spnrm2" -> "Nrm2"
         "spasum" -> "Asum"
         else -> operation

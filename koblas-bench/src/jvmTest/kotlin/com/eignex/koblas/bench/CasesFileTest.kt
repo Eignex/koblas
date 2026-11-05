@@ -66,13 +66,13 @@ class CasesFileTest {
     }
 
     @Test
-    fun `default workload retains historical identities`() {
+    fun `default workload has stable supported identities`() {
         val defaults = Cases.select(Cases.parse(Files.readString(Path.of("cases.txt"))))
         val ids = defaults.joinToString("\n") { it.id }
         val digest = MessageDigest.getInstance("SHA-256").digest(ids.toByteArray()).joinToString("") { "%02x".format(it) }
 
         // The digest protects benchmark identities used to compare captures.
-        assertEquals("a82bddcb743c0b1134080f08163ee5b3fbe52061c73c2e558e92be3e2357eb82", digest)
+        assertEquals("4d0c2349af4c3b65e3342e645eced805d7d8561f5358722a4ce21fc4251f927c", digest)
     }
 
     @Test
@@ -81,8 +81,8 @@ class CasesFileTest {
 
         assertEquals(SWEPT, cases.filter { "sweep" in it.suites }.map { it.operation }.toSet())
         assertEquals(168, cases.count { "sweep" in it.suites })
-        assertEquals(359, cases.size)
-        assertEquals(207, Cases.select(cases).size)
+        assertEquals(340, cases.size)
+        assertEquals(188, Cases.select(cases).size)
         assertEquals(cases.size, cases.map { it.id }.toSet().size)
     }
 

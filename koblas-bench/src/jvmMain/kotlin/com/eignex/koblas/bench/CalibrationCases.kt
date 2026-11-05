@@ -32,7 +32,7 @@ internal object CalibrationCases {
         for (op in vectors) for (n in listOf(6291456, 8388608)) for (stride in listOf(2, -1, -2))
             add("$op+$n+uniform+stride=$stride")
     }
-    private val indexed = listOf("spdot", "spdot-sparse", "spaxpy", "spscatter", "spgather", "spgather-zero", "spnrm2-indexed")
+    private val indexed = listOf("spdot", "spdot-sparse", "spaxpy", "spscatter", "spgather", "spgather-zero")
     fun training(native: Boolean = false): List<String> = buildList {
         for (op in vectors) for (n in listOf(2, 4, 8, 16, 32, 64, 96, 128, 256, 1024, 65536, 1000000))
             for (stride in listOf("", "+stride=2", "+stride=-1", "+stride=-2")) add("$op+$n+uniform$stride")

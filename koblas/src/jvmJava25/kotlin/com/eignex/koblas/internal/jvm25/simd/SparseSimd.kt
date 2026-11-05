@@ -13,7 +13,7 @@ import jdk.incubator.vector.VectorOperators
  * units, where a lane block is two scalar loads put side by side: 0.81 to 0.92 of the scalar time on Apple
  * silicon. An indexed gather or scatter through the Vector API measured slower everywhere else, from about
  * even to 1.4 times on four-lane ARM and from 2 to over 200 times on 512-bit x86, where it fell back to
- * allocating Java code, so gather, scatter, axpy and the indexed norm stay scalar.
+ * allocating Java code, so gather, scatter and axpy stay scalar.
  *
  * Its own object so the initializer, which touches DoubleVector, runs only once the module is present.
  */

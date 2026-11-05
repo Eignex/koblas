@@ -36,9 +36,10 @@ new vectors or matrices; a dot product returns a scalar. Access individual eleme
 `a[row, column]` or `x[index]`.
 
 Dense containers store every element. Sparse containers store only selected positions and are useful
-when most entries are absent. Matrix products accept either kind: two sparse matrices produce a sparse
-result, while a product with a dense matrix produces a dense result. Sparse inputs stay sparse during
-the computation. See the [API overview](koblas/module.md) for construction and the full operation set.
+when most entries are absent. Matrix products accept a sparse operand on either side of a dense operand
+and produce a dense result. Sparse inputs stay sparse during the computation. Products of two sparse
+matrices are unsupported. See the [API overview](koblas/module.md) for construction and the full
+operation set.
 
 ## Reusing arrays
 
@@ -71,8 +72,8 @@ repeat(1_000) {
 With beta set to zero, each call replaces the result; setting it to one accumulates into the result.
 Transpose flags let you multiply by a transposed operand without creating a separate transposed matrix.
 A `Scratch` lends temporary buffers to one call at a time and keeps them for the next. It does not remove
-allocations from expressions that return new results or from sparse operations that build a new storage
-pattern. Concurrent calls need separate destinations and separate `Scratch` instances.
+allocations from expressions that return new results. Concurrent calls need separate destinations and
+separate `Scratch` instances.
 
 You can also reuse storage you already have. The wrapping factories share the supplied array without
 copying it. Dense matrix storage is column-major: elements in a column are adjacent, and `a[i, j]`

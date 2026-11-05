@@ -30,9 +30,6 @@ class SparseTest {
             for (id in listOf(
                 "spdot+4096+sparse-uniform+density=0.25",
                 "spsymv+65+sparse-triangular+density=0.05+mode=oneshot+uplo=L",
-                "spgemm+33x17x21+sparse-uniform+density=0.05+mode=oneshot",
-                "spsyrk-sparse+33x17+sparse-uniform+density=0.05+uplo=L",
-                "spadd+33x17+sparse-uniform+density=0.05",
             )) {
                 val case = Cases.parse(id).single()
                 val work = assertNotNull(sparseArm(case, engine)?.work, "$id on ${engine.name}")
@@ -50,7 +47,6 @@ class SparseTest {
             "spmm-generic+9x3x7+sparse-uniform+density=0.3+mode=oneshot+transA=T",
             "spmm-generic-right+9x3x7+sparse-uniform+density=0.3+mode=oneshot",
             "spmm-generic-right+9x3x7+sparse-uniform+density=0.3+mode=oneshot+transA=T",
-            "spgemm-generic+9x5x7+sparse-uniform+density=0.3+mode=oneshot",
         )) {
             val case = Cases.parse(id).single()
             for (engine in listOfNotNull(koblas, BuiltinEngines.scalar, BuiltinEngines.simd).distinct()) {
@@ -76,7 +72,6 @@ class SparseTest {
             "spgemv+9x7+sparse-uniform+density=0.3+mode=oneshot+transA=T",
             "spmm+9x3x7+sparse-uniform+density=0.3+mode=oneshot",
             "spmm+9x3x7+sparse-uniform+density=0.3+mode=oneshot+transB=T",
-            "spgemm+9x5x7+sparse-uniform+density=0.3+mode=oneshot",
             "spsymv+9+sparse-triangular+density=0.3+mode=oneshot+uplo=L",
             "spsymv+9+sparse-triangular+density=0.3+mode=oneshot+uplo=U",
             "spsymm+9x3+sparse-triangular+density=0.3+mode=oneshot+side=L+uplo=L",
@@ -90,9 +85,6 @@ class SparseTest {
             "sptrmm+3x9+sparse-triangular+density=0.3+mode=oneshot+side=R+uplo=L+transA=N+diag=N",
             "spsyrk-dense+9x5+sparse-uniform+density=0.3+uplo=U",
             "spsyrk-dense+9x5+sparse-uniform+density=0.3+uplo=L",
-            "spsyrk-sparse+9x5+sparse-uniform+density=0.3+uplo=U",
-            "spsyrk-sparse+9x5+sparse-uniform+density=0.3+uplo=L",
-            "spadd+9x5+sparse-uniform+density=0.3",
         )) {
             val case = Cases.parse(id).single()
             val work = assertNotNull(sparseArm(case, BuiltinEngines.scalar)?.work, id)

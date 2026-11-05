@@ -79,7 +79,6 @@ class OperatorsTest {
             { denseLeft * denseRight },
             { denseLeft * sparseRight },
             { sparseLeft * denseRight },
-            { sparseLeft * sparseRight },
         )
 
         for (product in products) {
@@ -139,16 +138,5 @@ class OperatorsTest {
         assertFailsWith<DimensionMismatch> { x + DenseVector.zero(3) }
         assertFailsWith<DimensionMismatch> { x - DenseVector.zero(3) }
         assertFailsWith<DimensionMismatch> { wide * DenseVector.zero(2) }
-    }
-
-    @Test
-    fun `sparse difference subtracts the right operand from the left`() {
-        val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 3.0)))
-        val b = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 5.0, 1 to 7.0), listOf(1 to -3.0)))
-
-        val difference = a - b
-
-        assertContentEquals(intArrayOf(0, 2, 3), difference.copyColumnPointers())
-        assertContentEquals(doubleArrayOf(-3.0, -7.0, 6.0), difference.values)
     }
 }

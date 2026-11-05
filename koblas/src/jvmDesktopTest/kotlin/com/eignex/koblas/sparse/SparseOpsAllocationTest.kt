@@ -52,16 +52,6 @@ class SparseOpsAllocationTest internal constructor(private val case: AllocationC
                     dense
                 }
             },
-            with(IndexedSliceFixture()) {
-                AllocationCase("indexed norm with an offset allocates nothing", 1_000) {
-                    engine.nrm2(indices, INDEX_OFFSET, ENTRIES, dense)
-                }
-            },
-            with(IndexedSliceFixture()) {
-                AllocationCase("indexed norm with rescaling allocates nothing", 1_000) {
-                    engine.nrm2(indices, INDEX_OFFSET, ENTRIES, large)
-                }
-            },
         )
 
         private fun levelTwoCases(): List<AllocationCase> = listOf(
@@ -117,12 +107,6 @@ class SparseOpsAllocationTest internal constructor(private val case: AllocationC
                 }
             },
             with(SparseLevelThreeFixture()) {
-                AllocationCase("sparse matrix product reuses a workspace", 300) {
-                    engine.gemm(1e-12, sparse, false, identity, false, 1.0, square, scratch = workspace)
-                    square
-                }
-            },
-            with(SparseLevelThreeFixture()) {
                 AllocationCase("sparse trsm reuses a workspace", 300) {
                     engine.trsm(sparse, solveBlock, lower = true, scratch = workspace)
                     solveBlock
@@ -137,40 +121,18 @@ class SparseOpsAllocationTest internal constructor(private val case: AllocationC
         )
 
         private fun resultCases(): List<AllocationCase> {
-            val a = strips { i -> (i * 4) to (i + 1.0) }
             val skewed = SparseMatrix.ofColumns(
                 ROWS,
                 COLUMNS,
                 List(COLUMNS) { j -> List(32) { i -> (i * 4 + j) to (i + 1.0) } },
             )
             val transposeBytes = resultBytes(ROWS, skewed.nnz)
-            val additions = booleanArrayOf(false, true).map { overlap ->
-                val b = strips { i -> (i * 4 + if (overlap) 0 else 1) to (i + 0.5) }
-                val budget = resultBytes(COLUMNS, if (overlap) a.nnz else a.nnz + b.nnz) + FLOOR_BYTES
-                AllocationCase("a sparse addition with overlap $overlap allocates only result storage", 200, budget) {
-                    engine.addScaled(0.5, a, false, b)
-                }
-            }
-            val poisoned = strips { i -> (i * 4) to Double.NaN }
-            val transposed = engine.transpose(poisoned)
-            // The transposed operand is oriented before the sum, which is one more result's worth of storage.
-            val orientedBudget = 2 * (resultBytes(COLUMNS, poisoned.nnz) + FLOOR_BYTES)
             return listOf(
                 AllocationCase("a sparse transpose allocates only result storage", 100, transposeBytes + FLOOR_BYTES) {
                     engine.transpose(skewed)
                 },
-            ) + additions + AllocationCase(
-                "a zero alpha transposed sparse addition allocates only orientation and result storage",
-                100,
-                orientedBudget,
-            ) {
-                engine.addScaled(0.0, transposed, true, poisoned)
-            }
+            )
         }
-
-        /** A [ROWS] by [COLUMNS] operand with 32 stored rows per column at the positions [entry] gives. */
-        private fun strips(entry: (Int) -> Pair<Int, Double>): SparseMatrix =
-            SparseMatrix.ofColumns(ROWS, COLUMNS, List(COLUMNS) { List(32, entry) })
 
         /** A CSC result's bytes: three array headers, [columns] + 1 pointers, and an index and value per entry. */
         private fun resultBytes(columns: Int, entries: Int): Int = 3 * ARRAY_HEADER_BYTES +
@@ -199,7 +161,6 @@ class SparseOpsAllocationTest internal constructor(private val case: AllocationC
             if (it in VALUE_OFFSET until VALUE_OFFSET + ENTRIES) 0.5 + (it - VALUE_OFFSET) * 0.125 else Double.NaN
         }
         val dense = DoubleArray(dimension) { 1.0 + (it % 17) * 0.03125 }
-        val large = DoubleArray(dimension) { 1e200 }
         val gathered = SparseVector.wrap(dimension, IntArray(ENTRIES) { 1 + it * 4 }, DoubleArray(ENTRIES))
     }
 
@@ -224,7 +185,6 @@ class SparseOpsAllocationTest internal constructor(private val case: AllocationC
         val n = 64
         val rightHandSides = 8
         val sparse = SparseMatrix.ofColumns(n, n, List(n) { j -> listOf(j to (j + 1.0)) })
-        val identity = SparseMatrix.ofColumns(n, n, List(n) { j -> listOf(j to 1.0) })
         val b = DenseMatrix.zero(n, rightHandSides).also { it.values.fill(1.0) }
         val solveBlock = DenseMatrix.zero(n, rightHandSides).also { it.values.fill(1.0) }
         val multiplyBlock = DenseMatrix.zero(n, rightHandSides).also { it.values.fill(1.0) }
@@ -238,7 +198,6 @@ class SparseOpsAllocationTest internal constructor(private val case: AllocationC
             engine.gemm(1e-12, sparse, false, b, true, 1.0, transposed, right = true, scratch = workspace)
             engine.syrk(1e-12, sparse, false, 1.0, square, scratch = workspace)
             engine.symm(1e-12, sparse, b, 1.0, panel, scratch = workspace)
-            engine.gemm(1e-12, sparse, false, identity, false, 1.0, square, scratch = workspace)
             engine.trsm(sparse, solveBlock, lower = true, scratch = workspace)
             engine.trmm(sparse, multiplyBlock, lower = true, scratch = workspace)
         }

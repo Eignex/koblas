@@ -28,18 +28,7 @@ internal object ReferenceSparseBlas {
     private fun oriented(a: SparseMatrix, transpose: Boolean): List<Entry> =
         if (transpose) entries(a).map { Entry(it.col, it.row, it.value) } else entries(a)
 
-    private fun rowsOf(a: SparseMatrix, transpose: Boolean) = if (transpose) a.cols else a.rows
-
-    private fun colsOf(a: SparseMatrix, transpose: Boolean) = if (transpose) a.rows else a.cols
-
     private fun scaled(beta: Double, previous: Double): Double = if (beta == 0.0) 0.0 else beta * previous
-
-    /* A discovered position as one map key, so the oracle accumulates coordinates without nesting maps. */
-    private fun coordinate(row: Int, col: Int): Long = (row.toLong() shl Int.SIZE_BITS) or col.toLong()
-
-    private fun rowOf(key: Long): Int = (key ushr Int.SIZE_BITS).toInt()
-
-    private fun colOf(key: Long): Int = key.toInt()
 
     fun gemv(alpha: Double, a: SparseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, transpose: Boolean = false) {
         for (i in y.indices) y[i] = scaled(beta, y[i])
@@ -121,45 +110,6 @@ internal object ReferenceSparseBlas {
         }
     }
 
-    /** `alpha·op(A)·op(B)` for two sparse operands, into a fresh CSC result. */
-    fun gemm(alpha: Double, a: SparseMatrix, transposeA: Boolean, b: SparseMatrix, transposeB: Boolean): SparseMatrix {
-        val left = oriented(a, transposeA)
-        val right = oriented(b, transposeB)
-        val discovered = LinkedHashMap<Long, Double>()
-        for (l in left) {
-            for (r in right) {
-                if (r.row != l.col) continue
-                val key = coordinate(l.row, r.col)
-                discovered[key] = (discovered[key] ?: 0.0) + l.value * r.value
-            }
-        }
-        val entries = discovered.map { (key, sum) ->
-            Entry(rowOf(key), colOf(key), if (alpha == 0.0) alpha else alpha * sum)
-        }
-        return build(rowsOf(a, transposeA), colsOf(b, transposeB), entries)
-    }
-
-    /** The same product accumulated into a dense destination. */
-    @Suppress("LongParameterList") // the BLAS dgemm signature
-    fun gemm(
-        alpha: Double,
-        a: SparseMatrix,
-        transposeA: Boolean,
-        b: SparseMatrix,
-        transposeB: Boolean,
-        beta: Double,
-        c: DenseMatrix,
-    ) {
-        for (i in c.values.indices) c.values[i] = scaled(beta, c.values[i])
-        if (alpha == 0.0) return
-        for (l in oriented(a, transposeA)) {
-            for (r in oriented(b, transposeB)) {
-                if (r.row != l.col) continue
-                c.values[l.row + r.col * c.rows] += alpha * (l.value * r.value)
-            }
-        }
-    }
-
     /** `C = alpha·op(A)·op(A)ᵀ + beta·C` over the selected triangle of a dense destination. */
     @Suppress("LongParameterList") // the BLAS dsyrk signature
     fun syrk(alpha: Double, a: SparseMatrix, transpose: Boolean, beta: Double, c: DenseMatrix, lower: Boolean = true) {
@@ -178,42 +128,6 @@ internal object ReferenceSparseBlas {
                 c.values[l.row + r.row * n] += alpha * (l.value * r.value)
             }
         }
-    }
-
-    /** The selected triangle of `op(A)·op(A)ᵀ` as a fresh CSC result. */
-    fun syrk(a: SparseMatrix, transpose: Boolean = false, lower: Boolean = true): SparseMatrix {
-        val op = oriented(a, transpose)
-        val order = rowsOf(a, transpose)
-        val discovered = LinkedHashMap<Long, Double>()
-        for (l in op) {
-            for (r in op) {
-                if (l.col != r.col) continue
-                if (if (lower) l.row < r.row else l.row > r.row) continue
-                val key = coordinate(l.row, r.row)
-                discovered[key] = (discovered[key] ?: 0.0) + l.value * r.value
-            }
-        }
-        val entries = discovered.map { (key, sum) ->
-            Entry(rowOf(key), colOf(key), sum)
-        }
-        return build(order, order, entries)
-    }
-
-    /** `alpha·op(A) + B` as a fresh CSC result retaining the structural union. */
-    fun addScaled(alpha: Double, a: SparseMatrix, transposeA: Boolean, b: SparseMatrix): SparseMatrix {
-        val union = LinkedHashMap<Long, Double>()
-        for (e in oriented(a, transposeA)) {
-            val key = coordinate(e.row, e.col)
-            union[key] = (union[key] ?: 0.0) + if (alpha == 0.0) alpha else alpha * e.value
-        }
-        for (e in entries(b)) {
-            val key = coordinate(e.row, e.col)
-            union[key] = (union[key] ?: 0.0) + e.value
-        }
-        val entries = union.map { (key, sum) ->
-            Entry(rowOf(key), colOf(key), sum)
-        }
-        return build(rowsOf(a, transposeA), colsOf(a, transposeA), entries)
     }
 
     /**

@@ -1,187 +1,103 @@
-@file:Suppress("VariableNaming", "FunctionParameterNaming") // math convention: single-letter matrices
-
 package com.eignex.koblas.internal.portable.sparse
 
 import com.eignex.koblas.*
-import com.eignex.koblas.internal.operands.requireShape
 import com.eignex.koblas.internal.sparse.*
 
-/*
- * The symmetric rank-one and rank-two updates over a CSC matrix, which build a new pattern rather than
- * writing into an existing one. Their own file beside the other CSC builders rather than inside MatrixOps,
- * where two public extensions would sit on top of two hundred lines nothing else could reach.
- */
-
-/**
- * `A + alpha·x·xᵀ` over the [lower] or upper triangle of a CSC [a], as a fresh matrix.
- *
- * A zero [alpha] returns an independent copy of [a] without reading [x] at all. The vector is only sized by
- * the public entry point, so an implementation of [Vector] that computes or refuses its entries is never asked
- * for one by a rank update that contributes nothing.
- */
-internal fun sparseSyr(a: SparseMatrix, alpha: Double, x: Vector, lower: Boolean): SparseMatrix {
-    if (alpha == 0.0) return a.sparseCopy()
-    val xs = x.toDoubleArray()
-    return a.syrSupported(alpha, xs, x.nonzeroSupport(xs), lower)
-}
-
-/**
- * `A + alpha·(x·yᵀ + y·xᵀ)` over the [lower] or upper triangle of a CSC [a], as a fresh matrix.
- *
- * A zero [alpha] reads neither vector, for the reason [sparseSyr] gives.
- */
-internal fun sparseSyr2(a: SparseMatrix, alpha: Double, x: Vector, y: Vector, lower: Boolean): SparseMatrix {
-    if (alpha == 0.0) return a.sparseCopy()
-    val xs = x.toDoubleArray()
-    val ys = y.toDoubleArray()
-    return a.syr2Supported(alpha, xs, x.nonzeroSupport(xs), ys, y.nonzeroSupport(ys), lower)
-}
-
-private fun SparseMatrix.syrSupported(alpha: Double, x: DoubleArray, support: IntArray, lower: Boolean): SparseMatrix {
-    val out = SparseRankMatrixBuilder(rows, cols, nnz)
-    for (j in 0 until cols) {
-        out.beginColumn(j)
-        val start = triangleStart(support, j, lower)
-        val end = triangleEnd(support, j, lower)
-        val updateStart = if (x[j] == 0.0) end else start
-        out.appendRankOne(alpha, j, x, support, updateStart, end, this)
-    }
-    return out.build()
-}
-
-@Suppress("LongParameterList") // both update vectors with their supports
-private fun SparseMatrix.syr2Supported(
+/** Adds the selected triangle of `alpha · op(A) · op(A)ᵀ` directly into dense [c]. */
+@Suppress("LongParameterList") // the operands plus the borrowed scratch set
+internal fun symmetricRankInto(
     alpha: Double,
-    x: DoubleArray,
-    xSupport: IntArray,
-    y: DoubleArray,
-    ySupport: IntArray,
+    a: SparseMatrix,
+    transpose: Boolean,
+    c: DenseMatrixRegion,
     lower: Boolean,
-): SparseMatrix {
-    val out = SparseRankMatrixBuilder(rows, cols, nnz)
-    for (j in 0 until cols) {
-        out.beginColumn(j)
-        val xStart = triangleStart(xSupport, j, lower)
-        val xEnd = triangleEnd(xSupport, j, lower)
-        val yStart = triangleStart(ySupport, j, lower)
-        val yEnd = triangleEnd(ySupport, j, lower)
-        out.appendRankTwo(
-            alpha, j, x, xSupport, if (y[j] == 0.0) xEnd else xStart, xEnd,
-            y, ySupport, if (x[j] == 0.0) yEnd else yStart, yEnd, this,
+    sums: DoubleArray,
+    touchedAt: IntArray,
+    touched: IntArray,
+    rowPointers: IntArray,
+    adjacentColumns: IntArray,
+    adjacentPositions: IntArray,
+    rowCursor: IntArray,
+) {
+    val order = c.rows
+    touchedAt.fill(0, 0, order)
+    buildRowAdjacency(a, rowPointers, adjacentColumns, adjacentPositions, rowCursor)
+    for (j in 0 until order) {
+        val used = accumulateRankColumn(
+            a, transpose, j, lower, sums, touchedAt, touched,
+            rowPointers, adjacentColumns, adjacentPositions,
+        )
+        SparseAccumulationKernels.addScaledSupportToDense(
+            alpha,
+            touched,
+            used,
+            sums,
+            c.values,
+            c.offset + j * c.leadingDimension,
         )
     }
-    return out.build()
 }
 
-/**
- * Ascending indices where this vector is genuinely nonzero, for driving the sparse `syr`/`syr2` merge. A
- * [SparseVector] already knows its stored positions, so it filters those instead of paying to rediscover
- * them by rescanning [dense], the already-materialized copy of this vector. The filter hands the same live
- * array back unchanged when nothing needs filtering, so the common case of a sparse vector with no explicit
- * zeros costs no copy at all.
- */
+/** Accumulates one selected rank-update column while adjacency and triangle scheduling stay structural policy. */
 @OptIn(UnsafeKoblasApi::class)
-private fun Vector.nonzeroSupport(dense: DoubleArray): IntArray = when (this) {
-    is SparseVector -> filterNonzero(indices, values)
-    else -> nonzeroIndices(dense)
+@Suppress("LongParameterList")
+private fun accumulateRankColumn(
+    a: SparseMatrix,
+    transpose: Boolean,
+    j: Int,
+    lower: Boolean,
+    sums: DoubleArray,
+    touchedAt: IntArray,
+    touched: IntArray,
+    rowPointers: IntArray,
+    adjacentColumns: IntArray,
+    adjacentPositions: IntArray,
+): Int {
+    val order = if (transpose) a.cols else a.rows
+    val firstRow = if (lower) j else 0
+    val lastRow = if (lower) order else j + 1
+    val epoch = j + 1
+    var used = 0
+    if (!transpose) {
+        for (at in rowPointers[j] until rowPointers[j + 1]) {
+            val p = adjacentColumns[at]
+            val jp = adjacentPositions[at]
+            used = SparseAccumulationKernels.accumulateProductSlice(
+                a.rowIndices, a.values, a.colPointers[p], a.colPointers[p + 1], a.values[jp], firstRow, lastRow,
+                epoch, sums, touchedAt, touched, used,
+            )
+        }
+        return used
+    }
+    for (jp in a.colPointers[j] until a.colPointers[j + 1]) {
+        val p = a.rowIndices[jp]
+        used = SparseAccumulationKernels.accumulateIndirectProductSlice(
+            adjacentColumns, adjacentPositions, a.values, rowPointers[p], rowPointers[p + 1], a.values[jp],
+            firstRow, lastRow, epoch, sums, touchedAt, touched, used,
+        )
+    }
+    return used
 }
 
-private fun filterNonzero(indices: IntArray, values: DoubleArray): IntArray {
-    var count = 0
-    for (value in values) if (value != 0.0) count++
-    if (count == values.size) return indices
-    val out = IntArray(count)
-    var at = 0
-    for (k in values.indices) if (values[k] != 0.0) out[at++] = indices[k]
-    return out
-}
-
-private fun nonzeroIndices(values: DoubleArray): IntArray {
-    var count = 0
-    for (value in values) if (value != 0.0) count++
-    val out = IntArray(count)
-    var at = 0
-    for (i in values.indices) if (values[i] != 0.0) out[at++] = i
-    return out
-}
-
-private fun triangleStart(indices: IntArray, column: Int, lower: Boolean): Int =
-    if (lower) lowerBound(indices, 0, indices.size, column) else 0
-
-private fun triangleEnd(indices: IntArray, column: Int, lower: Boolean): Int =
-    if (lower) indices.size else lowerBound(indices, 0, indices.size, column + 1)
-
+/** Builds row-to-stored-entry adjacency once, in ascending source-column order. */
 @OptIn(UnsafeKoblasApi::class)
-private class SparseRankMatrixBuilder(private val rows: Int, private val cols: Int, expectedEntries: Int) {
-    private val pointers = IntArray(cols + 1)
-    private var rowIndices = IntArray(expectedEntries)
-    private var coefficients = DoubleArray(expectedEntries)
-    private var size = 0
-
-    fun beginColumn(column: Int) {
-        pointers[column] = size
-    }
-
-    @Suppress("LongParameterList") // the update vector, its support window, and the source column
-    fun appendRankOne(
-        alpha: Double,
-        column: Int,
-        x: DoubleArray,
-        support: IntArray,
-        supportStart: Int,
-        supportEnd: Int,
-        source: SparseMatrix,
-    ) {
-        ensureCapacity(
-            (source.colPointers[column + 1] - source.colPointers[column]).toLong() + supportEnd - supportStart,
-        )
-        size += SparseAccumulationKernels.mergeRankOneColumn(
-            alpha, column, x, support, supportStart, supportEnd,
-            source.rowIndices, source.values, source.colPointers[column], source.colPointers[column + 1],
-            rowIndices, coefficients, size,
-        )
-    }
-
-    @Suppress("LongParameterList") // both update vectors, their support windows, and the source column
-    fun appendRankTwo(
-        alpha: Double,
-        column: Int,
-        x: DoubleArray,
-        xSupport: IntArray,
-        xStart: Int,
-        xEnd: Int,
-        y: DoubleArray,
-        ySupport: IntArray,
-        yStart: Int,
-        yEnd: Int,
-        source: SparseMatrix,
-    ) {
-        ensureCapacity(
-            (source.colPointers[column + 1] - source.colPointers[column]).toLong() +
-                (xEnd - xStart).toLong() + yEnd - yStart,
-        )
-        size += SparseAccumulationKernels.mergeRankTwoColumn(
-            alpha, column, x, xSupport, xStart, xEnd, y, ySupport, yStart, yEnd,
-            source.rowIndices, source.values, source.colPointers[column], source.colPointers[column + 1],
-            rowIndices, coefficients, size,
-        )
-    }
-
-    fun build(): SparseMatrix {
-        pointers[cols] = size
-        return SparseMatrix.wrapTrusted(rows, cols, pointers, rowIndices.copyOf(size), coefficients.copyOf(size))
-    }
-
-    private fun ensureCapacity(additional: Long) {
-        val required = size.toLong() + additional
-        if (required <= rowIndices.size) return
-        requireShape(
-            required <= Int.MAX_VALUE,
-        ) { "sparse rank update needs $required stored entries, more than one array can hold" }
-        val next = maxOf(if (rowIndices.isEmpty()) 4L else rowIndices.size.toLong() * 2, required)
-            .coerceAtMost(Int.MAX_VALUE.toLong())
-            .toInt()
-        rowIndices = rowIndices.copyOf(next)
-        coefficients = coefficients.copyOf(next)
+private fun buildRowAdjacency(
+    a: SparseMatrix,
+    rowPointers: IntArray,
+    adjacentColumns: IntArray,
+    adjacentPositions: IntArray,
+    rowCursor: IntArray,
+) {
+    rowPointers.fill(0, 0, a.rows + 1)
+    for (position in 0 until a.nnz) rowPointers[a.rowIndices[position] + 1]++
+    for (row in 0 until a.rows) rowPointers[row + 1] += rowPointers[row]
+    for (row in 0 until a.rows) rowCursor[row] = rowPointers[row]
+    for (column in 0 until a.cols) {
+        for (position in a.colPointers[column] until a.colPointers[column + 1]) {
+            val row = a.rowIndices[position]
+            val target = rowCursor[row]++
+            adjacentColumns[target] = column
+            adjacentPositions[target] = position
+        }
     }
 }

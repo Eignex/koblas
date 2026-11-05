@@ -4,7 +4,6 @@ import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.sparse.*
-import kotlin.math.sqrt
 
 /** Raw CSC windows through the selected engine, including validation and any indexed fallback. */
 internal fun sparseSlicesArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
@@ -24,7 +23,6 @@ internal fun sparseSlicesArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
     val run = {
         when (operation) {
             "spdot-slice" -> kernels.dot(indices, INDEX_OFFSET, values, VALUE_OFFSET, count, initial)
-            "spnrm2-slice" -> kernels.nrm2(indices, INDEX_OFFSET, count, initial)
             else -> {
                 initial.copyInto(destination)
                 if (operation == "spaxpy-slice") {
@@ -49,9 +47,9 @@ internal fun sparseSlicesArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
         var sum = 0.0
         for (k in 0 until count) {
             val selected = initial[indices[INDEX_OFFSET + k]]
-            sum += if (operation == "spdot-slice") values[VALUE_OFFSET + k] * selected else selected * selected
+            sum += values[VALUE_OFFSET + k] * selected
         }
-        val expected = if (operation == "spdot-slice") sum else sqrt(sum)
+        val expected = sum
         DenseReference.check(doubleArrayOf(expected), doubleArrayOf(run()), case.id)
     }
     val timing = if (mutation) "reset-and-arithmetic" else "arithmetic"

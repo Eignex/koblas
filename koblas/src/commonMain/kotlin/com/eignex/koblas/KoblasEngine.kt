@@ -223,9 +223,6 @@ public interface KoblasEngine {
         source: DoubleArray,
     ): Unit = unsupported()
 
-    /** `‖values(indices(k))‖₂` over [count] addressed positions, rescaled as the dense [nrm2] is. */
-    public fun nrm2(indices: IntArray, indexOffset: Int, count: Int, values: DoubleArray): Double = unsupported()
-
     /**
      * `y = alpha · op(A) · x + beta · y` (BLAS `dgemv`), with `op(A)` being `Aᵀ` when [transpose]. `x` is the
      * [xStride]-spaced window of [x] from [xOffset], and `y` likewise; a negative stride walks backwards from its
@@ -766,55 +763,6 @@ public interface KoblasEngine {
     }
 
     /**
-     * Fresh CSC `alpha · op(A) · op(B)`. Product support is discovered from stored positions, including explicit
-     * zeros, retained cancellations and underflowed values; rows are sorted within every column and all result
-     * arrays are owned. A zero [alpha] discovers the same structure without reading operand values.
-     */
-    public fun gemm(
-        alpha: Double,
-        a: SparseMatrix,
-        transposeA: Boolean,
-        b: SparseMatrix,
-        transposeB: Boolean,
-    ): SparseMatrix {
-        requireProductOperands(a, transposeA, b, transposeB, "gemm")
-        val rows = if (transposeA) a.cols else a.rows
-        val cols = if (transposeB) b.rows else b.cols
-        // Return before orienting: transpose pointers are row-indexed and may exceed array limits even when the
-        // product is empty.
-        if (a.nnz == 0 || b.nnz == 0 || rows == 0 || cols == 0) return emptySparse(rows, cols, "gemm")
-        return multiplySparse(oriented(a, transposeA, alpha != 0.0), oriented(b, transposeB, alpha != 0.0), alpha)
-    }
-
-    /**
-     * Dense-destination `C = alpha · op(A) · op(B) + beta · C` for two sparse operands. No sparse intermediate is
-     * created and implicit zeros are not evaluated. A zero [alpha] reads neither operand's values and a zero
-     * [beta] does not read [c].
-     */
-    public fun gemm(
-        alpha: Double,
-        a: SparseMatrix,
-        transposeA: Boolean,
-        b: SparseMatrix,
-        transposeB: Boolean,
-        beta: Double,
-        c: DenseMatrixRegion,
-        scratch: Scratch? = null,
-    ) {
-        requireGemmOperands(a, transposeA, b, transposeB, c)
-        // Only destination scaling remains; avoid row-indexed orientation scratch.
-        if (alpha == 0.0 || a.nnz == 0 || b.nnz == 0) return scaleRegion(c, beta, vectors = this)
-        staged(scratch, a, a.values === c.values) { stableA ->
-            staged(scratch, b, b.values === c.values) { stableB ->
-                val left = oriented(stableA, transposeA, true)
-                val right = oriented(stableB, transposeB, true)
-                scaleRegion(c, beta, vectors = this)
-                multiplySparseInto(alpha, left, right, c)
-            }
-        }
-    }
-
-    /**
      * Dense selected-triangle `C = alpha · op(A) · op(A)ᵀ + beta · C` for a sparse [a]. Only the [lower] or upper
      * triangle of [c] is read or written, and products involving implicit zeros are not evaluated.
      */
@@ -849,20 +797,6 @@ public interface KoblasEngine {
             }
         }
     }
-
-    /**
-     * Fresh CSC selected triangle of `op(A) · op(A)ᵀ`. Stored-product support and cancellations are retained, rows
-     * are sorted, and result arrays are owned. The opposite triangle is absent rather than implicitly mirrored.
-     */
-    public fun syrk(a: SparseMatrix, transpose: Boolean = false, lower: Boolean = true): SparseMatrix =
-        symmetricRankProduct(a, transpose, lower)
-
-    /**
-     * Fresh CSC `alpha · op(A) + B`. The structural union is retained, including explicit zeros, cancellations
-     * and positions only `A` stores when [alpha] is zero, in which case `A`'s values are not read.
-     */
-    public fun addScaled(alpha: Double, a: SparseMatrix, transposeA: Boolean, b: SparseMatrix): SparseMatrix =
-        sparseAddScaled(alpha, a, transposeA, b)
 
     /**
      * `B = alpha · op(T)⁻¹ · B` in place, or `B = alpha · B · op(T)⁻¹` when [right] (Sparse BLAS `ussm`), with the

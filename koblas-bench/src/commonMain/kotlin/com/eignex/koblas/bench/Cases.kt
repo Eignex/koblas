@@ -24,14 +24,14 @@ internal object Cases {
         "trsm" to 2, "trmm" to 2,
         "spdot" to 1, "spdot-raw" to 1, "spdot-sparse" to 1, "spaxpy" to 1, "spaxpy-raw" to 1,
         "spdot-column" to 1, "spdot-column-raw" to 1,
-        "spnrm2" to 1, "spnrm2-indexed" to 1, "spasum" to 1,
+        "spnrm2" to 1, "spasum" to 1,
         "spscatter" to 1, "spscatter-raw" to 1, "spgather" to 1, "spgather-zero" to 1,
-        "spdot-slice" to 1, "spnrm2-slice" to 1, "spaxpy-slice" to 1, "spscatter-slice" to 1,
+        "spdot-slice" to 1, "spaxpy-slice" to 1, "spscatter-slice" to 1,
         "spbuild-triplets" to 2, "spbuild-duplicates" to 2,
-        "spgemv" to 2, "spmm" to 3, "spmm-right" to 3, "spgemm" to 3, "spgemm-dense" to 3,
+        "spgemv" to 2, "spmm" to 3, "spmm-right" to 3,
         "spsymv" to 1, "spsymm" to 2, "sptrsv" to 1, "sptrmv" to 1, "sptrsm" to 2, "sptrmm" to 2,
-        "spsyrk-dense" to 2, "spsyrk-sparse" to 2, "spadd" to 2,
-        "spmm-generic" to 3, "spmm-generic-right" to 3, "spgemm-generic" to 3,
+        "spsyrk-dense" to 2,
+        "spmm-generic" to 3, "spmm-generic-right" to 3,
     )
     private val fixtures = setOf("uniform", "triangular", "sparse-uniform", "sparse-triangular")
     private val optionOrder =
@@ -178,7 +178,7 @@ internal object Cases {
             "syrk", "syr2k" -> required += setOf("uplo", "transA")
             "trsv", "trmv", "sptrsv", "sptrmv" -> required += setOf("uplo", "transA", "diag")
             "trsm", "trmm", "sptrsm", "sptrmm" -> required += setOf("side", "uplo", "transA", "diag")
-            "spsymv", "spsyrk-dense", "spsyrk-sparse" -> required += "uplo"
+            "spsymv", "spsyrk-dense" -> required += "uplo"
         }
         return required
     }
@@ -189,13 +189,11 @@ internal object Cases {
      */
     private val MODES = setOf("oneshot")
     private val MODE_OPERATIONS = setOf(
-        "spgemv", "spmm", "spmm-right", "spgemm", "spgemm-dense", "spsymv", "spsymm", "sptrsv", "sptrmv", "sptrsm", "sptrmm",
-        "spmm-generic", "spmm-generic-right", "spgemm-generic",
+        "spgemv", "spmm", "spmm-right", "spsymv", "spsymm", "sptrsv", "sptrmv", "sptrsm", "sptrmm",
+        "spmm-generic", "spmm-generic-right",
     )
-    // The allocating generic product has no transpose flag to carry, so spgemm-generic is not here: a case
-    // may only declare an option the call it makes actually applies.
     private val TRANSPOSABLE_SPARSE_OPERATIONS = setOf(
-        "spgemv", "spmm", "spmm-right", "spgemm", "spgemm-dense", "spmm-generic", "spmm-generic-right",
+        "spgemv", "spmm", "spmm-right", "spmm-generic", "spmm-generic-right",
     )
     private val TRIANGULAR_FIXTURE_OPERATIONS = setOf(
         "trsv", "trmv", "trsm", "trmm", "spsymv", "spsymm", "sptrsv", "sptrmv", "sptrsm", "sptrmm",
@@ -205,8 +203,8 @@ internal object Cases {
 
     /** The operations whose operand is a sparse matrix, which is where a distribution means anything. */
     private val SUPPORT_OPERATIONS = setOf(
-        "spgemv", "spmm", "spmm-right", "spgemm", "spgemm-dense", "spsymv", "spsymm", "sptrsv", "sptrmv", "sptrsm", "sptrmm",
-        "spsyrk-dense", "spsyrk-sparse", "spadd", "spmm-generic", "spmm-generic-right", "spgemm-generic",
+        "spgemv", "spmm", "spmm-right", "spsymv", "spsymm", "sptrsv", "sptrmv", "sptrsm", "sptrmm",
+        "spsyrk-dense", "spmm-generic", "spmm-generic-right",
         "spbuild-triplets", "spbuild-duplicates",
     )
 }

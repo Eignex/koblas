@@ -136,7 +136,6 @@ class RunnerTest {
             "copy+32+uniform+stride=-2" to "Copy:32:1:1:false:1:false",
             "spdot-sparse+64+sparse-uniform+density=0.1" to "IndexedSparseDot:6:1:1:false:1:true",
             "spdot-slice+64+sparse-uniform+density=0.25" to "IndexedDot:16:1:1:false:1:true",
-            "spnrm2-indexed+64+sparse-uniform+density=0.1" to "IndexedNrm2:6:1:1:false:1:true",
             "scal+32+uniform" to "Scale:32:1:1:false:1:true",
             "gemv+16x32+uniform" to "Gemv:16:32:1:false:2:true",
             "gemv+16x32+uniform+transA=T" to "GemvTransposed:32:16:1:false:2:true",

@@ -7,7 +7,6 @@ import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.operands.*
 import com.eignex.koblas.sparse.*
-import com.eignex.koblas.sparse.gemm as sparseGemm
 
 /** `A * B` (BLAS `dgemm`), allocating. gemm accumulates into an existing C instead. */
 @kotlin.jvm.JvmName("multiply")
@@ -21,21 +20,9 @@ public operator fun SparseMatrix.times(other: DenseMatrix): DenseMatrix = koblas
 @kotlin.jvm.JvmName("multiply")
 public operator fun DenseMatrix.times(other: SparseMatrix): DenseMatrix = koblas.gemm(this, other) as DenseMatrix
 
-/** `A * B` for two sparse matrices, allocating the discovered CSC structure. */
-@kotlin.jvm.JvmName("multiply")
-public operator fun SparseMatrix.times(other: SparseMatrix): SparseMatrix = koblas.sparseGemm(this, other)
-
-/** Allocating product through [koblas]: two sparse operands give CSC storage, any other pairing dense. */
+/** Allocating dense product through [koblas], with at most one sparse operand. */
 @kotlin.jvm.JvmName("multiplyMatrices")
 public operator fun Matrix.times(other: Matrix): Matrix = koblas.gemm(this, other)
-
-/** `A + B`, allocating an owned CSC structural union. */
-@kotlin.jvm.JvmName("add")
-public operator fun SparseMatrix.plus(other: SparseMatrix): SparseMatrix = koblas.addScaled(1.0, this, false, other)
-
-/** `A - B`, allocating an owned CSC structural union. */
-@kotlin.jvm.JvmName("subtract")
-public operator fun SparseMatrix.minus(other: SparseMatrix): SparseMatrix = koblas.addScaled(-1.0, other, false, this)
 
 /**
  * Matrix-vector product into a fresh dense result.

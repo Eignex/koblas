@@ -17,7 +17,6 @@ spaxpy-raw+64+sparse-uniform+density=0.125
 spscatter-raw+64+sparse-uniform+density=0.125
 spgather+64+sparse-uniform+density=0.125
 spgather-zero+64+sparse-uniform+density=0.125
-spnrm2-indexed+64+sparse-uniform+density=0.125
 dot+4096+uniform
 axpy+4096+uniform
 scal+4096+uniform
@@ -34,7 +33,6 @@ spaxpy-raw+4096+sparse-uniform+density=0.125
 spscatter-raw+4096+sparse-uniform+density=0.125
 spgather+4096+sparse-uniform+density=0.125
 spgather-zero+4096+sparse-uniform+density=0.125
-spnrm2-indexed+4096+sparse-uniform+density=0.125
 gemv+32x32+uniform
 symv+32+uniform+uplo=L
 ger+32x32+uniform
@@ -48,11 +46,7 @@ spsymm+32x8+sparse-triangular+density=0.125+mode=oneshot+side=L+uplo=L
 sptrsv+32+sparse-triangular+density=0.125+diag=N+mode=oneshot+uplo=L+transA=N
 sptrmv+32+sparse-triangular+density=0.125+diag=N+mode=oneshot+uplo=L+transA=N
 spmm+32x8x32+sparse-uniform+density=0.125+mode=oneshot
-spgemm+32x32x32+sparse-uniform+density=0.125+mode=oneshot
-spgemm-dense+32x32x32+sparse-uniform+density=0.125+mode=oneshot
 spsyrk-dense+32x32+sparse-uniform+density=0.125+uplo=L
-spsyrk-sparse+32x32+sparse-uniform+density=0.125+uplo=L
-spadd+32x32+sparse-uniform+density=0.125
 sptrsm+32x8+sparse-triangular+density=0.125+diag=N+mode=oneshot+side=L+uplo=L+transA=N
 sptrmm+32x8+sparse-triangular+density=0.125+diag=N+mode=oneshot+side=L+uplo=L+transA=N
 gemv+128x128+uniform
@@ -68,11 +62,7 @@ spsymm+128x8+sparse-triangular+density=0.125+mode=oneshot+side=L+uplo=L
 sptrsv+128+sparse-triangular+density=0.125+diag=N+mode=oneshot+uplo=L+transA=N
 sptrmv+128+sparse-triangular+density=0.125+diag=N+mode=oneshot+uplo=L+transA=N
 spmm+128x8x128+sparse-uniform+density=0.125+mode=oneshot
-spgemm+128x128x128+sparse-uniform+density=0.125+mode=oneshot
-spgemm-dense+128x128x128+sparse-uniform+density=0.125+mode=oneshot
 spsyrk-dense+128x128+sparse-uniform+density=0.125+uplo=L
-spsyrk-sparse+128x128+sparse-uniform+density=0.125+uplo=L
-spadd+128x128+sparse-uniform+density=0.125
 sptrsm+128x8+sparse-triangular+density=0.125+diag=N+mode=oneshot+side=L+uplo=L+transA=N
 sptrmm+128x8+sparse-triangular+density=0.125+diag=N+mode=oneshot+side=L+uplo=L+transA=N
 gemm+16x16x16+uniform
