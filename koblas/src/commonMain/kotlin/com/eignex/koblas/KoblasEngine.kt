@@ -29,7 +29,7 @@ import com.eignex.koblas.internal.storage.*
  */
 public interface KoblasEngine {
 
-    /** Exact engines for tests and comparisons; startup overrides belong to [configureKoblas]. */
+    /** Exact engines for tests and comparisons, also assignable to [koblas] during startup. */
     public companion object {
         /** Opens exactly [vendor] when available. Unsupported operations remain unsupported. */
         @kotlin.jvm.JvmStatic
@@ -901,3 +901,17 @@ public interface KoblasEngine {
         scratch: Scratch? = null,
     ): Unit = sparseTriangularMatrix(a, b, lower, transpose, unitDiag, right, alpha, solve = false, scratch)
 }
+
+/**
+ * The shared BLAS engine used by convenience operations and libraries using this Koblas instance.
+ *
+ * Initialized from `koblas.engine` on JVM, then `KOBLAS_ENGINE`, or automatic platform selection.
+ * Applications may assign an engine during startup, before libraries use Koblas or concurrent work begins.
+ * Callers own startup order and safe publication; reads and writes are unsynchronized.
+ *
+ * The initial default is constructed before an assignment, so launch settings must be valid even when
+ * overridden programmatically. Assigned engines are used as supplied, including any unsupported operations.
+ */
+@get:kotlin.jvm.JvmName("getDefault")
+@set:kotlin.jvm.JvmName("setDefault")
+public var koblas: KoblasEngine = engineFromSetting(platformEngineSetting())
