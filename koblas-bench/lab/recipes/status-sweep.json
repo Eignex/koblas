@@ -1,5 +1,5 @@
 {
-  "name": "koblas-status-sweep",
+  "name": "koblas-sweep",
   "description": "Per-commit default JVM engine status sweep v1: all 44 KoblasEngine routine overloads at two sizes (88 cases), three 100ms warmups and samples, one fork/round. Local only; 600s active-time cap including preparation; metric changes beyond 15% and correctness failures get three paired confirmation blocks at priority 99.",
   "repository": "Eignex/koblas",
   "tags": [

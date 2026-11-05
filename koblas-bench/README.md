@@ -75,5 +75,5 @@ run, prioritizing correctness transitions; the rest stay unconfirmed. Retain fai
 After deploying lab support for `metric-v1`, register it with the maintained HTTP client:
 
 ```bash
-lab schedule koblas-status-sweep main koblas-bench/lab/recipes/status-sweep.json 120
+lab schedule koblas-sweep main koblas-bench/lab/recipes/status-sweep.json 120
 ```
