@@ -1,5 +1,6 @@
 package com.eignex.koblas.bench
 
+import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.engine.*
 import kotlin.test.*
 
@@ -11,7 +12,7 @@ class EngineTuningTest {
 
         val rule = fitProfile("onemkl", data).single()
 
-        assertEquals(128..Int.MAX_VALUE, rule.rows)
+        assertEquals(128, rule.rows)
     }
 
     @Test fun `one cpu model cannot hide another model losing`() {
@@ -35,7 +36,7 @@ class EngineTuningTest {
 
         val rule = fitProfile("onemkl", data).single()
 
-        assertEquals(32..Int.MAX_VALUE, rule.rows)
+        assertEquals(32, rule.rows)
         assertEquals(32768L, rule.work)
         assertEquals(false, rule.borrowed)
     }
@@ -51,10 +52,10 @@ class EngineTuningTest {
 
     @Test fun `emitted configuration is kotlin with typed capabilities`() {
         val code = renderProfile("fixture", listOf("native", "Linux", "X86_64", "*", "Avx2", "*"),
-            listOf(EngineRule("onemkl", setOf(EngineImplementation.Dot), rows = 128..Int.MAX_VALUE)))
+            listOf(EngineRule("onemkl", setOf(EngineImplementation.Dot), rows = 128)))
 
-        assertTrue("EngineRuntime.Native" in code)
-        assertTrue("CpuClass.Avx2" in code)
+        assertTrue("package com.eignex.koblas.internal.engine" in code)
+        assertTrue("native/Linux/X86_64/*/Avx2/*" in code)
         assertTrue("setOf(Dot)" in code)
         assertFalse("tsv" in code)
     }

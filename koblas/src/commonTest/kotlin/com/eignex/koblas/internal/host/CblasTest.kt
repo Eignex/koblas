@@ -18,7 +18,7 @@ import kotlin.test.assertTrue
  *
  * Real bindings expose operand, stride and flag translation, which is what these check. A loose tolerance
  * admits the library's accumulation order while catching incorrect translation, and the composed fixtures
- * admit every size so translation is isolated from the platform cutoffs, which StandardEngineProfilesTest covers.
+ * admit every size so translation is isolated from the platform cutoffs, which EngineTuningTest covers.
  */
 class CblasTest {
     private val scalar = BuiltinEngines.scalar

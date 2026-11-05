@@ -2,6 +2,7 @@ package com.eignex.koblas
 
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.engine.EngineImplementation.*
+import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.engine.combine
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 
@@ -12,7 +13,7 @@ internal fun engineWithKernels(
     triangles: KoblasEngine = ScalarEngine,
     indexed: KoblasEngine = ScalarEngine,
 ): KoblasEngine = combine(
-    EngineProfile(
+    EngineTuning(
         "test",
         listOf(
             vectors to EngineImplementation.entries.filter { it.vector && !it.name.startsWith("Indexed") }.toSet(),
@@ -37,7 +38,7 @@ internal fun engineWithHost(
     eligible: Boolean = true,
     borrowed: Boolean = true,
 ): KoblasEngine = combine(
-    EngineProfile(
+    EngineTuning(
         "host-test",
         buildList {
             if (eligible && host.implementations.isNotEmpty()) {

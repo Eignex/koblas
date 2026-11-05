@@ -1,6 +1,7 @@
 package com.eignex.koblas.internal.jvm25.host
 
 import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.host.*
 import java.lang.foreign.Arena
 import java.lang.foreign.FunctionDescriptor

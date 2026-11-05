@@ -1,5 +1,6 @@
 package com.eignex.koblas.bench
 
+import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.engine.*
 import java.nio.file.Files
 import java.nio.file.Path
@@ -124,7 +125,7 @@ internal fun fitProfile(source: String, timings: List<PairedTiming>): List<Engin
         if (first.dimensions == 1) {
             val ordered = keys.sortedBy { it.rows }
             val minimum = ordered.indices.firstOrNull { i -> ordered.drop(i).all(::wins) } ?: continue
-            add(EngineRule(source, setOf(first.operation), rows = ordered[minimum].rows..Int.MAX_VALUE, contiguous = first.contiguous))
+            add(EngineRule(source, setOf(first.operation), rows = ordered[minimum].rows, contiguous = first.contiguous))
         } else {
             // A single broad work/extent region replaces exact shape islands.
             val regions = keys.filter(::wins).mapNotNull { start ->
@@ -132,8 +133,8 @@ internal fun fitProfile(source: String, timings: List<PairedTiming>): List<Engin
                 if (covered.all(::wins)) start to covered.size else null
             }
             val start = regions.maxWithOrNull(compareBy<Pair<RoutingShape, Int>> { it.second }.thenBy { -it.first.work })?.first ?: continue
-            add(EngineRule(source, setOf(first.operation), rows = start.extent..Int.MAX_VALUE, columns = start.extent..Int.MAX_VALUE,
-                depth = (if (first.dimensions == 3) start.extent else 0)..Int.MAX_VALUE, work = start.work, borrowed = first.borrowed))
+            add(EngineRule(source, setOf(first.operation), rows = start.extent, columns = start.extent,
+                depth = (if (first.dimensions == 3) start.extent else 0), work = start.work, borrowed = first.borrowed))
         }
     }
 }
@@ -157,16 +158,12 @@ internal fun composeProfiles(captures: Map<String, CalibrationCapture>): Mutable
 }
 
 internal fun renderProfile(name: String, target: List<String>, rules: List<EngineRule>): String = buildString {
-    append("package com.eignex.koblas.engine\n\nimport com.eignex.koblas.engine.EngineImplementation.*\n\n")
-    append("internal val recalculatedProfile = EngineProfile(\n    ${JsonPrimitive(name)},\n    listOf(\n")
+    append("package com.eignex.koblas.internal.engine\n\nimport com.eignex.koblas.engine.EngineImplementation.*\n\n")
+    append("internal val recalculatedTuning = EngineTuning(\n    ${JsonPrimitive(name)},\n    listOf(\n")
     for (rule in rules) {
         append("        EngineRule(${JsonPrimitive(rule.source)}, setOf(${rule.implementations.joinToString { it.name }}),\n")
-        append("            rows = ${rule.rows.first}..Int.MAX_VALUE, columns = ${rule.columns.first}..Int.MAX_VALUE,\n")
-        append("            depth = ${rule.depth.first}..Int.MAX_VALUE, work = ${rule.work}, contiguous = ${rule.contiguous}, borrowed = ${rule.borrowed}),\n")
+        append("            rows = ${rule.rows}, columns = ${rule.columns}, depth = ${rule.depth},\n")
+        append("            work = ${rule.work}, contiguous = ${rule.contiguous}, borrowed = ${rule.borrowed}),\n")
     }
-    append("    ),\n    EngineRuntime.${target[0].replaceFirstChar(Char::uppercase)},\n")
-    append("    HostPlatform(OperatingSystem.${target[1]}, Architecture.${target[2]},\n")
-    append("        cpuModel = ${if (target[3] == "*") "null" else JsonPrimitive(target[3])}, cpuClass = CpuClass.${target[4]}")
-    if (target[4] == "Sve") append(", sveVectorBits = ${target[5]}")
-    append("),\n    evidence = \"Coarse recalculated estimates; retained evidence.json accompanies the generated source\",\n)\n")
+    append("    ),\n    evidence = ${JsonPrimitive("Recalculated for ${target.joinToString("/")}; retained evidence.json accompanies this source")},\n)\n")
 }

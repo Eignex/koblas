@@ -1,7 +1,6 @@
 package com.eignex.koblas;
 
 import com.eignex.koblas.engine.BuiltinEngines;
-import com.eignex.koblas.engine.HostPlatforms;
 
 final class JavaInteropSmoke {
     private JavaInteropSmoke() {}
@@ -68,8 +67,8 @@ final class JavaInteropSmoke {
         if (Koblas.getDefault() == null || BuiltinEngines.getScalar() == null) {
             throw new AssertionError("Java engine accessors must return engines");
         }
-        if (Koblas.getDefault().getProviders().isEmpty() || HostPlatforms.hostPlatform() == null) {
-            throw new AssertionError("Java engine inspection must report providers and the host");
+        if (Koblas.getDefault().getProviders().isEmpty()) {
+            throw new AssertionError("Java engine inspection must report providers");
         }
     }
 

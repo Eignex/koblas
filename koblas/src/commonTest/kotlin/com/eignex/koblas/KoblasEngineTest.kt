@@ -45,9 +45,9 @@ class KoblasEngineTest {
 
     @Test
     fun `conditional product geometry is rejected before packing`() {
-        val profile = EngineProfile(
+        val profile = EngineTuning(
             "test",
-            listOf(EngineRule("portable", setOf(EngineImplementation.Products), rows = 32..Int.MAX_VALUE)),
+            listOf(EngineRule("portable", setOf(EngineImplementation.Products), rows = 32)),
         )
 
         assertFailsWith<IllegalArgumentException> { combine(profile, BuiltinEngines.scalar) }

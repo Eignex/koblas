@@ -5,6 +5,7 @@ package com.eignex.koblas
 
 import com.eignex.koblas.engine.BuiltinEngines
 import com.eignex.koblas.internal.engine.defaultEngine
+import com.eignex.koblas.internal.engine.engineFromSetting
 
 /**
  * The immutable BLAS engine used by convenience operations and libraries sharing this Koblas instance.
@@ -25,3 +26,13 @@ public val koblas: KoblasEngine by lazy { defaultEngine.engine }
  * @throws IllegalStateException if already configured or if default engine selection has started.
  */
 public fun configureKoblas(engine: KoblasEngine): Unit = defaultEngine.configure(engine)
+
+/**
+ * Selects [koblas] by the same name as the launch setting: `auto`, `scalar`, `simd`, or a vendor name.
+ *
+ * Call once before first use. Names ignore case and surrounding whitespace. Unknown or unavailable
+ * selections fail on first use; vendor selections retain portable coverage for unexported operations.
+ *
+ * @throws IllegalStateException if already configured or if default engine selection has started.
+ */
+public fun configureKoblas(engine: String): Unit = defaultEngine.configure { engineFromSetting(engine) }

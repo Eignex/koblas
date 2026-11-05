@@ -12,7 +12,7 @@ internal val defaultEngine: DefaultEngine = DefaultEngine()
 internal class DefaultEngine(private val resolve: () -> KoblasEngine = { engineFromSetting(platformEngineSetting()) }) {
     private sealed interface Selection {
         data object Automatic : Selection
-        class Explicit(val engine: KoblasEngine) : Selection
+        class Explicit(val create: () -> KoblasEngine) : Selection
         data object Started : Selection
     }
 
@@ -23,7 +23,7 @@ internal class DefaultEngine(private val resolve: () -> KoblasEngine = { engineF
         runCatching {
             when (val choice = selection.exchange(Selection.Started)) {
                 Selection.Automatic -> resolve()
-                is Selection.Explicit -> choice.engine
+                is Selection.Explicit -> choice.create()
                 Selection.Started -> error("Recursive Koblas engine selection")
             }
         }
@@ -31,8 +31,10 @@ internal class DefaultEngine(private val resolve: () -> KoblasEngine = { engineF
 
     val engine: KoblasEngine get() = resolved.getOrThrow()
 
-    fun configure(engine: KoblasEngine) {
-        check(selection.compareAndSet(Selection.Automatic, Selection.Explicit(engine))) {
+    fun configure(engine: KoblasEngine): Unit = configure { engine }
+
+    fun configure(create: () -> KoblasEngine) {
+        check(selection.compareAndSet(Selection.Automatic, Selection.Explicit(create))) {
             "Koblas is already configured or engine selection has started; call configureKoblas once before first use"
         }
     }
@@ -59,7 +61,7 @@ internal fun engineFromSetting(
                     Vendor.entries.joinToString { it.vendorName.lowercase() }
             }
             val engine = checkNotNull(openVendor(vendor)) { "Koblas engine '$name' is unavailable on this platform" }
-            combine(EngineProfile(name, listOf(EngineRule(engine.id, engine.implementations))), engine)
+            combine(EngineTuning(name, listOf(EngineRule(engine.id, engine.implementations))), engine)
         }
     }
 }

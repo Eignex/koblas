@@ -52,15 +52,15 @@ class BuiltinEnginesTest {
     }
 
     @Test
-    fun `profiles use only their explicit owned preferences`() {
+    fun `compositions use only their declared owned cutoffs`() {
         val owned = provider("jvm-simd", setOf(EngineImplementation.Sum))
-        val bounded = EngineRule("jvm-simd", setOf(EngineImplementation.Sum), rows = 32..64)
-        for (rules in listOf(emptyList(), listOf(bounded))) {
-            val engine = configuredEngine(EngineProfile("explicit", rules), owned) { error("Unexpected vendor open") }
+        val cutoff = EngineRule("jvm-simd", setOf(EngineImplementation.Sum), rows = 32)
+        for (rules in listOf(emptyList(), listOf(cutoff))) {
+            val engine = combine(EngineTuning("explicit", rules), owned)
 
             for (length in listOf(16, 32, 64, 128)) {
                 assertEquals(
-                    if (rules.isNotEmpty() && length in 32..64) owned.name else ScalarEngine.name,
+                    if (rules.isNotEmpty() && length >= 32) owned.name else ScalarEngine.name,
                     engine.implementationFor(EngineImplementation.Sum, length),
                 )
             }
