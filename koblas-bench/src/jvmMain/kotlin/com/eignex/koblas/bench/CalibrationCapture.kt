@@ -38,7 +38,7 @@ internal data class CalibrationCapture(
 /** Reads complete paired attempts, retaining their provenance and the job's unsuccessful attempt costs. */
 internal fun readCalibration(
     directories: List<Path>, baseline: String, candidate: String, backend: String? = null,
-    arm: String? = null, cpuClass: String? = null, sveBits: String? = null, profileName: String? = null,
+    arm: String? = null, cpuClass: String? = null, sveBits: String? = null, engineName: String? = null,
 ): CalibrationCapture {
     require(directories.isNotEmpty() && directories.map { it.toRealPath() }.distinct().size == directories.size)
     val targets = (if (baseline == "jvm-owned") listOf("jvm-scalar", "jvm-simd") else listOf(baseline)) + candidate
@@ -121,7 +121,7 @@ internal fun readCalibration(
                 if (Files.isRegularFile(packagePath)) remember(packagePath)
                 if (Files.exists(index) && identities.any { "/oneMKL/" in it.getValue("implementation") })
                     require(Files.isRegularFile(packagePath)) { "Missing pinned oneMKL package evidence" }
-                if (profileName != null) require(identities.last().getValue("implementation").startsWith("$candidate/$profileName/")) { "Different compiled profile" }
+                if (engineName != null) require(identities.last().getValue("implementation").startsWith("$candidate/$engineName/")) { "Different compiled engine" }
                 val target = identities.first().let { id ->
                     listOf("runtime", "os", "arch", "cpu_model", "cpu_class", "sve_vector_bits").map { id.getValue("profile_$it") }
                 }

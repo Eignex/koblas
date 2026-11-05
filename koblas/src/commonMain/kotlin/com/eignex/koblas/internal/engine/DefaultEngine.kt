@@ -4,6 +4,7 @@ package com.eignex.koblas.internal.engine
 
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.kernels.EngineKernels
 import kotlin.concurrent.atomics.AtomicReference
 
 internal val defaultEngine: DefaultEngine = DefaultEngine()
@@ -61,7 +62,7 @@ internal fun engineFromSetting(
                     Vendor.entries.joinToString { it.vendorName.lowercase() }
             }
             val engine = checkNotNull(openVendor(vendor)) { "Koblas engine '$name' is unavailable on this platform" }
-            combine(EngineTuning(name, listOf(EngineRule(engine.id, engine.implementations))), engine)
+            BuiltinEngine(name, host = engine as EngineKernels)
         }
     }
 }

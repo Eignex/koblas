@@ -2,11 +2,11 @@ package com.eignex.koblas.internal.jvm
 
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.*
-import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.internal.engine.*
 
 /** Portable entry points replaced by the multi-release JAR on desktop JDK 25 or later. */
 internal object JvmBackend {
-    val contributions: List<EngineKernels>? get() = null
+    val simd: BuiltinEngine? get() = null
 
     val default: KoblasEngine get() = BuiltinEngines.scalar
 

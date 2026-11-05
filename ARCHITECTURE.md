@@ -24,12 +24,12 @@ multiplatform module; platform source sets supply their own runtime and arithmet
 | `scheduling.sparse` | CSC traversal, right-hand-side grouping and sparse accumulation schedules. |
 | `kernels` | The `EngineKernels` arithmetic contract, `PanelWork` and shared kernel policies. |
 | `kernels.scalar` | The complete scalar engine and numerical leaves over addressed windows. |
-| `engine` | Startup selection, fixed target tuning, host facts, provider composition and whole-call routing. |
+| `engine` | Startup selection, fixed kernel roles, one optional host library, host facts and measured cutoffs. |
 | `host` | Shared host-library contracts and ABI adaptation. |
 
 A default matrix method prepares its operands and calls a shared schedule, which invokes the selected
 kernel provider. Preparation settles shapes, empty cases, BLAS no-read rules and aliasing before
-arithmetic writes the destination. A composed engine can route an eligible whole call to a host engine;
+arithmetic writes the destination. The built-in engine can hand an eligible whole call to its selected host library;
 that binding owns its argument preparation and numerical library call.
 
 Schedules own traversal and workspace extents. Kernels own arithmetic and recommend grouping or packing
@@ -49,6 +49,10 @@ stay within Koblas.
 Tests mirror the internal package that owns the implementation. Public API and published-artifact
 checks exercise calls through the engine and container entry points.
 
-Tuning cutoffs live in `internal/engine/EngineTuning.kt`. Runtime and host facts select fixed tables;
-unmeasured targets borrow compatible estimates. Applications do not construct routing rules or profiles.
-The benchmark fitter emits internal tuning declarations and keeps target provenance in its evidence file.
+`BuiltinEngine` binds fixed vector, indexed, panel, product and triangular kernel roles, plus at most one
+host library. Automatic selection stops at the first available compatible vendor. Missing exports and calls
+below its cutoffs use the owned kernels.
+
+Tuning cutoffs live in `internal/engine/EngineTuning.kt` as direct predicates; unmeasured targets borrow
+compatible estimates. The benchmark fitter reports cutoffs for one backend and retains target provenance
+for review before those predicates are updated.

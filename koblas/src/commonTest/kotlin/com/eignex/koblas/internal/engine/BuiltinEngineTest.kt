@@ -3,271 +3,16 @@ package com.eignex.koblas.internal.engine
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
-import com.eignex.koblas.internal.kernels.EngineKernels
-import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import com.eignex.koblas.internal.operations.MatrixStructure
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/**
- * Checks how a composition binds rules to providers, then host eligibility, symbol fallback, aliases and
- * argument translation with a recording binding. Small fixtures isolate composition from the platform
- * cutoffs that [EngineTuningTest] covers.
- */
-class CombinedEngineTest {
-    @Test
-    fun `nested compositions retain leaf identity and missing exports reach the next provider`() {
-        val vendor = object : EngineKernels {
-            override val name = "host"
-            override val vendor = Vendor.OneMkl
-            override val implementations = setOf(EngineImplementation.Dot, EngineImplementation.Gemm)
-        }
-        val fallback = object : EngineKernels {
-            override val name = "custom"
-            override val implementations = setOf(EngineImplementation.Asum)
-        }
-        val nested = combine(EngineTuning("nested", emptyList()), vendor)
-        val combined = combine(
-            EngineTuning(
-                "outer",
-                listOf(
-                    EngineRule(vendor.id, setOf(EngineImplementation.Asum)),
-                    EngineRule(vendor.id, setOf(EngineImplementation.Gemm)),
-                    EngineRule(fallback.id, fallback.implementations),
-                ),
-            ),
-            nested,
-            fallback,
-        )
-
-        assertEquals("nested", nested.id)
-        assertEquals(null, nested.vendor)
-        assertEquals(listOf(vendor, fallback, ScalarEngine), combined.providers)
-        assertFalse(EngineImplementation.Gemm in combined.implementations)
-        assertSame(vendor, combined.wholeCallFor(EngineImplementation.Gemm, 8, 8, 8))
-        assertEquals(fallback.name, combined.implementationFor(EngineImplementation.Asum, 128))
-    }
-
-    @Test
-    fun `threshold and layout select the same body that executes`() {
-        val calls = mutableListOf<Int>()
-        val backend = object : EngineKernels {
-            override fun requiresUnitStride(implementation: EngineImplementation): Boolean = true
-            override fun minimumLength(implementation: EngineImplementation): Int = 2
-
-            override val implementations = setOf(EngineImplementation.Dot)
-
-            override val name: String = "dot"
-
-            @Suppress("LongParameterList")
-            override fun dot(
-                a: DoubleArray,
-                aOff: Int,
-                b: DoubleArray,
-                bOff: Int,
-                len: Int,
-                aStride: Int,
-                bStride: Int,
-            ): Double {
-                calls += len
-                return ScalarEngine.dot(a, aOff, b, bOff, len, aStride, bStride)
-            }
-        }
-        val operation = setOf(EngineImplementation.Dot)
-        val rules = listOf(
-            EngineRule("dot", operation, rows = 4),
-            EngineRule("dot", operation, work = 4),
-            EngineRule("dot", operation, columns = 2),
-            EngineRule("dot", operation, depth = 2),
-            EngineRule("dot", operation, borrowed = true),
-            EngineRule("dot", operation, contiguous = false),
-        )
-        val x = DoubleArray(16) { it / 7.0 }
-        for (rule in rules) {
-            val engine = combine(EngineTuning("test", listOf(rule)), backend)
-            for (length in listOf(0, 1, 3, 4, 5)) {
-                for (stride in listOf(1, 2)) {
-                    val expected = ScalarEngine.dot(x, 0, x, 1, length, stride, stride)
-                    val previous = calls.size
-                    val reached = engine.implementationFor(EngineImplementation.Dot, length, stride == 1)
-                    val actual = engine.dot(x, 0, x, 1, length, stride, stride)
-
-                    assertEquals(expected, actual)
-                    val selected = length >= 2 && stride == 1 && rule.matches(length, 1, 1, true, false)
-                    assertEquals(if (selected) "dot" else "scalar", reached)
-                    assertEquals(previous + if (reached == "dot") 1 else 0, calls.size)
-                }
-            }
-        }
-    }
-
-    @Test
-    fun `missing backend and missing capabilities fall through ordered preferences`() {
-        val backend = object : EngineKernels {
-            override val name = "sum"
-            override val implementations = setOf(EngineImplementation.Sum)
-        }
-        val engine = combine(
-            EngineTuning(
-                "test",
-                listOf(
-                    EngineRule("onemkl", setOf(EngineImplementation.Sum)),
-                    EngineRule("sum", setOf(EngineImplementation.Sum, EngineImplementation.Dot)),
-                ),
-            ),
-            backend,
-        )
-
-        assertEquals("sum", engine.implementationFor(EngineImplementation.Sum, 8))
-        assertEquals("scalar", engine.implementationFor(EngineImplementation.Dot, 8))
-        assertEquals(
-            ScalarEngine.nrm2(doubleArrayOf(2.0, 3.0), 0, 2),
-            engine.nrm2(doubleArrayOf(2.0, 3.0), 0, 2),
-        )
-    }
-
-    @Test
-    fun `source typos fail while unavailable built in providers retain coverage`() {
-        for (source in listOf("onemlk", "jvm-smid")) {
-            val profile = EngineTuning("typo", listOf(EngineRule(source, setOf(EngineImplementation.Dot))))
-
-            assertFailsWith<IllegalArgumentException> { combine(profile) }
-        }
-        val profile = EngineTuning("optional", listOf(EngineRule("onemkl", setOf(EngineImplementation.Dot))))
-
-        assertEquals(ScalarEngine.name, combine(profile).implementationFor(EngineImplementation.Dot, 32))
-    }
-
-    @Test
-    fun `indexed dot registration preserves every window argument`() {
-        val counts = mutableListOf<Int>()
-        val backend = object : EngineKernels {
-
-            override val implementations = setOf(EngineImplementation.IndexedDot)
-            override val name: String = "indexed"
-
-            @Suppress("LongParameterList")
-            override fun dot(
-                indices: IntArray,
-                indexOffset: Int,
-                values: DoubleArray,
-                valueOffset: Int,
-                count: Int,
-                dense: DoubleArray,
-            ): Double {
-                counts += count
-                assertEquals(2, indexOffset)
-                assertEquals(1, valueOffset)
-                return ScalarEngine.dot(indices, indexOffset, values, valueOffset, count, dense)
-            }
-        }
-        val engine = combine(
-            EngineTuning(
-                "test",
-                listOf(
-                    EngineRule("indexed", setOf(EngineImplementation.IndexedDot), rows = 2),
-                ),
-            ),
-            backend,
-        )
-        val indices = intArrayOf(9, 8, 1, 3)
-        val values = doubleArrayOf(77.0, 0.5, -0.75)
-        val dense = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
-        val expected = BuiltinEngines.scalar.dot(indices, 2, values, 1, 2, dense)
-
-        assertEquals(expected, engine.dot(indices, 2, values, 1, 2, dense))
-        assertEquals(listOf(2), counts)
-    }
-
-    @Test
-    fun `partial implementations sharing one backend compose across arithmetic families`() {
-        val calls = mutableListOf<String>()
-        val vectors = object : EngineKernels {
-            override val name = "vectors"
-            override val id = "partial"
-            override val implementations = setOf(EngineImplementation.Dot)
-            override fun dot(
-                a: DoubleArray,
-                aOff: Int,
-                b: DoubleArray,
-                bOff: Int,
-                len: Int,
-                aStride: Int,
-                bStride: Int,
-            ): Double {
-                calls += "dot"
-                return ScalarEngine.dot(a, aOff, b, bOff, len, aStride, bStride)
-            }
-        }
-        val indexed = object : EngineKernels {
-            override val name = "indexed"
-            override val id = "partial"
-            override val implementations = setOf(EngineImplementation.IndexedAxpy)
-            override fun axpy(
-                indices: IntArray,
-                indexOffset: Int,
-                values: DoubleArray,
-                valueOffset: Int,
-                count: Int,
-                alpha: Double,
-                destination: DoubleArray,
-            ) {
-                calls += "indexed update"
-                ScalarEngine.axpy(indices, indexOffset, values, valueOffset, count, alpha, destination)
-            }
-        }
-        val matrices = object : EngineKernels {
-            override val name = "matrices"
-            override val id = "partial"
-            override val implementations = setOf(EngineImplementation.Gemm)
-            override fun gemm(
-                alpha: Double,
-                a: DenseMatrixRegion,
-                transposeA: Boolean,
-                b: DenseMatrixRegion,
-                transposeB: Boolean,
-                beta: Double,
-                c: DenseMatrixRegion,
-                scratch: Scratch?,
-            ) {
-                calls += "matrix product"
-                ReferenceBlas.gemm(alpha, a, transposeA, b, transposeB, beta, c)
-            }
-        }
-        val operations = vectors.implementations + indexed.implementations + matrices.implementations
-        val engine = combine(
-            EngineTuning("partial", listOf(EngineRule("partial", operations))),
-            vectors,
-            indexed,
-            matrices,
-        )
-        val nested = combine(
-            EngineTuning("nested", listOf(EngineRule(engine.id, engine.implementations))),
-            engine,
-        )
-        val values = doubleArrayOf(2.0, 3.0)
-        val destination = DoubleArray(2)
-        val matrix = DenseMatrix.wrap(2, 2, doubleArrayOf(1.0, 2.0, 3.0, 4.0))
-        val expectedProduct = DenseMatrix.zero(2, 2)
-        ReferenceBlas.gemm(1.0, matrix, false, matrix, false, 0.0, expectedProduct)
-        val actualProduct = DenseMatrix.zero(2, 2)
-
-        assertEquals(ScalarEngine.dot(values, 0, values, 0, 2), nested.dot(values, 0, values, 0, 2))
-        engine.axpy(intArrayOf(0, 1), 0, values, 0, 2, 1.0, destination)
-        engine.gemm(1.0, matrix, false, matrix, false, 0.0, actualProduct)
-
-        assertContentEquals(values, destination)
-        assertClose(expectedProduct.values, actualProduct.values, context = "partial engine composition")
-        assertEquals("vectors", nested.implementationFor(EngineImplementation.Dot, 2))
-        assertEquals(listOf("dot", "indexed update", "matrix product"), calls)
-    }
-
+/** Single-host dispatch, missing exports, alias staging and argument translation. */
+class BuiltinEngineTest {
     @Test
     fun `platform eligibility keeps a rejected host call portable`() {
         val recorder = RecordingBlas()
@@ -288,26 +33,31 @@ class CombinedEngineTest {
     fun `borrowed eligibility rejects any adapted operand before staging`() {
         for (borrowedOperand in listOf("left", "right", "destination")) {
             val recorder = RecordingBlas()
-            val portable = engineWithKernels()
-            val blas = engineWithHost(portable, recorder, borrowed = false)
-            val parent = matrix(ORDER + 2)
-            val view = parent.view(1, 1, ORDER, ORDER)
-            val a: DenseMatrixRegion = if (borrowedOperand == "left") view else matrix(ORDER)
-            val b: DenseMatrixRegion = if (borrowedOperand == "right") view else matrix(ORDER)
-            val c: DenseMatrixRegion = if (borrowedOperand == "destination") view else matrix(ORDER)
+            val order = 8
+            val blas = BuiltinEngine(
+                "test",
+                host = recorder,
+                tuning = EngineTuning(EngineRuntime.Native, HostPlatform(OperatingSystem.Linux, Architecture.X86_64)),
+            )
+            assertSame(recorder, blas.wholeCallFor(EngineImplementation.Gemm, order, order, order))
+            val parent = matrix(order + 2)
+            val view = parent.view(1, 1, order, order)
+            val a: DenseMatrixRegion = if (borrowedOperand == "left") view else matrix(order)
+            val b: DenseMatrixRegion = if (borrowedOperand == "right") view else matrix(order)
+            val c: DenseMatrixRegion = if (borrowedOperand == "destination") view else matrix(order)
             val before = c.values.copyOf()
             fun copy(region: DenseMatrixRegion) = DenseMatrix.wrap(
-                ORDER,
-                ORDER,
-                DoubleArray(ORDER * ORDER) { region[it % ORDER, it / ORDER] },
+                order,
+                order,
+                DoubleArray(order * order) { region[it % order, it / order] },
             )
             val expected = copy(c)
             ReferenceBlas.gemm(0.875, copy(a), false, copy(b), false, -0.25, expected)
 
             blas.gemm(0.875, a, false, b, false, -0.25, c, scratch = Scratch())
 
-            for (j in 0 until ORDER) {
-                for (i in 0 until ORDER) {
+            for (j in 0 until order) {
+                for (i in 0 until order) {
                     before[c.offset + i + j * c.leadingDimension] = expected[i, j]
                 }
             }

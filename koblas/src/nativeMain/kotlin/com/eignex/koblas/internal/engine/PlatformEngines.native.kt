@@ -4,13 +4,12 @@ package com.eignex.koblas.internal.engine
 
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.*
-import com.eignex.koblas.internal.kernels.EngineKernels
 import kotlinx.cinterop.toKString
 import platform.posix.getenv
 
-internal actual fun simdBackend(): List<EngineKernels>? = null
+internal actual fun simdBackend(): BuiltinEngine? = null
 
-/** Select one platform profile once, with portable coverage when no library is available. */
+/** Keep one host vendor with portable coverage when no library is available. */
 internal actual fun platformEngine(): KoblasEngine = standardEngine(EngineRuntime.Native)
 
 internal actual fun platformEngineSetting(): String? = getenv("KOBLAS_ENGINE")?.toKString()

@@ -8,77 +8,23 @@ import kotlin.test.*
 
 class EngineTuningTest {
     @Test
-    fun `sve tunings match their width and other widths borrow explicit estimates`() {
+    fun `automatic selection stops at the first available library`() {
         for (runtime in EngineRuntime.entries) {
-            val measured = standardTuning(
-                runtime,
-                HostPlatform(OperatingSystem.Linux, Architecture.Arm64, cpuClass = CpuClass.Sve, sveVectorBits = 256),
-            )
-            val estimate = standardTuning(
-                runtime,
-                HostPlatform(OperatingSystem.Linux, Architecture.Arm64, cpuClass = CpuClass.Sve, sveVectorBits = 512),
-            )
+            for (system in OperatingSystem.entries) {
+                for (architecture in Architecture.entries) {
+                    val platform = HostPlatform(system, architecture, cpuClass = CpuClass.Avx512)
+                    val candidates = vendorOrder(runtime, platform)
+                    for (available in candidates.indices) {
+                        val opened = mutableListOf<Vendor>()
 
-            assertTrue(measured.name.contains("sve256"))
-            assertFalse(measured.name.startsWith("best-effort-"))
-            assertTrue(estimate.evidence.startsWith("Unmeasured best effort"))
-        }
-    }
-
-    @Test
-    fun `x86 tunings select the declared instruction class`() {
-        for (runtime in EngineRuntime.entries) {
-            for (cpuClass in listOf(CpuClass.Avx2, CpuClass.Avx512)) {
-                val tuning = standardTuning(
-                    runtime,
-                    HostPlatform(OperatingSystem.Linux, Architecture.X86_64, cpuClass = cpuClass),
-                )
-
-                assertTrue(tuning.name.contains(cpuClass.name.lowercase()))
-                assertFalse(tuning.name.startsWith("best-effort-"))
-            }
-        }
-    }
-
-    @Test
-    fun `target tunings route through available permitted platform vendors`() {
-        for ((os, arch, candidates) in listOf(
-            Triple(OperatingSystem.MacOs, Architecture.Arm64, setOf(Vendor.Accelerate)),
-            Triple(OperatingSystem.MacOs, Architecture.X86_64, setOf(Vendor.Accelerate)),
-            Triple(OperatingSystem.Linux, Architecture.X86_64, setOf(Vendor.OneMkl, Vendor.OpenBlas)),
-            Triple(OperatingSystem.Linux, Architecture.Arm64, setOf(Vendor.OpenBlas)),
-            Triple(OperatingSystem.Windows, Architecture.X86_64, setOf(Vendor.OneMkl, Vendor.OpenBlas)),
-            Triple(OperatingSystem.Windows, Architecture.Arm64, setOf(Vendor.OpenBlas)),
-        )) {
-            for (runtime in EngineRuntime.entries) {
-                val host = HostPlatform(os, arch)
-                val extra = if (runtime == EngineRuntime.Jvm && os != OperatingSystem.MacOs) {
-                    setOf(if (arch == Architecture.X86_64) Vendor.Aocl else Vendor.ArmPl)
-                } else {
-                    emptySet()
-                }
-                val choices = candidates + extra
-                for (available in listOf(emptySet(), choices) + choices.map { setOf(it) }) {
-                    for (access in listOf(false, true)) {
-                        val opened = mutableSetOf<Vendor>()
-                        val engine = standardEngine(runtime, access, host, owned = null) { requested ->
+                        val engine = standardEngine(runtime, host = platform, owned = null) { requested ->
                             opened += requested
-                            provider(requested.vendorName.lowercase(), setOf(Gemm))
-                                .takeIf { requested in available }
+                            provider(requested, setOf(Gemm)).takeIf { requested == candidates[available] }
                         }
 
-                        assertEquals(if (access) candidates + extra else emptySet(), opened)
-                        val preferences = standardTuning(runtime, host).rules.mapNotNull { rule ->
-                            choices.firstOrNull { it.vendorName.lowercase() == rule.source }
-                        }
-                        val selected = if (access) preferences.firstOrNull { it in available } else null
-                        for (borrowed in listOf(false, true)) {
-                            assertEquals(
-                                selected?.vendorName?.lowercase(),
-                                engine.wholeCallFor(Gemm, 256, 256, 256, borrowed)?.id,
-                            )
-                            assertNull(engine.wholeCallFor(Gemm, 1, 1, 1, borrowed))
-                        }
+                        assertEquals(candidates.take(available + 1), opened)
+                        assertEquals(listOf(candidates[available]), engine.providers.mapNotNull { it.vendor })
+                        assertEquals(candidates[available], engine.wholeCallFor(Gemm, 256, 256, 256)?.vendor)
                     }
                 }
             }
@@ -86,21 +32,73 @@ class EngineTuningTest {
     }
 
     @Test
-    fun `unknown operating systems retain owned kernels without host lookup`() {
-        for (runtime in EngineRuntime.entries) {
-            val host = HostPlatform(OperatingSystem.Other, Architecture.X86_64)
+    fun `missing libraries retain owned kernels`() {
+        val platform = HostPlatform(OperatingSystem.Linux, Architecture.X86_64)
+        val vectors = provider(Vendor.OpenBlas, setOf(Dot))
+        val opened = mutableListOf<Vendor>()
+        val owned = BuiltinEngine("owned", KernelSet(vectors = vectors))
 
-            val tuning = standardTuning(runtime, host)
-
-            assertEquals(
-                if (runtime == EngineRuntime.Jvm) setOf("jvm-simd") else emptySet(),
-                tuning.rules.map { it.source }.toSet(),
-            )
+        val engine = standardEngine(EngineRuntime.Jvm, host = platform, owned = owned) {
+            opened += it
+            null
         }
+
+        assertEquals(listOf(Vendor.OpenBlas, Vendor.OneMkl, Vendor.Aocl), opened)
+        assertSame(vectors, (engine as BuiltinEngine).vectorProvider(Dot, 256, true))
+        assertNull(engine.host)
     }
 
-    private fun provider(id: String, operations: Set<EngineImplementation>): KoblasEngine = object : EngineKernels {
-        override val name = id
-        override val implementations = operations
+    @Test
+    fun `unknown architectures use scalar without probing libraries`() {
+        val platform = HostPlatform(OperatingSystem.Linux, Architecture.Other)
+
+        val engine = standardEngine(EngineRuntime.Jvm, host = platform) { error("Unexpected host lookup") }
+
+        assertSame(BuiltinEngines.scalar, engine)
     }
+
+    @Test
+    fun `native access denied never opens a host library`() {
+        val engine = standardEngine(EngineRuntime.Jvm, nativeAccess = false, owned = null) {
+            error("Unexpected host lookup")
+        }
+
+        assertSame(BuiltinEngines.scalar, engine)
+    }
+
+    @Test
+    fun `missing exports use owned coverage instead of opening a second library`() {
+        val platform = HostPlatform(OperatingSystem.Linux, Architecture.X86_64, cpuClass = CpuClass.Avx512)
+        val opened = mutableListOf<Vendor>()
+        val engine = standardEngine(EngineRuntime.Native, host = platform, owned = null) { requested ->
+            opened += requested
+            provider(requested, setOf(Dot))
+        }
+
+        val product = engine.wholeCallFor(Gemm, 256, 256, 256)
+        val shortDot = engine.implementationFor(Dot, 128)
+        val longDot = engine.implementationFor(Dot, 256)
+
+        assertEquals(listOf(Vendor.OneMkl), opened)
+        assertNull(product)
+        assertEquals(BuiltinEngines.scalar.name, shortDot)
+        assertEquals(Vendor.OneMkl.vendorName, longDot)
+    }
+
+    @Test
+    fun `host product eligibility bounds work without overflow`() {
+        val tuning = EngineTuning(EngineRuntime.Native, HostPlatform(OperatingSystem.Linux, Architecture.X86_64))
+
+        assertFalse(tuning.hostEligible(Vendor.OpenBlas, Gemm, 8, 8, 7, false))
+        assertTrue(tuning.hostEligible(Vendor.OpenBlas, Gemm, 8, 8, 8, false))
+        assertTrue(tuning.hostEligible(Vendor.OpenBlas, Gemm, Int.MAX_VALUE, Int.MAX_VALUE, Int.MAX_VALUE, false))
+        assertFalse(tuning.hostEligible(Vendor.OpenBlas, Gemm, 8, 8, 0, false))
+    }
+
+    private fun provider(vendor: Vendor, operations: Set<EngineImplementation>): EngineKernels =
+        object : EngineKernels {
+            override val name = vendor.vendorName
+            override val vendor = vendor
+            override val implementations = operations
+        }
 }

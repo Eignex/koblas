@@ -52,22 +52,6 @@ class BuiltinEnginesTest {
     }
 
     @Test
-    fun `compositions use only their declared owned cutoffs`() {
-        val owned = provider("jvm-simd", setOf(EngineImplementation.Sum))
-        val cutoff = EngineRule("jvm-simd", setOf(EngineImplementation.Sum), rows = 32)
-        for (rules in listOf(emptyList(), listOf(cutoff))) {
-            val engine = combine(EngineTuning("explicit", rules), owned)
-
-            for (length in listOf(16, 32, 64, 128)) {
-                assertEquals(
-                    if (rules.isNotEmpty() && length >= 32) owned.name else ScalarEngine.name,
-                    engine.implementationFor(EngineImplementation.Sum, length),
-                )
-            }
-        }
-    }
-
-    @Test
     fun `explicitly required vendor libraries must pass the loader checks`() {
         val requested = environmentVariableOrNull("KOBLAS_REQUIRE_VENDORS") ?: return
         for (name in requested.split(',')) {

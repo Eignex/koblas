@@ -76,29 +76,30 @@ timing protocols. Use [the macOS manifest](lab/calibration-macos.json) for Accel
 The same manifests prepare vendor comparisons. Native executables are built once during preparation, and
 measured rows never invoke Gradle.
 
-### Recalculate routing profiles
+### Recalculate engine cutoffs
 
-Capture on the intended host; this example prepares Linux x64 Native comparisons:
+Capture one backend on the intended host; this example prepares Linux x64 Native comparisons:
 
 ```bash
 ./gradlew :koblas-bench:prepareLabCalibration :koblas-bench:tuneEngine \
-  --args="--capture --runtime native --backend onemkl --backend openblas --cpu * --native-executable koblas-bench/build/bin/linuxX64/releaseExecutable/koblas-bench.kexe --output /tmp/native-profile"
+  --args="--capture --runtime native --backend onemkl --cpu * --native-executable koblas-bench/build/bin/linuxX64/releaseExecutable/koblas-bench.kexe --output /tmp/native-cutoffs"
 ```
 
-The tool emits `Profile.kt` with an internal tuning declaration and external target evidence. Update the
-matching table in [EngineTuning.kt](../koblas/src/commonMain/kotlin/com/eignex/koblas/internal/engine/EngineTuning.kt),
-rebuild, and capture disjoint holdouts through `native-default` or `jvm-default`. Use `--runtime jvm` for
-transfer-inclusive tuning, or repeated `--results PATH` arguments to refit fetched captures.
-`--fallback aocl=openblas` and `--fallback armpl=openblas` label unmeasured vendor estimates.
+The tool reports measured extent, work and layout cutoffs in `cutoffs.tsv`, with target provenance and
+paired measurements in `evidence.json`. Review these against the direct predicates in
+[EngineTuning.kt](../koblas/src/commonMain/kotlin/com/eignex/koblas/internal/engine/EngineTuning.kt), then rebuild
+and capture disjoint holdouts through `native-default` or `jvm-default`. Use `--runtime jvm` for
+transfer-inclusive tuning, `--backend jvm-simd` for owned vector tuning, or repeated `--results PATH`
+arguments to refit fetched captures. Each fit measures one backend; automatic selection uses one host vendor.
 
-Validate the rebuilt composition against its generated profile identity:
+Validate the rebuilt engine by its reported name:
 
 ```bash
 ./gradlew :koblas-bench:tuneEngine \
-  --args="--validate-results /tmp/holdouts --training /tmp/native-profile --runtime native --output /tmp/validated-profile"
+  --args="--validate-results /tmp/holdouts --training /tmp/native-cutoffs --engine-name auto-onemkl --runtime native --output /tmp/validated-cutoffs"
 ```
 
-Validation checks profile identity, disjoint cases, provider reach and paired ratios. Keep reports and
+Validation checks engine identity, disjoint cases, provider reach and paired ratios. Keep reports and
 measurement data outside the repository.
 
 ### Score lab comparisons

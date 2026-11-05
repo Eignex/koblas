@@ -29,7 +29,7 @@ class SimdVectorKernelsTest {
 
         for (operation in listOf(EngineImplementation.Dot, EngineImplementation.Sum, EngineImplementation.Asum)) {
             assertEquals(
-                simdContributions.first().name,
+                simdKernels.vectors.name,
                 reached(operation, WIDE),
                 "$operation stayed scalar at $WIDE",
             )
@@ -54,7 +54,7 @@ class SimdVectorKernelsTest {
         if (!simdAvailable) return skipped()
 
         assertEquals(
-            simdContributions.first().name,
+            simdKernels.vectors.name,
             reached(EngineImplementation.Axpy, WIDE),
         )
         assertLevel1KernelsAgreeWithReference(kernels)
@@ -63,12 +63,12 @@ class SimdVectorKernelsTest {
     @Test
     fun `the standard index search observes its configured crossover`() {
         if (!simdAvailable) return skipped()
-        val tuning = standardTuning(EngineRuntime.Jvm, hostPlatform(), nativeAccess = false)
+        val tuning = EngineTuning(EngineRuntime.Jvm, hostPlatform())
         val tuned = standardEngine(EngineRuntime.Jvm, nativeAccess = false)
-        val minimum = tuning.rules.first { EngineImplementation.Iamax in it.implementations }.rows
+        val minimum = tuning.simdMinimum(EngineImplementation.Iamax)
 
         assertEquals(ScalarEngine.name, tuned.implementationFor(EngineImplementation.Iamax, minimum - 1))
-        assertEquals(simdContributions.first().name, tuned.implementationFor(EngineImplementation.Iamax, minimum))
+        assertEquals(simdKernels.vectors.name, tuned.implementationFor(EngineImplementation.Iamax, minimum))
     }
 
     @Test
