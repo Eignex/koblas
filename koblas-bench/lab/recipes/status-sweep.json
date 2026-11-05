@@ -1,0 +1,28 @@
+{
+  "name": "koblas-status-sweep",
+  "description": "Per-commit default JVM engine status sweep v1: all 44 KoblasEngine routine overloads at two sizes (88 cases), three 100ms warmups and samples, one fork/round. Local only; 600s active-time cap including preparation; metric changes beyond 15% and correctness failures get three paired confirmation blocks at priority 99.",
+  "repository": "Eignex/koblas",
+  "tags": [
+    "local"
+  ],
+  "priority": 98,
+  "parallel": 4,
+  "repeats": 1,
+  "bench": {
+    "manifest": "koblas-bench/lab/status-sweep.json",
+    "runTimeoutSec": 600,
+    "request": {
+      "parameters": {
+        "status-sweep": "true",
+        "platform": "mac",
+        "arch": "arm64",
+        "targets": "jvm-default",
+        "samples": "3",
+        "warmups": "3",
+        "target-ms": "100",
+        "forks": "1",
+        "rounds": "1"
+      }
+    }
+  }
+}
