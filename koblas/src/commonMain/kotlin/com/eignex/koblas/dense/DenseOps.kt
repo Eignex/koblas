@@ -200,26 +200,7 @@ public fun KoblasEngine.ger(
     yOffset: Int = 0,
     scratch: Scratch? = null,
 ) {
-    requireGerWindowOperands(x.size, y.size, a, rowOffset, columnOffset, rows, columns, xOffset, yOffset)
-    if (alpha == 0.0 || rows == 0 || columns == 0) return
-    if (x === a.values || y === a.values) {
-        val window = a.view(rowOffset, columnOffset, rows, columns)
-        stagedWindows(scratch, x, xOffset, rows, 1, y, yOffset, columns, 1, window) {
-                sx,
-                sxo,
-                sxs,
-                sy,
-                syo,
-                sys,
-            ->
-            portableGer(alpha, sx, sxo, sxs, sy, syo, sys, window, window.offset, rows, columns)
-        }
-    } else {
-        portableGer(
-            alpha, x, xOffset, 1, y, yOffset, 1, a,
-            a.offset + rowOffset + columnOffset * a.leadingDimension, rows, columns,
-        )
-    }
+    gerWindow(alpha, x, y, a, rowOffset, columnOffset, rows, columns, xOffset, yOffset, scratch)
 }
 
 /** [KoblasEngine.syr] over a vector of the matrix's order. */

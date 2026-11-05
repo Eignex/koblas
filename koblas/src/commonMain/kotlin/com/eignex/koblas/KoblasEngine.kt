@@ -306,16 +306,7 @@ public interface KoblasEngine {
     ) {
         val routed = routedWholeCall(EngineImplementation.Ger, a.rows, a.cols, 1, a !is DenseMatrix)
         if (routed != null) return routed.ger(alpha, x, xOffset, xStride, y, yOffset, yStride, a, scratch)
-        prepareRankUpdate(alpha, x, xOffset, xStride, y, yOffset, yStride, a, scratch) {
-                sx,
-                xo,
-                xs,
-                sy,
-                yo,
-                ys,
-            ->
-            portableGer(alpha, sx, xo, xs, sy, yo, ys, a, a.offset, a.rows, a.cols)
-        }
+        updateRank(alpha, x, xOffset, xStride, y, yOffset, yStride, a, 0, 0, a.rows, a.cols, scratch)
     }
 
     /** `A = A + alpha · x · xᵀ` (BLAS `dsyr`), writing only the [lower] or upper triangle. Overlap follows [ger]. */

@@ -11,9 +11,14 @@ internal fun indexedDotDense(
     valueOffset: Int,
     count: Int,
     dense: DoubleArray,
+    denseOffset: Int = 0,
+    denseStride: Int = 1,
 ): Double {
     var sum = 0.0
-    for (k in 0 until count) sum += values[valueOffset + k] * dense[indices[indexOffset + k]]
+    for (k in 0 until count) {
+        val index = denseOffset + indices[indexOffset + k] * denseStride
+        sum += values[valueOffset + k] * dense[index]
+    }
     return sum
 }
 
@@ -58,8 +63,13 @@ internal fun indexedAxpy(
     count: Int,
     alpha: Double,
     destination: DoubleArray,
+    destinationOffset: Int = 0,
+    destinationStride: Int = 1,
 ) {
-    for (k in 0 until count) destination[indices[indexOffset + k]] += alpha * values[valueOffset + k]
+    for (k in 0 until count) {
+        val index = destinationOffset + indices[indexOffset + k] * destinationStride
+        destination[index] += alpha * values[valueOffset + k]
+    }
 }
 
 internal fun indexedScatter(
@@ -69,8 +79,13 @@ internal fun indexedScatter(
     valueOffset: Int,
     count: Int,
     destination: DoubleArray,
+    destinationOffset: Int = 0,
+    destinationStride: Int = 1,
 ) {
-    for (k in 0 until count) destination[indices[indexOffset + k]] = values[valueOffset + k]
+    for (k in 0 until count) {
+        val index = destinationOffset + indices[indexOffset + k] * destinationStride
+        destination[index] = values[valueOffset + k]
+    }
 }
 
 internal fun indexedGather(
