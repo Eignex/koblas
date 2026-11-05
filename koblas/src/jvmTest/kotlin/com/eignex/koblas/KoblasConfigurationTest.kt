@@ -17,6 +17,16 @@ import kotlin.test.assertTrue
 
 class KoblasConfigurationTest {
     @Test
+    fun `named startup selection overrides launch settings`() = isolated("invalid") { loader ->
+        val facade = loader.loadClass("com.eignex.koblas.Koblas")
+        val scalar = loader.loadClass("com.eignex.koblas.engine.BuiltinEngines").getMethod("getScalar").invoke(null)
+
+        facade.getMethod("configureKoblas", String::class.java).invoke(null, " SCALAR ")
+
+        assertSame(scalar, facade.getMethod("getDefault").invoke(null))
+    }
+
+    @Test
     fun `programmatic override reaches conveniences`() = isolated("invalid") { loader ->
         val facade = loader.loadClass("com.eignex.koblas.Koblas")
         val engineType = loader.loadClass("com.eignex.koblas.KoblasEngine")

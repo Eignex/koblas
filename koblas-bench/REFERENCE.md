@@ -85,7 +85,8 @@ Capture on the intended host; this example prepares Linux x64 Native comparisons
   --args="--capture --runtime native --backend onemkl --backend openblas --cpu * --native-executable koblas-bench/build/bin/linuxX64/releaseExecutable/koblas-bench.kexe --output /tmp/native-profile"
 ```
 
-The tool emits `Profile.kt` and external evidence. Use its declaration in the standard target configuration,
+The tool emits `Profile.kt` with an internal tuning declaration and external target evidence. Update the
+matching table in [EngineTuning.kt](../koblas/src/commonMain/kotlin/com/eignex/koblas/internal/engine/EngineTuning.kt),
 rebuild, and capture disjoint holdouts through `native-default` or `jvm-default`. Use `--runtime jvm` for
 transfer-inclusive tuning, or repeated `--results PATH` arguments to refit fetched captures.
 `--fallback aocl=openblas` and `--fallback armpl=openblas` label unmeasured vendor estimates.

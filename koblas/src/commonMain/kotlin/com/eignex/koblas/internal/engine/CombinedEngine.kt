@@ -8,17 +8,17 @@ import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 
 /** Backends are bound once; arithmetic never resolves identifiers or capabilities. */
-internal class CompiledRouting(profile: EngineProfile, engines: List<EngineKernels>) {
+internal class CompiledRouting(tuning: EngineTuning, engines: List<EngineKernels>) {
     private val portable = ScalarEngine
     val backends: List<EngineKernels> = engines.flatMap { (it as? CombinedEngine)?.routing?.backends ?: listOf(it) }
         .filterNot { it === portable }.distinct() + portable
     init {
         val known = backends.map { it.id } + "jvm-simd" + Vendor.entries.map { it.vendorName.lowercase() }
-        require(profile.rules.all { it.source in known }) { "Unknown engine source in ${profile.name}" }
+        require(tuning.rules.all { it.source in known }) { "Unknown engine source in ${tuning.name}" }
     }
     private val routes = Array(EngineImplementation.entries.size) { index ->
         val operation = EngineImplementation.entries[index]
-        profile.rules.mapNotNull { rule ->
+        tuning.rules.mapNotNull { rule ->
             backends.firstOrNull { it.id == rule.source && operation in it.implementations }
                 ?.takeIf { operation in rule.implementations }
                 ?.let { rule to it }
@@ -29,14 +29,14 @@ internal class CompiledRouting(profile: EngineProfile, engines: List<EngineKerne
     fun compileLength(operation: EngineImplementation): LengthDispatch {
         val windows = routes[operation.ordinal].mapNotNull { (rule, backend) ->
             val lower = maxOf(
-                rule.rows.first,
+                rule.rows,
                 backend.minimumLength(operation),
                 rule.work.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
             )
             val strided = !backend.requiresUnitStride(operation)
             val mask = (if (rule.matches(lower, 1, 1, true, false)) 1 else 0) or
                 (if (strided && rule.matches(lower, 1, 1, false, false)) 2 else 0)
-            if (mask == 0) null else backend to intArrayOf(lower, rule.rows.last, mask)
+            if (mask == 0) null else backend to intArrayOf(lower, mask)
         }
         return LengthDispatch(
             windows.map { it.first }.toTypedArray(),
@@ -59,11 +59,11 @@ internal class CompiledRouting(profile: EngineProfile, engines: List<EngineKerne
     }
 }
 
-/** Primitive length and layout bounds, in profile order, beside their bound providers. */
+/** Primitive length and layout bounds, in tuning order, beside their bound providers. */
 internal class LengthDispatch(val backends: Array<EngineKernels>, val windows: IntArray) {
     // A final receiver lets Native inline the fallback without a per-call singleton lookup.
     val portable = ScalarEngine
-    val minimum = windows.indices.step(3).minOfOrNull { windows[it] } ?: Int.MAX_VALUE
+    val minimum = windows.indices.step(2).minOfOrNull { windows[it] } ?: Int.MAX_VALUE
 }
 
 /** Inline both calls so the portable fallback has a statically known receiver. */
@@ -76,10 +76,10 @@ private inline fun <R> LengthDispatch.withBackend(
     val layout = if (contiguous) 1 else 2
     var index = 0
     while (index < windows.size) {
-        if (length >= windows[index] && length <= windows[index + 1] && windows[index + 2] and layout != 0) {
-            return action(backends[index / 3])
+        if (length >= windows[index] && windows[index + 1] and layout != 0) {
+            return action(backends[index / 2])
         }
-        index += 3
+        index += 2
     }
     return action(portable)
 }

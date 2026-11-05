@@ -1,5 +1,6 @@
 package com.eignex.koblas.bench
 
+import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.engine.combine
 import com.eignex.koblas.internal.kernels.*
@@ -21,8 +22,8 @@ class RunnerTest {
                 return BuiltinEngines.scalar.dot(a, aOff, b, bOff, len, aStride, bStride)
             }
         }
-        val engine = combine(EngineProfile("threshold", listOf(
-            EngineRule(leaf.id, leaf.implementations, rows = 64..Int.MAX_VALUE, contiguous = true),
+        val engine = combine(EngineTuning("threshold", listOf(
+            EngineRule(leaf.id, leaf.implementations, rows = 64, contiguous = true),
         )), leaf)
         for ((id, expected) in listOf("dot+63+uniform" to "portable", "dot+64+uniform" to leaf.id,
             "dot+64+uniform+stride=2" to "portable")) {
@@ -166,7 +167,7 @@ class RunnerTest {
             override val version = "openblas-version"
             override val implementations = setOf(EngineImplementation.Asum)
         }
-        val engine = combine(EngineProfile("combined", emptyList()), source, second)
+        val engine = combine(EngineTuning("combined", emptyList()), source, second)
 
         val identity = engineIdentity("native-default", engine)
 

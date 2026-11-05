@@ -16,10 +16,10 @@ import com.eignex.koblas.internal.storage.*
  * Dense and sparse BLAS through one immutable engine.
  *
  * Each BLAS routine is one member. The portable engine runs the shared schedule over its own kernels; a
- * composed engine such as [koblas] routes each call to the provider its profile selects and otherwise runs the
+ * composed engine such as [koblas] routes each call to the provider its internal tuning selects and otherwise runs the
  * same schedule over its own kernels; a vendor engine from [BuiltinEngines.vendor] calls its library for the
  * routines it exports and fails for the rest. [BuiltinEngines] names exact engines, while [koblas] selects its
- * standard platform configuration once unless startup configuration overrides it.
+ * platform engine once unless startup configuration overrides it.
  *
  * Level 2 and 3 routines validate shapes, preserve BLAS no-read rules and snapshot an input that shares the
  * destination's storage, borrowing from a [Scratch] when one is given. Level 1 members address primitive array
@@ -34,7 +34,7 @@ public interface KoblasEngine {
     /** Implementation identifier for diagnostics. */
     public val name: String
 
-    /** Stable identifier used by routing profiles. */
+    /** Stable provider identifier for diagnostics and internal routing. */
     public val id: String get() = vendor?.vendorName?.lowercase() ?: name
 
     /** Callbacks supplied by this provider, trusted by the composer. Shared matrix schedules select arithmetic directly from leaf [providers]. */

@@ -18,7 +18,7 @@ import kotlin.test.assertTrue
 /**
  * Checks how a composition binds rules to providers, then host eligibility, symbol fallback, aliases and
  * argument translation with a recording binding. Small fixtures isolate composition from the platform
- * cutoffs that [StandardEngineProfilesTest] covers.
+ * cutoffs that [EngineTuningTest] covers.
  */
 class CombinedEngineTest {
     @Test
@@ -32,9 +32,9 @@ class CombinedEngineTest {
             override val name = "custom"
             override val implementations = setOf(EngineImplementation.Asum)
         }
-        val nested = combine(EngineProfile("nested", emptyList()), vendor)
+        val nested = combine(EngineTuning("nested", emptyList()), vendor)
         val combined = combine(
-            EngineProfile(
+            EngineTuning(
                 "outer",
                 listOf(
                     EngineRule(vendor.id, setOf(EngineImplementation.Asum)),
@@ -81,18 +81,16 @@ class CombinedEngineTest {
         }
         val operation = setOf(EngineImplementation.Dot)
         val rules = listOf(
-            EngineRule("dot", operation, rows = 4..Int.MAX_VALUE),
+            EngineRule("dot", operation, rows = 4),
             EngineRule("dot", operation, work = 4),
-            EngineRule("dot", operation, columns = 2..Int.MAX_VALUE),
-            EngineRule("dot", operation, columns = 0..0),
-            EngineRule("dot", operation, depth = 2..Int.MAX_VALUE),
-            EngineRule("dot", operation, depth = 0..0),
+            EngineRule("dot", operation, columns = 2),
+            EngineRule("dot", operation, depth = 2),
             EngineRule("dot", operation, borrowed = true),
             EngineRule("dot", operation, contiguous = false),
         )
         val x = DoubleArray(16) { it / 7.0 }
         for (rule in rules) {
-            val engine = combine(EngineProfile("test", listOf(rule)), backend)
+            val engine = combine(EngineTuning("test", listOf(rule)), backend)
             for (length in listOf(0, 1, 3, 4, 5)) {
                 for (stride in listOf(1, 2)) {
                     val expected = ScalarEngine.dot(x, 0, x, 1, length, stride, stride)
@@ -116,7 +114,7 @@ class CombinedEngineTest {
             override val implementations = setOf(EngineImplementation.Sum)
         }
         val engine = combine(
-            EngineProfile(
+            EngineTuning(
                 "test",
                 listOf(
                     EngineRule("onemkl", setOf(EngineImplementation.Sum)),
@@ -137,11 +135,11 @@ class CombinedEngineTest {
     @Test
     fun `source typos fail while unavailable built in providers retain coverage`() {
         for (source in listOf("onemlk", "jvm-smid")) {
-            val profile = EngineProfile("typo", listOf(EngineRule(source, setOf(EngineImplementation.Dot))))
+            val profile = EngineTuning("typo", listOf(EngineRule(source, setOf(EngineImplementation.Dot))))
 
             assertFailsWith<IllegalArgumentException> { combine(profile) }
         }
-        val profile = EngineProfile("optional", listOf(EngineRule("onemkl", setOf(EngineImplementation.Dot))))
+        val profile = EngineTuning("optional", listOf(EngineRule("onemkl", setOf(EngineImplementation.Dot))))
 
         assertEquals(ScalarEngine.name, combine(profile).implementationFor(EngineImplementation.Dot, 32))
     }
@@ -170,10 +168,10 @@ class CombinedEngineTest {
             }
         }
         val engine = combine(
-            EngineProfile(
+            EngineTuning(
                 "test",
                 listOf(
-                    EngineRule("indexed", setOf(EngineImplementation.IndexedDot), rows = 2..Int.MAX_VALUE),
+                    EngineRule("indexed", setOf(EngineImplementation.IndexedDot), rows = 2),
                 ),
             ),
             backend,
@@ -244,13 +242,13 @@ class CombinedEngineTest {
         }
         val operations = vectors.implementations + indexed.implementations + matrices.implementations
         val engine = combine(
-            EngineProfile("partial", listOf(EngineRule("partial", operations))),
+            EngineTuning("partial", listOf(EngineRule("partial", operations))),
             vectors,
             indexed,
             matrices,
         )
         val nested = combine(
-            EngineProfile("nested", listOf(EngineRule(engine.id, engine.implementations))),
+            EngineTuning("nested", listOf(EngineRule(engine.id, engine.implementations))),
             engine,
         )
         val values = doubleArrayOf(2.0, 3.0)

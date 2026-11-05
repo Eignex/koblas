@@ -25,4 +25,4 @@ sparse column dots are [KoblasEngine.ger] and [KoblasEngine.dotColumn] members.
 
 # Package com.eignex.koblas.engine
 
-Exact engines, standard profiles, host platform facts and vendor metadata.
+Exact built-in engines for comparisons and vendor metadata.

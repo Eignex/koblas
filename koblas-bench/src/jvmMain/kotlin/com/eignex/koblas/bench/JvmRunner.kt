@@ -1,6 +1,7 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.engine.EngineRuntime
+import com.eignex.koblas.internal.engine.*
+import com.eignex.koblas.internal.engine.EngineRuntime
 import java.io.File
 import java.util.concurrent.TimeUnit
 import org.openjdk.jmh.results.RunResult

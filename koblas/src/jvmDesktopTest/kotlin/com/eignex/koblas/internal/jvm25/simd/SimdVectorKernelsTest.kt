@@ -3,6 +3,7 @@ package com.eignex.koblas.internal.jvm25.simd
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.engine.implementationFor
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import kotlin.test.Test
@@ -62,9 +63,9 @@ class SimdVectorKernelsTest {
     @Test
     fun `the standard index search observes its configured crossover`() {
         if (!simdAvailable) return skipped()
-        val profile = StandardEngineProfiles.forTarget(EngineRuntime.Jvm, hostPlatform(), nativeAccess = false)
-        val tuned = BuiltinEngines.configured(profile)
-        val minimum = profile.rules.first { EngineImplementation.Iamax in it.implementations }.rows.first
+        val tuning = standardTuning(EngineRuntime.Jvm, hostPlatform(), nativeAccess = false)
+        val tuned = standardEngine(EngineRuntime.Jvm, nativeAccess = false)
+        val minimum = tuning.rules.first { EngineImplementation.Iamax in it.implementations }.rows
 
         assertEquals(ScalarEngine.name, tuned.implementationFor(EngineImplementation.Iamax, minimum - 1))
         assertEquals(simdContributions.first().name, tuned.implementationFor(EngineImplementation.Iamax, minimum))

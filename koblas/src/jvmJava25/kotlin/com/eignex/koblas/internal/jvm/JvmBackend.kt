@@ -2,6 +2,7 @@ package com.eignex.koblas.internal.jvm
 
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.engine.standardEngine
 import com.eignex.koblas.internal.jvm25.host.*
 import com.eignex.koblas.internal.jvm25.simd.*

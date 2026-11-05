@@ -1,6 +1,6 @@
 # Architecture
 
-Koblas keeps public storage and operation contracts in `com.eignex.koblas`, engine configuration in
+Koblas keeps public storage and operation contracts in `com.eignex.koblas`, exact engine access and vendor metadata in
 `com.eignex.koblas.engine`, and execution details under `internal`. All of these belong to the same
 multiplatform module; platform source sets supply their own runtime and arithmetic implementations.
 
@@ -11,7 +11,8 @@ multiplatform module; platform source sets supply their own runtime and arithmet
   matrix methods prepare their operands and invoke shared schedules. Primitive Level 1 methods are implemented
   by engines.
 - `VectorOps.kt` is the small container facade over the immutable default engine in `DefaultEngine.kt`.
-- `engine` owns exact built-in engines, profiles, platform facts and provenance.
+- `configureKoblas` selects the shared engine at startup by name or instance; launch settings use the same selector.
+- `engine` exposes exact built-in engines and vendor metadata.
 
 ## Internal ownership
 
@@ -23,7 +24,7 @@ multiplatform module; platform source sets supply their own runtime and arithmet
 | `scheduling.sparse` | CSC traversal, right-hand-side grouping and sparse accumulation schedules. |
 | `kernels` | The `EngineKernels` arithmetic contract, `PanelWork` and shared kernel policies. |
 | `kernels.scalar` | The complete scalar engine and numerical leaves over addressed windows. |
-| `engine` | Engine selection, composition, provider inspection and whole-call routing. |
+| `engine` | Startup selection, fixed target tuning, host facts, provider composition and whole-call routing. |
 | `host` | Shared host-library contracts and ABI adaptation. |
 
 A default matrix method prepares its operands and calls a shared schedule, which invokes the selected
@@ -47,3 +48,7 @@ stay within Koblas.
 
 Tests mirror the internal package that owns the implementation. Public API and published-artifact
 checks exercise calls through the engine and container entry points.
+
+Tuning cutoffs live in `internal/engine/EngineTuning.kt`. Runtime and host facts select fixed tables;
+unmeasured targets borrow compatible estimates. Applications do not construct routing rules or profiles.
+The benchmark fitter emits internal tuning declarations and keeps target provenance in its evidence file.
