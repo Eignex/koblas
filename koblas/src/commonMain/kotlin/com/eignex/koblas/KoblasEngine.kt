@@ -46,7 +46,7 @@ public interface KoblasEngine {
          * A window too short or too strided for a vector body runs a portable fallback.
          */
         @get:kotlin.jvm.JvmStatic
-        public val simd: KoblasEngine? by lazy { simdBackend() }
+        public val simd: KoblasEngine? get() = simdEngine
     }
 
     // Engine identity and provenance.

@@ -52,11 +52,7 @@ internal class BuiltinEngine(
         if (host == null || operation !in host.implementations) {
             -1
         } else {
-            tuning?.hostMinimum(
-                host.vendor,
-                operation,
-                contiguous,
-            ) ?: 0
+            tuning?.hostMinimum(operation, contiguous) ?: 0
         }
 
     internal fun vectorProvider(operation: EngineImplementation, length: Int, contiguous: Boolean): EngineKernels {
@@ -75,7 +71,7 @@ internal class BuiltinEngine(
         borrowed: Boolean,
     ): EngineKernels? = host?.takeIf {
         operation in it.implementations &&
-            (tuning?.hostEligible(it.vendor, operation, rows, columns, depth, borrowed) != false)
+            (tuning?.hostEligible(operation, rows, columns, depth, borrowed) != false)
     }
 
     /** A constant scalar receiver keeps short portable calls inlineable. */

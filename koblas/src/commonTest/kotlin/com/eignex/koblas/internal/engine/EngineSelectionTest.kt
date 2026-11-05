@@ -13,7 +13,7 @@ class EngineSelectionTest {
     @Test
     fun `absent and automatic settings use platform selection`() {
         for (setting in listOf(null, "auto", " AUTO ")) {
-            val engine = engineFromSetting(setting, automatic = { KoblasEngine.scalar })
+            val engine = engineFromSetting(setting, automatic = { ScalarEngine })
 
             assertSame(KoblasEngine.scalar, engine)
         }
@@ -49,7 +49,7 @@ class EngineSelectionTest {
                     setting,
                     automatic = {
                         automaticCalls++
-                        KoblasEngine.scalar
+                        ScalarEngine
                     },
                     simd = { null },
                     openVendor = { null },

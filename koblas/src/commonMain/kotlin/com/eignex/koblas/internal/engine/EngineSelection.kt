@@ -2,19 +2,20 @@ package com.eignex.koblas.internal.engine
 
 import com.eignex.koblas.*
 import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 
 /** Explicit names select only the requested source, with portable coverage for missing vendor operations. */
 internal fun engineFromSetting(
     setting: String?,
-    automatic: () -> KoblasEngine = ::platformEngine,
-    simd: () -> KoblasEngine? = { KoblasEngine.simd },
-    openVendor: (Vendor) -> KoblasEngine? = KoblasEngine::vendor,
-): KoblasEngine {
+    automatic: () -> EngineKernels = ::platformEngine,
+    simd: () -> BuiltinEngine? = { simdEngine },
+    openVendor: (Vendor) -> EngineKernels? = ::vendorEngine,
+): EngineKernels {
     val name = setting?.trim()?.lowercase() ?: "auto"
     return when (name) {
         "auto" -> automatic()
 
-        "scalar" -> KoblasEngine.scalar
+        "scalar" -> ScalarEngine
 
         "simd" -> checkNotNull(simd()) { "Koblas engine 'simd' is unavailable; enable the JVM Vector API module" }
 
@@ -24,7 +25,7 @@ internal fun engineFromSetting(
                     Vendor.entries.joinToString { it.vendorName.lowercase() }
             }
             val engine = checkNotNull(openVendor(vendor)) { "Koblas engine '$name' is unavailable on this platform" }
-            BuiltinEngine(name, host = engine as EngineKernels)
+            BuiltinEngine(name, host = engine)
         }
     }
 }

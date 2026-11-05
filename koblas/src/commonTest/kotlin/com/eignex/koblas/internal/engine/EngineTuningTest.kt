@@ -86,12 +86,16 @@ class EngineTuningTest {
 
     @Test
     fun `host product eligibility bounds work without overflow`() {
-        val tuning = EngineTuning(EngineRuntime.Native, HostPlatform(OperatingSystem.Linux, Architecture.X86_64))
+        val tuning = EngineTuning(
+            EngineRuntime.Native,
+            HostPlatform(OperatingSystem.Linux, Architecture.X86_64),
+            Vendor.OpenBlas,
+        )
 
-        assertFalse(tuning.hostEligible(Vendor.OpenBlas, Gemm, 8, 8, 7, false))
-        assertTrue(tuning.hostEligible(Vendor.OpenBlas, Gemm, 8, 8, 8, false))
-        assertTrue(tuning.hostEligible(Vendor.OpenBlas, Gemm, Int.MAX_VALUE, Int.MAX_VALUE, Int.MAX_VALUE, false))
-        assertFalse(tuning.hostEligible(Vendor.OpenBlas, Gemm, 8, 8, 0, false))
+        assertFalse(tuning.hostEligible(Gemm, 8, 8, 7, false))
+        assertTrue(tuning.hostEligible(Gemm, 8, 8, 8, false))
+        assertTrue(tuning.hostEligible(Gemm, Int.MAX_VALUE, Int.MAX_VALUE, Int.MAX_VALUE, false))
+        assertFalse(tuning.hostEligible(Gemm, 8, 8, 0, false))
     }
 
     private fun provider(vendor: Vendor, operations: Set<EngineImplementation>): EngineKernels =
