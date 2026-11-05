@@ -1,12 +1,11 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.*
 import com.eignex.koblas.engine.BuiltinEngines
 import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.kernels.EngineKernels
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import com.eignex.koblas.internal.scheduling.dense.TRIANGULAR_DIAGONAL_BLOCK
-import com.eignex.koblas.koblas
 
 /**
  * Runs [body] against the mandatory portable seam, and against every other built-in composition this

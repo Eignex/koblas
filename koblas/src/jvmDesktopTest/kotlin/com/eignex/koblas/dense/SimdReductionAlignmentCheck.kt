@@ -2,11 +2,8 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.BuiltinEngines
-import com.eignex.koblas.internal.jvm25.simd.HotSpotArrayAlignment
-import com.eignex.koblas.internal.jvm25.simd.SimdOps
-import com.eignex.koblas.internal.jvm25.simd.SimdOpsTest
-import com.eignex.koblas.testutil.allocation.AllocationProbe
-import com.eignex.koblas.testutil.allocation.bytesPerCall
+import com.eignex.koblas.internal.jvm25.simd.*
+import com.eignex.koblas.testutil.allocation.*
 
 /** Heap layout is fixed at startup, so alignment conformance needs a separate process per collector. */
 internal object SimdReductionAlignmentCheck {

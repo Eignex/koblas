@@ -5,20 +5,7 @@ package com.eignex.koblas.internal.host
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.EngineImplementation
 import com.eignex.koblas.internal.kernels.EngineKernels
-import com.eignex.koblas.internal.operations.MatrixStructure
-import com.eignex.koblas.internal.operations.prepareMatrixVector
-import com.eignex.koblas.internal.operations.prepareProduct
-import com.eignex.koblas.internal.operations.prepareRankUpdate
-import com.eignex.koblas.internal.operations.prepareTriangularMatrix
-import com.eignex.koblas.internal.operations.prepareTriangularVector
-import com.eignex.koblas.internal.operations.requireGemmOperands
-import com.eignex.koblas.internal.operations.requireGemmtOperands
-import com.eignex.koblas.internal.operations.requireSquare
-import com.eignex.koblas.internal.operations.requireSymmOperands
-import com.eignex.koblas.internal.operations.requireSyr2kOperands
-import com.eignex.koblas.internal.operations.requireSyrkOperands
-import com.eignex.koblas.internal.operations.symmetricStructure
-import com.eignex.koblas.internal.operations.triangle
+import com.eignex.koblas.internal.operations.*
 import com.eignex.koblas.internal.storage.sameRegion
 
 /**

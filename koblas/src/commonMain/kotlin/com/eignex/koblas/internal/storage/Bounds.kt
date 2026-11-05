@@ -1,7 +1,6 @@
 package com.eignex.koblas.internal.storage
 
-import com.eignex.koblas.DimensionMismatch
-import com.eignex.koblas.koblas
+import com.eignex.koblas.*
 
 /**
  * A vector window of [count] entries from [offset], [stride] apart, which a routine reads or writes as

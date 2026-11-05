@@ -1,8 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.engine.BuiltinEngines
-import com.eignex.koblas.internal.engine.panelProvider
-import com.eignex.koblas.internal.engine.productProvider
+import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.kernels.EngineKernels
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import com.eignex.koblas.koblas

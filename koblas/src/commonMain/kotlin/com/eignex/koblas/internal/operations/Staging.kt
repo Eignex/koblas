@@ -1,8 +1,7 @@
 package com.eignex.koblas.internal.operations
 
 import com.eignex.koblas.*
-import com.eignex.koblas.internal.storage.overlaps
-import com.eignex.koblas.internal.storage.sameVectorMapping
+import com.eignex.koblas.internal.storage.*
 
 /* Alias snapshots use arrays loans; callers decide which operands need staging.
  * Sparse snapshots share read-only structure and copy only values.

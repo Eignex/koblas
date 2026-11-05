@@ -3,10 +3,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.BuiltinEngines
 import com.eignex.koblas.internal.operations.dotVector
-import com.eignex.koblas.testutil.allocation.ARRAY_HEADER_BYTES
-import com.eignex.koblas.testutil.allocation.AllocationCase
-import com.eignex.koblas.testutil.allocation.FLOOR_BYTES
-import com.eignex.koblas.testutil.allocation.parameterRows
+import com.eignex.koblas.testutil.allocation.*
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import kotlin.test.Test

@@ -4,41 +4,9 @@ package com.eignex.koblas.internal.kernels.scalar
 
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.EngineImplementation
-import com.eignex.koblas.internal.kernels.EngineKernels
-import com.eignex.koblas.internal.kernels.PanelWork
-import com.eignex.koblas.internal.kernels.packsProductByWork
-import com.eignex.koblas.internal.kernels.scalar.dense.PANEL_NARROW_GROUP
-import com.eignex.koblas.internal.kernels.scalar.dense.PANEL_WIDE_GROUP
-import com.eignex.koblas.internal.kernels.scalar.dense.SCALAR_PRODUCT_TILE
-import com.eignex.koblas.internal.kernels.scalar.dense.absoluteSum
-import com.eignex.koblas.internal.kernels.scalar.dense.euclideanNorm
-import com.eignex.koblas.internal.kernels.scalar.dense.scalarAxpy
-import com.eignex.koblas.internal.kernels.scalar.dense.scalarColumnUpdate
-import com.eignex.koblas.internal.kernels.scalar.dense.scalarCopy
-import com.eignex.koblas.internal.kernels.scalar.dense.scalarCoupledUpdateDot
-import com.eignex.koblas.internal.kernels.scalar.dense.scalarDiagonalMultiply
-import com.eignex.koblas.internal.kernels.scalar.dense.scalarDiagonalSolve
-import com.eignex.koblas.internal.kernels.scalar.dense.scalarDot
-import com.eignex.koblas.internal.kernels.scalar.dense.scalarIamax
-import com.eignex.koblas.internal.kernels.scalar.dense.scalarMultiDot
-import com.eignex.koblas.internal.kernels.scalar.dense.scalarProductBlock
-import com.eignex.koblas.internal.kernels.scalar.dense.scalarRankTwoUpdate
-import com.eignex.koblas.internal.kernels.scalar.dense.scalarRankUpdate
-import com.eignex.koblas.internal.kernels.scalar.dense.scalarRot
-import com.eignex.koblas.internal.kernels.scalar.dense.scalarScale
-import com.eignex.koblas.internal.kernels.scalar.dense.scalarSum
-import com.eignex.koblas.internal.kernels.scalar.dense.scalarSwap
-import com.eignex.koblas.internal.kernels.scalar.sparse.SPARSE_REDUCTION_GROUP
-import com.eignex.koblas.internal.kernels.scalar.sparse.SPARSE_RHS_GROUP
-import com.eignex.koblas.internal.kernels.scalar.sparse.indexedAxpy
-import com.eignex.koblas.internal.kernels.scalar.sparse.indexedDotDense
-import com.eignex.koblas.internal.kernels.scalar.sparse.indexedDotSparse
-import com.eignex.koblas.internal.kernels.scalar.sparse.indexedGather
-import com.eignex.koblas.internal.kernels.scalar.sparse.indexedGatherZero
-import com.eignex.koblas.internal.kernels.scalar.sparse.indexedScatter
-import com.eignex.koblas.internal.kernels.scalar.sparse.sparseColumnUpdate
-import com.eignex.koblas.internal.kernels.scalar.sparse.sparseCoupledUpdate
-import com.eignex.koblas.internal.kernels.scalar.sparse.sparseRankUpdate
+import com.eignex.koblas.internal.kernels.*
+import com.eignex.koblas.internal.kernels.scalar.dense.*
+import com.eignex.koblas.internal.kernels.scalar.sparse.*
 
 /** Complete portable arithmetic, independent of every accelerated provider. */
 internal object ScalarEngine : EngineKernels {

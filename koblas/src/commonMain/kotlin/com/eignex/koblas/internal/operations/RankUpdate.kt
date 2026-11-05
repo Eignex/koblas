@@ -6,23 +6,6 @@ import com.eignex.koblas.*
 import com.eignex.koblas.internal.scheduling.dense.scheduleGer
 import com.eignex.koblas.internal.storage.requireVectorWindow
 
-internal fun KoblasEngine.gerWindow(
-    alpha: Double,
-    x: DoubleArray,
-    y: DoubleArray,
-    a: DenseMatrixRegion,
-    rowOffset: Int,
-    columnOffset: Int,
-    rows: Int,
-    columns: Int,
-    xOffset: Int,
-    yOffset: Int,
-    scratch: Scratch?,
-) {
-    requireGerWindowOperands(x.size, y.size, a, rowOffset, columnOffset, rows, columns, xOffset, yOffset)
-    updateRank(alpha, x, xOffset, 1, y, yOffset, 1, a, rowOffset, columnOffset, rows, columns, scratch)
-}
-
 /** Whole and rectangular GER share panel selection and staging without allocating unaliased views. */
 internal fun KoblasEngine.updateRank(
     alpha: Double,

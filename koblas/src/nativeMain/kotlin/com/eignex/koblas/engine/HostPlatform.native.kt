@@ -2,8 +2,7 @@
 
 package com.eignex.koblas.engine
 
-import com.eignex.koblas.internal.engine.detectHost
-import com.eignex.koblas.internal.engine.sveVectorBits
+import com.eignex.koblas.internal.engine.*
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.allocArray
 import kotlinx.cinterop.memScoped

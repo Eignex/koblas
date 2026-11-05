@@ -1,11 +1,9 @@
 package com.eignex.koblas.internal.engine
 
-import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.*
 import com.eignex.koblas.engine.EngineImplementation
-import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
-import com.eignex.koblas.internal.kernels.unsupported
-import com.eignex.koblas.koblas
 
 /** The kernels a shared schedule run on this engine calls, which a composed engine binds once. */
 internal val KoblasEngine.panelProvider: EngineKernels get() = when (this) {

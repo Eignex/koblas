@@ -6,8 +6,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.engine.EngineImplementation
 import com.eignex.koblas.internal.kernels.EngineKernels
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
-import com.eignex.koblas.internal.scheduling.dense.OutputTriangle
-import com.eignex.koblas.internal.scheduling.dense.insideTriangle
+import com.eignex.koblas.internal.scheduling.dense.*
 import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

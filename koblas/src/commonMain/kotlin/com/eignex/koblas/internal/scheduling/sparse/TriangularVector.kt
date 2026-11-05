@@ -3,8 +3,7 @@
 package com.eignex.koblas.internal.scheduling.sparse
 
 import com.eignex.koblas.*
-import com.eignex.koblas.internal.kernels.scalar.sparse.sparseTriangularGatherSingle
-import com.eignex.koblas.internal.kernels.scalar.sparse.sparseTriangularScatterSingle
+import com.eignex.koblas.internal.kernels.scalar.sparse.*
 
 /**
  * Sparse `dtrsv` when [solve] and `dtrmv` otherwise, in place over [x]. The direction preserves each source

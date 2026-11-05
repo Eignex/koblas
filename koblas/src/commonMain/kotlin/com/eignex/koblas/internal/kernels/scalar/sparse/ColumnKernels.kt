@@ -1,7 +1,6 @@
 package com.eignex.koblas.internal.kernels.scalar.sparse
 
-import com.eignex.koblas.internal.storage.sparse.selectedRunEnd
-import com.eignex.koblas.internal.storage.sparse.selectedRunStart
+import com.eignex.koblas.internal.storage.sparse.*
 
 /** A stored symmetric column updates both halves, counting the diagonal once. */
 @Suppress("LongParameterList") // one CSC column slice, its triangle flag, and the two vectors

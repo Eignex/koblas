@@ -2,8 +2,7 @@ package com.eignex.koblas.internal.jvm
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.ReferenceBlas
-import com.eignex.koblas.engine.BuiltinEngines
-import com.eignex.koblas.engine.Vendor
+import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.engine.productProvider
 import org.junit.Assume
 import kotlin.test.Test

@@ -1,11 +1,7 @@
 package com.eignex.koblas.internal.scheduling.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.RecordingTriangles
-import com.eignex.koblas.dense.ReferenceBlas
-import com.eignex.koblas.dense.VECTOR_SIDES
-import com.eignex.koblas.dense.withBackends
-import com.eignex.koblas.dense.withEngines
+import com.eignex.koblas.dense.*
 import com.eignex.koblas.internal.kernels.EngineKernels
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import com.eignex.koblas.internal.operations.triangle

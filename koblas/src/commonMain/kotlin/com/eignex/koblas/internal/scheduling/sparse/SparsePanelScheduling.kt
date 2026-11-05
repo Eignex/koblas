@@ -5,10 +5,7 @@ import com.eignex.koblas.internal.engine.panelProvider
 import com.eignex.koblas.internal.kernels.PanelWork
 import com.eignex.koblas.internal.kernels.scalar.dense.scalarDivide
 import com.eignex.koblas.internal.kernels.scalar.sparse.sparseMaskedTriangularScatter
-import com.eignex.koblas.internal.storage.sparse.selectedRunEnd
-import com.eignex.koblas.internal.storage.sparse.selectedRunStart
-import com.eignex.koblas.internal.storage.sparse.strictRunEnd
-import com.eignex.koblas.internal.storage.sparse.strictRunStart
+import com.eignex.koblas.internal.storage.sparse.*
 
 /**
  * Dense right-hand sides to visit per walk of a sparse column, for a destination of [columns] of them.

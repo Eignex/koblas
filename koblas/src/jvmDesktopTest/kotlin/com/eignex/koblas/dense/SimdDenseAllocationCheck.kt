@@ -3,14 +3,11 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.BuiltinEngines
 import com.eignex.koblas.internal.engine.*
-import com.eignex.koblas.internal.jvm25.simd.SimdPanelKernels
-import com.eignex.koblas.internal.jvm25.simd.SimdProductKernels
-import com.eignex.koblas.internal.kernels.EngineKernels
-import com.eignex.koblas.internal.kernels.PanelWork
+import com.eignex.koblas.internal.jvm25.simd.*
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.operations.triangle
 import com.eignex.koblas.internal.scheduling.dense.TRIANGULAR_DIAGONAL_BLOCK
-import com.eignex.koblas.testutil.allocation.AllocationProbe
-import com.eignex.koblas.testutil.allocation.bytesPerCall
+import com.eignex.koblas.testutil.allocation.*
 
 /**
  * Runs allocation checks for the Vector API dense panels in an uninstrumented JVM.

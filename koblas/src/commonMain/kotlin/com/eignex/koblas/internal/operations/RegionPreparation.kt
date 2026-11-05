@@ -3,8 +3,7 @@
 package com.eignex.koblas.internal.operations
 
 import com.eignex.koblas.*
-import com.eignex.koblas.internal.storage.regionsOverlap
-import com.eignex.koblas.internal.storage.sameRegion
+import com.eignex.koblas.internal.storage.*
 
 /** Snapshots a region only when it shares the destination buffer. */
 internal inline fun <T> stagedRegion(

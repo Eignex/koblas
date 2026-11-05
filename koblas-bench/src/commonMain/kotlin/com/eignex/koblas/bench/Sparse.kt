@@ -4,8 +4,7 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.BuiltinEngines
-import com.eignex.koblas.internal.operations.absoluteSumVector
-import com.eignex.koblas.internal.operations.normVector
+import com.eignex.koblas.internal.operations.*
 
 /**
  * The sparse work for one case on [engine], or the reason this engine cannot measure it, or null when the case

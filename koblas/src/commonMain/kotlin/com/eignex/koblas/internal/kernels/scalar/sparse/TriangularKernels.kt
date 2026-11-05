@@ -1,7 +1,6 @@
 package com.eignex.koblas.internal.kernels.scalar.sparse
 
-import com.eignex.koblas.internal.storage.sparse.strictRunEnd
-import com.eignex.koblas.internal.storage.sparse.strictRunStart
+import com.eignex.koblas.internal.storage.sparse.*
 
 /**
  * `sparseTriangularPanelScatter` with one right-hand side, written out for the reason [sparseGatherProductColumn]

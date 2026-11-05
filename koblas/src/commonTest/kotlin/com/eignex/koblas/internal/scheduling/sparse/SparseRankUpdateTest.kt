@@ -2,7 +2,7 @@ package com.eignex.koblas.internal.scheduling.sparse
 
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.BuiltinEngines
-import com.eignex.koblas.internal.operations.sparse.withSymmetricRankScratch
+import com.eignex.koblas.internal.operations.withSymmetricRankScratch
 import com.eignex.koblas.sparse.ReferenceSparseBlas
 import kotlin.test.Test
 import kotlin.test.assertContentEquals

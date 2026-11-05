@@ -2,8 +2,7 @@
 
 package com.eignex.koblas.internal.scheduling.dense
 
-import com.eignex.koblas.koblas
-import com.eignex.koblas.transpose
+import com.eignex.koblas.*
 
 /**
  * Copies the `rows` by `depth` window of `op(A)` starting at ([rowStart], [depthStart]) into left groups.

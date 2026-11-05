@@ -1,7 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.engine.OperatingSystem
-import com.eignex.koblas.engine.hostPlatform
+import com.eignex.koblas.engine.*
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals

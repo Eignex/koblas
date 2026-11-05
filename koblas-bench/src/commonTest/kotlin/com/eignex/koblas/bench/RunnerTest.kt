@@ -2,8 +2,7 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.engine.combine
-import com.eignex.koblas.internal.kernels.EngineKernels
-import com.eignex.koblas.internal.kernels.unsupported
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.koblas
 import kotlin.test.Test
 import kotlin.test.assertEquals

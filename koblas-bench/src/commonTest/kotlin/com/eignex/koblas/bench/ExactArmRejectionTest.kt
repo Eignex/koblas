@@ -1,9 +1,7 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.engine.EngineImplementation
-import com.eignex.koblas.engine.Vendor
-import com.eignex.koblas.koblas
+import com.eignex.koblas.*
+import com.eignex.koblas.engine.*
 import kotlin.test.*
 
 class ExactArmRejectionTest {

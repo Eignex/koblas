@@ -3,12 +3,8 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.BuiltinEngines
 import com.eignex.koblas.internal.engine.*
-import com.eignex.koblas.internal.jvm25.simd.SIMD_SPECIES
-import com.eignex.koblas.internal.jvm25.simd.SimdOpsTest
-import com.eignex.koblas.internal.jvm25.simd.assertHardwareFmaAgreesWithVm
-import com.eignex.koblas.internal.jvm25.simd.hardwareFusedMultiplyAdd
-import com.eignex.koblas.internal.kernels.EngineKernels
-import com.eignex.koblas.internal.kernels.PanelWork
+import com.eignex.koblas.internal.jvm25.simd.*
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import com.eignex.koblas.internal.operations.triangle
 import kotlin.random.Random

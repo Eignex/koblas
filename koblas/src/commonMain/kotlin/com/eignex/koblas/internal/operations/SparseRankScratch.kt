@@ -1,4 +1,4 @@
-package com.eignex.koblas.internal.operations.sparse
+package com.eignex.koblas.internal.operations
 
 import com.eignex.koblas.*
 import com.eignex.koblas.internal.storage.borrowI32

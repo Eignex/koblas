@@ -4,8 +4,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.engine.EngineImplementation
 import com.eignex.koblas.engine.EngineImplementation.*
 import com.eignex.koblas.internal.kernels.EngineKernels
-import com.eignex.koblas.internal.kernels.scalar.dense.MIN_NORMAL
-import com.eignex.koblas.internal.kernels.scalar.dense.rescaledEuclideanNorm
+import com.eignex.koblas.internal.kernels.scalar.dense.*
 import kotlin.math.sqrt
 
 /** Check the optional module without initializing a Vector API implementation. */

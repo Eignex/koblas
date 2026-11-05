@@ -1,7 +1,6 @@
 package com.eignex.koblas.internal.storage
 
-import com.eignex.koblas.Scratch
-import com.eignex.koblas.borrow
+import com.eignex.koblas.*
 
 /**
  * Primitive buffers lent by exact length and retained under a bound on idle lengths.

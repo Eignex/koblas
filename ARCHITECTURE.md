@@ -8,7 +8,8 @@ multiplatform module; platform source sets supply their own runtime and arithmet
 
 - Containers, factories, views, serialization and materialized transpose describe or transform storage.
 - `KoblasEngine` owns explicit BLAS calls, including windowed `ger` and sparse `dotColumn`. Its default
-  matrix methods delegate to operation preparation. Primitive Level 1 methods are implemented by engines.
+  matrix methods prepare their operands and invoke shared schedules. Primitive Level 1 methods are implemented
+  by engines.
 - `VectorOps.kt` is the small container facade over the immutable default engine in `DefaultEngine.kt`.
 - `engine` owns exact built-in engines, profiles, platform facts and provenance.
 
@@ -17,7 +18,7 @@ multiplatform module; platform source sets supply their own runtime and arithmet
 | Package | Owns |
 |---|---|
 | `storage` | Bounds, pooled arrays, physical windows and structural CSC utilities. |
-| `operations` | Validation of BLAS operands, alias snapshots, scratch loans and storage adaptation. Dense and sparse routine bodies live in their own subpackages. |
+| `operations` | Reusable BLAS validation, alias snapshots, scratch loans and vector storage adaptation. |
 | `scheduling.dense` | Panels, packing, product blocking, selected triangles and triangular traversal. |
 | `scheduling.sparse` | CSC traversal, right-hand-side grouping and sparse accumulation schedules. |
 | `kernels` | The `EngineKernels` arithmetic contract, `PanelWork` and shared kernel policies. |
@@ -25,8 +26,8 @@ multiplatform module; platform source sets supply their own runtime and arithmet
 | `engine` | Engine selection, composition, provider inspection and whole-call routing. |
 | `host` | Shared host-library contracts and ABI adaptation. |
 
-A default matrix call follows the operation body into a shared schedule, which invokes the selected
-kernel provider. Operation bodies settle shapes, empty cases, BLAS no-read rules and aliasing before
+A default matrix method prepares its operands and calls a shared schedule, which invokes the selected
+kernel provider. Preparation settles shapes, empty cases, BLAS no-read rules and aliasing before
 arithmetic writes the destination. A composed engine can route an eligible whole call to a host engine;
 that binding owns its argument preparation and numerical library call.
 

@@ -1,8 +1,7 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.engine.*
-import com.eignex.koblas.internal.engine.combine
-import com.eignex.koblas.internal.engine.implementationFor
+import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.kernels.EngineKernels
 import kotlin.test.Test
 import kotlin.test.assertFailsWith

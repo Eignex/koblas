@@ -5,8 +5,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.EngineImplementation
 import com.eignex.koblas.internal.engine.implementationFor
-import com.eignex.koblas.internal.kernels.EngineKernels
-import com.eignex.koblas.internal.kernels.PanelWork
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import kotlin.random.Random
 import kotlin.test.assertEquals
