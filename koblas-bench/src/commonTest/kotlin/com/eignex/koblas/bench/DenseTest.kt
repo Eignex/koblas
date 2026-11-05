@@ -1,7 +1,7 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.KoblasEngine
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -12,8 +12,8 @@ class DenseTest {
     @Test
     fun `norm cases agree across engines and name the selected engine`() {
         val case = Cases.parse("nrm2+512+uniform").single()
-        val expected = assertNotNull(denseWork(case, BuiltinEngines.scalar)).run()
-        for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)) {
+        val expected = assertNotNull(denseWork(case, KoblasEngine.scalar)).run()
+        for (engine in listOfNotNull(KoblasEngine.scalar, KoblasEngine.simd)) {
             val work = assertNotNull(denseWork(case, engine))
 
             assertEquals(ENGINE_COMPARISON, work.comparisonKind)
@@ -25,10 +25,10 @@ class DenseTest {
     @Test
     fun `arithmetic scaling preserves fixture magnitudes across repeated calls`() {
         val case = Cases.parse("scal+17+uniform+timing=arithmetic").single()
-        val work = assertNotNull(denseWork(case, BuiltinEngines.scalar))
+        val work = assertNotNull(denseWork(case, KoblasEngine.scalar))
         val initial = assertNotNull(work.result).copyOf()
         val expected = initial.copyOf()
-        BuiltinEngines.scalar.scale(expected, 0, -1.0, 17)
+        KoblasEngine.scalar.scale(expected, 0, -1.0, 17)
 
         repeat(101) { work.run() }
 
@@ -41,7 +41,7 @@ class DenseTest {
     @Test
     fun `arithmetic rank updates return the matrix to its fixture every second call`() {
         for (line in listOf("ger+9x5+uniform", "syr+9+uniform+uplo=L", "syr2+9+uniform+uplo=U")) {
-            val work = assertNotNull(denseWork(Cases.parse("$line+timing=arithmetic").single(), BuiltinEngines.scalar))
+            val work = assertNotNull(denseWork(Cases.parse("$line+timing=arithmetic").single(), KoblasEngine.scalar))
             val initial = Fixtures.matrix(9, if (line.startsWith("ger")) 5 else 9, 1).values[0]
 
             val first = work.run()
@@ -55,7 +55,7 @@ class DenseTest {
 
     @Test
     fun `every product case runs on every engine and names it`() {
-        val engines = listOfNotNull<KoblasEngine>(BuiltinEngines.scalar, BuiltinEngines.simd)
+        val engines = listOfNotNull<KoblasEngine>(KoblasEngine.scalar, KoblasEngine.simd)
         for (line in PRODUCT_CASES) {
             val case = Cases.parse(line).single()
             for (engine in engines) {
@@ -71,7 +71,7 @@ class DenseTest {
     fun `borrowed product cases verify padding on every requested engine`() {
         for (transpose in listOf("", "+transA=T", "+transB=T")) {
             val case = Cases.parse("gemm+17x9x31+uniform$transpose+workspace=retained+layout=borrowed").single()
-            for (engine in listOfNotNull(koblas, BuiltinEngines.scalar, BuiltinEngines.simd).distinct()) {
+            for (engine in listOfNotNull(koblas, KoblasEngine.scalar, KoblasEngine.simd).distinct()) {
                 val work = assertNotNull(denseWork(case, engine))
                 assertTrue(work.run().isFinite())
                 assertNotNull(work.kernel)
@@ -84,7 +84,7 @@ class DenseTest {
         for (operation in listOf("dot", "copy", "axpy", "scal", "nrm2", "asum", "sum", "iamax", "swap", "rot")) {
             for (stride in listOf(2, -1, -2, 256, -257)) {
                 val case = Cases.parse("$operation+17+uniform+stride=$stride").single()
-                for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd, koblas)) {
+                for (engine in listOfNotNull(KoblasEngine.scalar, KoblasEngine.simd, koblas)) {
                     val work = assertNotNull(engineArm(case, engine)?.work)
                     assertTrue(work.run().isFinite())
                     assertNotNull(work.provider)

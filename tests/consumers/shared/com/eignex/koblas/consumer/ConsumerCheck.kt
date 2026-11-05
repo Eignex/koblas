@@ -1,19 +1,18 @@
 package com.eignex.koblas.consumer
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.*
 import kotlin.math.abs
 
 /** Checks the published dependency through its public API on each consuming runtime. */
 object ConsumerCheck {
     /** Exercises transpose products, scratch reuse, and writes through aliased caller storage. */
     fun run(expectSimd: Boolean = false) {
-        check((BuiltinEngines.simd != null) == expectSimd)
+        check((KoblasEngine.simd != null) == expectSimd)
         if (!expectSimd) {
             check(koblas.providers.none { it.vendor != null })
-            check(Vendor.entries.firstNotNullOfOrNull { BuiltinEngines.vendor(it) } == null)
+            check(Vendor.entries.firstNotNullOfOrNull { KoblasEngine.vendor(it) } == null)
         }
-        val portable = BuiltinEngines.scalar
+        val portable = KoblasEngine.scalar
         check(portable.vendor == null)
         check(portable.name == "scalar")
         for (engine in listOf(portable, koblas)) {
@@ -60,7 +59,7 @@ object ConsumerCheck {
             assertAgreesWithReference(doubleArrayOf(-99.0, expectedStrided[1], -99.0, expectedStrided[0], -99.0), output)
         }
         if (expectSimd) {
-            Vendor.entries.firstNotNullOfOrNull { BuiltinEngines.vendor(it) }?.let { host ->
+            Vendor.entries.firstNotNullOfOrNull { KoblasEngine.vendor(it) }?.let { host ->
                 val actual = DenseMatrix.zero(2, 2)
                 val matrix = DenseMatrix.wrap(2, 2, doubleArrayOf(2.0, 3.0, 5.0, 7.0))
                 val expectedProduct = referenceProduct(matrix, matrix)

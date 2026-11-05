@@ -1,8 +1,8 @@
 package com.eignex.koblas.internal.engine
 
-import com.eignex.koblas.engine.EngineImplementation
-import com.eignex.koblas.engine.EngineImplementation.*
-import com.eignex.koblas.engine.Vendor
+import com.eignex.koblas.EngineImplementation
+import com.eignex.koblas.EngineImplementation.*
+import com.eignex.koblas.Vendor
 
 /**
  * Fixed crossovers for one selected library and the owned JVM kernels.

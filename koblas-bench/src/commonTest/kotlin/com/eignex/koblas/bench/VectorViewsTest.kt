@@ -1,7 +1,7 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.KoblasEngine
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -21,7 +21,7 @@ class VectorViewsTest {
             assertEquals("default-policy", work.comparisonKind)
             assertTrue(assertNotNull(work.kernel).startsWith("portable-vector+"))
             repeat(3) { assertTrue(work.run().isFinite()) }
-            for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd).filter { it !== koblas }) {
+            for (engine in listOfNotNull(KoblasEngine.scalar, KoblasEngine.simd).filter { it !== koblas }) {
                 assertNull(vectorViewsArm(case, engine).work)
             }
         }

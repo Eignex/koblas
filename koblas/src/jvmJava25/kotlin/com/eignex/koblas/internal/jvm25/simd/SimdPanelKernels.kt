@@ -3,7 +3,6 @@
 package com.eignex.koblas.internal.jvm25.simd
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.engine.implementationFor
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
@@ -21,7 +20,7 @@ import jdk.incubator.vector.VectorOperators
  * elementwise update or a scalar pass over all its columns at once, and a column update of one or two lane
  * blocks keeps its destination in registers across every column. Other short panels and strided operands
  * requiring gathers use the portable bodies; [implementationFor] reports the body reached. Species
- * initialization requires the Vector API module, so [BuiltinEngines] checks availability
+ * initialization requires the Vector API module, so [KoblasEngine] checks availability
  * before using this backend.
  */
 internal object SimdPanelKernels : EngineKernels {

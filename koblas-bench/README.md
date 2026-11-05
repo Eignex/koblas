@@ -36,7 +36,7 @@ binding. Target availability and Native cross-compilation are covered in the [re
 
 Captures write one CSV per target plus `metadata.txt` into the chosen output directory. Repeated
 captures keep each round under `pass-1`, `pass-2`, and so on. Engine rows record timing and the
-selected engine; pinning an exact engine through `BuiltinEngines` is what makes an arm exact, and an
+selected engine; pinning an exact engine through `KoblasEngine` is what makes an arm exact, and an
 engine's name alone does not establish that a given size vectorized.
 
 Compare matching cases and settings on the same host. For repeated captures, take the median of each

@@ -1,7 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.jvm25.simd.*
 import com.eignex.koblas.internal.kernels.*
@@ -56,7 +56,7 @@ internal object SimdDenseAllocationCheck {
 
     @JvmStatic
     fun main(args: Array<String>) {
-        val engine = requireNotNull(BuiltinEngines.simd) {
+        val engine = requireNotNull(KoblasEngine.simd) {
             "dense allocation check requires the Vector API panel candidate"
         }
         val panels = engine.panelProvider

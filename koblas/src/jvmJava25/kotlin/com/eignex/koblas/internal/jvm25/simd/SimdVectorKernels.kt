@@ -1,8 +1,8 @@
 package com.eignex.koblas.internal.jvm25.simd
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.EngineImplementation
-import com.eignex.koblas.engine.EngineImplementation.*
+import com.eignex.koblas.EngineImplementation
+import com.eignex.koblas.EngineImplementation.*
 import com.eignex.koblas.internal.engine.KernelSet
 import com.eignex.koblas.internal.kernels.EngineKernels
 import com.eignex.koblas.internal.kernels.scalar.dense.*

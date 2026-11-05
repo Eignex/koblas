@@ -1,7 +1,7 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.KoblasEngine
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -26,7 +26,7 @@ class ShrinkingRankUpdateTest {
 
     @Test
     fun `timed batches agree with the reference across repeated calls`() {
-        val engines = listOfNotNull<KoblasEngine>(BuiltinEngines.scalar, BuiltinEngines.simd)
+        val engines = listOfNotNull<KoblasEngine>(KoblasEngine.scalar, KoblasEngine.simd)
         for (n in listOf(5, 6, 7)) for (operation in listOf("ger-shrinking", "ger-window-shrinking")) {
             val fixture = ShrinkingRankUpdate(n)
             for (engine in engines) {

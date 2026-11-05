@@ -1,6 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.engine.*
+import com.eignex.koblas.*
 import kotlin.test.*
 
 class EngineTuningTest {

@@ -1,7 +1,7 @@
 package com.eignex.koblas.internal.scheduling.sparse
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.internal.operations.withSymmetricRankScratch
 import com.eignex.koblas.sparse.ReferenceSparseBlas
 import kotlin.test.Test
@@ -73,7 +73,7 @@ class SparseRankUpdateTest {
                 ),
             ),
         )
-        for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd).distinct()) {
+        for (engine in listOfNotNull(KoblasEngine.scalar, KoblasEngine.simd).distinct()) {
             val workspace = Scratch()
             // Epoch one collides with the first column unless marks are cleared; nonzero row counts
             // expose an adjacency builder that assumes its borrowed pointers are fresh.

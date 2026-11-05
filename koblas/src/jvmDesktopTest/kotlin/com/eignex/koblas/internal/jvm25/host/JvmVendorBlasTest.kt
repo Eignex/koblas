@@ -2,7 +2,6 @@ package com.eignex.koblas.internal.jvm25.host
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.ReferenceBlas
-import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.host.vendorValues
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import com.eignex.koblas.internal.operations.*
@@ -174,7 +173,7 @@ class JvmVendorBlasTest {
     @Test
     fun `the reported library is the file the symbol came from not the name that was asked for`() {
         for (vendor in Vendor.entries) {
-            val blas = BuiltinEngines.vendor(vendor) ?: continue
+            val blas = KoblasEngine.vendor(vendor) ?: continue
 
             assertTrue(
                 Path.of(blas.libraryPath).isAbsolute,
@@ -188,7 +187,7 @@ class JvmVendorBlasTest {
     fun `an opened library confirmed one compute thread where it can be asked`() {
         var checked = 0
         for (vendor in Vendor.entries) {
-            val blas = BuiltinEngines.vendor(vendor) ?: continue
+            val blas = KoblasEngine.vendor(vendor) ?: continue
             checked++
 
             // These are multithreaded builds by default, and one that would not hold to a single thread never

@@ -1,6 +1,6 @@
 package com.eignex.koblas.internal.engine
 
-import com.eignex.koblas.engine.*
+import com.eignex.koblas.*
 
 internal fun cpuClass(architecture: Architecture, flags: String?): CpuClass? = when {
     flags.isNullOrBlank() -> null

@@ -1,8 +1,7 @@
 package com.eignex.koblas.internal.engine
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.*
-import com.eignex.koblas.engine.EngineImplementation.*
+import com.eignex.koblas.EngineImplementation.*
 import com.eignex.koblas.internal.kernels.EngineKernels
 import kotlin.test.*
 
@@ -54,7 +53,7 @@ class EngineTuningTest {
 
         val engine = standardEngine(EngineRuntime.Jvm, host = platform) { error("Unexpected host lookup") }
 
-        assertSame(BuiltinEngines.scalar, engine)
+        assertSame(KoblasEngine.scalar, engine)
     }
 
     @Test
@@ -63,7 +62,7 @@ class EngineTuningTest {
             error("Unexpected host lookup")
         }
 
-        assertSame(BuiltinEngines.scalar, engine)
+        assertSame(KoblasEngine.scalar, engine)
     }
 
     @Test
@@ -81,7 +80,7 @@ class EngineTuningTest {
 
         assertEquals(listOf(Vendor.OneMkl), opened)
         assertNull(product)
-        assertEquals(BuiltinEngines.scalar.name, shortDot)
+        assertEquals(KoblasEngine.scalar.name, shortDot)
         assertEquals(Vendor.OneMkl.vendorName, longDot)
     }
 

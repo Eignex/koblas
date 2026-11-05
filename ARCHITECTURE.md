@@ -1,7 +1,7 @@
 # Architecture
 
-Koblas keeps public storage and operation contracts in `com.eignex.koblas`, exact engine access and vendor metadata in
-`com.eignex.koblas.engine`, and execution details under `internal`. All of these belong to the same
+Koblas keeps public storage, operation contracts, exact engine access and vendor metadata in
+`com.eignex.koblas`, and execution details under `internal`. All of these belong to the same
 multiplatform module; platform source sets supply their own runtime and arithmetic implementations.
 
 ## Public entry points
@@ -10,9 +10,11 @@ multiplatform module; platform source sets supply their own runtime and arithmet
 - `KoblasEngine` owns explicit BLAS calls, including windowed `ger` and sparse `dotColumn`. Its default
   matrix methods prepare their operands and invoke shared schedules. Primitive Level 1 methods are implemented
   by engines.
-- `VectorOps.kt` is the small container facade over the immutable default engine in `DefaultEngine.kt`.
-- `configureKoblas` selects the shared engine at startup by name or instance; launch settings use the same selector.
-- `engine` exposes exact built-in engines and vendor metadata.
+- `VectorOps.kt` is the small container facade over the shared engine field in `DefaultEngine.kt`.
+- `configureKoblas` assigns the shared engine at startup by name or instance; launch settings initialize its
+  first value. Callers own startup order and safe publication. Reads have no lazy delegate or synchronization.
+- `KoblasEngine.scalar`, `KoblasEngine.simd` and `KoblasEngine.vendor` expose exact engines;
+  `Vendor`, `EngineImplementation` and `ThreadEvidence` describe their capabilities and provenance.
 
 ## Internal ownership
 

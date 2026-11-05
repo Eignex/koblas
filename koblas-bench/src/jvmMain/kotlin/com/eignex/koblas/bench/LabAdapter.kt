@@ -1,7 +1,7 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.internal.engine.*
-import com.eignex.koblas.engine.*
+import com.eignex.koblas.*
 import com.eignex.koblas.koblas
 import com.eignex.lab.bench.*
 import com.eignex.lab.bench.BenchCase as LabCase

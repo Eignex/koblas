@@ -130,6 +130,48 @@ public final class com/eignex/koblas/DimensionMismatch : java/lang/IllegalArgume
 	public fun <init> (Ljava/lang/String;)V
 }
 
+public final class com/eignex/koblas/EngineImplementation : java/lang/Enum {
+	public static final field Asum Lcom/eignex/koblas/EngineImplementation;
+	public static final field Axpy Lcom/eignex/koblas/EngineImplementation;
+	public static final field Copy Lcom/eignex/koblas/EngineImplementation;
+	public static final field Dot Lcom/eignex/koblas/EngineImplementation;
+	public static final field Gemm Lcom/eignex/koblas/EngineImplementation;
+	public static final field Gemmt Lcom/eignex/koblas/EngineImplementation;
+	public static final field Gemv Lcom/eignex/koblas/EngineImplementation;
+	public static final field GemvTransposed Lcom/eignex/koblas/EngineImplementation;
+	public static final field Ger Lcom/eignex/koblas/EngineImplementation;
+	public static final field Iamax Lcom/eignex/koblas/EngineImplementation;
+	public static final field IndexedAxpy Lcom/eignex/koblas/EngineImplementation;
+	public static final field IndexedDot Lcom/eignex/koblas/EngineImplementation;
+	public static final field IndexedGather Lcom/eignex/koblas/EngineImplementation;
+	public static final field IndexedGatherZero Lcom/eignex/koblas/EngineImplementation;
+	public static final field IndexedScatter Lcom/eignex/koblas/EngineImplementation;
+	public static final field IndexedSparseDot Lcom/eignex/koblas/EngineImplementation;
+	public static final field Nrm2 Lcom/eignex/koblas/EngineImplementation;
+	public static final field Panels Lcom/eignex/koblas/EngineImplementation;
+	public static final field Products Lcom/eignex/koblas/EngineImplementation;
+	public static final field Rot Lcom/eignex/koblas/EngineImplementation;
+	public static final field Scale Lcom/eignex/koblas/EngineImplementation;
+	public static final field Sum Lcom/eignex/koblas/EngineImplementation;
+	public static final field Swap Lcom/eignex/koblas/EngineImplementation;
+	public static final field Symm Lcom/eignex/koblas/EngineImplementation;
+	public static final field Symv Lcom/eignex/koblas/EngineImplementation;
+	public static final field Syr Lcom/eignex/koblas/EngineImplementation;
+	public static final field Syr2 Lcom/eignex/koblas/EngineImplementation;
+	public static final field Syr2k Lcom/eignex/koblas/EngineImplementation;
+	public static final field Syrk Lcom/eignex/koblas/EngineImplementation;
+	public static final field Triangular Lcom/eignex/koblas/EngineImplementation;
+	public static final field Trmm Lcom/eignex/koblas/EngineImplementation;
+	public static final field Trmv Lcom/eignex/koblas/EngineImplementation;
+	public static final field TrmvTransposed Lcom/eignex/koblas/EngineImplementation;
+	public static final field Trsm Lcom/eignex/koblas/EngineImplementation;
+	public static final field Trsv Lcom/eignex/koblas/EngineImplementation;
+	public static final field TrsvTransposed Lcom/eignex/koblas/EngineImplementation;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/EngineImplementation;
+	public static fun values ()[Lcom/eignex/koblas/EngineImplementation;
+}
+
 public final class com/eignex/koblas/Koblas {
 	public static final fun asum (Lcom/eignex/koblas/Vector;)D
 	public static final fun axpy (Lcom/eignex/koblas/DenseVector;DLcom/eignex/koblas/Vector;)V
@@ -151,6 +193,7 @@ public final class com/eignex/koblas/Koblas {
 }
 
 public abstract interface class com/eignex/koblas/KoblasEngine {
+	public static final field Companion Lcom/eignex/koblas/KoblasEngine$Companion;
 	public fun asum ([DIII)D
 	public static synthetic fun asum$default (Lcom/eignex/koblas/KoblasEngine;[DIIIILjava/lang/Object;)D
 	public fun axpy ([DID[DIIII)V
@@ -184,8 +227,10 @@ public abstract interface class com/eignex/koblas/KoblasEngine {
 	public fun getLibraryPath ()Ljava/lang/String;
 	public abstract fun getName ()Ljava/lang/String;
 	public fun getProviders ()Ljava/util/List;
-	public fun getThreadEvidence ()Lcom/eignex/koblas/engine/ThreadEvidence;
-	public fun getVendor ()Lcom/eignex/koblas/engine/Vendor;
+	public static fun getScalar ()Lcom/eignex/koblas/KoblasEngine;
+	public static fun getSimd ()Lcom/eignex/koblas/KoblasEngine;
+	public fun getThreadEvidence ()Lcom/eignex/koblas/ThreadEvidence;
+	public fun getVendor ()Lcom/eignex/koblas/Vendor;
 	public fun getVersion ()Ljava/lang/String;
 	public fun iamax ([DIII)I
 	public static synthetic fun iamax$default (Lcom/eignex/koblas/KoblasEngine;[DIIIILjava/lang/Object;)I
@@ -234,6 +279,13 @@ public abstract interface class com/eignex/koblas/KoblasEngine {
 	public fun trsv (Lcom/eignex/koblas/SparseMatrix;[DZZZLcom/eignex/koblas/Scratch;)V
 	public static synthetic fun trsv$default (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/DenseMatrixRegion;[DIIZZZLcom/eignex/koblas/Scratch;ILjava/lang/Object;)V
 	public static synthetic fun trsv$default (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/SparseMatrix;[DZZZLcom/eignex/koblas/Scratch;ILjava/lang/Object;)V
+	public static fun vendor (Lcom/eignex/koblas/Vendor;)Lcom/eignex/koblas/KoblasEngine;
+}
+
+public final class com/eignex/koblas/KoblasEngine$Companion {
+	public final fun getScalar ()Lcom/eignex/koblas/KoblasEngine;
+	public final fun getSimd ()Lcom/eignex/koblas/KoblasEngine;
+	public final fun vendor (Lcom/eignex/koblas/Vendor;)Lcom/eignex/koblas/KoblasEngine;
 }
 
 public final class com/eignex/koblas/KoblasEngine$DefaultImpls {
@@ -269,8 +321,8 @@ public final class com/eignex/koblas/KoblasEngine$DefaultImpls {
 	public static fun getImplementations (Lcom/eignex/koblas/KoblasEngine;)Ljava/util/Set;
 	public static fun getLibraryPath (Lcom/eignex/koblas/KoblasEngine;)Ljava/lang/String;
 	public static fun getProviders (Lcom/eignex/koblas/KoblasEngine;)Ljava/util/List;
-	public static fun getThreadEvidence (Lcom/eignex/koblas/KoblasEngine;)Lcom/eignex/koblas/engine/ThreadEvidence;
-	public static fun getVendor (Lcom/eignex/koblas/KoblasEngine;)Lcom/eignex/koblas/engine/Vendor;
+	public static fun getThreadEvidence (Lcom/eignex/koblas/KoblasEngine;)Lcom/eignex/koblas/ThreadEvidence;
+	public static fun getVendor (Lcom/eignex/koblas/KoblasEngine;)Lcom/eignex/koblas/Vendor;
 	public static fun getVersion (Lcom/eignex/koblas/KoblasEngine;)Ljava/lang/String;
 	public static fun iamax (Lcom/eignex/koblas/KoblasEngine;[DIII)I
 	public static synthetic fun iamax$default (Lcom/eignex/koblas/KoblasEngine;[DIIIILjava/lang/Object;)I
@@ -428,6 +480,15 @@ public final class com/eignex/koblas/StridedVector : com/eignex/koblas/DenseVect
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class com/eignex/koblas/ThreadEvidence : java/lang/Enum {
+	public static final field Confirmed Lcom/eignex/koblas/ThreadEvidence;
+	public static final field Unconfirmed Lcom/eignex/koblas/ThreadEvidence;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun getLabel ()Ljava/lang/String;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/ThreadEvidence;
+	public static fun values ()[Lcom/eignex/koblas/ThreadEvidence;
+}
+
 public abstract interface annotation class com/eignex/koblas/UnsafeKoblasApi : java/lang/annotation/Annotation {
 }
 
@@ -445,73 +506,15 @@ public final class com/eignex/koblas/VectorStorage$Companion {
 	public final fun serializer ()Lkotlinx/serialization/KSerializer;
 }
 
-public final class com/eignex/koblas/engine/BuiltinEngines {
-	public static final field INSTANCE Lcom/eignex/koblas/engine/BuiltinEngines;
-	public static final fun getScalar ()Lcom/eignex/koblas/KoblasEngine;
-	public static final fun getSimd ()Lcom/eignex/koblas/KoblasEngine;
-	public static final fun vendor (Lcom/eignex/koblas/engine/Vendor;)Lcom/eignex/koblas/KoblasEngine;
-}
-
-public final class com/eignex/koblas/engine/EngineImplementation : java/lang/Enum {
-	public static final field Asum Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field Axpy Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field Copy Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field Dot Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field Gemm Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field Gemmt Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field Gemv Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field GemvTransposed Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field Ger Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field Iamax Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field IndexedAxpy Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field IndexedDot Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field IndexedGather Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field IndexedGatherZero Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field IndexedScatter Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field IndexedSparseDot Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field Nrm2 Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field Panels Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field Products Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field Rot Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field Scale Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field Sum Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field Swap Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field Symm Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field Symv Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field Syr Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field Syr2 Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field Syr2k Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field Syrk Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field Triangular Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field Trmm Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field Trmv Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field TrmvTransposed Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field Trsm Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field Trsv Lcom/eignex/koblas/engine/EngineImplementation;
-	public static final field TrsvTransposed Lcom/eignex/koblas/engine/EngineImplementation;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/engine/EngineImplementation;
-	public static fun values ()[Lcom/eignex/koblas/engine/EngineImplementation;
-}
-
-public final class com/eignex/koblas/engine/ThreadEvidence : java/lang/Enum {
-	public static final field Confirmed Lcom/eignex/koblas/engine/ThreadEvidence;
-	public static final field Unconfirmed Lcom/eignex/koblas/engine/ThreadEvidence;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public final fun getLabel ()Ljava/lang/String;
-	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/engine/ThreadEvidence;
-	public static fun values ()[Lcom/eignex/koblas/engine/ThreadEvidence;
-}
-
-public final class com/eignex/koblas/engine/Vendor : java/lang/Enum {
-	public static final field Accelerate Lcom/eignex/koblas/engine/Vendor;
-	public static final field Aocl Lcom/eignex/koblas/engine/Vendor;
-	public static final field ArmPl Lcom/eignex/koblas/engine/Vendor;
-	public static final field OneMkl Lcom/eignex/koblas/engine/Vendor;
-	public static final field OpenBlas Lcom/eignex/koblas/engine/Vendor;
+public final class com/eignex/koblas/Vendor : java/lang/Enum {
+	public static final field Accelerate Lcom/eignex/koblas/Vendor;
+	public static final field Aocl Lcom/eignex/koblas/Vendor;
+	public static final field ArmPl Lcom/eignex/koblas/Vendor;
+	public static final field OneMkl Lcom/eignex/koblas/Vendor;
+	public static final field OpenBlas Lcom/eignex/koblas/Vendor;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public final fun getVendorName ()Ljava/lang/String;
-	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/engine/Vendor;
-	public static fun values ()[Lcom/eignex/koblas/engine/Vendor;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/Vendor;
+	public static fun values ()[Lcom/eignex/koblas/Vendor;
 }
 

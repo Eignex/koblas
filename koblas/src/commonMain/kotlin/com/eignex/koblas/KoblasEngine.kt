@@ -4,8 +4,8 @@
 
 package com.eignex.koblas
 
-import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.engine.*
+import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import com.eignex.koblas.internal.kernels.unsupported
 import com.eignex.koblas.internal.operations.*
 import com.eignex.koblas.internal.scheduling.dense.*
@@ -17,9 +17,9 @@ import com.eignex.koblas.internal.storage.*
  *
  * Each BLAS routine is one member. The portable engine runs the shared schedule over its own kernels; a
  * built-in engine such as [koblas] uses one optional host library above its cutoffs and otherwise runs the
- * same schedule over its owned kernels; a vendor engine from [BuiltinEngines.vendor] calls its library for the
- * routines it exports and fails for the rest. [BuiltinEngines] names exact engines, while [koblas] selects its
- * platform engine once unless startup configuration overrides it.
+ * same schedule over its owned kernels; a vendor engine from [KoblasEngine.vendor] calls its library for the
+ * routines it exports and fails for the rest. The companion names exact engines, while [koblas] selects its
+ * platform default unless startup configuration overrides it.
  *
  * Level 2 and 3 routines validate shapes, preserve BLAS no-read rules and snapshot an input that shares the
  * destination's storage, borrowing from a [Scratch] when one is given. Level 1 members address primitive array
@@ -28,6 +28,26 @@ import com.eignex.koblas.internal.storage.*
  * exceptional results belong to the selected arithmetic.
  */
 public interface KoblasEngine {
+
+    /** Exact engines for tests and comparisons; startup overrides belong to [configureKoblas]. */
+    public companion object {
+        /** Opens exactly [vendor] when available. Unsupported operations remain unsupported. */
+        @kotlin.jvm.JvmStatic
+        public fun vendor(vendor: Vendor): KoblasEngine? = vendorEngine(vendor)
+
+        /** Portable Kotlin across all three levels. */
+        @get:kotlin.jvm.JvmStatic
+        public val scalar: KoblasEngine get() = ScalarEngine
+
+        /**
+         * Every JVM Vector API kernel this library owns, or null when the module is unavailable.
+         *
+         * On the JVM, [koblas] retains these kernels when available, alongside its selected host library.
+         * A window too short or too strided for a vector body runs a portable fallback.
+         */
+        @get:kotlin.jvm.JvmStatic
+        public val simd: KoblasEngine? by lazy { simdBackend() }
+    }
 
     // Engine identity and provenance.
 

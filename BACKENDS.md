@@ -1,11 +1,11 @@
 # Engine selection
 
-Koblas selects an engine automatically on first use. Libraries and convenience operations using `koblas`
-share that immutable engine. Most applications need no setup.
+Koblas initializes a shared engine from launch settings or automatic platform selection. Libraries and
+convenience operations use it through `koblas`. Most applications need no setup.
 
 ## Override at startup
 
-Choose an engine once, before any library or convenience operation uses Koblas:
+Choose an engine during startup, before libraries use Koblas or concurrent work begins:
 
 ```kotlin
 import com.eignex.koblas.configureKoblas
@@ -26,10 +26,14 @@ Java applications can call `Koblas.configureKoblas("scalar")`.
 | `simd` | Owned JVM Vector API kernels with portable fallbacks. Requires JDK 25+ and the Vector API module. |
 | `accelerate`, `onemkl`, `openblas`, `aocl`, `armpl` | The named vendor, with portable coverage for operations it does not export. |
 
-Programmatic configuration takes precedence over the JVM property, then the environment variable.
-Names ignore case and surrounding whitespace. Unknown or unavailable selections fail on first use;
-configuring twice or after selection has started throws `IllegalStateException`.
-An existing `KoblasEngine` can also be passed to `configureKoblas` and is used as supplied.
+The initial default uses the JVM property, then the environment variable. `configureKoblas` directly
+replaces that initial value; an existing `KoblasEngine` can also be passed and is used as supplied.
+The initial default is constructed before a programmatic override, so launch settings must be valid
+even when overridden. Names ignore case and surrounding whitespace; unknown or unavailable selections
+fail when resolved.
+
+Reads and configuration are unsynchronized. Callers own startup order and safe publication before
+concurrent use; the library does not guard against late or concurrent configuration.
 
 ## Enable acceleration
 
@@ -53,7 +57,7 @@ for tuning and measurement details.
 
 ## Exact engines for comparisons
 
-`BuiltinEngines.scalar`, `BuiltinEngines.simd` and `BuiltinEngines.vendor(Vendor.OneMkl)` select exact
+`KoblasEngine.scalar`, `KoblasEngine.simd` and `KoblasEngine.vendor(Vendor.OneMkl)` select exact
 engines for tests and benchmarks. Optional engines return null when unavailable. An exact vendor engine
 supports only its exported operations; startup selection by name includes portable coverage.
 Calls through an explicit engine instance are independent of the shared default.

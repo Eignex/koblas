@@ -2,7 +2,6 @@ package com.eignex.koblas.internal.engine
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.kernels.EngineKernels
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import kotlin.test.Test
@@ -10,89 +9,13 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
 
-class DefaultEngineTest {
-    @Test
-    fun `automatic selection resolves only on first use`() {
-        var calls = 0
-        val selection = DefaultEngine {
-            calls++
-            BuiltinEngines.scalar
-        }
-        assertEquals(0, calls)
-
-        val first = selection.engine
-        val second = selection.engine
-
-        assertSame(BuiltinEngines.scalar, first)
-        assertSame(first, second)
-        assertEquals(1, calls)
-    }
-
-    @Test
-    fun `programmatic configuration bypasses launch selection`() {
-        val selection = DefaultEngine { error("Launch settings must not be read") }
-
-        selection.configure(BuiltinEngines.scalar)
-
-        assertSame(BuiltinEngines.scalar, selection.engine)
-    }
-
-    @Test
-    fun `configuration can only be supplied once`() {
-        val selection = DefaultEngine()
-        selection.configure(BuiltinEngines.scalar)
-
-        assertFailsWith<IllegalStateException> { selection.configure(BuiltinEngines.scalar) }
-
-        assertSame(BuiltinEngines.scalar, selection.engine)
-    }
-
-    @Test
-    fun `configuration after first use is rejected`() {
-        val selection = DefaultEngine { BuiltinEngines.scalar }
-        val first = selection.engine
-
-        assertFailsWith<IllegalStateException> { selection.configure(BuiltinEngines.scalar) }
-
-        assertSame(first, selection.engine)
-    }
-
-    @Test
-    fun `selection seals configuration before opening providers`() {
-        lateinit var selection: DefaultEngine
-        selection = DefaultEngine {
-            assertFailsWith<IllegalStateException> { selection.configure(BuiltinEngines.scalar) }
-            BuiltinEngines.scalar
-        }
-
-        val engine = selection.engine
-
-        assertSame(BuiltinEngines.scalar, engine)
-    }
-
-    @Test
-    fun `failed selection is retained and cannot be reconfigured`() {
-        var calls = 0
-        val failure = IllegalStateException("Engine unavailable")
-        val selection = DefaultEngine {
-            calls++
-            throw failure
-        }
-
-        repeat(2) {
-            assertSame(failure, assertFailsWith<IllegalStateException> { selection.engine })
-        }
-
-        assertEquals(1, calls)
-        assertFailsWith<IllegalStateException> { selection.configure(BuiltinEngines.scalar) }
-    }
-
+class EngineSelectionTest {
     @Test
     fun `absent and automatic settings use platform selection`() {
         for (setting in listOf(null, "auto", " AUTO ")) {
-            val engine = engineFromSetting(setting, automatic = { BuiltinEngines.scalar })
+            val engine = engineFromSetting(setting, automatic = { KoblasEngine.scalar })
 
-            assertSame(BuiltinEngines.scalar, engine)
+            assertSame(KoblasEngine.scalar, engine)
         }
     }
 
@@ -105,7 +28,7 @@ class DefaultEngineTest {
             openVendor = { error("Unexpected vendor selection") },
         )
 
-        assertSame(BuiltinEngines.scalar, engine)
+        assertSame(KoblasEngine.scalar, engine)
     }
 
     @Test
@@ -126,7 +49,7 @@ class DefaultEngineTest {
                     setting,
                     automatic = {
                         automaticCalls++
-                        BuiltinEngines.scalar
+                        KoblasEngine.scalar
                     },
                     simd = { null },
                     openVendor = { null },

@@ -28,7 +28,7 @@ Device tests use Java method names so their test APK remains compatible with API
 API 24 emulator as well as a current Android runtime. The shared check exercises repeated `J * x`, `J^T * r`,
 and `J^T * J` products against a straightforward scalar reference, reused workspaces, an aliased destination,
 sparse operands, padded dense destinations and signed vector strides. It runs on both the platform default and
-the exact `BuiltinEngines.scalar` engine, comparing finite-data results with rounding tolerance.
+the exact `KoblasEngine.scalar` engine, comparing finite-data results with rounding tolerance.
 
 CI stages a unique version per workflow attempt and passes it with `-Pconsumer.version=VERSION` instead of
 refreshing dependencies. The [iOS consumer](../ios-consumer/README.md) runs this same check on an iOS simulator.

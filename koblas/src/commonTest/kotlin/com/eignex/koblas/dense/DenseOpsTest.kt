@@ -3,7 +3,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.internal.operations.*
 import kotlin.random.Random
 import kotlin.test.Test
@@ -433,8 +433,8 @@ class DenseOpsTest {
         val a = randomMatrix(n, n, rng)
         val c = randomMatrix(n, n, rng)
 
-        BuiltinEngines.scalar.gemm(0.0, a, false, a, false, -0.25, c, scratch = workspace)
-        BuiltinEngines.scalar.gemv(
+        KoblasEngine.scalar.gemm(0.0, a, false, a, false, -0.25, c, scratch = workspace)
+        KoblasEngine.scalar.gemv(
             0.0,
             a,
             DoubleArray(n),
@@ -586,30 +586,29 @@ class DenseOpsTest {
     }
 
     @Test
-    fun `GER agrees with the reference on shrinking supports and extreme finite inputs`() =
-        withBuiltinEngines { engine ->
-            assertShrinkingGerAgreesWithReference { x, y, a ->
-                engine.ger(
-                    -1.0,
-                    x,
-                    0,
-                    1,
-                    y,
-                    0,
-                    1,
-                    a,
-                )
-            }
-            assertShrinkingGerAgreesWithReference { x, y, a ->
-                val start = x.indexOfFirst { it != 0.0 }
-                val extent = a.rows - start
-                engine.ger(-1.0, x, y, a, start, start, extent, extent, start, start)
-            }
+    fun `GER agrees with the reference on shrinking supports and extreme finite inputs`() = withKoblasEngine { engine ->
+        assertShrinkingGerAgreesWithReference { x, y, a ->
+            engine.ger(
+                -1.0,
+                x,
+                0,
+                1,
+                y,
+                0,
+                1,
+                a,
+            )
         }
+        assertShrinkingGerAgreesWithReference { x, y, a ->
+            val start = x.indexOfFirst { it != 0.0 }
+            val extent = a.rows - start
+            engine.ger(-1.0, x, y, a, start, start, extent, extent, start, start)
+        }
+    }
 
     @Test
     fun `windowed GER agrees with the reference with independent offsets and parent strides`() =
-        withBuiltinEngines { engine ->
+        withKoblasEngine { engine ->
             for ((rows, columns) in listOf(1 to 1, 3 to 2, 5 to 4)) {
                 val a = DenseMatrix.wrap(9, 8, DoubleArray(72) { (it % 13 - 6) / 8.0 })
                 val x = DoubleArray(10) { (it - 4) / 16.0 }
@@ -627,7 +626,7 @@ class DenseOpsTest {
         }
 
     @Test
-    fun `windowed GER snapshots either or both aliased vector ranges`() = withBuiltinEngines { engine ->
+    fun `windowed GER snapshots either or both aliased vector ranges`() = withKoblasEngine { engine ->
         for (alias in 1..3) {
             val workspace = Scratch()
             repeat(2) { _ ->
@@ -649,7 +648,7 @@ class DenseOpsTest {
     }
 
     @Test
-    fun `windowed GER validates every range before writing even with zero alpha`() = withBuiltinEngines { engine ->
+    fun `windowed GER validates every range before writing even with zero alpha`() = withKoblasEngine { engine ->
         val valid = intArrayOf(2, 3, 3, 2, 1, 4)
         for (alpha in doubleArrayOf(0.0, -1.0)) {
             for (index in valid.indices) {
@@ -672,7 +671,7 @@ class DenseOpsTest {
     }
 
     @Test
-    fun `empty windows and zero alpha do not read entries or borrow scratch`() = withBuiltinEngines { engine ->
+    fun `empty windows and zero alpha do not read entries or borrow scratch`() = withKoblasEngine { engine ->
         for (shape in listOf(0 to 0, 0 to 2, 3 to 0, 3 to 2)) {
             val a = DenseMatrix.wrap(9, 8, DoubleArray(72) { Double.NaN })
             val workspace = Scratch()
@@ -691,8 +690,8 @@ class DenseOpsTest {
     }
 
     /** The scalar and vector compositions and the platform default, each once. */
-    private fun withBuiltinEngines(body: (KoblasEngine) -> Unit) {
-        listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd, koblas).distinct().forEach(body)
+    private fun withKoblasEngine(body: (KoblasEngine) -> Unit) {
+        listOfNotNull(KoblasEngine.scalar, KoblasEngine.simd, koblas).distinct().forEach(body)
     }
 
     private fun referenceWindow(
@@ -760,7 +759,7 @@ class DenseOpsTest {
 
     @Test
     fun `shared buffer axpy agrees with the scalar snapshot reference`() {
-        for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd, koblas)) {
+        for (engine in listOfNotNull(KoblasEngine.scalar, KoblasEngine.simd, koblas)) {
             for ((sourceOffset, destinationOffset, stride) in listOf(
                 Triple(0, 1, 2),
                 Triple(8, 9, -2),
@@ -771,7 +770,7 @@ class DenseOpsTest {
                 val source = StridedVector(backing, sourceOffset, 5, stride)
                 val destination = StridedVector(backing, destinationOffset, 5, stride)
                 val expected = backing.copyOf()
-                BuiltinEngines.scalar.axpy(
+                KoblasEngine.scalar.axpy(
                     expected,
                     destinationOffset,
                     0.75,
@@ -790,7 +789,7 @@ class DenseOpsTest {
 
     @Test
     fun `shared buffer copy preserves the snapshot sequence and padding`() {
-        for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd, koblas)) {
+        for (engine in listOfNotNull(KoblasEngine.scalar, KoblasEngine.simd, koblas)) {
             for ((sourceOffset, destinationOffset, stride) in listOf(
                 Triple(0, 1, 2),
                 Triple(8, 9, -2),
