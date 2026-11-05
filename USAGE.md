@@ -26,12 +26,13 @@ val b = DenseMatrix.diagonal(2) // Identity matrix
 
 val y = DenseVector.zero(a.rows)
 koblas.gemv(1.0, a, x, 0.0, y)
-val product = koblas.gemm(a, b)
+val product = DenseMatrix.zero(a.rows, b.cols)
+koblas.gemm(1.0, a, false, b, false, 0.0, product)
 val scaled = DenseVector.wrap(x.toDoubleArray()).also { it.scale(2.0) }
 val squaredLength = x dot x
 ```
 
-GEMV writes a matrix-vector product into `y`; the short GEMM call returns a fresh matrix product.
+GEMV writes a matrix-vector product into `y`; GEMM writes a matrix product into `product`.
 `scale` changes a vector in place, and a dot product returns a scalar. Access individual elements
 with `a[row, column]` or `x[index]`.
 

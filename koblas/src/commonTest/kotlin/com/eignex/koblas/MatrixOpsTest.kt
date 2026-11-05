@@ -21,9 +21,6 @@ class MatrixOpsTest {
             assertFailsWith<IllegalArgumentException> {
                 koblas.gemm(alpha, sparse, false, sparse, false, 0.0, destination)
             }
-            assertFailsWith<IllegalArgumentException> {
-                koblas.gemm(alpha, sparse, false, sparse, false)
-            }
 
             assertContentEquals(doubleArrayOf(7.0), destination.values)
         }
@@ -56,16 +53,6 @@ class MatrixOpsTest {
     }
 
     @Test
-    fun `supported storage pairs produce dense results`() {
-        val dense: Matrix = DenseMatrix.diagonal(3, 2.0)
-        val sparse: Matrix = SparseMatrix.ofColumns(3, 3, List(3) { j -> listOf(j to 3.0) })
-
-        assertEquals(DenseMatrix::class, koblas.gemm(dense, dense)::class, "dense by dense")
-        assertEquals(DenseMatrix::class, koblas.gemm(dense, sparse)::class, "dense by sparse")
-        assertEquals(DenseMatrix::class, koblas.gemm(sparse, dense)::class, "sparse by dense")
-    }
-
-    @Test
     fun `supported pairings agree with the storage specific call through variables typed as Matrix`() {
         val rng = Random(20260924)
         val denseLeft = randomMatrix(4, 3, rng)
@@ -75,13 +62,17 @@ class MatrixOpsTest {
 
         val denseProduct = DenseMatrix.zero(4, 5)
         koblas.gemm(1.0, denseLeft, false, denseRight, false, 0.0, denseProduct)
-        assertClose(denseProduct, koblas.gemm(denseLeft as Matrix, denseRight) as DenseMatrix, "dense by dense")
+        val actual = DenseMatrix.zero(4, 5)
+        koblas.gemm(1.0, denseLeft as Matrix, false, denseRight, false, 0.0, actual)
+        assertClose(denseProduct, actual, "dense by dense")
         val sparseProduct = DenseMatrix.zero(4, 5)
         koblas.gemm(1.0, sparseLeft, false, denseRight, false, 0.0, sparseProduct)
-        assertClose(sparseProduct, koblas.gemm(sparseLeft as Matrix, denseRight) as DenseMatrix, "sparse by dense")
+        koblas.gemm(1.0, sparseLeft as Matrix, false, denseRight, false, 0.0, actual)
+        assertClose(sparseProduct, actual, "sparse by dense")
         val mirrored = DenseMatrix.zero(4, 5)
         koblas.gemm(1.0, sparseRight, false, denseLeft, false, 0.0, mirrored, right = true)
-        assertClose(mirrored, koblas.gemm(denseLeft as Matrix, sparseRight) as DenseMatrix, "dense by sparse")
+        koblas.gemm(1.0, denseLeft as Matrix, false, sparseRight, false, 0.0, actual)
+        assertClose(mirrored, actual, "dense by sparse")
     }
 
     @Test
@@ -177,11 +168,7 @@ class MatrixOpsTest {
                         scratch =
                         Scratch(),
                     )
-                    val result = koblas.gemm(1.0, left, transpose, right, transposeOther)
 
-                    assertEquals(rows, result.rows)
-                    assertEquals(cols, result.cols)
-                    assertContentEquals(DoubleArray(0), (result as DenseMatrix).values)
                     assertContentEquals(DoubleArray(0), destination.values)
                 }
             }
@@ -226,7 +213,6 @@ class MatrixOpsTest {
         assertFailsWith<DimensionMismatch> {
             koblas.gemm(1.0, sparse, false, DenseMatrix.diagonal(2) as Matrix, false, 0.0, destination)
         }
-        assertFailsWith<DimensionMismatch> { koblas.gemm(sparse, DenseMatrix.diagonal(2)) }
 
         assertContentEquals(before, destination.values)
     }
@@ -244,7 +230,6 @@ class MatrixOpsTest {
         koblas.gemm(1.0, foreign, false, sparse, false, 0.0, actual)
 
         assertClose(expected, actual, "foreign matrix beside a sparse operand")
-        assertEquals(DenseMatrix::class, koblas.gemm(foreign, backing.transpose() as Matrix)::class)
     }
 
     @Test
@@ -289,7 +274,6 @@ class MatrixOpsTest {
         koblas.gemm(1.0, foreign, false, right, false, 2.0, destination)
 
         assertContentEquals(doubleArrayOf(2.0, 4.0, 6.0, 8.0, 10.0, 12.0), destination.values)
-        assertEquals(3, koblas.gemm(foreign, right).rows, "the allocating product keeps the row count too")
     }
 
     private fun sparseOf(rows: Int, cols: Int, rng: Random): SparseMatrix = SparseMatrix.ofColumns(

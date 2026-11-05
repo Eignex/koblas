@@ -9,31 +9,6 @@ import com.eignex.koblas.internal.operands.*
 import kotlin.jvm.JvmOverloads
 
 /**
- * Allocates a dense product using this engine, with at most one sparse operand.
- * Custom [Matrix] operands are read once into dense scratch.
- */
-@JvmOverloads
-public fun KoblasEngine.gemm(a: Matrix, b: Matrix, scratch: Scratch? = null): Matrix =
-    gemm(1.0, a, false, b, false, scratch)
-
-/** Scaled product with independent transpose flags and the storage rule of [gemm]. */
-@JvmOverloads
-public fun KoblasEngine.gemm(
-    alpha: Double,
-    a: Matrix,
-    transposeA: Boolean,
-    b: Matrix,
-    transposeB: Boolean,
-    scratch: Scratch? = null,
-): Matrix {
-    requireProductOperands(a, transposeA, b, transposeB, "gemm")
-    require(a !is SparseMatrix || b !is SparseMatrix) { "gemm requires at least one dense operand" }
-    val result = DenseMatrix.zero(if (transposeA) a.cols else a.rows, if (transposeB) b.rows else b.cols)
-    gemm(alpha, a, transposeA, b, transposeB, 0.0, result, scratch)
-    return result
-}
-
-/**
  * Writes a product of readable matrices, with at most one sparse operand, into addressed dense storage.
  * Validation precedes all writes; zero alpha and empty depth read no inputs, and zero beta reads no destination values.
  * A custom [Matrix] operand is read once into dense storage borrowed from [scratch] when one is given.

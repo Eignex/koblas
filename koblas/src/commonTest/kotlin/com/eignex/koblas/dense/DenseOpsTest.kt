@@ -182,18 +182,6 @@ class DenseOpsTest {
     }
 
     @Test
-    fun `contiguous and borrowed operands mix in the allocating gemm`() = withRegionEngines { blas ->
-        val a = paddedRegion(4, 3)
-        val b = contiguousCopy(paddedRegion(3, 5, 2))
-        val expected = DenseMatrix.zero(4, 5)
-        ReferenceBlas.gemm(1.0, contiguousCopy(a), false, b, false, 0.0, expected)
-
-        val product = blas.gemm(a, b) as DenseMatrix
-
-        assertClose(expected, product, "mixed storage gemm")
-    }
-
-    @Test
     fun `rank updates preserve the unselected triangle and parent entries`() = withRegionEngines { blas ->
         for (transpose in booleanArrayOf(false, true)) {
             for (lower in booleanArrayOf(false, true)) {
@@ -474,21 +462,13 @@ class DenseOpsTest {
 
     @Test
     fun `gemv and gemm reject incompatible shapes`() {
-        assertFailsWith<DimensionMismatch> { koblas.gemm(DenseMatrix(2, 3), DenseMatrix(2, 2)) }
+        assertFailsWith<DimensionMismatch> {
+            koblas.gemm(1.0, DenseMatrix(2, 3), false, DenseMatrix(2, 2), false, 0.0, DenseMatrix.zero(2, 2))
+        }
         assertFailsWith<DimensionMismatch> { koblas.gemv(1.0, DenseMatrix(2, 3), DoubleArray(2), 0.0, DoubleArray(2)) }
         assertFailsWith<DimensionMismatch> {
             koblas.gemv(1.0, DenseMatrix(2, 3), DoubleArray(3), 0.0, DoubleArray(3), transpose = true)
         }
-    }
-
-    @Test
-    fun `allocating gemm rejects inner dimensions before result capacity`() = withEngines { blas ->
-        val a = DenseMatrix.zero(Int.MAX_VALUE, 0)
-        val b = DenseMatrix.zero(1, 2)
-
-        val failure = assertFailsWith<DimensionMismatch> { blas.gemm(a, b) }
-
-        assertEquals("gemm: inner dimensions differ, 0 vs 1", failure.message)
     }
 
     @Test

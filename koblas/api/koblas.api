@@ -142,15 +142,9 @@ public final class com/eignex/koblas/Koblas {
 	public static final fun copyFrom (Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/Vector;)V
 	public static final fun dot (Lcom/eignex/koblas/Vector;Lcom/eignex/koblas/Vector;)D
 	public static final synthetic fun forEachStored (Lcom/eignex/koblas/Vector;Lkotlin/jvm/functions/Function2;)V
-	public static final fun gemm (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/Matrix;ZLcom/eignex/koblas/Matrix;Z)Lcom/eignex/koblas/Matrix;
 	public static final fun gemm (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/Matrix;ZLcom/eignex/koblas/Matrix;ZDLcom/eignex/koblas/DenseMatrixRegion;)V
 	public static final fun gemm (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/Matrix;ZLcom/eignex/koblas/Matrix;ZDLcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/Scratch;)V
-	public static final fun gemm (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/Matrix;ZLcom/eignex/koblas/Matrix;ZLcom/eignex/koblas/Scratch;)Lcom/eignex/koblas/Matrix;
-	public static final fun gemm (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/Matrix;Lcom/eignex/koblas/Matrix;)Lcom/eignex/koblas/Matrix;
-	public static final fun gemm (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/Matrix;Lcom/eignex/koblas/Matrix;Lcom/eignex/koblas/Scratch;)Lcom/eignex/koblas/Matrix;
 	public static synthetic fun gemm$default (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/Matrix;ZLcom/eignex/koblas/Matrix;ZDLcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/Scratch;ILjava/lang/Object;)V
-	public static synthetic fun gemm$default (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/Matrix;ZLcom/eignex/koblas/Matrix;ZLcom/eignex/koblas/Scratch;ILjava/lang/Object;)Lcom/eignex/koblas/Matrix;
-	public static synthetic fun gemm$default (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/Matrix;Lcom/eignex/koblas/Matrix;Lcom/eignex/koblas/Scratch;ILjava/lang/Object;)Lcom/eignex/koblas/Matrix;
 	public static final fun getDefault ()Lcom/eignex/koblas/KoblasEngine;
 	public static final fun iamax (Lcom/eignex/koblas/Vector;)I
 	public static final fun norm2 (Lcom/eignex/koblas/Vector;)D
