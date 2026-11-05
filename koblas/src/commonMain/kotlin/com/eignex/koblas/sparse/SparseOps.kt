@@ -5,20 +5,7 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.*
-import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.operands.*
-import com.eignex.koblas.internal.portable.dense.euclideanNorm
-import com.eignex.koblas.internal.sparse.*
-
-/**
- * Fresh transposed [a], still CSC, which makes this the CSC-to-CSR conversion as well. Explicitly stored
- * zeros survive, since the transpose is structural rather than arithmetic.
- *
- * On the seam rather than beside the other whole-matrix operations because the two directions of [gemv]
- * leave a caller with no reason to materialize a transpose unless it means to hold it.
- */
-public fun KoblasEngine.transpose(a: SparseMatrix): SparseMatrix = transposeCsc(a)
 
 /** `xᵀ·y` for a sparse [x] against a dense [y] (Sparse BLAS `usdot`); walks only the stored entries. */
 public fun KoblasEngine.dot(x: SparseVector, y: DoubleArray): Double {
@@ -70,7 +57,7 @@ public fun KoblasEngine.scatter(x: SparseVector, out: DoubleArray) {
     scatter(x.indices, 0, x.values, 0, x.values.size, out)
 }
 
-/** Euclidean norm over the stored entries, rescaled as the dense [euclideanNorm] is. */
+/** Euclidean norm over the stored entries, using this engine's dense norm kernel. */
 public fun KoblasEngine.nrm2(x: SparseVector): Double = this.nrm2(x.values, 0, x.values.size)
 
 /** `Sum |x_i|` over the stored entries. */

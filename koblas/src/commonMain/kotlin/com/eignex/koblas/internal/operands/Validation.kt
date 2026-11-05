@@ -6,7 +6,7 @@ import com.eignex.koblas.*
 
 /* Shared extent checks for conveniences, portable schedules and direct host bindings.
  * Matrix inputs supply shape only; vector lengths avoid allocating wrappers for arrays.
- * Caller-supplied structure flags are validated separately in dense/MatrixStructure.kt.
+ * Triangle and diagonal flags are interpreted by the operation that accepts them.
  */
 
 /** Two vector operands the call reads in step. */

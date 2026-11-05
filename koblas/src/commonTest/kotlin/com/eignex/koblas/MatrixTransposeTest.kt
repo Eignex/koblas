@@ -3,7 +3,7 @@ package com.eignex.koblas
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class MatrixSlicesTest {
+class MatrixTransposeTest {
     @Test
     fun `dense transpose round trips and maps entries`() {
         val a = DenseMatrix.ofRows(

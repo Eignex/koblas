@@ -3,6 +3,7 @@ package com.eignex.koblas.internal.jvm25.host
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.internal.host.baseIndex
+import com.eignex.koblas.internal.operands.MatrixStructure
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout.JAVA_DOUBLE

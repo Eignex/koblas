@@ -6,6 +6,7 @@ import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.engineWithHost
 import com.eignex.koblas.engineWithKernels
+import com.eignex.koblas.internal.operands.MatrixStructure
 import com.eignex.koblas.internal.portable.PortableEngine
 import com.eignex.koblas.sparse.*
 import kotlin.test.Test

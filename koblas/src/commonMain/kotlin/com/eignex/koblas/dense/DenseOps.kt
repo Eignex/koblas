@@ -118,24 +118,6 @@ public fun KoblasEngine.gemv(
     gemv(alpha, a, x.values, x.offset, x.stride, beta, y.values, y.offset, y.stride, transpose, scratch)
 }
 
-/**
- * Fresh transposed [a]. For a product prefer the transpose flags on [gemv] and [gemm], which avoid a
- * caller-visible intermediate; this is for a caller that means to hold the transpose.
- *
- * A storage transform rather than arithmetic, so it stays a Kotlin loop: the standard has no entry point
- * for it, and the BLAS-like `omatcopy` extension is not one every supported library exports.
- */
-public fun KoblasEngine.transpose(a: DenseMatrixRegion): DenseMatrix {
-    val result = DenseMatrix.zero(a.cols, a.rows)
-    for (j in 0 until a.cols) {
-        for (i in 0 until a.rows) {
-            result.values[j + i * a.cols] =
-                a.values[a.offset + i + j * a.leadingDimension]
-        }
-    }
-    return result
-}
-
 /** [KoblasEngine.symv] over whole arrays of the matrix's order. */
 @JvmOverloads
 public fun KoblasEngine.symv(
