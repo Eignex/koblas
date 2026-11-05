@@ -2,7 +2,6 @@ package com.eignex.koblas.internal.host
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.ReferenceBlas
-import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.jvm25.host.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine

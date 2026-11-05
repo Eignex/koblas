@@ -7,5 +7,4 @@ module com.eignex.koblas {
     requires static jdk.incubator.vector;
 
     exports com.eignex.koblas;
-    exports com.eignex.koblas.engine;
 }

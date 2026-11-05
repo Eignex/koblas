@@ -4,7 +4,6 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.engine.providerFor
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.toKString
@@ -40,7 +39,7 @@ internal actual fun resolveEngine(mode: String): Pair<KoblasEngine, String> {
     require(mode == "native" || mode == "native-default") {
         "Native runner requires --mode=native or --mode=native-default"
     }
-    val engine = if (mode == "native-default") koblas else BuiltinEngines.scalar
+    val engine = if (mode == "native-default") koblas else KoblasEngine.scalar
     return engine to engineIdentity(mode, engine)
 }
 

@@ -1,7 +1,6 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.*
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -15,7 +14,7 @@ import kotlin.test.assertTrue
  * scalar arm on the same case means the two arms computed the same thing from the same fixtures.
  */
 class VendorArmTest {
-    private fun vendor(): KoblasEngine? = Vendor.entries.firstNotNullOfOrNull { BuiltinEngines.vendor(it) }
+    private fun vendor(): KoblasEngine? = Vendor.entries.firstNotNullOfOrNull { KoblasEngine.vendor(it) }
 
     private val dense = listOf(
         "dot+512+uniform",
@@ -74,7 +73,7 @@ class VendorArmTest {
             val case = Cases.parse(line).single()
             val arm = vendorArm(case, blas)
             val work = assertNotNull(arm.work, "${case.id} was declined: ${arm.reason}")
-            val reference = assertNotNull(denseWork(case, BuiltinEngines.scalar), "no scalar arm for ${case.id}")
+            val reference = assertNotNull(denseWork(case, KoblasEngine.scalar), "no scalar arm for ${case.id}")
 
             val actual = work.run()
             val expected = reference.run()

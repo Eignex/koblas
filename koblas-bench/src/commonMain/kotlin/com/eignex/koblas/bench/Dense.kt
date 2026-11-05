@@ -1,7 +1,7 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.KoblasEngine
 
 internal data class CaseWork(
     val comparisonKind: String,
@@ -208,7 +208,7 @@ private fun vectorWork(case: BenchCase, engine: KoblasEngine): CaseWork {
     }
     val referenceX = operand(1)
     val referenceY = operand(2)
-    val expected = arithmetic(BuiltinEngines.scalar, referenceX, referenceY)()
+    val expected = arithmetic(KoblasEngine.scalar, referenceX, referenceY)()
     val actual = arithmetic(engine, x, y)()
     DenseReference.check(doubleArrayOf(expected), doubleArrayOf(actual), case.id)
     DenseReference.check(referenceX.values, x.values, "${case.id} source backing storage")

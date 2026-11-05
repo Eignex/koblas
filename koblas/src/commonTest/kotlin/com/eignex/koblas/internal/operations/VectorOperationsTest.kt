@@ -1,7 +1,7 @@
 package com.eignex.koblas.internal.operations
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.KoblasEngine
 import kotlin.test.*
 
 class VectorOperationsTest {
@@ -9,14 +9,14 @@ class VectorOperationsTest {
     fun `sparse sum uses the selected kernel over stored values only`() {
         val source = SparseVector.wrap(Int.MAX_VALUE, intArrayOf(1, 100), doubleArrayOf(2.0, -3.0))
         var length = -1
-        val engine = object : KoblasEngine by BuiltinEngines.scalar {
+        val engine = object : KoblasEngine by KoblasEngine.scalar {
             override fun sum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
                 assertSame(source.values, v)
                 length = len
-                return BuiltinEngines.scalar.sum(v, vOff, len, vStride)
+                return KoblasEngine.scalar.sum(v, vOff, len, vStride)
             }
         }
-        val expected = BuiltinEngines.scalar.sum(source.values, 0, source.values.size)
+        val expected = KoblasEngine.scalar.sum(source.values, 0, source.values.size)
 
         val actual = engine.sumVector(source)
 
@@ -40,12 +40,12 @@ class VectorOperationsTest {
             }
             override fun toDoubleArray(): DoubleArray = error("Materialized opaque storage")
         }
-        val expected = BuiltinEngines.scalar.dot(source.values, 0, doubleArrayOf(4.0, -2.0), 0, 2)
+        val expected = KoblasEngine.scalar.dot(source.values, 0, doubleArrayOf(4.0, -2.0), 0, 2)
 
         for ((x, y) in listOf(source to other, other to source)) {
             reads.clear()
 
-            val actual = BuiltinEngines.scalar.dotVector(x, y)
+            val actual = KoblasEngine.scalar.dotVector(x, y)
 
             assertClose(expected, actual, "sparse dot")
             assertEquals(source.indices.toList(), reads)
@@ -63,9 +63,9 @@ class VectorOperationsTest {
                 val packed = destination.toDoubleArray()
                 if (copy) {
                     packed.fill(0.0)
-                    BuiltinEngines.scalar.scatter(source.indices, 0, source.values, 0, 2, packed)
+                    KoblasEngine.scalar.scatter(source.indices, 0, source.values, 0, 2, packed)
                 } else {
-                    BuiltinEngines.scalar.axpy(source.indices, 0, source.values, 0, 2, -1.5, packed)
+                    KoblasEngine.scalar.axpy(source.indices, 0, source.values, 0, 2, -1.5, packed)
                 }
                 for (i in packed.indices) expected[destination.offset + i * stride] = packed[i]
 

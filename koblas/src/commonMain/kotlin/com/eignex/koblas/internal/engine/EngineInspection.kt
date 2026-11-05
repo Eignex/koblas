@@ -1,7 +1,7 @@
 package com.eignex.koblas.internal.engine
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.EngineImplementation
+import com.eignex.koblas.EngineImplementation
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 

@@ -1,4 +1,4 @@
-package com.eignex.koblas.engine
+package com.eignex.koblas
 
 import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.host.*

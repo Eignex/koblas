@@ -1,7 +1,7 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.internal.engine.*
-import com.eignex.koblas.engine.*
+import com.eignex.koblas.*
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlinx.serialization.json.*

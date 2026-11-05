@@ -1,7 +1,5 @@
 package com.eignex.koblas;
 
-import com.eignex.koblas.engine.BuiltinEngines;
-
 final class JavaInteropSmoke {
     private JavaInteropSmoke() {}
 
@@ -44,7 +42,7 @@ final class JavaInteropSmoke {
         Koblas.getDefault().gemv(1.0, sparse, new double[] {4.0, 5.0}, 0.0, gemvResult, false, null);
         assertArrayEquals(new double[] {8.0, 15.0}, gemvResult);
 
-        KoblasEngine engine = BuiltinEngines.getScalar();
+        KoblasEngine engine = KoblasEngine.getScalar();
         DenseMatrixRegion outputRegion = DenseMatrix.zero(5, 5).view(1, 1, 2, 2);
         engine.gemm(1.0, sparse, false, identity, false, 0.0, outputRegion, false, new Scratch());
         assertEquals(2.0, outputRegion.get(0, 0));
@@ -64,7 +62,7 @@ final class JavaInteropSmoke {
         engine.rot(rotatedX.getValues(), rotatedX.getOffset(), rotatedY.getValues(), rotatedY.getOffset(), rotatedX.getSize(), 0.6, 0.8, rotatedX.getStride(), rotatedY.getStride());
         assertEquals(5.0, rotatedX.get(0));
 
-        if (Koblas.getDefault() == null || BuiltinEngines.getScalar() == null) {
+        if (Koblas.getDefault() == null || KoblasEngine.getScalar() == null) {
             throw new AssertionError("Java engine accessors must return engines");
         }
         if (Koblas.getDefault().getProviders().isEmpty()) {

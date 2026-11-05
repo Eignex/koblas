@@ -1,7 +1,7 @@
 package com.eignex.koblas.internal.engine
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.Vendor
+import com.eignex.koblas.Vendor
 import com.eignex.koblas.internal.jvm.JvmBackend
 
 /** Owned JVM kernels, with eligible host calls when native access and a vendor are available. */

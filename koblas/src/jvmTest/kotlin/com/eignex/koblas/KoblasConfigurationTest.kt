@@ -1,25 +1,20 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.engine.BuiltinEngines
-import com.eignex.koblas.internal.engine.DefaultEngine
+import com.eignex.koblas.KoblasEngine
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Proxy
 import java.net.URLClassLoader
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertSame
-import kotlin.test.assertTrue
 
 class KoblasConfigurationTest {
     @Test
-    fun `named startup selection overrides launch settings`() = isolated("invalid") { loader ->
+    fun `named startup selection overrides launch settings`() = isolated("scalar") { loader ->
         val facade = loader.loadClass("com.eignex.koblas.Koblas")
-        val scalar = loader.loadClass("com.eignex.koblas.engine.BuiltinEngines").getMethod("getScalar").invoke(null)
+        val scalar = loader.loadClass("com.eignex.koblas.KoblasEngine").getMethod("getScalar").invoke(null)
 
         facade.getMethod("configureKoblas", String::class.java).invoke(null, " SCALAR ")
 
@@ -27,10 +22,10 @@ class KoblasConfigurationTest {
     }
 
     @Test
-    fun `programmatic override reaches conveniences`() = isolated("invalid") { loader ->
+    fun `programmatic override reaches conveniences`() = isolated("scalar") { loader ->
         val facade = loader.loadClass("com.eignex.koblas.Koblas")
         val engineType = loader.loadClass("com.eignex.koblas.KoblasEngine")
-        val scalar = loader.loadClass("com.eignex.koblas.engine.BuiltinEngines").getMethod("getScalar").invoke(null)
+        val scalar = loader.loadClass("com.eignex.koblas.KoblasEngine").getMethod("getScalar").invoke(null)
         var calls = 0
         val supplied = Proxy.newProxyInstance(loader, arrayOf(engineType)) { _, method, args ->
             if (method.name == "sum") calls++
@@ -43,14 +38,14 @@ class KoblasConfigurationTest {
 
         val result = facade.getMethod("sum", vectorType).invoke(null, vector)
 
-        assertEquals(BuiltinEngines.scalar.sum(doubleArrayOf(1.0, -2.0, 3.0), 0, 3), result)
+        assertEquals(KoblasEngine.scalar.sum(doubleArrayOf(1.0, -2.0, 3.0), 0, 3), result)
         assertEquals(1, calls)
         assertSame(supplied, facade.getMethod("getDefault").invoke(null))
     }
 
     @Test
     fun `JVM launch property selects the scalar engine`() = isolated("scalar") { loader ->
-        val scalar = loader.loadClass("com.eignex.koblas.engine.BuiltinEngines").getMethod("getScalar").invoke(null)
+        val scalar = loader.loadClass("com.eignex.koblas.KoblasEngine").getMethod("getScalar").invoke(null)
 
         val engine = loader.loadClass("com.eignex.koblas.Koblas").getMethod("getDefault").invoke(null)
 
@@ -58,55 +53,28 @@ class KoblasConfigurationTest {
     }
 
     @Test
-    fun `public configuration rejects changes after first use`() = isolated("scalar") { loader ->
+    fun `invalid startup selection fails in the configure call`() = isolated("scalar") { loader ->
         val facade = loader.loadClass("com.eignex.koblas.Koblas")
-        val engineType = loader.loadClass("com.eignex.koblas.KoblasEngine")
-        val engine = facade.getMethod("getDefault").invoke(null)
 
         val failure = assertFailsWith<InvocationTargetException> {
-            facade.getMethod("configureKoblas", engineType).invoke(null, engine)
+            facade.getMethod("configureKoblas", String::class.java).invoke(null, "invalid")
         }
 
-        assertIs<IllegalStateException>(failure.cause)
-        assertSame(engine, facade.getMethod("getDefault").invoke(null))
+        assertIs<IllegalArgumentException>(failure.cause)
+        val scalar = loader.loadClass("com.eignex.koblas.KoblasEngine").getMethod("getScalar").invoke(null)
+        assertSame(scalar, facade.getMethod("getDefault").invoke(null))
     }
 
     @Test
-    fun `concurrent configuration either wins before selection or is rejected`() {
-        val pool = Executors.newFixedThreadPool(2)
-        try {
-            repeat(20) {
-                val automatic = object : KoblasEngine {
-                    override val name = "automatic"
-                }
-                val explicit = BuiltinEngines.scalar
-                val selection = DefaultEngine { automatic }
-                val start = CountDownLatch(1)
-                val configured = pool.submit<Boolean> {
-                    start.await()
-                    try {
-                        selection.configure(explicit)
-                        true
-                    } catch (_: IllegalStateException) {
-                        false
-                    }
-                }
-                val selected = pool.submit<KoblasEngine> {
-                    start.await()
-                    selection.engine
-                }
+    fun `invalid launch settings fail before a programmatic override`() = isolated("invalid") { loader ->
+        val facade = loader.loadClass("com.eignex.koblas.Koblas")
 
-                start.countDown()
-                val won = configured.get(1, TimeUnit.SECONDS)
-                val engine = selected.get(1, TimeUnit.SECONDS)
-
-                assertSame(if (won) explicit else automatic, engine)
-                assertSame(engine, selection.engine)
-            }
-        } finally {
-            pool.shutdownNow()
-            assertTrue(pool.awaitTermination(1, TimeUnit.SECONDS))
+        val failure = assertFailsWith<InvocationTargetException> {
+            facade.getMethod("configureKoblas", String::class.java).invoke(null, "scalar")
         }
+
+        val initialization = assertIs<ExceptionInInitializerError>(failure.cause)
+        assertIs<IllegalArgumentException>(initialization.cause)
     }
 
     // Each loader owns a fresh Koblas singleton so test order cannot configure another test's engine.

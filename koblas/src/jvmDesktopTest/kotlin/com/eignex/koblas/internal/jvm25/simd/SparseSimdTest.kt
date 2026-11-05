@@ -1,7 +1,6 @@
 package com.eignex.koblas.internal.jvm25.simd
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.engine.implementationFor
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import org.junit.Assume
@@ -15,7 +14,7 @@ class SparseSimdTest {
     @Test
     fun `only an indexed dense dot from its minimum length reaches the indexed vector leaf`() {
         Assume.assumeTrue("the Vector API module is unavailable", simdAvailable)
-        val engine = checkNotNull(BuiltinEngines.simd)
+        val engine = checkNotNull(KoblasEngine.simd)
         val minimum = SparseSimd.minimumLength(EngineImplementation.IndexedDot)
         val indexed = EngineImplementation.entries.filter {
             it.ordinal in EngineImplementation.IndexedDot.ordinal until EngineImplementation.Panels.ordinal

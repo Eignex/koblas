@@ -1,7 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.jvm25.simd.*
 import com.eignex.koblas.internal.kernels.*
@@ -33,7 +33,7 @@ internal object SimdRuntimePathCheck {
                 "this process reports fma=$hardwareFusedMultiplyAdd, expected $expectedFma"
             }
         }
-        val engine = requireNotNull(BuiltinEngines.simd) { "no Vector API arm" }
+        val engine = requireNotNull(KoblasEngine.simd) { "no Vector API arm" }
         assertReductionsAgreeWithReference(engine)
         SimdOpsTest().`dot agrees with the scalar oracle across independent offsets and vector boundaries`()
         assertIamaxHonoursItsContract(engine)

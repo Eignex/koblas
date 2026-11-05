@@ -1,7 +1,7 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.KoblasEngine
 
 /** Raw CSC windows through the selected engine, including validation and any indexed fallback. */
 internal fun sparseSlicesArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
@@ -14,7 +14,7 @@ internal fun sparseSlicesArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
     sparse.values.copyInto(values, VALUE_OFFSET)
     val initial = Fixtures.vector(size, 2)
     val destination = initial.copyOf()
-    val scalar = BuiltinEngines.scalar
+    val scalar = KoblasEngine.scalar
     val kernels = engine
     val operation = case.operation
     val mutation = operation == "spaxpy-slice" || operation == "spscatter-slice"

@@ -1,7 +1,6 @@
 package com.eignex.koblas.internal.engine
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.kernels.EngineKernels
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 
@@ -15,8 +14,8 @@ internal fun standardEngine(
     runtime: EngineRuntime,
     nativeAccess: Boolean = true,
     host: HostPlatform = hostPlatform(),
-    owned: KoblasEngine? = BuiltinEngines.simd,
-    openVendor: (Vendor) -> KoblasEngine? = BuiltinEngines::vendor,
+    owned: KoblasEngine? = KoblasEngine.simd,
+    openVendor: (Vendor) -> KoblasEngine? = KoblasEngine::vendor,
 ): KoblasEngine {
     if (host.architecture == Architecture.Other) return ScalarEngine
     val selected = if (nativeAccess) vendorOrder(runtime, host).firstNotNullOfOrNull(openVendor) else null

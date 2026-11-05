@@ -2,7 +2,6 @@ package com.eignex.koblas.internal.jvm25.simd
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.engine.implementationFor
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
@@ -10,7 +9,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-private val selectedBackend = BuiltinEngines.simd ?: ScalarEngine
+private val selectedBackend = KoblasEngine.simd ?: ScalarEngine
 
 /**
  * Checks per-operation routing on the Vector API arm. Reductions and AXPY use explicit vector kernels;
@@ -104,7 +103,7 @@ class SimdVectorKernelsTest {
 
     @Test
     fun `simd iamax honours its contract across windows`() {
-        val simd = BuiltinEngines.simd ?: return
+        val simd = KoblasEngine.simd ?: return
         assertIamaxHonoursItsContract(simd)
     }
 }

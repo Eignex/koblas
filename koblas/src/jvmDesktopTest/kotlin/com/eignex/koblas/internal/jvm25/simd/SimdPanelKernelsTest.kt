@@ -1,7 +1,7 @@
 package com.eignex.koblas.internal.jvm25.simd
 
+import com.eignex.koblas.*
 import com.eignex.koblas.dense.assertLargeColumnUpdatesAgreeWithReference
-import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
@@ -19,7 +19,7 @@ import kotlin.test.assertTrue
  * on a runtime without the module is a linkage error before any test body runs.
  */
 class SimdPanelKernelsTest {
-    private val kernels: EngineKernels? = BuiltinEngines.simd?.panelProvider
+    private val kernels: EngineKernels? = KoblasEngine.simd?.panelProvider
 
     @Test
     fun `long column updates agree with the scalar oracle`() {
@@ -135,7 +135,7 @@ class SimdPanelKernelsTest {
     private fun hasShortBody(work: PanelWork): Boolean = work == PanelWork.MultiDot || work == PanelWork.ColumnUpdate
 
     /** The species this backend resolved, read back from the name it publishes. */
-    private fun lanes(): Int = checkNotNull(BuiltinEngines.simd).providers.first {
+    private fun lanes(): Int = checkNotNull(KoblasEngine.simd).providers.first {
         EngineImplementation.Dot in it.implementations
     }.let { it as EngineKernels }.minimumLength(EngineImplementation.Dot)
 

@@ -1,7 +1,6 @@
 package com.eignex.koblas.internal.jvm25.host
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.*
 import kotlin.math.abs
 import kotlin.test.assertTrue
 import kotlin.test.fail
@@ -9,7 +8,7 @@ import kotlin.test.fail
 /** A vendor to test against through production selection, or null when this host has none installed. */
 private val testVendor: KoblasEngine? by lazy {
     Vendor.entries.firstNotNullOfOrNull {
-        BuiltinEngines.vendor(
+        KoblasEngine.vendor(
             it,
         )
     }

@@ -3,7 +3,7 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.internal.operations.*
 
 /**
@@ -11,7 +11,7 @@ import com.eignex.koblas.internal.operations.*
  * is not a sparse one.
  *
  * The engine-dispatched arms are exact because each runs on the engine its arm pinned through
- * [BuiltinEngines]. A row records that selection, not the body a given width reached: a
+ * [KoblasEngine]. A row records that selection, not the body a given width reached: a
  * Vector API selection still runs scalar loops below its crossover.
  */
 @Suppress("LongMethod", "CyclomaticComplexMethod") // one branch per benchmarked operation
@@ -30,7 +30,7 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
 
     return when (case.operation) {
         "spbuild-triplets", "spbuild-duplicates" -> {
-            if (engine !== BuiltinEngines.scalar) {
+            if (engine !== KoblasEngine.scalar) {
                 ArmChoice(null, "the sparse factory is portable construction, timed on the scalar arm")
             } else {
                 ArmChoice(sparseFactoryWork(case), null)

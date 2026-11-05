@@ -1,6 +1,6 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import com.eignex.koblas.internal.operations.dotVector
 import kotlin.test.*
@@ -22,7 +22,7 @@ class VectorOpsTest {
             for ((source, destination) in identicalDenseMappings()) {
                 for (i in 0 until source.size) source[i] = inputs[i % inputs.size]
                 val expected = source.values.copyOf()
-                BuiltinEngines.scalar.axpy(
+                KoblasEngine.scalar.axpy(
                     expected,
                     destination.offset,
                     alpha,
@@ -71,7 +71,7 @@ class VectorOpsTest {
         val source = StridedVector(backing, 2, 5)
         val destination = StridedVector(backing, 6, 5, -1)
         val expected = backing.copyOf()
-        BuiltinEngines.scalar.axpy(expected, 6, 0.75, source.toDoubleArray(), 0, 5, -1)
+        KoblasEngine.scalar.axpy(expected, 6, 0.75, source.toDoubleArray(), 0, 5, -1)
 
         destination.axpy(0.75, source)
 
@@ -84,7 +84,7 @@ class VectorOpsTest {
         for (stride in intArrayOf(-3, -1, 1, 3)) {
             val backing = DoubleArray(18) { it * 0.125 - 0.75 }
             val view = StridedVector(backing, if (stride > 0) 2 else 14, 5, stride)
-            val expected = BuiltinEngines.scalar.dotVector(source, DenseVector.wrap(view.toDoubleArray()))
+            val expected = KoblasEngine.scalar.dotVector(source, DenseVector.wrap(view.toDoubleArray()))
 
             assertDotAgreesWithReference(expected, source dot view)
             assertDotAgreesWithReference(expected, view dot source)
@@ -95,7 +95,7 @@ class VectorOpsTest {
     fun `sparse dot against dense views evaluates stored zeros`() {
         val source = sparse(3, 1 to 0.0)
         val view = StridedVector(doubleArrayOf(Double.NaN, 1.0, Double.POSITIVE_INFINITY, 1.0, Double.NaN), 0, 3, 2)
-        val expected = BuiltinEngines.scalar.dotVector(source, DenseVector.wrap(view.toDoubleArray()))
+        val expected = KoblasEngine.scalar.dotVector(source, DenseVector.wrap(view.toDoubleArray()))
 
         assertDotAgreesWithReference(expected, source dot view)
         assertDotAgreesWithReference(expected, view dot source)
@@ -131,7 +131,7 @@ class VectorOpsTest {
             val destination = StridedVector(backing, 0, size)
             val source = if (size == 0) sparse(0) else sparse(size, 0 to 2.0, 2 to -1.0)
             val expected = backing.copyOf()
-            BuiltinEngines.scalar.axpy(source.indices, 0, source.values, 0, source.indices.size, 2.0, expected)
+            KoblasEngine.scalar.axpy(source.indices, 0, source.values, 0, source.indices.size, 2.0, expected)
 
             destination.axpy(2.0, source)
 
@@ -155,8 +155,8 @@ class VectorOpsTest {
         val a = dense(1.0, 2.0, 3.0, 4.0)
         val b = dense(0.5, 0.0, -1.0, 2.0)
         val bSparse = sparse(4, 0 to 0.5, 2 to -1.0, 3 to 2.0)
-        val expected = BuiltinEngines.scalar.dot(a.values, 0, b.values, 0, 4)
-        val sparseByDense = BuiltinEngines.scalar.dot(b.values, 0, b.values, 0, 4)
+        val expected = KoblasEngine.scalar.dot(a.values, 0, b.values, 0, 4)
+        val sparseByDense = KoblasEngine.scalar.dot(b.values, 0, b.values, 0, 4)
 
         for ((actual, context) in listOf(
             (a dot b) to "dense by dense",
@@ -189,12 +189,12 @@ class VectorOpsTest {
     fun `norm two agrees with the scalar oracle on dense and sparse`() {
         val values = doubleArrayOf(3.0, 0.0, -4.0)
         assertReductionAgreesWithReference(
-            BuiltinEngines.scalar.nrm2(values, 0, values.size),
+            KoblasEngine.scalar.nrm2(values, 0, values.size),
             DenseVector.of(values).norm2(),
             "dense",
         )
         assertReductionAgreesWithReference(
-            BuiltinEngines.scalar.nrm2(denseOfSparse.values, 0, denseOfSparse.size),
+            KoblasEngine.scalar.nrm2(denseOfSparse.values, 0, denseOfSparse.size),
             sparse.norm2(),
             "sparse",
         )
@@ -214,12 +214,12 @@ class VectorOpsTest {
     @Test
     fun `sum adds the entries for any storage`() {
         val values = doubleArrayOf(2.0, -3.5, 0.0, 4.25, -1.0, 0.5)
-        val expected = BuiltinEngines.scalar.sum(values, 0, values.size)
+        val expected = KoblasEngine.scalar.sum(values, 0, values.size)
         val strided = StridedVector(DoubleArray(12) { values[it / 2] }, 0, 6, 2)
         assertReductionAgreesWithReference(expected, DenseVector.of(values).sum(), "dense")
         assertReductionAgreesWithReference(expected, strided.sum(), "strided")
         assertReductionAgreesWithReference(
-            BuiltinEngines.scalar.sum(denseOfSparse.values, 0, denseOfSparse.size),
+            KoblasEngine.scalar.sum(denseOfSparse.values, 0, denseOfSparse.size),
             sparse.sum(),
             "sparse",
         )
@@ -230,12 +230,12 @@ class VectorOpsTest {
     fun `asum agrees with the scalar oracle on dense and sparse`() {
         val values = doubleArrayOf(3.0, 0.0, -4.0)
         assertReductionAgreesWithReference(
-            BuiltinEngines.scalar.asum(values, 0, values.size),
+            KoblasEngine.scalar.asum(values, 0, values.size),
             DenseVector.of(values).asum(),
             "dense",
         )
         assertReductionAgreesWithReference(
-            BuiltinEngines.scalar.asum(denseOfSparse.values, 0, denseOfSparse.size),
+            KoblasEngine.scalar.asum(denseOfSparse.values, 0, denseOfSparse.size),
             sparse.asum(),
             "sparse",
         )
@@ -325,7 +325,7 @@ class VectorOpsTest {
             val destination = if (borrowed) StridedVector(backing, 1, 4) else DenseVector.wrap(backing)
             val source = ForeignVector(StridedVector(backing, destination.offset + 3, 4, -1))
             val expected = backing.copyOf()
-            BuiltinEngines.scalar.axpy(expected, destination.offset, 2.0, source.toDoubleArray(), 0, 4)
+            KoblasEngine.scalar.axpy(expected, destination.offset, 2.0, source.toDoubleArray(), 0, 4)
 
             destination.axpy(2.0, source)
 

@@ -3,7 +3,7 @@
 package com.eignex.koblas.internal.host
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.EngineImplementation
+import com.eignex.koblas.EngineImplementation
 import com.eignex.koblas.internal.kernels.EngineKernels
 import com.eignex.koblas.internal.operations.*
 import com.eignex.koblas.internal.storage.sameRegion

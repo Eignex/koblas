@@ -1,7 +1,7 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.internal.engine.*
-import com.eignex.koblas.engine.*
+import com.eignex.koblas.*
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.koblas
 import kotlin.test.Test
@@ -20,7 +20,7 @@ class RunnerTest {
             override val implementations = setOf(EngineImplementation.Dot)
             override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int): Double {
                 calls++
-                return BuiltinEngines.scalar.dot(a, aOff, b, bOff, len, aStride, bStride)
+                return KoblasEngine.scalar.dot(a, aOff, b, bOff, len, aStride, bStride)
             }
         }
         val engine = BuiltinEngine("threshold", KernelSet(vectors = leaf))

@@ -1,6 +1,6 @@
 package com.eignex.koblas.internal.host
 
-import com.eignex.koblas.engine.*
+import com.eignex.koblas.*
 
 /**
  * How one vendor is held to a single compute thread, and whether that can be read back.
