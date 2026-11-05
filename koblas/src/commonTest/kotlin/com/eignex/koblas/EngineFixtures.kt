@@ -10,7 +10,7 @@ internal fun engineWithKernels(
     products: KoblasEngine = ScalarEngine,
     triangles: KoblasEngine = ScalarEngine,
     indexed: KoblasEngine = ScalarEngine,
-): KoblasEngine = BuiltinEngine(
+): BuiltinEngine = BuiltinEngine(
     "test",
     KernelSet(
         (vectors as? BuiltinEngine)?.kernels?.vectors ?: vectors as EngineKernels,
@@ -21,7 +21,7 @@ internal fun engineWithKernels(
     ),
 )
 
-internal fun engineWithHost(portable: KoblasEngine, host: KoblasEngine, eligible: Boolean = true): KoblasEngine =
+internal fun engineWithHost(portable: KoblasEngine, host: KoblasEngine, eligible: Boolean = true): BuiltinEngine =
     BuiltinEngine(
         "host-test",
         (portable as? BuiltinEngine)?.kernels ?: KernelSet(),

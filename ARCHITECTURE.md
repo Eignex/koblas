@@ -53,7 +53,8 @@ checks exercise calls through the engine and container entry points.
 
 `BuiltinEngine` binds fixed vector, indexed, panel, product and triangular kernel roles, plus at most one
 host library. Automatic selection stops at the first available compatible vendor. Missing exports and calls
-below its cutoffs use the owned kernels.
+below its cutoffs use the owned kernels. Internal factories keep kernel types through selection; tuning
+binds the selected vendor once. Runtime dispatch and attribution share provider lookup.
 
 Tuning cutoffs live in `internal/engine/EngineTuning.kt` as direct predicates; unmeasured targets borrow
 compatible estimates. The benchmark fitter reports cutoffs for one backend and retains target provenance

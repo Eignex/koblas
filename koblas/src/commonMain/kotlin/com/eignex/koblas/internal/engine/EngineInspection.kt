@@ -24,6 +24,13 @@ internal val KoblasEngine.triangularProvider: EngineKernels get() = when (this) 
     else -> unsupported()
 }
 
+/** Selects the same primitive provider used by vector execution and alias preparation. */
+internal fun KoblasEngine.vectorProviderFor(
+    operation: EngineImplementation,
+    length: Int,
+    contiguous: Boolean = true,
+): KoblasEngine = (this as? BuiltinEngine)?.vectorProvider(operation, length, contiguous) ?: this
+
 /** The provider bound by the dispatcher, before any value-dependent arithmetic fallback. */
 internal fun KoblasEngine.providerFor(
     operation: EngineImplementation,
@@ -33,7 +40,7 @@ internal fun KoblasEngine.providerFor(
     contiguous: Boolean,
     borrowed: Boolean,
 ): String = if (operation.vector) {
-    (if (this is BuiltinEngine) vectorProvider(operation, rows, contiguous) else this).id
+    vectorProviderFor(operation, rows, contiguous).id
 } else {
     wholeCallFor(operation, rows, columns, depth, borrowed)?.id ?: "scheduled"
 }
@@ -48,7 +55,7 @@ internal fun KoblasEngine.wholeCallFor(
 ): KoblasEngine? {
     val provider = (this as? BuiltinEngine)?.hostFor(operation, rows, columns, depth, borrowed) ?: this
     // Portable schedules retain the caller's selected kernels instead of a portable leaf's.
-    return provider.takeIf { it !== ScalarEngine && operation in it.implementations }
+    return provider.takeIf { it !== ScalarEngine && (it !== this || operation in it.implementations) }
 }
 
 /**
@@ -62,15 +69,14 @@ internal fun KoblasEngine.routedWholeCall(
     columns: Int,
     depth: Int,
     borrowed: Boolean,
-): KoblasEngine? = (this as? BuiltinEngine)?.hostFor(operation, rows, columns, depth, borrowed)
-    ?.takeIf { it !== ScalarEngine }
+): KoblasEngine? = wholeCallFor(operation, rows, columns, depth, borrowed)?.takeIf { it !== this }
 
 internal fun KoblasEngine.implementationFor(
     operation: EngineImplementation,
     length: Int,
     contiguous: Boolean = true,
 ): String? {
-    val provider = (this as? BuiltinEngine)?.vectorProvider(operation, length, contiguous) ?: this
+    val provider = vectorProviderFor(operation, length, contiguous)
     return provider.takeIf {
         operation in it.implementations && !(it is EngineKernels && it.dynamicAttribution(operation))
     }?.name

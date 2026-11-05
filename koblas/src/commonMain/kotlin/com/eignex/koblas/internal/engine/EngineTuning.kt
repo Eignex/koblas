@@ -10,7 +10,11 @@ import com.eignex.koblas.Vendor
  * Retained measurements: lab.eignex.com/jobs/10584, 10566, 10607, 10583, 10565, 10628 and 10630.
  * AOCL, ArmPL and unmeasured platforms use the compatible library or instruction-class estimates.
  */
-internal class EngineTuning(private val runtime: EngineRuntime, private val platform: HostPlatform) {
+internal class EngineTuning(
+    private val runtime: EngineRuntime,
+    private val platform: HostPlatform,
+    private val vendor: Vendor?,
+) {
     private val x86 = platform.architecture == Architecture.X86_64
     private val wide = platform.cpuClass == CpuClass.Avx512
     private val arm = !x86 && platform.cpuClass != CpuClass.Sve
@@ -25,7 +29,7 @@ internal class EngineTuning(private val runtime: EngineRuntime, private val plat
         else -> 0
     }
 
-    fun hostMinimum(vendor: Vendor?, operation: EngineImplementation, contiguous: Boolean): Int {
+    fun hostMinimum(operation: EngineImplementation, contiguous: Boolean): Int {
         if (runtime == EngineRuntime.Jvm) return -1
         if (vendor == Vendor.Accelerate) {
             return if (!contiguous) {
@@ -59,7 +63,6 @@ internal class EngineTuning(private val runtime: EngineRuntime, private val plat
     }
 
     fun hostEligible(
-        vendor: Vendor?,
         operation: EngineImplementation,
         rows: Int,
         columns: Int,

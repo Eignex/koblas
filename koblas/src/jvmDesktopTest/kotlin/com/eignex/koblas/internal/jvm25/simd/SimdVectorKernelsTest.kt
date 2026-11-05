@@ -62,7 +62,7 @@ class SimdVectorKernelsTest {
     @Test
     fun `the standard index search observes its configured crossover`() {
         if (!simdAvailable) return skipped()
-        val tuning = EngineTuning(EngineRuntime.Jvm, hostPlatform())
+        val tuning = EngineTuning(EngineRuntime.Jvm, hostPlatform(), null)
         val tuned = standardEngine(EngineRuntime.Jvm, nativeAccess = false)
         val minimum = tuning.simdMinimum(EngineImplementation.Iamax)
 

@@ -36,7 +36,11 @@ class BuiltinEngineTest {
             val blas = BuiltinEngine(
                 "test",
                 host = recorder,
-                tuning = EngineTuning(EngineRuntime.Native, HostPlatform(OperatingSystem.Linux, Architecture.X86_64)),
+                tuning = EngineTuning(
+                    EngineRuntime.Native,
+                    HostPlatform(OperatingSystem.Linux, Architecture.X86_64),
+                    recorder.vendor,
+                ),
             )
             assertSame(recorder, blas.wholeCallFor(EngineImplementation.Gemm, order, order, order))
             val parent = matrix(order + 2)
