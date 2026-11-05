@@ -1,14 +1,16 @@
 package com.eignex.koblas.internal.host
 
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.*
+import com.eignex.koblas.dense.ReferenceBlas
+import com.eignex.koblas.dense.assertIamaxHonoursItsContract
+import com.eignex.koblas.dense.assertShrinkingGerAgreesWithReference
 import com.eignex.koblas.engine.*
-import com.eignex.koblas.internal.engine.absoluteSumVector
-import com.eignex.koblas.internal.engine.axpyVector
-import com.eignex.koblas.internal.engine.copyVector
-import com.eignex.koblas.internal.engine.dotVector
-import com.eignex.koblas.internal.engine.normVector
-import com.eignex.koblas.internal.portable.PortableEngine
+import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
+import com.eignex.koblas.internal.operations.absoluteSumVector
+import com.eignex.koblas.internal.operations.axpyVector
+import com.eignex.koblas.internal.operations.copyVector
+import com.eignex.koblas.internal.operations.dotVector
+import com.eignex.koblas.internal.operations.normVector
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test
@@ -453,7 +455,7 @@ class CblasTest {
             println("SKIPPED: no CBLAS library installed; $what was not verified on this host")
             return
         }
-        for (host in hosts) block(engineWithHost(engineWithKernels(PortableEngine, PortableEngine), host))
+        for (host in hosts) block(engineWithHost(engineWithKernels(ScalarEngine, ScalarEngine), host))
     }
 
     private fun forEachStride(body: (StridedVector) -> Unit) {

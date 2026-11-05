@@ -1,6 +1,7 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.*
+import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.koblas
 
 /** Portable triplet construction, including ordering, duplicate reduction and ownership of the result. */
 internal fun sparseFactoryWork(case: BenchCase): CaseWork {

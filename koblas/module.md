@@ -18,19 +18,9 @@ separate [Scratch][com.eignex.koblas.Scratch].
 Owning dense and sparse containers, vector views, the default [koblas] engine, the [KoblasEngine]
 contract and [Scratch] arrays. [Matrix] and [Vector] are read-only contracts custom types can
 implement. Products accept at most one sparse operand, on either side, and produce dense storage.
-No sparse operand is densified. Products of two sparse matrices are unsupported.
-
-# Package com.eignex.koblas.dense
-
-Windowed rank updates into dense matrix regions through [ger]. Other dense BLAS routines are members of
-[KoblasEngine][com.eignex.koblas.KoblasEngine]; `gemmt` is the triangle-selected product Netlib calls `GEMMTR`.
+No sparse operand is densified. Products of two sparse matrices are unsupported. Windowed rank updates and
+sparse column dots are [KoblasEngine.ger] and [KoblasEngine.dotColumn] members.
 
 # Package com.eignex.koblas.engine
 
 Exact engines, standard profiles, host platform facts and vendor metadata.
-
-# Package com.eignex.koblas.sparse
-
-The [dotColumn] helper reuses validated CSC support without allocating a column view. Sparse BLAS routines
-are members of [KoblasEngine][com.eignex.koblas.KoblasEngine]: absent positions are never evaluated.
-

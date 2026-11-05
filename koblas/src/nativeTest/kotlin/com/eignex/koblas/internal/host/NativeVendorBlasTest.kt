@@ -8,10 +8,9 @@
 package com.eignex.koblas.internal.host
 
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.*
-import com.eignex.koblas.engine.*
-import com.eignex.koblas.internal.engine.*
-import com.eignex.koblas.sparse.*
+import com.eignex.koblas.dense.ReferenceBlas
+import com.eignex.koblas.engine.EngineImplementation
+import com.eignex.koblas.internal.engine.wholeCallFor
 import kotlin.native.concurrent.TransferMode
 import kotlin.native.concurrent.Worker
 import kotlin.random.Random

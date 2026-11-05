@@ -1,9 +1,7 @@
 package com.eignex.koblas.internal.jvm25.simd
 
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.*
-import com.eignex.koblas.internal.portable.PortableEngine
-import com.eignex.koblas.sparse.*
+import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.IntVector
 import jdk.incubator.vector.LongVector
@@ -302,7 +300,7 @@ internal object SimdOps {
                 }
                 candidateBlocks++
                 if (candidateBlocks == 4 && index < end) {
-                    val remaining = index + PortableEngine.iamax(v, index, end - index, 1)
+                    val remaining = index + ScalarEngine.iamax(v, index, end - index, 1)
                     return if (abs(v[remaining]) > bestAbs) remaining - vOff else winner
                 }
                 threshold = IntVector.broadcast(INT_SPECIES, (bestAbs.toRawBits() ushr 32).toInt() - 1)
@@ -324,7 +322,7 @@ internal object SimdOps {
 
     /** Unconditional magnitude reduction and ordered index search for short or frequently improving input. */
     private fun iamaxReduced(v: DoubleArray, vOff: Int, len: Int): Int {
-        if (LANE == 2) return PortableEngine.iamax(v, vOff, len, 1)
+        if (LANE == 2) return ScalarEngine.iamax(v, vOff, len, 1)
         if (len == 0) return -1
         val mask = LongVector.fromArray(LONG_SPECIES, SIGN_MASK_BITS, 0)
         val bound = vOff + SPECIES.loopBound(len)

@@ -3,7 +3,6 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.*
 
 /**
  * Independent sparse oracle using stored coordinates from [SparseMatrix.forEachInColumn].

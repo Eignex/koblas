@@ -1,19 +1,16 @@
 package com.eignex.koblas.internal.jvm25.simd
 
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.*
+import com.eignex.koblas.dense.assertIamaxHonoursItsContract
+import com.eignex.koblas.dense.assertLevel1KernelsAgreeWithReference
 import com.eignex.koblas.engine.*
-import com.eignex.koblas.engine.hostPlatform
-import com.eignex.koblas.internal.engine.*
-import com.eignex.koblas.internal.jvm25.simd.simdAvailable
-import com.eignex.koblas.internal.jvm25.simd.simdContributions
-import com.eignex.koblas.internal.portable.PortableEngine
-import com.eignex.koblas.sparse.*
+import com.eignex.koblas.internal.engine.implementationFor
+import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-private val selectedBackend = BuiltinEngines.simd ?: PortableEngine
+private val selectedBackend = BuiltinEngines.simd ?: ScalarEngine
 
 /**
  * Checks per-operation routing on the Vector API arm. Reductions and AXPY use explicit vector kernels;
@@ -48,7 +45,7 @@ class SimdVectorKernelsTest {
             EngineImplementation.Swap,
             EngineImplementation.Rot,
         )) {
-            assertEquals(PortableEngine.name, reached(operation, WIDE), "$operation named a vector kernel")
+            assertEquals(ScalarEngine.name, reached(operation, WIDE), "$operation named a vector kernel")
         }
     }
 
@@ -70,7 +67,7 @@ class SimdVectorKernelsTest {
         val tuned = BuiltinEngines.configured(profile)
         val minimum = profile.rules.first { EngineImplementation.Iamax in it.implementations }.rows.first
 
-        assertEquals(PortableEngine.name, tuned.implementationFor(EngineImplementation.Iamax, minimum - 1))
+        assertEquals(ScalarEngine.name, tuned.implementationFor(EngineImplementation.Iamax, minimum - 1))
         assertEquals(simdContributions.first().name, tuned.implementationFor(EngineImplementation.Iamax, minimum))
     }
 
@@ -80,7 +77,7 @@ class SimdVectorKernelsTest {
 
         for (operation in EngineImplementation.entries.takeWhile { it != EngineImplementation.IndexedDot }) {
             assertEquals(
-                PortableEngine.name,
+                ScalarEngine.name,
                 kernels.implementationFor(operation, WIDE, contiguous = false),
                 "$operation named a vector kernel for a strided run",
             )

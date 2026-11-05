@@ -3,7 +3,7 @@
 
 package com.eignex.koblas
 
-import com.eignex.koblas.internal.operands.PooledBuffers
+import com.eignex.koblas.internal.storage.PooledBuffers
 
 /**
  * Reusable temporary arrays a Level 2 or 3 routine borrows for alias snapshots, packed panels and sparse scratch.

@@ -1,15 +1,14 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
-import com.eignex.koblas.assertClose
-import com.eignex.koblas.dense.*
-import com.eignex.koblas.engine.*
-import com.eignex.koblas.engineWithKernels
-import com.eignex.koblas.internal.engine.*
-import com.eignex.koblas.internal.operands.*
-import com.eignex.koblas.internal.portable.sparse.AdjacentPreferringPanels
-import com.eignex.koblas.randomMatrix
-import com.eignex.koblas.randomVector
+import com.eignex.koblas.dense.ReferenceBlas
+import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.engine.EngineImplementation
+import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.internal.operations.absoluteSumVector
+import com.eignex.koblas.internal.operations.normVector
+import com.eignex.koblas.internal.operations.triangle
+import com.eignex.koblas.internal.scheduling.sparse.AdjacentPreferringPanels
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test

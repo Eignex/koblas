@@ -1,14 +1,13 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.engine.*
 import com.eignex.koblas.engine.EngineRuntime
+import java.io.File
+import java.util.concurrent.TimeUnit
 import org.openjdk.jmh.results.RunResult
 import org.openjdk.jmh.runner.Runner
 import org.openjdk.jmh.runner.options.OptionsBuilder
 import org.openjdk.jmh.runner.options.TimeValue
 import org.openjdk.jmh.util.Version
-import java.io.File
-import java.util.concurrent.TimeUnit
 
 public class JvmCaseWork internal constructor(private val delegate: CaseWork) {
     public fun run(): Double = delegate.run()

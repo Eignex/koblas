@@ -2,15 +2,15 @@ package com.eignex.koblas
 
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.engine.EngineImplementation.*
-import com.eignex.koblas.internal.engine.*
-import com.eignex.koblas.internal.portable.PortableEngine
+import com.eignex.koblas.internal.engine.combine
+import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 
 internal fun engineWithKernels(
-    vectors: KoblasEngine = PortableEngine,
-    panels: KoblasEngine = PortableEngine,
-    products: KoblasEngine = PortableEngine,
-    triangles: KoblasEngine = PortableEngine,
-    indexed: KoblasEngine = PortableEngine,
+    vectors: KoblasEngine = ScalarEngine,
+    panels: KoblasEngine = ScalarEngine,
+    products: KoblasEngine = ScalarEngine,
+    triangles: KoblasEngine = ScalarEngine,
+    indexed: KoblasEngine = ScalarEngine,
 ): KoblasEngine = combine(
     EngineProfile(
         "test",

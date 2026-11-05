@@ -4,11 +4,13 @@ package com.eignex.koblas.internal.engine
 
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.*
-import com.eignex.koblas.internal.portable.PortableEngine
+import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.internal.kernels.PanelWork
+import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 
 /** Backends are bound once; arithmetic never resolves identifiers or capabilities. */
 internal class CompiledRouting(profile: EngineProfile, engines: List<EngineKernels>) {
-    private val portable = PortableEngine
+    private val portable = ScalarEngine
     val backends: List<EngineKernels> = engines.flatMap { (it as? CombinedEngine)?.routing?.backends ?: listOf(it) }
         .filterNot { it === portable }.distinct() + portable
     init {
@@ -61,7 +63,7 @@ internal class CompiledRouting(profile: EngineProfile, engines: List<EngineKerne
 /** Primitive length and layout bounds, in profile order, beside their bound providers. */
 internal class LengthDispatch(val backends: Array<EngineKernels>, val windows: IntArray) {
     // A final receiver lets Native inline the fallback without a per-call singleton lookup.
-    val portable = PortableEngine
+    val portable = ScalarEngine
     val minimum = windows.indices.step(3).minOfOrNull { windows[it] } ?: Int.MAX_VALUE
 }
 
@@ -85,7 +87,7 @@ private inline fun <R> LengthDispatch.withBackend(
 
 /** One primitive-window interface serves leaves and the immutable routed composition. */
 internal class CombinedEngine(val routing: CompiledRouting, override val name: String) : EngineKernels {
-    override val implementations = PortableEngine.implementations.filterTo(mutableSetOf()) { it.vector }
+    override val implementations = ScalarEngine.implementations.filterTo(mutableSetOf()) { it.vector }
 
     override val providers: List<KoblasEngine> get() = routing.backends.toList()
 

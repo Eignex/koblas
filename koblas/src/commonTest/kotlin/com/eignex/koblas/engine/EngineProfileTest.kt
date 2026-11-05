@@ -1,8 +1,10 @@
 package com.eignex.koblas.engine
 
-import com.eignex.koblas.*
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.engine.EngineImplementation.*
 import com.eignex.koblas.internal.engine.*
+import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.koblas
 import kotlin.test.*
 
 class EngineProfileTest {

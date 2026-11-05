@@ -4,10 +4,8 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.*
-import com.eignex.koblas.engine.ThreadEvidence
-import com.eignex.koblas.engine.Vendor
 import com.eignex.koblas.internal.host.HostBlas
-import com.eignex.koblas.internal.operands.MatrixStructure
+import com.eignex.koblas.internal.operations.MatrixStructure
 
 /** The routine that reached the host and the matrices it was handed, so tests can tell caller storage from copies. */
 internal class BlasCall(val operation: EngineImplementation, val matrices: List<DenseMatrixRegion> = emptyList()) {

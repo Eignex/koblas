@@ -160,6 +160,7 @@ public abstract interface class com/eignex/koblas/KoblasEngine {
 	public fun dot ([II[DII[D)D
 	public fun dot ([II[DII[II[DII)D
 	public static synthetic fun dot$default (Lcom/eignex/koblas/KoblasEngine;[DI[DIIIIILjava/lang/Object;)D
+	public fun dotColumn (Lcom/eignex/koblas/SparseMatrix;I[D)D
 	public fun gather ([II[DII[D)V
 	public fun gatherZero ([II[DII[D)V
 	public fun gemm (DLcom/eignex/koblas/DenseMatrixRegion;ZLcom/eignex/koblas/DenseMatrixRegion;ZDLcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/Scratch;)V
@@ -173,7 +174,9 @@ public abstract interface class com/eignex/koblas/KoblasEngine {
 	public static synthetic fun gemv$default (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseMatrixRegion;[DIID[DIIZLcom/eignex/koblas/Scratch;ILjava/lang/Object;)V
 	public static synthetic fun gemv$default (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/SparseMatrix;[DD[DZLcom/eignex/koblas/Scratch;ILjava/lang/Object;)V
 	public fun ger (D[DII[DIILcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/Scratch;)V
+	public fun ger (D[D[DLcom/eignex/koblas/DenseMatrixRegion;IIIIIILcom/eignex/koblas/Scratch;)V
 	public static synthetic fun ger$default (Lcom/eignex/koblas/KoblasEngine;D[DII[DIILcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/Scratch;ILjava/lang/Object;)V
+	public static synthetic fun ger$default (Lcom/eignex/koblas/KoblasEngine;D[D[DLcom/eignex/koblas/DenseMatrixRegion;IIIIIILcom/eignex/koblas/Scratch;ILjava/lang/Object;)V
 	public fun getId ()Ljava/lang/String;
 	public fun getImplementations ()Ljava/util/Set;
 	public fun getLibraryPath ()Ljava/lang/String;
@@ -243,6 +246,7 @@ public final class com/eignex/koblas/KoblasEngine$DefaultImpls {
 	public static fun dot (Lcom/eignex/koblas/KoblasEngine;[II[DII[D)D
 	public static fun dot (Lcom/eignex/koblas/KoblasEngine;[II[DII[II[DII)D
 	public static synthetic fun dot$default (Lcom/eignex/koblas/KoblasEngine;[DI[DIIIIILjava/lang/Object;)D
+	public static fun dotColumn (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/SparseMatrix;I[D)D
 	public static fun gather (Lcom/eignex/koblas/KoblasEngine;[II[DII[D)V
 	public static fun gatherZero (Lcom/eignex/koblas/KoblasEngine;[II[DII[D)V
 	public static fun gemm (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseMatrixRegion;ZLcom/eignex/koblas/DenseMatrixRegion;ZDLcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/Scratch;)V
@@ -256,7 +260,9 @@ public final class com/eignex/koblas/KoblasEngine$DefaultImpls {
 	public static synthetic fun gemv$default (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseMatrixRegion;[DIID[DIIZLcom/eignex/koblas/Scratch;ILjava/lang/Object;)V
 	public static synthetic fun gemv$default (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/SparseMatrix;[DD[DZLcom/eignex/koblas/Scratch;ILjava/lang/Object;)V
 	public static fun ger (Lcom/eignex/koblas/KoblasEngine;D[DII[DIILcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/Scratch;)V
+	public static fun ger (Lcom/eignex/koblas/KoblasEngine;D[D[DLcom/eignex/koblas/DenseMatrixRegion;IIIIIILcom/eignex/koblas/Scratch;)V
 	public static synthetic fun ger$default (Lcom/eignex/koblas/KoblasEngine;D[DII[DIILcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/Scratch;ILjava/lang/Object;)V
+	public static synthetic fun ger$default (Lcom/eignex/koblas/KoblasEngine;D[D[DLcom/eignex/koblas/DenseMatrixRegion;IIIIIILcom/eignex/koblas/Scratch;ILjava/lang/Object;)V
 	public static fun getId (Lcom/eignex/koblas/KoblasEngine;)Ljava/lang/String;
 	public static fun getImplementations (Lcom/eignex/koblas/KoblasEngine;)Ljava/util/Set;
 	public static fun getLibraryPath (Lcom/eignex/koblas/KoblasEngine;)Ljava/lang/String;
@@ -437,14 +443,6 @@ public final class com/eignex/koblas/VectorStorage$Companion {
 	public final fun serializer ()Lkotlinx/serialization/KSerializer;
 }
 
-public final class com/eignex/koblas/dense/DenseBlas {
-	public static final fun ger (Lcom/eignex/koblas/KoblasEngine;D[D[DLcom/eignex/koblas/DenseMatrixRegion;IIII)V
-	public static final fun ger (Lcom/eignex/koblas/KoblasEngine;D[D[DLcom/eignex/koblas/DenseMatrixRegion;IIIII)V
-	public static final fun ger (Lcom/eignex/koblas/KoblasEngine;D[D[DLcom/eignex/koblas/DenseMatrixRegion;IIIIII)V
-	public static final fun ger (Lcom/eignex/koblas/KoblasEngine;D[D[DLcom/eignex/koblas/DenseMatrixRegion;IIIIIILcom/eignex/koblas/Scratch;)V
-	public static synthetic fun ger$default (Lcom/eignex/koblas/KoblasEngine;D[D[DLcom/eignex/koblas/DenseMatrixRegion;IIIIIILcom/eignex/koblas/Scratch;ILjava/lang/Object;)V
-}
-
 public final class com/eignex/koblas/engine/Architecture : java/lang/Enum {
 	public static final field Arm64 Lcom/eignex/koblas/engine/Architecture;
 	public static final field Other Lcom/eignex/koblas/engine/Architecture;
@@ -610,9 +608,5 @@ public final class com/eignex/koblas/engine/Vendor : java/lang/Enum {
 	public final fun getVendorName ()Ljava/lang/String;
 	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/engine/Vendor;
 	public static fun values ()[Lcom/eignex/koblas/engine/Vendor;
-}
-
-public final class com/eignex/koblas/sparse/SparseBlas {
-	public static final fun dotColumn (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/SparseMatrix;I[D)D
 }
 

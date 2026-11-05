@@ -1,10 +1,8 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.*
-import com.eignex.koblas.engine.*
-import com.eignex.koblas.internal.engine.*
-import com.eignex.koblas.internal.portable.PortableEngine
-import com.eignex.koblas.sparse.*
+import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
+import com.eignex.koblas.internal.operations.dotVector
 import kotlin.test.*
 
 class VectorOpsTest {
@@ -403,7 +401,7 @@ class VectorOpsTest {
     fun `the norm accepts a foreign vector`() {
         val source = foreignRamp(9)
         val values = source.toDoubleArray()
-        val expected = PortableEngine.nrm2(values, 0, values.size)
+        val expected = ScalarEngine.nrm2(values, 0, values.size)
 
         val actual = source.norm2()
 
@@ -414,7 +412,7 @@ class VectorOpsTest {
     fun `the absolute sum accepts a foreign vector`() {
         val source = foreignRamp(9)
         val values = source.toDoubleArray()
-        val expected = PortableEngine.asum(values, 0, values.size)
+        val expected = ScalarEngine.asum(values, 0, values.size)
 
         val actual = source.asum()
 
@@ -426,7 +424,7 @@ class VectorOpsTest {
         val source = foreignRamp(9)
         val values = source.toDoubleArray()
         val dense = DenseVector.of(values)
-        val expected = PortableEngine.dot(values, 0, values, 0, values.size)
+        val expected = ScalarEngine.dot(values, 0, values, 0, values.size)
 
         for ((left, right) in listOf(source to source, dense to source, source to dense)) {
             val actual = left dot right
@@ -461,7 +459,7 @@ class VectorOpsTest {
         val backing = DoubleArray(8) { it + 1.0 }
         val even = StridedVector(backing, 0, 4, 2)
         val odd = StridedVector(backing, 1, 4, 2)
-        val expected = PortableEngine.dot(backing, 0, backing, 1, 4, 2, 2)
+        val expected = ScalarEngine.dot(backing, 0, backing, 1, 4, 2, 2)
 
         val actual = even dot odd
 
@@ -473,7 +471,7 @@ class VectorOpsTest {
         val backing = DoubleArray(8) { it + 1.0 }
         val even = StridedVector(backing, 0, 4, 2)
         val expected = backing.copyOf()
-        PortableEngine.scale(expected, 0, 2.0, 4, 2)
+        ScalarEngine.scale(expected, 0, 2.0, 4, 2)
 
         even.scale(2.0)
 

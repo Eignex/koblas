@@ -3,10 +3,11 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.assertClose
-import com.eignex.koblas.engine.*
-import com.eignex.koblas.internal.engine.*
-import com.eignex.koblas.internal.portable.PortableEngine
+import com.eignex.koblas.engine.EngineImplementation
+import com.eignex.koblas.internal.engine.implementationFor
+import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.internal.kernels.PanelWork
+import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -633,7 +634,7 @@ private fun assertExcludedPositionIsNotReduced(kernels: EngineKernels) {
 private fun assertIndexedPanelsEvaluateZeroCoefficients(kernels: EngineKernels) {
     val full = vectorWidth(kernels)
     if (kernels.providers.any { it.id == "jvm-simd" && EngineImplementation.Panels in it.implementations }) {
-        assertTrue(kernels.implementationFor(PanelWork.SparseRightHandSides, full, 2) != PortableEngine.name)
+        assertTrue(kernels.implementationFor(PanelWork.SparseRightHandSides, full, 2) != ScalarEngine.name)
     }
     for (width in intArrayOf(2, full, full + 1)) {
         val positions = 2
@@ -680,7 +681,7 @@ private fun vectorWidth(kernels: EngineKernels): Int {
                 PanelWork.SparseRightHandSides,
                 width,
                 2,
-            ) != PortableEngine.name
+            ) != ScalarEngine.name
         ) {
             return width
         }

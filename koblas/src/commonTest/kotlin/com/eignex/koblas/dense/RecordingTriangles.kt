@@ -2,10 +2,9 @@
 
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.*
-import com.eignex.koblas.engine.*
-import com.eignex.koblas.internal.engine.*
-import com.eignex.koblas.internal.operands.*
+import com.eignex.koblas.engine.EngineImplementation
+import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.koblas
 
 // Recording diagonal substitutions checks routes against executed blocks while retaining their arithmetic.
 

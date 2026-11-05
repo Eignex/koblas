@@ -2,7 +2,7 @@ package com.eignex.koblas.engine
 
 import com.eignex.koblas.*
 import com.eignex.koblas.internal.engine.*
-import com.eignex.koblas.internal.portable.PortableEngine
+import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 
 /**
  * Exact portable and JVM SIMD engines for tests and benchmarks, without changing the default [koblas].
@@ -26,7 +26,7 @@ public object BuiltinEngines {
 
     /** Portable Kotlin across all three levels. */
     @get:kotlin.jvm.JvmStatic
-    public val scalar: KoblasEngine get() = PortableEngine
+    public val scalar: KoblasEngine get() = ScalarEngine
 
     /**
      * Every JVM Vector API kernel this library owns, or null when the module is unavailable.

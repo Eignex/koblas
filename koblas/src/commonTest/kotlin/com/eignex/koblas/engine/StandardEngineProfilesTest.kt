@@ -1,11 +1,10 @@
 package com.eignex.koblas.engine
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.*
 import com.eignex.koblas.engine.EngineImplementation.*
 import com.eignex.koblas.internal.engine.*
-import com.eignex.koblas.internal.operands.*
-import com.eignex.koblas.internal.portable.PortableEngine
+import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import kotlin.test.*
 
 class StandardEngineProfilesTest {
@@ -145,11 +144,11 @@ class StandardEngineProfilesTest {
             if (case.os == OperatingSystem.MacOs) assertTrue("mac-jvm" in profile.name && "mac-jvm" in profile.evidence)
             assertEquals(case.source, engine.implementationFor(Dot, case.boundary))
             assertEquals(
-                if (case.runtime == EngineRuntime.Jvm) "jvm-simd" else PortableEngine.name,
+                if (case.runtime == EngineRuntime.Jvm) "jvm-simd" else ScalarEngine.name,
                 engine.implementationFor(Dot, case.boundary - 1),
             )
             assertEquals(
-                PortableEngine.name,
+                ScalarEngine.name,
                 engine.implementationFor(Dot, if (case.runtime == EngineRuntime.Jvm) 7 else 3),
             )
         }

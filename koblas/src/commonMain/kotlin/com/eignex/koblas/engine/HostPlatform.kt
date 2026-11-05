@@ -1,6 +1,6 @@
 package com.eignex.koblas.engine
 
-import com.eignex.koblas.internal.engine.*
+import com.eignex.koblas.internal.engine.cpuClass
 
 /** Operating systems the binding layer distinguishes. */
 public enum class OperatingSystem {

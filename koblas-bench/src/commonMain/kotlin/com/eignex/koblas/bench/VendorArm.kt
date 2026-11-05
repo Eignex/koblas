@@ -1,9 +1,8 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.*
-import com.eignex.koblas.dense.*
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.engine.*
-import com.eignex.koblas.engine.Vendor
+import com.eignex.koblas.koblas
 
 /**
  * The work for one benchmark case on one arm, or the reason there is none to time.

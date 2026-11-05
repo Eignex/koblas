@@ -49,6 +49,7 @@ GEMV computes `y = alpha * a * x + beta * y` into the supplied destination.
 ## Guides
 
 - [Engines and native libraries](BACKENDS.md): automatic selection, enabling acceleration and explicit engines.
+- [Architecture](ARCHITECTURE.md): storage, operation preparation, shared scheduling, and arithmetic kernels.
 - [Usage](USAGE.md): vector and matrix operations, reusable arrays, views, and Java and mobile setup.
 - [API overview](koblas/module.md): dense, sparse and raw array operations.
 - [Benchmarks](koblas-bench/README.md): reproducible comparisons and measurement reports.

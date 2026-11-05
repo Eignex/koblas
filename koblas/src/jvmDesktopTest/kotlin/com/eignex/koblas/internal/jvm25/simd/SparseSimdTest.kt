@@ -1,14 +1,10 @@
 package com.eignex.koblas.internal.jvm25.simd
 
 import com.eignex.koblas.*
-import com.eignex.koblas.assertClose
-import com.eignex.koblas.dense.*
-import com.eignex.koblas.engine.*
-import com.eignex.koblas.internal.engine.*
-import com.eignex.koblas.internal.jvm25.simd.SparseSimd
-import com.eignex.koblas.internal.jvm25.simd.simdAvailable
-import com.eignex.koblas.internal.portable.PortableEngine
-import com.eignex.koblas.sparse.*
+import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.engine.EngineImplementation
+import com.eignex.koblas.internal.engine.implementationFor
+import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import org.junit.Assume
 import kotlin.random.Random
 import kotlin.test.Test
@@ -43,7 +39,7 @@ class SparseSimdTest {
     }
 
     private fun assertDotDenseAgreesWithReference(x: Pattern) {
-        val expected = PortableEngine.dot(
+        val expected = ScalarEngine.dot(
             x.indices,
             x.indexOffset,
             x.values,

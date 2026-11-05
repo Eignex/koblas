@@ -3,9 +3,9 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.*
-import com.eignex.koblas.internal.engine.axpyVector
-import com.eignex.koblas.internal.engine.copyVector
+import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.internal.operations.axpyVector
+import com.eignex.koblas.internal.operations.copyVector
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals

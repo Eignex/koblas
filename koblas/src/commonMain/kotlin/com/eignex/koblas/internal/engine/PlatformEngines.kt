@@ -1,7 +1,9 @@
 package com.eignex.koblas.internal.engine
 
-import com.eignex.koblas.*
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.koblas
 
 /** Platform kernels with eligible whole-call host composition and portable fallbacks. */
 internal expect fun platformEngine(): KoblasEngine

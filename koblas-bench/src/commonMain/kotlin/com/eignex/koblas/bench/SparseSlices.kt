@@ -1,9 +1,7 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.*
-import com.eignex.koblas.engine.*
-import com.eignex.koblas.sparse.*
+import com.eignex.koblas.engine.BuiltinEngines
 
 /** Raw CSC windows through the selected engine, including validation and any indexed fallback. */
 internal fun sparseSlicesArm(case: BenchCase, engine: KoblasEngine): ArmChoice {

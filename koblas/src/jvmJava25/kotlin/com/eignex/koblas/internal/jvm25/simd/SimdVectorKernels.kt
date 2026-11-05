@@ -1,13 +1,11 @@
 package com.eignex.koblas.internal.jvm25.simd
 
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.*
-import com.eignex.koblas.engine.*
+import com.eignex.koblas.engine.EngineImplementation
 import com.eignex.koblas.engine.EngineImplementation.*
-import com.eignex.koblas.internal.engine.*
-import com.eignex.koblas.internal.portable.dense.MIN_NORMAL
-import com.eignex.koblas.internal.portable.dense.rescaledEuclideanNorm
-import com.eignex.koblas.sparse.*
+import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.internal.kernels.scalar.dense.MIN_NORMAL
+import com.eignex.koblas.internal.kernels.scalar.dense.rescaledEuclideanNorm
 import kotlin.math.sqrt
 
 /** Check the optional module without initializing a Vector API implementation. */

@@ -1,14 +1,14 @@
 package com.eignex.koblas.internal.engine
 
 import com.eignex.koblas.*
-import com.eignex.koblas.assertClose
-import com.eignex.koblas.dense.*
+import com.eignex.koblas.dense.RecordingBlas
+import com.eignex.koblas.dense.ReferenceBlas
+import com.eignex.koblas.dense.assertDenseProductAliasesAgreeWithReference
+import com.eignex.koblas.dense.assertRectangularProductAliasesAgreeWithReference
 import com.eignex.koblas.engine.*
-import com.eignex.koblas.engineWithHost
-import com.eignex.koblas.engineWithKernels
-import com.eignex.koblas.internal.operands.MatrixStructure
-import com.eignex.koblas.internal.portable.PortableEngine
-import com.eignex.koblas.sparse.*
+import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
+import com.eignex.koblas.internal.operations.MatrixStructure
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -51,7 +51,7 @@ class CombinedEngineTest {
 
         assertEquals("nested", nested.id)
         assertEquals(null, nested.vendor)
-        assertEquals(listOf(vendor, fallback, PortableEngine), combined.providers)
+        assertEquals(listOf(vendor, fallback, ScalarEngine), combined.providers)
         assertFalse(EngineImplementation.Gemm in combined.implementations)
         assertSame(vendor, combined.wholeCallFor(EngineImplementation.Gemm, 8, 8, 8))
         assertEquals(fallback.name, combined.implementationFor(EngineImplementation.Asum, 128))
@@ -79,7 +79,7 @@ class CombinedEngineTest {
                 bStride: Int,
             ): Double {
                 calls += len
-                return PortableEngine.dot(a, aOff, b, bOff, len, aStride, bStride)
+                return ScalarEngine.dot(a, aOff, b, bOff, len, aStride, bStride)
             }
         }
         val operation = setOf(EngineImplementation.Dot)
@@ -98,7 +98,7 @@ class CombinedEngineTest {
             val engine = combine(EngineProfile("test", listOf(rule)), backend)
             for (length in listOf(0, 1, 3, 4, 5)) {
                 for (stride in listOf(1, 2)) {
-                    val expected = PortableEngine.dot(x, 0, x, 1, length, stride, stride)
+                    val expected = ScalarEngine.dot(x, 0, x, 1, length, stride, stride)
                     val previous = calls.size
                     val reached = engine.implementationFor(EngineImplementation.Dot, length, stride == 1)
                     val actual = engine.dot(x, 0, x, 1, length, stride, stride)
@@ -132,7 +132,7 @@ class CombinedEngineTest {
         assertEquals("sum", engine.implementationFor(EngineImplementation.Sum, 8))
         assertEquals("scalar", engine.implementationFor(EngineImplementation.Dot, 8))
         assertEquals(
-            PortableEngine.nrm2(doubleArrayOf(2.0, 3.0), 0, 2),
+            ScalarEngine.nrm2(doubleArrayOf(2.0, 3.0), 0, 2),
             engine.nrm2(doubleArrayOf(2.0, 3.0), 0, 2),
         )
     }
@@ -146,7 +146,7 @@ class CombinedEngineTest {
         }
         val profile = EngineProfile("optional", listOf(EngineRule("onemkl", setOf(EngineImplementation.Dot))))
 
-        assertEquals(PortableEngine.name, combine(profile).implementationFor(EngineImplementation.Dot, 32))
+        assertEquals(ScalarEngine.name, combine(profile).implementationFor(EngineImplementation.Dot, 32))
     }
 
     @Test
@@ -169,7 +169,7 @@ class CombinedEngineTest {
                 counts += count
                 assertEquals(2, indexOffset)
                 assertEquals(1, valueOffset)
-                return PortableEngine.dot(indices, indexOffset, values, valueOffset, count, dense)
+                return ScalarEngine.dot(indices, indexOffset, values, valueOffset, count, dense)
             }
         }
         val engine = combine(
@@ -207,7 +207,7 @@ class CombinedEngineTest {
                 bStride: Int,
             ): Double {
                 calls += "dot"
-                return PortableEngine.dot(a, aOff, b, bOff, len, aStride, bStride)
+                return ScalarEngine.dot(a, aOff, b, bOff, len, aStride, bStride)
             }
         }
         val indexed = object : EngineKernels {
@@ -224,7 +224,7 @@ class CombinedEngineTest {
                 destination: DoubleArray,
             ) {
                 calls += "indexed update"
-                PortableEngine.axpy(indices, indexOffset, values, valueOffset, count, alpha, destination)
+                ScalarEngine.axpy(indices, indexOffset, values, valueOffset, count, alpha, destination)
             }
         }
         val matrices = object : EngineKernels {
@@ -263,7 +263,7 @@ class CombinedEngineTest {
         ReferenceBlas.gemm(1.0, matrix, false, matrix, false, 0.0, expectedProduct)
         val actualProduct = DenseMatrix.zero(2, 2)
 
-        assertEquals(PortableEngine.dot(values, 0, values, 0, 2), nested.dot(values, 0, values, 0, 2))
+        assertEquals(ScalarEngine.dot(values, 0, values, 0, 2), nested.dot(values, 0, values, 0, 2))
         engine.axpy(intArrayOf(0, 1), 0, values, 0, 2, 1.0, destination)
         engine.gemm(1.0, matrix, false, matrix, false, 0.0, actualProduct)
 

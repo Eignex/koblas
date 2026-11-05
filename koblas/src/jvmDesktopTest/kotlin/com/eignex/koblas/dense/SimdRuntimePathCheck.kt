@@ -1,17 +1,16 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.assertClose
-import com.eignex.koblas.engine.*
+import com.eignex.koblas.engine.BuiltinEngines
 import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.jvm25.simd.SIMD_SPECIES
 import com.eignex.koblas.internal.jvm25.simd.SimdOpsTest
 import com.eignex.koblas.internal.jvm25.simd.assertHardwareFmaAgreesWithVm
 import com.eignex.koblas.internal.jvm25.simd.hardwareFusedMultiplyAdd
-import com.eignex.koblas.internal.operands.*
-import com.eignex.koblas.internal.portable.PortableEngine
-import com.eignex.koblas.poisonedTriangle
-import com.eignex.koblas.sparse.*
+import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.internal.kernels.PanelWork
+import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
+import com.eignex.koblas.internal.operations.triangle
 import kotlin.random.Random
 import kotlin.test.assertEquals
 
@@ -59,7 +58,7 @@ internal object SimdRuntimePathCheck {
         check(panels.implementationFor(PanelWork.MultiDot, lanes, 4) == panels.name) {
             "a panel of one whole lane block did not reach the vector body at $lanes lanes"
         }
-        check(panels.implementationFor(PanelWork.RankUpdate, lanes - 1, 4) == PortableEngine.name) {
+        check(panels.implementationFor(PanelWork.RankUpdate, lanes - 1, 4) == ScalarEngine.name) {
             "a rank update shorter than a lane block reached the vector body at $lanes lanes"
         }
         check(panels.implementationFor(PanelWork.MultiDot, lanes - 1, 4) == panels.name) {
@@ -114,9 +113,9 @@ internal object SimdRuntimePathCheck {
             for (rhsStride in intArrayOf(1, 2)) {
                 val orderStride = sides * rhsStride + 2
                 val bodies = when {
-                    rhsStride != 1 || sides < lanes -> listOf(PortableEngine.name)
+                    rhsStride != 1 || sides < lanes -> listOf(ScalarEngine.name)
                     sides % lanes == 0 -> listOf(kernels.name)
-                    else -> listOf(kernels.name, PortableEngine.name)
+                    else -> listOf(kernels.name, ScalarEngine.name)
                 }
                 assertEquals(
                     bodies,
@@ -136,7 +135,7 @@ internal object SimdRuntimePathCheck {
                             for (solve in booleanArrayOf(false, true)) {
                                 val expected = initial.copyOf()
                                 val actual = initial.copyOf()
-                                for ((backend, x) in listOf(PortableEngine to expected, kernels to actual)) {
+                                for ((backend, x) in listOf(ScalarEngine to expected, kernels to actual)) {
                                     if (solve) {
                                         backend.diagonalSolve(
                                             triangle.values, n, start, order, transposed, lower, unitDiag,
@@ -188,14 +187,14 @@ internal object SimdRuntimePathCheck {
                             val paired = DoubleArray(2 * order) { if (it % 2 == 0) values[it / 2] else 0.0 }
                             val actual = values.copyOf()
                             if (solve) {
-                                PortableEngine.diagonalSolve(
+                                ScalarEngine.diagonalSolve(
                                     triangle.values, n, start, order, transposed, lower, unitDiag, paired, 0, 2, 1, 2,
                                 )
                                 kernels.diagonalSolve(
                                     triangle.values, n, start, order, transposed, lower, unitDiag, actual, 0, 1, 1, 1,
                                 )
                             } else {
-                                PortableEngine.diagonalMultiply(
+                                ScalarEngine.diagonalMultiply(
                                     triangle.values, n, start, order, transposed, lower, unitDiag, paired, 0, 2, 1, 2,
                                 )
                                 kernels.diagonalMultiply(
@@ -224,7 +223,7 @@ internal object SimdRuntimePathCheck {
             val values = DoubleArray(count + 3) { rng.nextDouble(-1.0, 1.0) }
             val dense = DoubleArray(3 * count + 8) { rng.nextDouble(-1.0, 1.0) }
 
-            val expected = PortableEngine.dot(indices, 1, values, 2, count, dense)
+            val expected = ScalarEngine.dot(indices, 1, values, 2, count, dense)
             val actual = engine.dot(indices, 1, values, 2, count, dense)
 
             assertClose(expected, actual, "sparse dot count=$count engine=${engine.name}")

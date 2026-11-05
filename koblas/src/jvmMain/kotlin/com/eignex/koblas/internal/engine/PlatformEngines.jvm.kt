@@ -1,8 +1,10 @@
 package com.eignex.koblas.internal.engine
 
-import com.eignex.koblas.*
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.engine.Vendor
 import com.eignex.koblas.internal.jvm.JvmBackend
+import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.koblas
 
 /** Owned JVM kernels, with eligible host calls when native access and a vendor are available. */
 internal actual fun platformEngine(): KoblasEngine = JvmBackend.default
