@@ -3,8 +3,8 @@ package com.eignex.koblas.internal.host
 import com.eignex.koblas.*
 import com.eignex.koblas.copyOf
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.engine.dotVector
 import com.eignex.koblas.internal.jvm25.host.JvmVendorBlas
 import com.eignex.koblas.internal.jvm25.host.JvmVendorLibrary
 import com.eignex.koblas.internal.jvm25.host.assertAgreesWithReference
@@ -68,7 +68,7 @@ internal object OneMklInterfaceCheck {
         val expected = c.copyOf()
         ReferenceBlas.gemm(0.5, a, false, b, false, 0.25, expected)
 
-        val dot = blas.dot(x, y)
+        val dot = blas.dotVector(x, y)
         blas.gemm(0.5, a, false, b, false, 0.25, c)
 
         assertAgreesWithReference(expectedDot, dot, "oneMKL LP64 dot")

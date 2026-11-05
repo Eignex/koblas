@@ -3,8 +3,11 @@ package com.eignex.koblas.internal.jvm25.host
 import com.eignex.koblas.*
 import com.eignex.koblas.copyOf
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.engine.absoluteSumVector
+import com.eignex.koblas.internal.engine.axpyVector
+import com.eignex.koblas.internal.engine.dotVector
+import com.eignex.koblas.internal.engine.normVector
 import com.eignex.koblas.internal.host.*
 import com.eignex.koblas.internal.portable.PortableEngine
 import com.eignex.koblas.sparse.*
@@ -52,7 +55,7 @@ class JvmVendorBlasTest {
             val expected = y.values.copyOf()
             ReferenceBlas.gemv(0.5, a, x.values, 2.0, expected, transpose)
 
-            blas.gemv(0.5, a, x, 2.0, y, transpose)
+            blas.gemv(0.5, a, x.values, x.offset, x.stride, 2.0, y.values, y.offset, y.stride, transpose)
 
             assertAgreesWithReference(expected, y.values, "gemv transA=$transpose")
         }
@@ -71,7 +74,7 @@ class JvmVendorBlasTest {
         val expected = DoubleArray(order)
         ReferenceBlas.symv(1.0, a, x.values, 0.0, expected)
 
-        blas.symv(1.0, a, x, 0.0, y, true)
+        blas.symv(1.0, a, x.values, x.offset, x.stride, 0.0, y.values, y.offset, y.stride, true)
 
         assertAgreesWithReference(expected, y.values, "symv")
     }
@@ -89,7 +92,7 @@ class JvmVendorBlasTest {
                 val y = StridedVector(yStorage, yOffset, size, yStride)
                 val expected = PortableEngine.dot(xStorage, xOffset, yStorage, yOffset, size, xStride, yStride)
 
-                val actual = blas.dot(x, y)
+                val actual = blas.dotVector(x, y)
 
                 assertAgreesWithReference(expected, actual, "dot strides $xStride and $yStride")
             }
@@ -119,7 +122,7 @@ class JvmVendorBlasTest {
                     xStride = xStride,
                 )
 
-                blas.axpy(0.5, x, y)
+                blas.axpyVector(0.5, x, y)
 
                 assertAgreesWithReference(expected, yStorage, "axpy backing buffer at strides $xStride and $yStride")
             }
@@ -130,10 +133,10 @@ class JvmVendorBlasTest {
     fun `an empty vector call returns the identity without touching storage`() = withVendor { blas ->
         val empty = DenseVector.wrap(DoubleArray(0))
 
-        assertEquals(0.0, blas.dot(empty, empty))
-        assertEquals(0.0, blas.nrm2(empty))
-        assertEquals(0.0, blas.asum(empty))
-        assertEquals(-1, blas.iamax(empty))
+        assertEquals(0.0, blas.dotVector(empty, empty))
+        assertEquals(0.0, blas.normVector(empty))
+        assertEquals(0.0, blas.absoluteSumVector(empty))
+        assertEquals(-1, blas.iamax(empty.values, empty.offset, empty.size, empty.stride))
     }
 
     @Test
@@ -162,7 +165,7 @@ class JvmVendorBlasTest {
         val second = StridedVector(storage, 1, size, lda)
         PortableEngine.swap(expected, 0, expected, 1, size, lda, lda)
 
-        blas.swap(first, second)
+        blas.swap(first.values, first.offset, second.values, second.offset, first.size, first.stride, second.stride)
 
         assertContentEquals(expected, storage, "swap backing buffer")
     }
@@ -253,7 +256,7 @@ class JvmVendorBlasTest {
                     barrier.await(TIMEOUT_SECONDS, TimeUnit.SECONDS)
                     repeat(REPEATS) {
                         destination.fill(0.0)
-                        blas.axpy(alpha, x, y)
+                        blas.axpyVector(alpha, x, y)
                     }
                     alpha to destination
                 }
@@ -284,7 +287,7 @@ class JvmVendorBlasTest {
                 Callable {
                     barrier.await(TIMEOUT_SECONDS, TimeUnit.SECONDS)
                     var total = 0.0
-                    repeat(REPEATS) { total += blas.dot(x, x) }
+                    repeat(REPEATS) { total += blas.dotVector(x, x) }
                     total / REPEATS
                 }
             }

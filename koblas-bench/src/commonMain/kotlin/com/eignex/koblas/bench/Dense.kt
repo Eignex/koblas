@@ -85,10 +85,10 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
                 engine, case, timing(case),
                 verify = {
                     val expected = DenseReference.gemv(alpha, a, trans, x, beta, y0)
-                    y0.copyInto(y); engine.gemv(alpha, a, x, beta, y, trans)
+                    y0.copyInto(y); engine.gemv(alpha, a, x, 0, 1, beta, y, 0, 1, trans)
                     DenseReference.check(expected, y, "${case.id} gemv")
                 },
-            ) { if (resets) y0.copyInto(y); engine.gemv(alpha, a, x, beta, y, trans); y[0] }
+            ) { if (resets) y0.copyInto(y); engine.gemv(alpha, a, x, 0, 1, beta, y, 0, 1, trans); y[0] }
         }
         "symv" -> {
             val n = d[0]; val lower = case.option("uplo", "L") == "L"; val a = Fixtures.matrix(n, n, 1)
@@ -98,10 +98,10 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
                 engine, case, timing(case),
                 verify = {
                     val expected = DenseReference.symv(alpha, a, lower, x, beta, y0)
-                    y0.copyInto(y); engine.symv(alpha, a, x, beta, y, lower)
+                    y0.copyInto(y); engine.symv(alpha, a, x, 0, 1, beta, y, 0, 1, lower)
                     DenseReference.check(expected, y, "${case.id} symv")
                 },
-            ) { if (resets) y0.copyInto(y); engine.symv(alpha, a, x, beta, y, lower); y[0] }
+            ) { if (resets) y0.copyInto(y); engine.symv(alpha, a, x, 0, 1, beta, y, 0, 1, lower); y[0] }
         }
         "ger", "syr", "syr2" -> rankUpdateWork(case, engine)
         "ger-shrinking", "ger-window-shrinking" -> shrinkingRankUpdateWork(case, engine)
@@ -195,16 +195,16 @@ private fun vectorWork(case: BenchCase, engine: KoblasEngine): CaseWork {
     fun arithmetic(provider: KoblasEngine, a: DenseVector, b: DenseVector): () -> Double {
         var alpha = 0.875
         val apply: () -> Double = when (case.operation) {
-            "dot" -> { { provider.dot(a, b) } }
-            "nrm2" -> { { provider.nrm2(a) } }
-            "asum" -> { { provider.asum(a) } }
+            "dot" -> { { provider.dot(a.values, a.offset, b.values, b.offset, size, a.stride, b.stride) } }
+            "nrm2" -> { { provider.nrm2(a.values, a.offset, size, a.stride) } }
+            "asum" -> { { provider.asum(a.values, a.offset, size, a.stride) } }
             "sum" -> { { provider.sum(a.values, a.offset, size, stride) } }
-            "iamax" -> { { provider.iamax(a).toDouble() } }
-            "copy" -> { { provider.copy(a, b); b[0] } }
-            "axpy" -> { { if (!reset) alpha = -alpha; provider.axpy(alpha, a, b); b[0] } }
-            "scal" -> { { provider.scale(if (reset) 0.875 else -1.0, a); a[0] + a[size - 1] } }
-            "swap" -> { { provider.swap(a, b); a[0] + b[0] } }
-            else -> { { provider.rot(a, b, 0.8, 0.6); a[0] + b[0] } }
+            "iamax" -> { { provider.iamax(a.values, a.offset, a.size, a.stride).toDouble() } }
+            "copy" -> { { provider.copy(a.values, a.offset, b.values, b.offset, size, a.stride, b.stride); b[0] } }
+            "axpy" -> { { if (!reset) alpha = -alpha; provider.axpy(b.values, b.offset, alpha, a.values, a.offset, size, b.stride, a.stride); b[0] } }
+            "scal" -> { { provider.scale(a.values, a.offset, if (reset) 0.875 else -1.0, a.size, a.stride); a[0] + a[size - 1] } }
+            "swap" -> { { provider.swap(a.values, a.offset, b.values, b.offset, a.size, a.stride, b.stride); a[0] + b[0] } }
+            else -> { { provider.rot(a.values, a.offset, b.values, b.offset, a.size, 0.8, 0.6, a.stride, b.stride); a[0] + b[0] } }
         }
         return { if (reset) { initialX.copyInto(a.values); initialY.copyInto(b.values) }; apply() }
     }
@@ -224,8 +224,8 @@ private fun vectorWork(case: BenchCase, engine: KoblasEngine): CaseWork {
 /**
  * The dense work for [case], or a reason this arm may not measure it.
  *
- * Raw cases run on the engine the arm pinned. Generic matrix and vector entry
- * points select their engine themselves, so those cases are published as default-policy rows.
+ * Raw cases run on the engine the arm pinned. Vector convenience entry points select their
+ * engine themselves, so those cases are published as default-policy rows.
  */
 internal fun engineArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
     val arm = sparseArm(case, engine) ?: denseArm(case, engine)
@@ -235,32 +235,8 @@ internal fun engineArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
 }
 
 internal fun denseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? = when (case.operation) {
-    "gemm-generic" -> genericProductArm(case, engine)
-    "copy-overlap", "axpy-views", "swap-views" -> vectorViewsArm(case, engine)
+    "copy-overlap", "axpy-views" -> vectorViewsArm(case, engine)
     else -> denseWork(case, engine)?.let { ArmChoice(it, null) }
-}
-
-private fun genericProductArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
-    val (m, n, k) = case.dimensions
-    val alpha = 0.875
-    val beta = -0.25
-    val a = Fixtures.matrix(m, k, 1)
-    val b = Fixtures.matrix(k, n, 2)
-    val c0 = Fixtures.matrix(m, n, 3)
-    val c = Fixtures.matrix(m, n, 3)
-    if (case.dimensions.any { it == 0 }) return declined()
-    val expected = DenseReference.gemm(alpha, a, false, b, false, beta, c0)
-    c0.values.copyInto(c.values)
-    engine.gemm(alpha, a as Matrix, false, b as Matrix, false, beta, c)
-    DenseReference.check(expected, c.values, "${case.id} generic product")
-    return ArmChoice(
-        engineWork(engine, case.operation, "reset-and-arithmetic", {
-            c0.values.copyInto(c.values)
-            engine.gemm(alpha, a as Matrix, false, b as Matrix, false, beta, c)
-            c.values[0]
-        }),
-        null,
-    )
 }
 
 private fun rankUpdateWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
@@ -272,9 +248,26 @@ private fun rankUpdateWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
     val x = Fixtures.vector(rows, 2); val y = Fixtures.vector(cols, 3)
     val operation = case.operation
     fun apply(scale: Double) = when (operation) {
-        "ger" -> engine.ger(scale, x, y, target)
-        "syr" -> engine.syr(scale, DenseVector.wrap(x), target, lower)
-        else -> engine.syr2(scale, DenseVector.wrap(x), DenseVector.wrap(y), target, lower)
+        "ger" -> engine.ger(scale, x, 0, 1, y, 0, 1, target)
+        "syr" -> engine.syr(
+            scale,
+            x,
+            0,
+            1,
+            target,
+            lower,
+        )
+        else -> engine.syr2(
+            scale,
+            x,
+            0,
+            1,
+            y,
+            0,
+            1,
+            target,
+            lower,
+        )
     }
     val resets = resets(case)
     // Without the reset, alternating the sign returns the matrix close to where it started.
@@ -304,7 +297,7 @@ private fun triangularVectorWork(case: BenchCase, engine: KoblasEngine): CaseWor
     val unit = case.option("diag", "N") == "U"
     val a = Fixtures.triangular(n, 1, lower); val x0 = Fixtures.vector(n, 2); val x = x0.copyOf()
     val solve = case.operation == "trsv"
-    fun apply() = if (solve) engine.trsv(a, x, lower, trans, unit) else engine.trmv(a, x, lower, trans, unit)
+    fun apply() = if (solve) engine.trsv(a, x, 0, 1, lower, trans, unit) else engine.trmv(a, x, 0, 1, lower, trans, unit)
     return level23(
                 engine, case, "reset-and-arithmetic",
         verify = {

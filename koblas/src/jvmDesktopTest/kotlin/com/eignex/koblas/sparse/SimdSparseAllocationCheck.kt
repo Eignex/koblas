@@ -220,30 +220,6 @@ internal object SimdSparseAllocationCheck {
             engine.syrk(0.875, a, false, -0.25, square, true, scratch = workspace)
             square.values[0]
         }
-        checkGenericDispatch(a, b, wide, c, cWide, workspace)
-    }
-
-    /**
-     * Measures generic [Matrix] dispatch and adaptation on both operand sides. A sparse operand
-     * retains its traversal on either side, while the dense operand's access pattern changes.
-     */
-    @Suppress("LongParameterList") // the two operands, the two destinations they need, and the scratch
-    private fun checkGenericDispatch(
-        a: Matrix,
-        b: Matrix,
-        wide: Matrix,
-        c: DenseMatrix,
-        cWide: DenseMatrix,
-        workspace: Scratch,
-    ) {
-        assertAllocationFree("generic product with a sparse left operand", OPERATION_WARMUP, OPERATION_ITERATIONS) {
-            koblas.gemm(0.875, a, false, b, false, -0.25, c, scratch = workspace)
-            c.values[0]
-        }
-        assertAllocationFree("generic product with a sparse right operand", OPERATION_WARMUP, OPERATION_ITERATIONS) {
-            koblas.gemm(0.875, wide, false, a, false, -0.25, cWide, scratch = workspace)
-            cWide.values[0]
-        }
     }
 
     /** A square destination for the rank update, which is the one probe whose shape is the order twice. */

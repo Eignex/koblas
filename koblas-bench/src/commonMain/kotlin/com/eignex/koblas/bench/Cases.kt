@@ -17,10 +17,10 @@ internal object Cases {
     private val dimensionCounts = mapOf(
         "dot" to 1, "axpy" to 1, "axpy-unit" to 1, "scal" to 1, "nrm2" to 1, "asum" to 1, "sum" to 1,
         "iamax" to 1, "swap" to 1, "rot" to 1, "copy" to 1,
-        "copy-overlap" to 1, "axpy-views" to 1, "swap-views" to 1, "spdot-view" to 1,
+        "copy-overlap" to 1, "axpy-views" to 1, "spdot-view" to 1,
         "gemv" to 2, "symv" to 1, "ger" to 2, "syr" to 1, "syr2" to 1, "trsv" to 1,
         "ger-shrinking" to 1, "ger-window-shrinking" to 1,
-        "trmv" to 1, "gemm" to 3, "symm" to 2, "gemmt" to 2, "syrk" to 2, "syr2k" to 2, "gemm-generic" to 3,
+        "trmv" to 1, "gemm" to 3, "symm" to 2, "gemmt" to 2, "syrk" to 2, "syr2k" to 2,
         "trsm" to 2, "trmm" to 2,
         "spdot" to 1, "spdot-raw" to 1, "spdot-sparse" to 1, "spaxpy" to 1, "spaxpy-raw" to 1,
         "spdot-column" to 1, "spdot-column-raw" to 1,
@@ -31,7 +31,6 @@ internal object Cases {
         "spgemv" to 2, "spmm" to 3, "spmm-right" to 3,
         "spsymv" to 1, "spsymm" to 2, "sptrsv" to 1, "sptrmv" to 1, "sptrsm" to 2, "sptrmm" to 2,
         "spsyrk-dense" to 2,
-        "spmm-generic" to 3, "spmm-generic-right" to 3,
     )
     private val fixtures = setOf("uniform", "triangular", "sparse-uniform", "sparse-triangular")
     private val optionOrder =
@@ -163,7 +162,7 @@ internal object Cases {
         }
         // Dense storage changes the axis available to a right-hand side panel. The benchmark currently
         // exposes this flag for left-sparse products; the production right-sparse API also supports it.
-        if (operation in setOf("spmm", "spmm-generic")) add("transB")
+        if (operation == "spmm") add("transB")
         if (operation in setOf("scal", "axpy", "swap", "rot", "gemv", "symv", "ger", "syr", "syr2", "spgather")) add("timing")
         if (operation in MODE_OPERATIONS) add("mode")
     }
@@ -190,10 +189,9 @@ internal object Cases {
     private val MODES = setOf("oneshot")
     private val MODE_OPERATIONS = setOf(
         "spgemv", "spmm", "spmm-right", "spsymv", "spsymm", "sptrsv", "sptrmv", "sptrsm", "sptrmm",
-        "spmm-generic", "spmm-generic-right",
     )
     private val TRANSPOSABLE_SPARSE_OPERATIONS = setOf(
-        "spgemv", "spmm", "spmm-right", "spmm-generic", "spmm-generic-right",
+        "spgemv", "spmm", "spmm-right",
     )
     private val TRIANGULAR_FIXTURE_OPERATIONS = setOf(
         "trsv", "trmv", "trsm", "trmm", "spsymv", "spsymm", "sptrsv", "sptrmv", "sptrsm", "sptrmm",
@@ -204,7 +202,7 @@ internal object Cases {
     /** The operations whose operand is a sparse matrix, which is where a distribution means anything. */
     private val SUPPORT_OPERATIONS = setOf(
         "spgemv", "spmm", "spmm-right", "spsymv", "spsymm", "sptrsv", "sptrmv", "sptrsm", "sptrmm",
-        "spsyrk-dense", "spmm-generic", "spmm-generic-right",
+        "spsyrk-dense",
         "spbuild-triplets", "spbuild-duplicates",
     )
 }

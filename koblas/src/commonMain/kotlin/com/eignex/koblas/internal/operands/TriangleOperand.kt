@@ -3,21 +3,6 @@ package com.eignex.koblas.internal.operands
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.*
 
-/** Reads a custom triangle once, excluding the unselected half and an implicit diagonal. */
-internal inline fun <T> triangleOperand(
-    arrays: Scratch?,
-    a: Matrix,
-    lower: Boolean,
-    unitDiag: Boolean,
-    block: (DenseMatrixRegion) -> T,
-): T {
-    if (a is DenseMatrixRegion) return block(a)
-    return arrays.borrow(DenseMatrix.entryCount(a.rows, a.cols)) { values ->
-        copyTriangle(a.rows, a.cols, lower, unitDiag, values) { i, j -> a[i, j] }
-        block(DenseMatrix.wrap(a.rows, a.cols, values))
-    }
-}
-
 /**
  * Writes the [lower] or upper triangle of a [rows] by [columns] operand, or all of it when [lower] is null,
  * into [copy] with [rows] as its leading dimension. A [unitDiag] diagonal is written as 1 without calling

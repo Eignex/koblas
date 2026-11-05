@@ -32,7 +32,16 @@ class SparseOpsAllocationTest internal constructor(private val case: AllocationC
         // uninstrumented SIMD allocation check.
         private fun indexedCases(): List<AllocationCase> = listOf(
             with(SparseVectorFixture()) {
-                AllocationCase("sparse dot against a dense array allocates nothing", 1_000) { engine.dot(vector, x) }
+                AllocationCase("sparse dot against a dense array allocates nothing", 1_000) {
+                    engine.dot(
+                        vector.indices,
+                        0,
+                        vector.values,
+                        0,
+                        vector.values.size,
+                        x,
+                    )
+                }
             },
             with(IndexedSliceFixture()) {
                 AllocationCase("indexed gather allocates nothing", 1_000) {

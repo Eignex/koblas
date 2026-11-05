@@ -53,7 +53,16 @@ internal fun shrinkingRankUpdateWork(case: BenchCase, engine: KoblasEngine): Cas
         }
     } else {
         {
-            for (step in fixture.x.indices) engine.ger(-1.0, fixture.x[step], fixture.y[step], fixture.matrix)
+            for (step in fixture.x.indices) engine.ger(
+                -1.0,
+                fixture.x[step],
+                0,
+                1,
+                fixture.y[step],
+                0,
+                1,
+                fixture.matrix,
+            )
             fixture.matrix.values.last()
         }
     }

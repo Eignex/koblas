@@ -173,7 +173,17 @@ internal object SimdDenseAllocationCheck {
 
         assertAllocationFree("dot through the default engine") { x dot y }
         assertAllocationFree("gemv through the default engine") {
-            koblas.gemv(0.875, matrix, x, -0.25, destination)
+            koblas.gemv(
+                0.875,
+                matrix,
+                x.values,
+                x.offset,
+                x.stride,
+                -0.25,
+                destination.values,
+                destination.offset,
+                destination.stride,
+            )
             destination[0]
         }
         assertAllocationFree("generic product", PRODUCT_WARMUP, PRODUCT_ITERATIONS) {
@@ -205,7 +215,7 @@ internal object SimdDenseAllocationCheck {
         val product = DenseMatrix.wrap(PRODUCT_ORDER, PRODUCT_ORDER, DoubleArray(PRODUCT_ORDER * PRODUCT_ORDER))
 
         assertAllocationFree("gemv behind a host composition") {
-            composed.gemv(0.875, matrix, x, -0.25, y)
+            composed.gemv(0.875, matrix, x, 0, 1, -0.25, y, 0, 1)
             y[0]
         }
         assertAllocationFree("gemm behind a host composition", PRODUCT_WARMUP, PRODUCT_ITERATIONS) {
@@ -523,19 +533,30 @@ internal object SimdDenseAllocationCheck {
         val second = DenseVector.wrap(y)
 
         assertAllocationFree("gemv") {
-            engine.gemv(0.875, matrix, x, -0.25, y)
+            engine.gemv(0.875, matrix, x, 0, 1, -0.25, y, 0, 1)
             y[0]
         }
         assertAllocationFree("gemv transposed") {
-            engine.gemv(0.875, matrix, x, -0.25, y, transpose = true)
+            engine.gemv(
+                0.875,
+                matrix,
+                x,
+                0,
+                1,
+                -0.25,
+                y,
+                0,
+                1,
+                transpose = true,
+            )
             y[0]
         }
         assertAllocationFree("symv") {
-            engine.symv(0.875, matrix, x, -0.25, y)
+            engine.symv(0.875, matrix, x, 0, 1, -0.25, y, 0, 1)
             y[0]
         }
         assertAllocationFree("ger") {
-            engine.ger(1e-12, x, y, matrix)
+            engine.ger(1e-12, x, 0, 1, y, 0, 1, matrix)
             matrix.values[0]
         }
         val tiny = DenseMatrix.zero(6)
@@ -548,21 +569,30 @@ internal object SimdDenseAllocationCheck {
             tiny.values.last()
         }
         assertAllocationFree("syr") {
-            engine.syr(1e-12, vector, matrix)
+            engine.syr(1e-12, vector.values, vector.offset, vector.stride, matrix)
             matrix.values[0]
         }
         assertAllocationFree("syr2") {
-            engine.syr2(1e-12, vector, second, matrix)
+            engine.syr2(
+                1e-12,
+                vector.values,
+                vector.offset,
+                vector.stride,
+                second.values,
+                second.offset,
+                second.stride,
+                matrix,
+            )
             matrix.values[0]
         }
         assertAllocationFree("trmv") {
             target.fill(1.0)
-            engine.trmv(triangle, target, lower = true)
+            engine.trmv(triangle, target, 0, 1, lower = true)
             target[0]
         }
         assertAllocationFree("trsv") {
             target.fill(1.0)
-            engine.trsv(triangle, target, lower = true)
+            engine.trsv(triangle, target, 0, 1, lower = true)
             target[0]
         }
     }

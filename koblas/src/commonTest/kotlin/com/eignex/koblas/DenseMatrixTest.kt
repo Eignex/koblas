@@ -75,28 +75,6 @@ class DenseMatrixTest {
     }
 
     @Test
-    fun `DenseMatrix ofColumns reads the outer index as the column`() {
-        val m = DenseMatrix.ofColumns(arrayOf(doubleArrayOf(1.0, 2.0, 3.0), doubleArrayOf(4.0, 5.0, 6.0)))
-        assertEquals(3, m.rows)
-        assertEquals(2, m.cols)
-        assertEquals(1.0, m[0, 0])
-        assertEquals(3.0, m[2, 0])
-        assertEquals(4.0, m[0, 1])
-        assertEquals(6.0, m[2, 1])
-        assertTrue(doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0).contentEquals(m.values))
-    }
-
-    @Test
-    fun `DenseMatrix ofColumns rejects ragged columns and accepts none`() {
-        assertFailsWith<DimensionMismatch> {
-            DenseMatrix.ofColumns(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0)))
-        }
-        val empty = DenseMatrix.ofColumns(arrayOf())
-        assertEquals(0, empty.rows)
-        assertEquals(0, empty.cols)
-    }
-
-    @Test
     fun `DenseMatrix zero allocates a zero matrix and defaults to square`() {
         val m = DenseMatrix.zero(2, 3)
         assertEquals(2, m.rows)
@@ -105,20 +83,6 @@ class DenseMatrixTest {
         val square = DenseMatrix.zero(2)
         assertEquals(2, square.rows)
         assertEquals(2, square.cols)
-    }
-
-    @Test
-    fun `DenseMatrix diagonal from a vector places each entry on the diagonal`() {
-        val m = DenseMatrix.diagonal(doubleArrayOf(1.0, -2.0, 0.5))
-        assertEquals(3, m.rows)
-        assertEquals(3, m.cols)
-        for (i in 0 until 3) {
-            for (j in 0 until 3) {
-                assertEquals(if (i == j) doubleArrayOf(1.0, -2.0, 0.5)[i] else 0.0, m[i, j], "($i,$j)")
-            }
-        }
-        assertEquals(DenseMatrix.diagonal(3, 2.5), DenseMatrix.diagonal(DoubleArray(3) { 2.5 }))
-        assertEquals(0, DenseMatrix.diagonal(DoubleArray(0)).rows)
     }
 
     @Test

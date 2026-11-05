@@ -118,7 +118,7 @@ class StridedVectorTest {
         val backing = DoubleArray(12) { it.toDouble() }
         val outer: DenseVector = StridedVector(backing, offset = 2, size = 4, stride = 2)
 
-        assertContentEquals(doubleArrayOf(2.0, 4.0, 6.0, 8.0), outer.asView().toDoubleArray())
+        assertContentEquals(doubleArrayOf(2.0, 4.0, 6.0, 8.0), outer.view(0, outer.size).toDoubleArray())
         assertContentEquals(doubleArrayOf(4.0, 8.0), outer.view(offset = 1, size = 2, stride = 2).toDoubleArray())
     }
 }

@@ -12,7 +12,7 @@ class VectorViewsTest {
     @Test
     fun `view cases verify the full buffer and use the default policy`() {
         for (line in listOf(
-            "copy-overlap+17+uniform", "axpy-views+17+uniform", "swap-views+17+uniform",
+            "copy-overlap+17+uniform", "axpy-views+17+uniform",
             "spdot-view+17+sparse-uniform+density=0.1", "spdot-view+17+sparse-uniform+density=1.0",
         )) {
             val case = Cases.parse(line).single()

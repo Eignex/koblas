@@ -142,7 +142,7 @@ class DenseRegionBlasTest {
         val expected = actual.copyOf()
         ReferenceBlas.gemv(0.875, contiguousCopy(a), doubleArrayOf(2.0), -0.25, expected)
 
-        blas.gemv(0.875, a, doubleArrayOf(2.0), -0.25, actual, scratch = Scratch())
+        blas.gemv(0.875, a, doubleArrayOf(2.0), 0, 1, -0.25, actual, 0, 1, scratch = Scratch())
 
         assertClose(expected, actual, "aliased region gemv")
     }

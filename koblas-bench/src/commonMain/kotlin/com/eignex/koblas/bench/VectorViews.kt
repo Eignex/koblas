@@ -1,12 +1,13 @@
 package com.eignex.koblas.bench
 
+import com.eignex.koblas.internal.engine.dotVector
+
 import com.eignex.koblas.*
 import com.eignex.koblas.axpy
 import com.eignex.koblas.copyFrom
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.sparse.*
-import com.eignex.koblas.swap
 
 /**
  * Vector entry points include their alias checks and view adaptation. They select the platform engine
@@ -22,7 +23,7 @@ internal fun vectorViewsArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
         val dense = Fixtures.vector(size, 2)
         val backing = DoubleArray(2 * size) { if (it % 2 == 0) dense[it / 2] else Double.NaN }
         val view = StridedVector(backing, 0, size, 2)
-        val expected = BuiltinEngines.scalar.dot(sparse, dense)
+        val expected = BuiltinEngines.scalar.dotVector(sparse, DenseVector.wrap(dense))
         DenseReference.check(doubleArrayOf(expected), doubleArrayOf(sparse dot view), case.id)
         return ArmChoice(CaseWork("default-policy", "arithmetic", { sparse dot view },
             kernel = "portable-vector+scalar/dot-view"), null)
@@ -39,7 +40,6 @@ internal fun vectorViewsArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
     when (case.operation) {
         "copy-overlap" -> x.copyInto(y)
         "axpy-views" -> kernels.axpy(y, 0, 0.875, x, 0, size)
-        "swap-views" -> kernels.swap(x, 0, y, 0, size)
     }
     val expected = initial.copyOf()
     for (i in 0 until size) {
@@ -51,7 +51,6 @@ internal fun vectorViewsArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
         when (case.operation) {
             "copy-overlap" -> destination.copyFrom(source)
             "axpy-views" -> destination.axpy(0.875, source)
-            "swap-views" -> source.swap(destination)
         }
         backing[0] + backing.last()
     }

@@ -4,7 +4,6 @@ import com.eignex.koblas.*
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.koblas
 import com.eignex.koblas.sparse.*
-import com.eignex.koblas.sparse.ReferenceSparseBlas
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals

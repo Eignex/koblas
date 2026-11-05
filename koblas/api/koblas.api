@@ -31,7 +31,6 @@ public final class com/eignex/koblas/DenseMatrix : com/eignex/koblas/DenseMatrix
 	public static final field Companion Lcom/eignex/koblas/DenseMatrix$Companion;
 	public static final fun diagonal (I)Lcom/eignex/koblas/DenseMatrix;
 	public static final fun diagonal (ID)Lcom/eignex/koblas/DenseMatrix;
-	public static final fun diagonal ([D)Lcom/eignex/koblas/DenseMatrix;
 	public fun equals (Ljava/lang/Object;)Z
 	public fun get (II)D
 	public fun getCols ()I
@@ -40,7 +39,6 @@ public final class com/eignex/koblas/DenseMatrix : com/eignex/koblas/DenseMatrix
 	public fun getRows ()I
 	public fun getValues ()[D
 	public fun hashCode ()I
-	public static final fun ofColumns ([[D)Lcom/eignex/koblas/DenseMatrix;
 	public static final fun ofRows ([[D)Lcom/eignex/koblas/DenseMatrix;
 	public fun set (IID)V
 	public fun toArray ()[[D
@@ -65,9 +63,7 @@ public final synthetic class com/eignex/koblas/DenseMatrix$$serializer : kotlinx
 public final class com/eignex/koblas/DenseMatrix$Companion {
 	public final fun diagonal (I)Lcom/eignex/koblas/DenseMatrix;
 	public final fun diagonal (ID)Lcom/eignex/koblas/DenseMatrix;
-	public final fun diagonal ([D)Lcom/eignex/koblas/DenseMatrix;
 	public static synthetic fun diagonal$default (Lcom/eignex/koblas/DenseMatrix$Companion;IDILjava/lang/Object;)Lcom/eignex/koblas/DenseMatrix;
-	public final fun ofColumns ([[D)Lcom/eignex/koblas/DenseMatrix;
 	public final fun ofRows ([[D)Lcom/eignex/koblas/DenseMatrix;
 	public final fun serializer ()Lkotlinx/serialization/KSerializer;
 	public final fun wrap (II[D)Lcom/eignex/koblas/DenseMatrix;
@@ -135,50 +131,18 @@ public final class com/eignex/koblas/DimensionMismatch : java/lang/IllegalArgume
 }
 
 public final class com/eignex/koblas/Koblas {
-	public static final fun asView (Lcom/eignex/koblas/DenseVector;)Lcom/eignex/koblas/StridedVector;
 	public static final fun asum (Lcom/eignex/koblas/Vector;)D
 	public static final fun axpy (Lcom/eignex/koblas/DenseVector;DLcom/eignex/koblas/Vector;)V
 	public static final synthetic fun borrow (Lcom/eignex/koblas/Scratch;ILkotlin/jvm/functions/Function1;)Ljava/lang/Object;
 	public static final fun copyFrom (Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/Vector;)V
 	public static final fun dot (Lcom/eignex/koblas/Vector;Lcom/eignex/koblas/Vector;)D
 	public static final synthetic fun forEachStored (Lcom/eignex/koblas/Vector;Lkotlin/jvm/functions/Function2;)V
-	public static final fun gemm (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/Matrix;ZLcom/eignex/koblas/Matrix;ZDLcom/eignex/koblas/DenseMatrixRegion;)V
-	public static final fun gemm (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/Matrix;ZLcom/eignex/koblas/Matrix;ZDLcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/Scratch;)V
-	public static synthetic fun gemm$default (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/Matrix;ZLcom/eignex/koblas/Matrix;ZDLcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/Scratch;ILjava/lang/Object;)V
 	public static final fun getDefault ()Lcom/eignex/koblas/KoblasEngine;
-	public static final fun iamax (Lcom/eignex/koblas/Vector;)I
 	public static final fun norm2 (Lcom/eignex/koblas/Vector;)D
-	public static final fun overlaps (Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;)Z
-	public static final fun rot (Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;DD)V
 	public static final fun scale (Lcom/eignex/koblas/DenseVector;D)V
 	public static final fun sum (Lcom/eignex/koblas/Vector;)D
-	public static final fun swap (Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;)V
 	public static final fun transpose (Lcom/eignex/koblas/DenseMatrix;)Lcom/eignex/koblas/DenseMatrix;
 	public static final fun transpose (Lcom/eignex/koblas/SparseMatrix;)Lcom/eignex/koblas/SparseMatrix;
-	public static final fun trmm (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/Matrix;Lcom/eignex/koblas/DenseMatrixRegion;Z)V
-	public static final fun trmm (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/Matrix;Lcom/eignex/koblas/DenseMatrixRegion;ZZ)V
-	public static final fun trmm (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/Matrix;Lcom/eignex/koblas/DenseMatrixRegion;ZZZ)V
-	public static final fun trmm (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/Matrix;Lcom/eignex/koblas/DenseMatrixRegion;ZZZZ)V
-	public static final fun trmm (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/Matrix;Lcom/eignex/koblas/DenseMatrixRegion;ZZZZD)V
-	public static final fun trmm (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/Matrix;Lcom/eignex/koblas/DenseMatrixRegion;ZZZZDLcom/eignex/koblas/Scratch;)V
-	public static synthetic fun trmm$default (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/Matrix;Lcom/eignex/koblas/DenseMatrixRegion;ZZZZDLcom/eignex/koblas/Scratch;ILjava/lang/Object;)V
-	public static final fun trmv (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/Matrix;[DZ)V
-	public static final fun trmv (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/Matrix;[DZZ)V
-	public static final fun trmv (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/Matrix;[DZZZ)V
-	public static final fun trmv (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/Matrix;[DZZZLcom/eignex/koblas/Scratch;)V
-	public static synthetic fun trmv$default (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/Matrix;[DZZZLcom/eignex/koblas/Scratch;ILjava/lang/Object;)V
-	public static final fun trsm (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/Matrix;Lcom/eignex/koblas/DenseMatrixRegion;Z)V
-	public static final fun trsm (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/Matrix;Lcom/eignex/koblas/DenseMatrixRegion;ZZ)V
-	public static final fun trsm (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/Matrix;Lcom/eignex/koblas/DenseMatrixRegion;ZZZ)V
-	public static final fun trsm (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/Matrix;Lcom/eignex/koblas/DenseMatrixRegion;ZZZZ)V
-	public static final fun trsm (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/Matrix;Lcom/eignex/koblas/DenseMatrixRegion;ZZZZD)V
-	public static final fun trsm (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/Matrix;Lcom/eignex/koblas/DenseMatrixRegion;ZZZZDLcom/eignex/koblas/Scratch;)V
-	public static synthetic fun trsm$default (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/Matrix;Lcom/eignex/koblas/DenseMatrixRegion;ZZZZDLcom/eignex/koblas/Scratch;ILjava/lang/Object;)V
-	public static final fun trsv (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/Matrix;[DZ)V
-	public static final fun trsv (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/Matrix;[DZZ)V
-	public static final fun trsv (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/Matrix;[DZZZ)V
-	public static final fun trsv (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/Matrix;[DZZZLcom/eignex/koblas/Scratch;)V
-	public static synthetic fun trsv$default (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/Matrix;[DZZZLcom/eignex/koblas/Scratch;ILjava/lang/Object;)V
 	public static final fun view (Lcom/eignex/koblas/DenseVector;II)Lcom/eignex/koblas/StridedVector;
 	public static final fun view (Lcom/eignex/koblas/DenseVector;III)Lcom/eignex/koblas/StridedVector;
 	public static synthetic fun view$default (Lcom/eignex/koblas/DenseVector;IIIILjava/lang/Object;)Lcom/eignex/koblas/StridedVector;
@@ -474,60 +438,11 @@ public final class com/eignex/koblas/VectorStorage$Companion {
 }
 
 public final class com/eignex/koblas/dense/DenseBlas {
-	public static final fun asum (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/DenseVector;)D
-	public static final fun axpy (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;)V
-	public static final fun copy (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;)V
-	public static final fun dot (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;)D
-	public static final fun gemv (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/DenseVector;DLcom/eignex/koblas/DenseVector;)V
-	public static final fun gemv (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/DenseVector;DLcom/eignex/koblas/DenseVector;Z)V
-	public static final fun gemv (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/DenseVector;DLcom/eignex/koblas/DenseVector;ZLcom/eignex/koblas/Scratch;)V
-	public static final fun gemv (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseMatrixRegion;[DD[D)V
-	public static final fun gemv (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseMatrixRegion;[DD[DZ)V
-	public static final fun gemv (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseMatrixRegion;[DD[DZLcom/eignex/koblas/Scratch;)V
-	public static synthetic fun gemv$default (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/DenseVector;DLcom/eignex/koblas/DenseVector;ZLcom/eignex/koblas/Scratch;ILjava/lang/Object;)V
-	public static synthetic fun gemv$default (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseMatrixRegion;[DD[DZLcom/eignex/koblas/Scratch;ILjava/lang/Object;)V
-	public static final fun ger (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseMatrixRegion;)V
-	public static final fun ger (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/Scratch;)V
-	public static final fun ger (Lcom/eignex/koblas/KoblasEngine;D[D[DLcom/eignex/koblas/DenseMatrixRegion;)V
 	public static final fun ger (Lcom/eignex/koblas/KoblasEngine;D[D[DLcom/eignex/koblas/DenseMatrixRegion;IIII)V
 	public static final fun ger (Lcom/eignex/koblas/KoblasEngine;D[D[DLcom/eignex/koblas/DenseMatrixRegion;IIIII)V
 	public static final fun ger (Lcom/eignex/koblas/KoblasEngine;D[D[DLcom/eignex/koblas/DenseMatrixRegion;IIIIII)V
 	public static final fun ger (Lcom/eignex/koblas/KoblasEngine;D[D[DLcom/eignex/koblas/DenseMatrixRegion;IIIIIILcom/eignex/koblas/Scratch;)V
-	public static final fun ger (Lcom/eignex/koblas/KoblasEngine;D[D[DLcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/Scratch;)V
-	public static synthetic fun ger$default (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/Scratch;ILjava/lang/Object;)V
 	public static synthetic fun ger$default (Lcom/eignex/koblas/KoblasEngine;D[D[DLcom/eignex/koblas/DenseMatrixRegion;IIIIIILcom/eignex/koblas/Scratch;ILjava/lang/Object;)V
-	public static synthetic fun ger$default (Lcom/eignex/koblas/KoblasEngine;D[D[DLcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/Scratch;ILjava/lang/Object;)V
-	public static final fun iamax (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/DenseVector;)I
-	public static final fun nrm2 (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/DenseVector;)D
-	public static final fun rot (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;DD)V
-	public static final fun scale (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseVector;)V
-	public static final fun swap (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;)V
-	public static final fun symv (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/DenseVector;DLcom/eignex/koblas/DenseVector;)V
-	public static final fun symv (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/DenseVector;DLcom/eignex/koblas/DenseVector;Z)V
-	public static final fun symv (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/DenseVector;DLcom/eignex/koblas/DenseVector;ZLcom/eignex/koblas/Scratch;)V
-	public static final fun symv (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseMatrixRegion;[DD[D)V
-	public static final fun symv (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseMatrixRegion;[DD[DZ)V
-	public static final fun symv (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseMatrixRegion;[DD[DZLcom/eignex/koblas/Scratch;)V
-	public static synthetic fun symv$default (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/DenseVector;DLcom/eignex/koblas/DenseVector;ZLcom/eignex/koblas/Scratch;ILjava/lang/Object;)V
-	public static synthetic fun symv$default (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseMatrixRegion;[DD[DZLcom/eignex/koblas/Scratch;ILjava/lang/Object;)V
-	public static final fun syr (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseMatrixRegion;)V
-	public static final fun syr (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseMatrixRegion;Z)V
-	public static final fun syr (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseMatrixRegion;ZLcom/eignex/koblas/Scratch;)V
-	public static synthetic fun syr$default (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseMatrixRegion;ZLcom/eignex/koblas/Scratch;ILjava/lang/Object;)V
-	public static final fun syr2 (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseMatrixRegion;)V
-	public static final fun syr2 (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseMatrixRegion;Z)V
-	public static final fun syr2 (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseMatrixRegion;ZLcom/eignex/koblas/Scratch;)V
-	public static synthetic fun syr2$default (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseMatrixRegion;ZLcom/eignex/koblas/Scratch;ILjava/lang/Object;)V
-	public static final fun trmv (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/DenseVector;Z)V
-	public static final fun trmv (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/DenseVector;ZZ)V
-	public static final fun trmv (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/DenseVector;ZZZ)V
-	public static final fun trmv (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/DenseVector;ZZZLcom/eignex/koblas/Scratch;)V
-	public static synthetic fun trmv$default (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/DenseVector;ZZZLcom/eignex/koblas/Scratch;ILjava/lang/Object;)V
-	public static final fun trsv (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/DenseVector;Z)V
-	public static final fun trsv (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/DenseVector;ZZ)V
-	public static final fun trsv (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/DenseVector;ZZZ)V
-	public static final fun trsv (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/DenseVector;ZZZLcom/eignex/koblas/Scratch;)V
-	public static synthetic fun trsv$default (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/DenseVector;ZZZLcom/eignex/koblas/Scratch;ILjava/lang/Object;)V
 }
 
 public final class com/eignex/koblas/engine/Architecture : java/lang/Enum {
@@ -698,12 +613,6 @@ public final class com/eignex/koblas/engine/Vendor : java/lang/Enum {
 }
 
 public final class com/eignex/koblas/sparse/SparseBlas {
-	public static final fun asum (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/SparseVector;)D
-	public static final fun axpy (Lcom/eignex/koblas/KoblasEngine;[DDLcom/eignex/koblas/SparseVector;)V
-	public static final fun dot (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/SparseVector;Lcom/eignex/koblas/SparseVector;)D
-	public static final fun dot (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/SparseVector;[D)D
 	public static final fun dotColumn (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/SparseMatrix;I[D)D
-	public static final fun nrm2 (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/SparseVector;)D
-	public static final fun scatter (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/SparseVector;[D)V
 }
 

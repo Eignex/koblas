@@ -32,23 +32,6 @@ internal inline fun <T> staged(arrays: Scratch?, a: SparseMatrix, aliased: Boole
     }
 }
 
-/**
- * Adapts a non-sparse operand into dense storage borrowed for [block]. Dense operands pass through unchanged.
- * Both extents are retained even when empty; sparse operands must be dispatched before reaching this helper.
- */
-internal inline fun <T> denseOperand(arrays: Scratch?, matrix: Matrix, block: (DenseMatrixRegion) -> T): T {
-    if (matrix is DenseMatrixRegion) return block(matrix)
-    val rows = matrix.rows
-    val cols = matrix.cols
-    return arrays.borrow(DenseMatrix.entryCount(rows, cols)) { values ->
-        for (j in 0 until cols) {
-            val base = j * rows
-            for (i in 0 until rows) values[base + i] = matrix[i, j]
-        }
-        block(DenseMatrix.wrap(rows, cols, values))
-    }
-}
-
 /** Identical logical vector addressing can share one immutable snapshot. */
 internal fun sameVectorMapping(a: DenseVector, b: DenseVector): Boolean =
     a.values === b.values && a.offset == b.offset && a.size == b.size && (a.size <= 1 || a.stride == b.stride)
