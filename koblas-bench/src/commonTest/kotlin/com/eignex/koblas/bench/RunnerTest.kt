@@ -1,10 +1,10 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.*
-import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
-import com.eignex.koblas.internal.engine.*
-import com.eignex.koblas.sparse.*
+import com.eignex.koblas.internal.engine.combine
+import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.internal.kernels.unsupported
+import com.eignex.koblas.koblas
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith

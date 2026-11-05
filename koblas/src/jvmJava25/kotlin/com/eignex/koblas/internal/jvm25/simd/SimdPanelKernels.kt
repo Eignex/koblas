@@ -3,16 +3,17 @@
 package com.eignex.koblas.internal.jvm25.simd
 
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.*
-import com.eignex.koblas.engine.*
-import com.eignex.koblas.internal.engine.*
-import com.eignex.koblas.internal.portable.PortableEngine
-import com.eignex.koblas.sparse.*
+import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.engine.EngineImplementation
+import com.eignex.koblas.internal.engine.implementationFor
+import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.internal.kernels.PanelWork
+import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
 
 /**
- * JVM Vector API panel arithmetic with [PortableEngine] fallbacks.
+ * JVM Vector API panel arithmetic with [ScalarEngine] fallbacks.
  *
  * Explicit lanes allow floating-point reductions to reorder additions. Column and rank updates
  * keep a destination strip in registers while several columns accumulate into it. Column grouping
@@ -79,7 +80,7 @@ internal object SimdPanelKernels : EngineKernels {
         if (vectorizes(rows, contiguous) || (contiguous && reachesShortBody(work, rows))) {
             name
         } else {
-            PortableEngine.implementationFor(work, rows, columns, contiguous)
+            ScalarEngine.implementationFor(work, rows, columns, contiguous)
         }
 
     override fun multiDot(
@@ -102,7 +103,7 @@ internal object SimdPanelKernels : EngineKernels {
             return
         }
         if (!vectorizes(rows, xStride == 1)) {
-            PortableEngine.multiDot(
+            ScalarEngine.multiDot(
                 alpha, a, aOffset, lda, x, xOffset, xStride, rows, columns, beta, y, yOffset, yStride,
             )
             return
@@ -309,7 +310,7 @@ internal object SimdPanelKernels : EngineKernels {
             return
         }
         if (!vectorizes(rows, yStride == 1)) {
-            PortableEngine.columnUpdate(
+            ScalarEngine.columnUpdate(
                 alpha, a, aOffset, lda, x, xOffset, xStride, rows, columns, y, yOffset, yStride,
             )
             return
@@ -489,7 +490,7 @@ internal object SimdPanelKernels : EngineKernels {
     ) {
         if (rows <= 0 || columns <= 0) return
         if (!vectorizes(rows, contiguous = xStride == 1 && yStride == 1 && coefficientStride == 1 && sumStride == 1)) {
-            PortableEngine.coupledUpdateDot(
+            ScalarEngine.coupledUpdateDot(
                 alpha, a, aOffset, lda, x, xOffset, rows, columns, y, yOffset,
                 coefficients, coefficientOffset, sums, sumOffset, xStride, yStride, coefficientStride, sumStride,
             )
@@ -689,7 +690,7 @@ internal object SimdPanelKernels : EngineKernels {
     ) {
         if (rows <= 0 || columns <= 0) return
         if (!vectorizes(rows, xStride == 1)) {
-            PortableEngine.rankUpdate(
+            ScalarEngine.rankUpdate(
                 alpha, a, aOffset, lda, x, xOffset, xStride, rows, columns,
                 coefficients, coefficientOffset, coefficientStride,
             )
@@ -757,7 +758,7 @@ internal object SimdPanelKernels : EngineKernels {
     ) {
         if (rows <= 0 || columns <= 0) return
         if (!vectorizes(rows, xStride == 1 && yStride == 1)) {
-            PortableEngine.rankTwoUpdate(
+            ScalarEngine.rankTwoUpdate(
                 alpha, a, aOffset, lda, x, xOffset, xStride, y, yOffset, yStride, rows, columns,
                 u, uOffset, uStride, v, vOffset, vStride,
             )
@@ -912,7 +913,7 @@ internal object SimdPanelKernels : EngineKernels {
     ) {
         if (rows <= 0 || columns <= 0) return
         if (!vectorizes(rows, rowStride == 1)) {
-            PortableEngine.indexedColumnUpdate(
+            ScalarEngine.indexedColumnUpdate(
                 alpha, a, aOffset, rowStride, indexStride, indices, values, fromIndex, columns, rows, y, yOffset,
             )
             return
@@ -988,7 +989,7 @@ internal object SimdPanelKernels : EngineKernels {
     ) {
         if (rows <= 0 || columns <= 0) return
         if (!vectorizes(rows, rowStride == 1)) {
-            PortableEngine.indexedRankUpdate(
+            ScalarEngine.indexedRankUpdate(
                 alpha, a, aOffset, rowStride, indexStride, indices, values, fromIndex, columns, rows, x, xOffset,
             )
             return
@@ -1070,7 +1071,7 @@ internal object SimdPanelKernels : EngineKernels {
     ) {
         if (rows <= 0 || columns <= 0) return
         if (!vectorizes(rows, rowStride == 1 && destinationRowStride == 1)) {
-            PortableEngine.indexedCoupledUpdate(
+            ScalarEngine.indexedCoupledUpdate(
                 alpha, a, b, offset, rowStride, indexStride, indices, values, fromIndex, columns, rows,
                 pivot, sums, sumOffset, excluded, destinationOffset, destinationRowStride, destinationIndexStride,
             )

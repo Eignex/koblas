@@ -1,7 +1,8 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.*
-import com.eignex.koblas.engine.*
+import com.eignex.koblas.Vector
+import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.koblas
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue

@@ -1,9 +1,10 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.*
-import com.eignex.koblas.engine.*
-import com.eignex.koblas.internal.engine.*
+import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.internal.engine.implementationFor
+import com.eignex.koblas.internal.engine.panelProvider
+import com.eignex.koblas.internal.kernels.PanelWork
 import com.eignex.koblas.testutil.allocation.AllocationProbe
 import com.eignex.koblas.testutil.allocation.bytesPerCall
 

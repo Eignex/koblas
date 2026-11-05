@@ -1,8 +1,9 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.*
-import com.eignex.koblas.internal.portable.PortableEngine
+import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.engine.Vendor
+import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import kotlin.test.assertEquals
 
 /**
@@ -67,6 +68,6 @@ internal fun withRegionEngines(body: (KoblasEngine) -> Unit) {
 
 private val installedHost: KoblasEngine? by lazy {
     Vendor.entries.firstNotNullOfOrNull { BuiltinEngines.vendor(it) }?.let {
-        engineWithHost(engineWithKernels(PortableEngine, PortableEngine), it)
+        engineWithHost(engineWithKernels(ScalarEngine, ScalarEngine), it)
     }
 }

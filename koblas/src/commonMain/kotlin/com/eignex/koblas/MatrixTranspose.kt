@@ -3,7 +3,7 @@
 
 package com.eignex.koblas
 
-import com.eignex.koblas.internal.sparse.transposeCsc
+import com.eignex.koblas.internal.storage.sparse.transposeCsc
 
 /**
  * Fresh transposed matrix. For products, prefer the transpose flags on [KoblasEngine.gemv] and

@@ -1,8 +1,11 @@
 package com.eignex.koblas.internal.engine
 
-import com.eignex.koblas.*
-import com.eignex.koblas.engine.*
-import com.eignex.koblas.internal.portable.PortableEngine
+import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.engine.EngineImplementation
+import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
+import com.eignex.koblas.internal.kernels.unsupported
+import com.eignex.koblas.koblas
 
 /** The kernels a shared schedule run on this engine calls, which a composed engine binds once. */
 internal val KoblasEngine.panelProvider: EngineKernels get() = when (this) {
@@ -47,7 +50,7 @@ internal fun KoblasEngine.wholeCallFor(
 ): KoblasEngine? {
     val provider = (this as? CombinedEngine)?.routing?.select(operation, rows, columns, depth, borrowed) ?: this
     // Portable schedules retain the caller's selected kernels instead of a portable leaf's.
-    return provider.takeIf { it !== PortableEngine && operation in it.implementations }
+    return provider.takeIf { it !== ScalarEngine && operation in it.implementations }
 }
 
 /**
@@ -62,7 +65,7 @@ internal fun KoblasEngine.routedWholeCall(
     depth: Int,
     borrowed: Boolean,
 ): KoblasEngine? = (this as? CombinedEngine)?.routing?.select(operation, rows, columns, depth, borrowed)
-    ?.takeIf { it !== PortableEngine }
+    ?.takeIf { it !== ScalarEngine }
 
 internal fun KoblasEngine.implementationFor(
     operation: EngineImplementation,

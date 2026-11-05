@@ -3,14 +3,11 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.*
-import com.eignex.koblas.engineWithKernels
-import com.eignex.koblas.internal.engine.*
-import com.eignex.koblas.internal.operands.*
-import com.eignex.koblas.internal.portable.PortableEngine
-import com.eignex.koblas.internal.portable.dense.OutputTriangle
-import com.eignex.koblas.internal.portable.dense.insideTriangle
-import com.eignex.koblas.randomMatrix
+import com.eignex.koblas.engine.EngineImplementation
+import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
+import com.eignex.koblas.internal.scheduling.dense.OutputTriangle
+import com.eignex.koblas.internal.scheduling.dense.insideTriangle
 import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -92,7 +89,7 @@ internal fun assertTriangleProductStaysInTriangle(
 ) {
     val rng = Random(20261101)
     val recorder = RecordingProducts(products)
-    val blas = engineWithKernels(PortableEngine, panels, recorder)
+    val blas = engineWithKernels(ScalarEngine, panels, recorder)
     val a = randomMatrix(if (transposeA) k else n, if (transposeA) n else k, rng)
     val b = randomMatrix(if (transposeB) n else k, if (transposeB) k else n, rng)
     val c = DenseMatrix(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })

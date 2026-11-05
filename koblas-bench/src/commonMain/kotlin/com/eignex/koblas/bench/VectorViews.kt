@@ -1,13 +1,8 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.internal.engine.dotVector
-
 import com.eignex.koblas.*
-import com.eignex.koblas.axpy
-import com.eignex.koblas.copyFrom
-import com.eignex.koblas.dense.*
-import com.eignex.koblas.engine.*
-import com.eignex.koblas.sparse.*
+import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.internal.operations.dotVector
 
 /**
  * Vector entry points include their alias checks and view adaptation. They select the platform engine

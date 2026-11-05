@@ -1,7 +1,7 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.*
+import com.eignex.koblas.engine.BuiltinEngines
 import com.eignex.koblas.engine.Vendor
 import kotlin.math.abs
 import kotlin.test.Test

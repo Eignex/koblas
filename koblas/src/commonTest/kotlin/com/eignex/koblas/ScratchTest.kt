@@ -1,7 +1,6 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.engine.*
-import com.eignex.koblas.internal.operands.*
+import com.eignex.koblas.internal.storage.borrowI32
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith

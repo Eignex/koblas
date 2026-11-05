@@ -1,16 +1,14 @@
 package com.eignex.koblas.internal.jvm25.host
 
 import com.eignex.koblas.*
-import com.eignex.koblas.copyOf
-import com.eignex.koblas.dense.*
+import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.engine.*
-import com.eignex.koblas.internal.engine.absoluteSumVector
-import com.eignex.koblas.internal.engine.axpyVector
-import com.eignex.koblas.internal.engine.dotVector
-import com.eignex.koblas.internal.engine.normVector
-import com.eignex.koblas.internal.host.*
-import com.eignex.koblas.internal.portable.PortableEngine
-import com.eignex.koblas.sparse.*
+import com.eignex.koblas.internal.host.vendorValues
+import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
+import com.eignex.koblas.internal.operations.absoluteSumVector
+import com.eignex.koblas.internal.operations.axpyVector
+import com.eignex.koblas.internal.operations.dotVector
+import com.eignex.koblas.internal.operations.normVector
 import java.nio.file.Path
 import java.util.concurrent.Callable
 import java.util.concurrent.CyclicBarrier
@@ -90,7 +88,7 @@ class JvmVendorBlasTest {
                 val yOffset = if (yStride > 0) 3 else 3 + 3 * -yStride
                 val x = StridedVector(xStorage, xOffset, size, xStride)
                 val y = StridedVector(yStorage, yOffset, size, yStride)
-                val expected = PortableEngine.dot(xStorage, xOffset, yStorage, yOffset, size, xStride, yStride)
+                val expected = ScalarEngine.dot(xStorage, xOffset, yStorage, yOffset, size, xStride, yStride)
 
                 val actual = blas.dotVector(x, y)
 
@@ -111,7 +109,7 @@ class JvmVendorBlasTest {
                 val yOffset = if (yStride > 0) 3 else 3 + 3 * -yStride
                 val x = StridedVector(xStorage, xOffset, size, xStride)
                 val y = StridedVector(yStorage, yOffset, size, yStride)
-                PortableEngine.axpy(
+                ScalarEngine.axpy(
                     expected,
                     yOffset,
                     0.5,
@@ -163,7 +161,7 @@ class JvmVendorBlasTest {
         val expected = storage.copyOf()
         val first = StridedVector(storage, 0, size, lda)
         val second = StridedVector(storage, 1, size, lda)
-        PortableEngine.swap(expected, 0, expected, 1, size, lda, lda)
+        ScalarEngine.swap(expected, 0, expected, 1, size, lda, lda)
 
         blas.swap(first.values, first.offset, second.values, second.offset, first.size, first.stride, second.stride)
 
@@ -264,7 +262,7 @@ class JvmVendorBlasTest {
             for (future in pool.invokeAll(work)) {
                 val (alpha, actual) = future.get()
                 val expected = DoubleArray(size)
-                PortableEngine.axpy(expected, 0, alpha, shared, 0, size)
+                ScalarEngine.axpy(expected, 0, alpha, shared, 0, size)
                 assertAgreesWithReference(expected, actual, "concurrent axpy")
             }
         } finally {
@@ -291,7 +289,7 @@ class JvmVendorBlasTest {
                     total / REPEATS
                 }
             }
-            val expected = PortableEngine.dot(shared, 0, shared, 0, size)
+            val expected = ScalarEngine.dot(shared, 0, shared, 0, size)
             for (future in pool.invokeAll(work)) {
                 val actual = future.get()
                 assertAgreesWithReference(expected, actual, "concurrent dot")

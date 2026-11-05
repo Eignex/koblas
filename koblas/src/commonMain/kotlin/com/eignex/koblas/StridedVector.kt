@@ -3,9 +3,9 @@
 
 package com.eignex.koblas
 
-import com.eignex.koblas.internal.operands.*
-import com.eignex.koblas.internal.operands.requireVectorWindow
-import com.eignex.koblas.internal.operands.windowsOverlap
+import com.eignex.koblas.internal.storage.requireInBounds
+import com.eignex.koblas.internal.storage.requireShape
+import com.eignex.koblas.internal.storage.requireVectorWindow
 import kotlin.jvm.JvmOverloads
 
 /**
@@ -40,10 +40,6 @@ public class StridedVector @JvmOverloads constructor(
 
     override fun toString(): String = "StridedVector(size=$size, offset=$offset, stride=$stride)"
 }
-
-/** Whether these vectors address at least one common buffer entry. */
-internal fun DenseVector.overlaps(other: DenseVector): Boolean =
-    windowsOverlap(values, offset, size, stride, other.values, other.offset, other.size, other.stride)
 
 /**
  * A borrowed strided slice, addressed in this vector's logical indices rather than its buffer's positions.

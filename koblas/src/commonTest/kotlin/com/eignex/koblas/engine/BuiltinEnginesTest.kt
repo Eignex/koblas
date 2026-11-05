@@ -1,10 +1,19 @@
 package com.eignex.koblas.engine
 
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.*
+import com.eignex.koblas.dense.assertIamaxHonoursItsContract
+import com.eignex.koblas.dense.assertLevel1KernelsAgreeWithReference
+import com.eignex.koblas.dense.assertNormExtremesAgreeWithReference
+import com.eignex.koblas.dense.assertNormWindowsAgreeWithReference
+import com.eignex.koblas.dense.assertReductionsAgreeWithReference
+import com.eignex.koblas.dense.assertRotKernelAgreesWithReference
+import com.eignex.koblas.dense.assertScaleAgreesWithReference
+import com.eignex.koblas.dense.assertSwapAgreesWithReference
 import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.host.environmentVariableOrNull
-import com.eignex.koblas.internal.portable.PortableEngine
+import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.internal.kernels.PanelWork
+import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -41,13 +50,13 @@ class BuiltinEnginesTest {
     fun `without the Vector API the owned matrix backends are portable`() {
         if (BuiltinEngines.simd != null) return
 
-        assertEquals(PortableEngine.name, koblas.panelProvider.implementationFor(PanelWork.RankUpdate, WIDE, 4))
+        assertEquals(ScalarEngine.name, koblas.panelProvider.implementationFor(PanelWork.RankUpdate, WIDE, 4))
     }
 
     /** Below any arm's threshold the call overhead outweighs the arithmetic, so the portable loop runs. */
     @Test
     fun `a single entry call stays with the portable kernels`() {
-        assertEquals(PortableEngine.name, koblas.implementationFor(EngineImplementation.Dot, 1))
+        assertEquals(ScalarEngine.name, koblas.implementationFor(EngineImplementation.Dot, 1))
     }
 
     @Test
@@ -59,7 +68,7 @@ class BuiltinEnginesTest {
 
             for (length in listOf(16, 32, 64, 128)) {
                 assertEquals(
-                    if (rules.isNotEmpty() && length in 32..64) owned.name else PortableEngine.name,
+                    if (rules.isNotEmpty() && length in 32..64) owned.name else ScalarEngine.name,
                     engine.implementationFor(EngineImplementation.Sum, length),
                 )
             }

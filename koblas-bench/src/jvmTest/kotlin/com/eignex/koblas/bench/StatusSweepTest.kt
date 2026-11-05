@@ -12,10 +12,10 @@ class StatusSweepTest {
     @Test fun `fixed sweep covers every engine overload at two sizes and executes numerical checks`() {
         val methods = KoblasEngine::class.java.declaredMethods.filter { !it.name.startsWith("get") && '$' !in it.name }
         val cases = KoblasLabSuite.plan(BenchRequest(parameters))
-        assertEquals(39, methods.size, "Review sweep membership when the engine API changes")
+        assertEquals(41, methods.size, "Review sweep membership when the engine API changes")
         assertEquals(methods.size * 2, cases.size)
         val workloads = cases.map { Cases.parse(it.parameters.getValue("row")).single() }
-        assertEquals(39, workloads.map { it.operation }.distinct().size)
+        assertEquals(41, workloads.map { it.operation }.distinct().size)
         assertTrue(workloads.groupBy { it.operation }.values.all { it.size == 2 && it.map { c -> c.dimensions }.distinct().size == 2 })
         for (case in cases) {
             assertEquals("jvm-default", case.parameters["targets"])

@@ -52,8 +52,8 @@ check their [definitions](REFERENCE.md#cases) before comparing them.
 
 ## Per-commit status sweep
 
-`lab/recipes/status-sweep.json` runs the default JVM engine on all 39 `KoblasEngine` routine overloads at
-exactly two sizes (78 cases). `lab/cases-status-sweep-v1.txt` freezes membership. Dense vectors and indexed
+`lab/recipes/status-sweep.json` runs the default JVM engine on all 41 `KoblasEngine` routine overloads at
+exactly two sizes (82 cases). `lab/cases-status-sweep-v2.txt` freezes membership. Dense vectors and indexed
 vectors use 64/4096 entries, dense Level 2 and sparse matrices use orders 32/128, and dense Level 3 uses
 16/64. Sparse density is 1/8; matrix panels have eight right-hand sides.
 

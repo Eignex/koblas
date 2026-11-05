@@ -1,6 +1,6 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.internal.operands.*
+import com.eignex.koblas.internal.storage.requireInBounds
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 

@@ -1,9 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.assertClose
-import com.eignex.koblas.internal.portable.PortableEngine
-import com.eignex.koblas.sparse.*
+import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.assertContentEquals
@@ -26,19 +24,19 @@ internal fun assertLevel1KernelsAgreeWithReference(kernels: KoblasEngine) {
         val pad = 3
         val a = DoubleArray(len + pad) { rng.nextDouble(-1.0, 1.0) }
         val b = DoubleArray(len + pad) { rng.nextDouble(-1.0, 1.0) }
-        val expectedDot = PortableEngine.dot(a, pad, b, 0, len)
+        val expectedDot = ScalarEngine.dot(a, pad, b, 0, len)
         assertClose(
             doubleArrayOf(expectedDot),
             doubleArrayOf(kernels.dot(a, pad, b, 0, len)),
             context = "dot len=$len",
         )
         val expectedAxpy = b.copyOf()
-        PortableEngine.axpy(expectedAxpy, 0, 0.75, a, pad, len)
+        ScalarEngine.axpy(expectedAxpy, 0, 0.75, a, pad, len)
         val actualAxpy = b.copyOf()
         kernels.axpy(actualAxpy, 0, 0.75, a, pad, len)
         assertClose(expectedAxpy, actualAxpy, context = "axpy len=$len")
         val expectedScale = a.copyOf()
-        PortableEngine.scale(expectedScale, pad, -0.5, len)
+        ScalarEngine.scale(expectedScale, pad, -0.5, len)
         val actualScale = a.copyOf()
         kernels.scale(actualScale, pad, -0.5, len)
         assertClose(expectedScale, actualScale, context = "scale len=$len")
@@ -62,7 +60,7 @@ internal fun assertRotKernelAgreesWithReference(kernels: KoblasEngine) {
         val expectedY = y.copyOf()
         val actualX = x.copyOf()
         val actualY = y.copyOf()
-        PortableEngine.rot(expectedX, xOffset, expectedY, yOffset, len, c, s)
+        ScalarEngine.rot(expectedX, xOffset, expectedY, yOffset, len, c, s)
         kernels.rot(actualX, xOffset, actualY, yOffset, len, c, s)
         assertClose(expectedX, actualX, context = "rot x len=$len")
         assertClose(expectedY, actualY, context = "rot y len=$len")
@@ -81,7 +79,7 @@ internal fun assertSwapAgreesWithReference(kernels: KoblasEngine) {
         val b = DoubleArray(len + 2 * pad) { rng.nextDouble(-1.0, 1.0) }
         val expectedA = a.copyOf()
         val expectedB = b.copyOf()
-        PortableEngine.swap(expectedA, pad, expectedB, pad, len)
+        ScalarEngine.swap(expectedA, pad, expectedB, pad, len)
 
         kernels.swap(a, pad, b, pad, len)
 
@@ -102,17 +100,17 @@ internal fun assertReductionsAgreeWithReference(kernels: KoblasEngine) {
             val v = DoubleArray(len + pad) { rng.nextDouble(-1.0, 1.0) * scale }
             val ctx = "len=$len scale=$scale"
             assertClose(
-                doubleArrayOf(PortableEngine.nrm2(v, pad, len)),
+                doubleArrayOf(ScalarEngine.nrm2(v, pad, len)),
                 doubleArrayOf(kernels.nrm2(v, pad, len)),
                 context = "nrm2 $ctx",
             )
-            val expectedSum = PortableEngine.sum(v, pad, len)
+            val expectedSum = ScalarEngine.sum(v, pad, len)
             assertClose(
                 doubleArrayOf(expectedSum),
                 doubleArrayOf(kernels.sum(v, pad, len)),
                 context = "sum $ctx",
             )
-            val expectedAsum = PortableEngine.asum(v, pad, len)
+            val expectedAsum = ScalarEngine.asum(v, pad, len)
             assertClose(
                 doubleArrayOf(expectedAsum),
                 doubleArrayOf(kernels.asum(v, pad, len)),
@@ -198,7 +196,7 @@ private inline fun forEachScaleFixture(body: (Int, Int, Double, DoubleArray, Dou
                     if (i % 3 == 0) finite[(i / 3) % finite.size] else i * 0.125 - 3.0
             }
             val actual = expected.copyOf()
-            PortableEngine.scale(expected, off, alpha, len)
+            ScalarEngine.scale(expected, off, alpha, len)
             body(off, len, alpha, expected, actual)
         }
     }
@@ -207,20 +205,20 @@ private inline fun forEachScaleFixture(body: (Int, Int, Double, DoubleArray, Dou
 /** Norms whose components square outside the exponent range, compared with the scalar oracle. */
 internal fun assertNormExtremesAgreeWithReference(kernels: KoblasEngine) {
     val pair = doubleArrayOf(3e200, 4e200)
-    assertEquals(PortableEngine.nrm2(pair, 0, 2), kernels.nrm2(pair, 0, 2), absoluteTolerance = 1e188)
+    assertEquals(ScalarEngine.nrm2(pair, 0, 2), kernels.nrm2(pair, 0, 2), absoluteTolerance = 1e188)
     val tinyPair = doubleArrayOf(3e-200, 4e-200)
-    assertEquals(PortableEngine.nrm2(tinyPair, 0, 2), kernels.nrm2(tinyPair, 0, 2), absoluteTolerance = 1e-212)
+    assertEquals(ScalarEngine.nrm2(tinyPair, 0, 2), kernels.nrm2(tinyPair, 0, 2), absoluteTolerance = 1e-212)
 
     for (len in intArrayOf(16, 33, 64)) {
         val big = DoubleArray(len) { 1e200 }
-        val expected = PortableEngine.nrm2(big, 0, len)
+        val expected = ScalarEngine.nrm2(big, 0, len)
         assertEquals(
             expected,
             kernels.nrm2(big, 0, len),
             absoluteTolerance = expected * 1e-12,
         )
         val tiny = DoubleArray(len) { 1e-200 }
-        val expectedTiny = PortableEngine.nrm2(tiny, 0, len)
+        val expectedTiny = ScalarEngine.nrm2(tiny, 0, len)
         assertEquals(
             expectedTiny,
             kernels.nrm2(tiny, 0, len),
@@ -235,7 +233,7 @@ internal fun assertNormWindowsAgreeWithReference(kernels: KoblasEngine) {
     val v = DoubleArray(300) { rng.nextDouble(-1.0, 1.0) }
     for (off in intArrayOf(0, 1, 7)) {
         for (len in intArrayOf(0, 1, 3, 8, 31, 128, 293)) {
-            val expected = PortableEngine.nrm2(v, off, len)
+            val expected = ScalarEngine.nrm2(v, off, len)
             assertEquals(
                 expected,
                 kernels.nrm2(v, off, len),

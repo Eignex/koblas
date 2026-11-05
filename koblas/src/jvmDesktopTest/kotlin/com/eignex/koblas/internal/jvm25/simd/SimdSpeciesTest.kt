@@ -1,8 +1,6 @@
 package com.eignex.koblas.internal.jvm25.simd
 
 import com.eignex.koblas.internal.jvm25.*
-import com.eignex.koblas.internal.jvm25.simd.simdAvailable
-import com.eignex.koblas.internal.jvm25.simd.simdBitSizeFor
 import org.junit.Assume
 import kotlin.test.Test
 import kotlin.test.assertEquals

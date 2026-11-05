@@ -1,11 +1,14 @@
 package com.eignex.koblas.internal.jvm25.simd
 
-import com.eignex.koblas.*
-import com.eignex.koblas.dense.*
-import com.eignex.koblas.engine.*
-import com.eignex.koblas.internal.engine.*
-import com.eignex.koblas.internal.jvm25.simd.hardwareFusedMultiplyAdd
-import com.eignex.koblas.internal.portable.PortableEngine
+import com.eignex.koblas.dense.assertLargeColumnUpdatesAgreeWithReference
+import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.engine.EngineImplementation
+import com.eignex.koblas.internal.engine.implementationFor
+import com.eignex.koblas.internal.engine.panelProvider
+import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.internal.kernels.PanelWork
+import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
+import com.eignex.koblas.koblas
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -36,7 +39,7 @@ class SimdPanelKernelsTest {
         for (work in vectorised()) {
             assertEquals(kernels.name, kernels.implementationFor(work, lanes, 4), "$work at $lanes rows")
             assertEquals(
-                if (hasShortBody(work)) kernels.name else PortableEngine.name,
+                if (hasShortBody(work)) kernels.name else ScalarEngine.name,
                 kernels.implementationFor(work, lanes - 1, 4),
                 "$work at ${lanes - 1} rows",
             )
@@ -65,7 +68,7 @@ class SimdPanelKernelsTest {
 
         for (work in vectorised()) {
             assertEquals(
-                PortableEngine.name,
+                ScalarEngine.name,
                 kernels.implementationFor(work, WIDE, 4, contiguous = false),
                 "$work strided",
             )
@@ -85,12 +88,12 @@ class SimdPanelKernelsTest {
             "adjacent right-hand sides",
         )
         assertEquals(
-            PortableEngine.name,
+            ScalarEngine.name,
             kernels.implementationFor(PanelWork.SparseRightHandSides, WIDE, 4, contiguous = false),
             "strided right-hand sides",
         )
         assertEquals(
-            PortableEngine.name,
+            ScalarEngine.name,
             kernels.implementationFor(PanelWork.SparseRightHandSides, lanes - 1, 4),
             "fewer adjacent right-hand sides than one lane block",
         )
@@ -122,7 +125,7 @@ class SimdPanelKernelsTest {
         val vector = DoubleArray(1)
         kernels.multiDot(1.0, a, 0, rows, x, 0, 1, rows, 1, 0.0, vector, 0, 1)
         val portable = DoubleArray(1)
-        PortableEngine.multiDot(1.0, a, 0, rows, x, 0, 1, rows, 1, 0.0, portable, 0, 1)
+        ScalarEngine.multiDot(1.0, a, 0, rows, x, 0, 1, rows, 1, 0.0, portable, 0, 1)
 
         val bound = rows * 2.220446049250313e-16 * portable[0]
         assertTrue(

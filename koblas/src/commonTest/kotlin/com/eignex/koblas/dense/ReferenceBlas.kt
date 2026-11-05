@@ -3,7 +3,6 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.sparse.*
 
 /**
  * A naive scalar oracle for the dense surface, defined by the textbook sums rather than by any kernel, and

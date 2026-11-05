@@ -1,5 +1,6 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.internal.storage.overlaps
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals

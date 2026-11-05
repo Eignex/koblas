@@ -1,6 +1,6 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.internal.operands.*
+import com.eignex.koblas.internal.storage.requireShape
 import kotlin.jvm.JvmStatic
 
 /**

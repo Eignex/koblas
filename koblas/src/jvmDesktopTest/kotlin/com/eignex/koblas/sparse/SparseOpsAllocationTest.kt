@@ -1,7 +1,7 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.*
+import com.eignex.koblas.engine.BuiltinEngines
 import com.eignex.koblas.testutil.allocation.ARRAY_HEADER_BYTES
 import com.eignex.koblas.testutil.allocation.AllocationCase
 import com.eignex.koblas.testutil.allocation.FLOOR_BYTES

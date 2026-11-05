@@ -3,12 +3,12 @@
 
 package com.eignex.koblas.internal.host
 
-import platform.windows.GetThreadErrorMode
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import platform.windows.GetThreadErrorMode
 
 /** Exercise the real Windows loader without requiring an installed BLAS. */
 class NativeLibraryTest {

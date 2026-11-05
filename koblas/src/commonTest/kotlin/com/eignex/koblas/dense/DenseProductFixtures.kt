@@ -1,8 +1,7 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.*
-import com.eignex.koblas.engine.*
-import com.eignex.koblas.internal.engine.*
+import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.koblas
 
 /**
  * A destination order past several of this backend's tiles and one row short of a whole number of them,

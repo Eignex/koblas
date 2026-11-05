@@ -1,9 +1,8 @@
 package com.eignex.koblas.internal.jvm25.simd
 
 import com.eignex.koblas.*
-import com.eignex.koblas.assertClose
-import com.eignex.koblas.engine.*
-import com.eignex.koblas.internal.portable.PortableEngine
+import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import org.junit.Assume
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -28,9 +27,9 @@ class SimdOpsTest {
                 for (i in 0 until length) a[offset + i] = (i % 17 - 8) / 16.0
                 a[offset + length / 2] = 1.0
                 val bOffset = 7 - offset
-                val expectedSum = PortableEngine.asum(a, offset, length)
-                val expectedDot = PortableEngine.dot(a, offset, b, bOffset, length)
-                val expectedIndex = PortableEngine.iamax(a, offset, length)
+                val expectedSum = ScalarEngine.asum(a, offset, length)
+                val expectedDot = ScalarEngine.dot(a, offset, b, bOffset, length)
+                val expectedIndex = ScalarEngine.iamax(a, offset, length)
 
                 val actualSum = kernels.asum(a, offset, length)
                 val actualDot = kernels.dot(a, offset, b, bOffset, length)
@@ -61,9 +60,9 @@ class SimdOpsTest {
                     values.fill(Double.NaN)
                     values.fill(-0.0, offset, offset + length)
                     values[offset + position] = value
-                    val expectedSum = PortableEngine.asum(values, offset, length)
-                    val expectedDot = PortableEngine.dot(values, offset, other, 7 - offset, length)
-                    val expectedIndex = PortableEngine.iamax(values, offset, length)
+                    val expectedSum = ScalarEngine.asum(values, offset, length)
+                    val expectedDot = ScalarEngine.dot(values, offset, other, 7 - offset, length)
+                    val expectedIndex = ScalarEngine.iamax(values, offset, length)
 
                     val actualSum = kernels.asum(values, offset, length)
                     val actualDot = kernels.dot(values, offset, other, 7 - offset, length)
@@ -86,7 +85,7 @@ class SimdOpsTest {
             for (offset in intArrayOf(0, 1, 3, 7)) {
                 val values = DoubleArray(offset + length + 3) { Double.NaN }
                 for (i in 0 until length) values[offset + i] = (i % 17 - 8) / 16.0
-                val expected = PortableEngine.asum(values, offset, length)
+                val expected = ScalarEngine.asum(values, offset, length)
 
                 val actual = SimdOps.asum(values, offset, length)
 
@@ -105,7 +104,7 @@ class SimdOpsTest {
                     val values = DoubleArray(length + 6) { Double.NaN }
                     values.fill(-0.0, 3, 3 + length)
                     values[3 + position] = value
-                    val expected = PortableEngine.asum(values, 3, length)
+                    val expected = ScalarEngine.asum(values, 3, length)
 
                     val actual = SimdOps.asum(values, 3, length)
 
@@ -128,7 +127,7 @@ class SimdOpsTest {
                         a[aOffset + i] = (i % 17 - 8) / 16.0
                         b[bOffset + i] = (i % 11 - 5) / 8.0
                     }
-                    val expected = PortableEngine.dot(a, aOffset, b, bOffset, length)
+                    val expected = ScalarEngine.dot(a, aOffset, b, bOffset, length)
 
                     val actual = SimdOps.dot(a, aOffset, b, bOffset, length)
 
@@ -152,7 +151,7 @@ class SimdOpsTest {
                 for (sourceOffset in intArrayOf(3, length + 6)) {
                     val expected = DoubleArray(2 * length + 9) { values[it % values.size] }
                     val actual = expected.copyOf()
-                    PortableEngine.axpy(expected, 3, alpha, expected, sourceOffset, length)
+                    ScalarEngine.axpy(expected, 3, alpha, expected, sourceOffset, length)
 
                     SimdOps.axpy(actual, 3, alpha, actual, sourceOffset, length)
 
@@ -180,7 +179,7 @@ class SimdOpsTest {
                             else -> if (i % (4 * lanes) == 0) (i + 1) * Double.MIN_VALUE else 0.0
                         }
                     }
-                    val expected = PortableEngine.iamax(values, offset, length)
+                    val expected = ScalarEngine.iamax(values, offset, length)
 
                     val actual = SimdOps.iamax(values, offset, length)
 
@@ -200,7 +199,7 @@ class SimdOpsTest {
                     val values = DoubleArray(offset + length + 3) { Double.NaN }
                     values.fill(1.0, offset, offset + length)
                     values[offset + position] = Double.fromBits(1.0.toRawBits() + 1)
-                    val expected = PortableEngine.iamax(values, offset, length)
+                    val expected = ScalarEngine.iamax(values, offset, length)
 
                     val actual = SimdOps.iamax(values, offset, length)
 
@@ -222,7 +221,7 @@ class SimdOpsTest {
                 val nan = 8 * lanes + vector * lanes
                 values[nan] = Double.NaN
                 values[nan + lanes] = 4.0
-                val expected = PortableEngine.iamax(values, 0, length)
+                val expected = ScalarEngine.iamax(values, 0, length)
 
                 val actual = SimdOps.iamax(values, 0, length)
 

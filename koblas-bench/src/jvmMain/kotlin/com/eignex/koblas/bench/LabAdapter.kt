@@ -1,8 +1,8 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.*
-import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.Vendor
+import com.eignex.koblas.engine.hostPlatform
+import com.eignex.koblas.koblas
 import com.eignex.lab.bench.*
 import com.eignex.lab.bench.BenchCase as LabCase
 import java.io.File
@@ -10,7 +10,6 @@ import java.nio.file.Files
 import java.nio.file.Path
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import com.eignex.koblas.engine.hostPlatform
 
 /** Prepared paired captures through the Lab Bench protocol. */
 public object LabAdapter {
@@ -48,7 +47,7 @@ internal object KoblasLabSuite : BenchSuite {
                 (vendor == Vendor.OneMkl && it.removeSuffix("-jvm") == "openblas")
         }) { "Invalid capture targets" }
         val sweep = p["status-sweep"] == "true"
-        val cases = p["cases"] ?: if (sweep) "koblas-bench/lab/cases-status-sweep-v1.txt" else CASES
+        val cases = p["cases"] ?: if (sweep) "koblas-bench/lab/cases-status-sweep-v2.txt" else CASES
         val inputs = mutableListOf(BenchInput(cases, role = "cases"))
         if (selected.any { !it.startsWith("jvm-") && !it.endsWith("-jvm") }) {
             val target = when {
@@ -161,7 +160,7 @@ internal object KoblasLabSuite : BenchSuite {
             require(p["targets"] == null || p["targets"] == "jvm-default")
             require(p["samples"] == "3" && p["warmups"] == "3" && p["target-ms"] == "100" &&
                 p["forks"] == "1" && p["rounds"] == "1" && p["smoke"] != "true" && p["profile-gc"] != "true") {
-                "Status sweep v1 requires 3 warmups, 3 samples, 100ms, one fork and one round"
+                "Status sweep v2 requires 3 warmups, 3 samples, 100ms, one fork and one round"
             }
         }
         p["jvm-options"]?.let { options ->

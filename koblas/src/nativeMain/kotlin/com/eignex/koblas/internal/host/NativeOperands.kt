@@ -3,7 +3,7 @@
 package com.eignex.koblas.internal.host
 
 import com.eignex.koblas.*
-import com.eignex.koblas.internal.operands.requireVectorWindow
+import com.eignex.koblas.internal.storage.requireVectorWindow
 import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.DoubleVar
 import kotlinx.cinterop.Pinned

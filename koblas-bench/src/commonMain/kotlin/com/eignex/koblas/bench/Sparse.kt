@@ -2,13 +2,10 @@
 
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.internal.engine.absoluteSumVector
-import com.eignex.koblas.internal.engine.normVector
-
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.*
-import com.eignex.koblas.engine.*
-import com.eignex.koblas.sparse.*
+import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.internal.operations.absoluteSumVector
+import com.eignex.koblas.internal.operations.normVector
 
 /**
  * The sparse work for one case on [engine], or the reason this engine cannot measure it, or null when the case
@@ -177,7 +174,6 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
                 c.values[0]
             }
 
-
         }
 
         // The right-side form multiplies a dense operand by the sparse one on the selected engine.
@@ -213,8 +209,6 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
                 mirror.values[0]
             }
         }
-
-
 
         "spsymv" -> {
             val a = Fixtures.sparse(d[0], d[0], density, 1, triangular = true, lower = lower, support = support)

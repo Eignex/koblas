@@ -1,7 +1,7 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.engine.*
-import com.eignex.koblas.internal.engine.*
+import com.eignex.koblas.internal.engine.panelProvider
+import com.eignex.koblas.internal.kernels.PanelWork
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.assertEquals

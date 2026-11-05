@@ -3,11 +3,11 @@
 package com.eignex.koblas.internal.jvm25.simd
 
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.*
-import com.eignex.koblas.engine.*
-import com.eignex.koblas.internal.engine.*
-import com.eignex.koblas.internal.portable.PortableEngine
-import com.eignex.koblas.internal.portable.dense.triangleEntry
+import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.engine.EngineImplementation
+import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
+import com.eignex.koblas.internal.kernels.scalar.dense.triangleEntry
 import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
 
@@ -20,7 +20,7 @@ import jdk.incubator.vector.VectorOperators
  * Use division directly: a reciprocal of a subnormal diagonal can overflow even when the quotient
  * is finite. Zero and infinite diagonals also retain division semantics.
  *
- * Strided sides and incomplete lane blocks use [PortableEngine];
+ * Strided sides and incomplete lane blocks use [ScalarEngine];
  * [implementationsFor] reports those bodies. [gathersRightHandSides] requests a copy when it can
  * amortize vector loads. Species initialization requires the Vector API module, checked by
  * [BuiltinEngines] before using this backend.
@@ -64,9 +64,9 @@ internal object SimdTriangularKernels : EngineKernels {
     override fun implementationsFor(order: Int, sides: Int, contiguous: Boolean): List<String> = when {
         order <= 0 || sides <= 0 -> emptyList()
         sides == 1 && contiguous -> listOf(name)
-        !contiguous || sides < LANE -> PortableEngine.implementationsFor(order, sides, contiguous)
+        !contiguous || sides < LANE -> ScalarEngine.implementationsFor(order, sides, contiguous)
         sides % LANE == 0 -> listOf(name)
-        else -> listOf(name) + PortableEngine.implementationsFor(order, sides, contiguous)
+        else -> listOf(name) + ScalarEngine.implementationsFor(order, sides, contiguous)
     }
 
     override fun diagonalSolve(
@@ -162,11 +162,11 @@ internal object SimdTriangularKernels : EngineKernels {
         if (lane == sides) return
         val from = xOffset + lane * rhsStride
         if (solve) {
-            PortableEngine.diagonalSolve(
+            ScalarEngine.diagonalSolve(
                 t, n, start, size, transposed, lower, unitDiag, x, from, orderStride, rhsStride, sides - lane, tOffset,
             )
         } else {
-            PortableEngine.diagonalMultiply(
+            ScalarEngine.diagonalMultiply(
                 t, n, start, size, transposed, lower, unitDiag, x, from, orderStride, rhsStride, sides - lane, tOffset,
             )
         }
