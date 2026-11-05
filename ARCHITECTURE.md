@@ -11,9 +11,10 @@ multiplatform module; platform source sets supply their own runtime and arithmet
   matrix methods prepare their operands and invoke shared schedules. Primitive Level 1 methods are implemented
   by engines.
 - `VectorOps.kt` and `MatrixOps.kt` are small container facades over the immutable default engine in
-  `DefaultEngine.kt`. The matrix facade covers total and axis sums, ordinary dense products, rank-one
-  updates and triangular solves. Extensions hide vector windows or supply ordinary product and
-  unit-scaling defaults. Sparse sums traverse stored CSC entries; custom matrices use scalar readers.
+  `DefaultEngine.kt`. The matrix facade covers materialized transposes, total and axis sums, ordinary
+  dense products, rank-one updates and triangular solves. Extensions hide vector windows or supply
+  ordinary product and unit-scaling defaults. Sparse sums traverse stored CSC entries; custom matrices
+  use scalar readers.
   Operations needing the full BLAS signature stay on the engine.
 - `engine` owns exact built-in engines, profiles, platform facts and provenance.
 
