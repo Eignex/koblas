@@ -1,9 +1,7 @@
 package com.eignex.koblas.internal.sparse
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.operands.*
-import com.eignex.koblas.internal.portable.sparse.*
 
 /**
  * Borrows the complete rank-update scratch set as one exception-safe inline scope. No holder object is
@@ -48,13 +46,3 @@ internal inline fun <T> withSymmetricRankScratch(
         }
     }
 }
-
-/** An independent copy of a validated CSC matrix, retaining its stored zeros and coefficient values. */
-@Suppress("NOTHING_TO_INLINE") // Keep snapshot construction in the caller without an extra preparation call.
-internal inline fun SparseMatrix.sparseCopy(): SparseMatrix = SparseMatrix.wrapTrusted(
-    rows,
-    cols,
-    copyColumnPointers(),
-    copyRowIndices(),
-    values.copyOf(),
-)

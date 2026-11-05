@@ -16,7 +16,7 @@ separate [Scratch][com.eignex.koblas.Scratch].
 # Package com.eignex.koblas
 
 Owning dense and sparse containers, vector views, the default [koblas] engine, the [KoblasEngine]
-contract, [MatrixStructure] and [Scratch] arrays. [Matrix] and [Vector] are read-only contracts custom types can
+contract and [Scratch] arrays. [Matrix] and [Vector] are read-only contracts custom types can
 implement. Products accept at most one sparse operand, on either side, and produce dense storage.
 No sparse operand is densified. Products of two sparse matrices are unsupported.
 

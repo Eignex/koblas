@@ -5,6 +5,7 @@ package com.eignex.koblas.internal.portable.dense
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.operands.MatrixStructure
 import com.eignex.koblas.internal.operands.scaleRegion
 
 /*

@@ -1,10 +1,7 @@
-@file:kotlin.jvm.JvmName("Koblas")
-@file:kotlin.jvm.JvmMultifileClass
-
-package com.eignex.koblas
+package com.eignex.koblas.internal.operands
 
 /** Structure of a stored matrix; unstored entries and unit diagonals are never loaded. */
-public enum class MatrixStructure {
+internal enum class MatrixStructure {
     /** Every entry is stored. */
     General,
 

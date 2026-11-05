@@ -129,7 +129,7 @@ class SparseOpsAllocationTest internal constructor(private val case: AllocationC
             val transposeBytes = resultBytes(ROWS, skewed.nnz)
             return listOf(
                 AllocationCase("a sparse transpose allocates only result storage", 100, transposeBytes + FLOOR_BYTES) {
-                    engine.transpose(skewed)
+                    skewed.transpose()
                 },
             )
         }

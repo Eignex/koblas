@@ -1,8 +1,8 @@
 package com.eignex.koblas.internal.host
 
 import com.eignex.koblas.*
-import com.eignex.koblas.MatrixStructure
 import com.eignex.koblas.dense.*
+import com.eignex.koblas.internal.operands.MatrixStructure
 import com.eignex.koblas.sparse.*
 import kotlin.math.abs
 
