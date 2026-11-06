@@ -2,6 +2,7 @@ package com.eignex.koblas.internal.kernels.scalar.sparse
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.ReferenceBlas
+import com.eignex.koblas.internal.kernels.*
 import kotlin.random.Random
 import kotlin.test.*
 

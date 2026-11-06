@@ -3,6 +3,7 @@
 package com.eignex.koblas.internal.scheduling.sparse
 
 import com.eignex.koblas.*
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.sparse.sparseSymmetricVectorColumn
 import com.eignex.koblas.internal.operations.applyBeta
 

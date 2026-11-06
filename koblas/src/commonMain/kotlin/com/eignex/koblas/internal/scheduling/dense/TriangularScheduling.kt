@@ -4,6 +4,7 @@ package com.eignex.koblas.internal.scheduling.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.internal.engine.triangularProvider
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.EngineKernels
 import com.eignex.koblas.internal.operations.triangle
 import com.eignex.koblas.internal.storage.borrowOptional

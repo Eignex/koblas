@@ -5,8 +5,10 @@ package com.eignex.koblas.internal.operations
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.EngineImplementation
 import com.eignex.koblas.internal.engine.CombinedEngine
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.*
 import com.eignex.koblas.internal.kernels.scalar.sparse.*
+import com.eignex.koblas.internal.storage.copyVectorStorage
 import com.eignex.koblas.internal.storage.sameVectorMapping
 import kotlin.math.abs
 
@@ -99,9 +101,36 @@ private fun KoblasEngine.copyDense(x: DenseVector, y: DenseVector) {
     provider.copy(source.values, source.offset, y.values, y.offset, x.size, source.stride, y.stride)
 }
 
-internal fun KoblasEngine.axpyVector(alpha: Double, x: Vector, y: DenseVector) {
+internal fun KoblasEngine.scaleVector(alpha: Double, x: Vector) {
+    if (alpha == 1.0) return
+    when (x) {
+        is DenseVector -> scale(x.values, x.offset, alpha, x.size, x.stride)
+        is SparseVector -> scale(x.values, 0, alpha, x.nnz)
+        else -> scalarVectorScale(alpha, x)
+    }
+}
+
+internal fun KoblasEngine.axpyVector(alpha: Double, x: Vector, y: Vector) {
     requireSameSize(x.size, y.size, "axpy")
-    if (alpha == 0.0) return
+    if (alpha == 0.0 || x.size == 0) return
+    when (y) {
+        is DenseVector -> axpyDenseVector(alpha, x, y)
+
+        is SparseVector -> {
+            // Build the result before writing: even opaque sources may borrow the destination's values.
+            val result = scalarSparseVectorAxpy(alpha, x, y)
+            if (result.indices.contentEquals(y.indices)) {
+                result.values.copyInto(y.values)
+            } else {
+                y.replaceStorage(result.indices, result.values)
+            }
+        }
+
+        else -> scalarVectorAxpy(alpha, copyVectorStorage(x), y)
+    }
+}
+
+private fun KoblasEngine.axpyDenseVector(alpha: Double, x: Vector, y: DenseVector) {
     when (val source = x.stableFor(y)) {
         is SparseVector -> if (y.isWholeArray) {
             axpy(source.indices, 0, source.values, 0, source.values.size, alpha, y.values)

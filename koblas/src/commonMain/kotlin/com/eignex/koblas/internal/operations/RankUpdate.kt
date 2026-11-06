@@ -3,6 +3,7 @@
 package com.eignex.koblas.internal.operations
 
 import com.eignex.koblas.*
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.scheduling.dense.scheduleGer
 import com.eignex.koblas.internal.storage.requireVectorWindow
 

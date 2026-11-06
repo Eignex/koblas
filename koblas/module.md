@@ -27,7 +27,9 @@ independent storage; [Matrix.copyFrom] and [Vector.copyFrom] copy into existing,
 and handle overlapping inputs. [Matrix.transpose] preserves sparse storage and materializes other
 implementations into dense storage. [Matrix.sum] provides total and axis-wise sums. Sparse writes
 preserve ascending indices, including explicitly written zeros, and structural changes may replace
-their buffers. [KoblasEngine] owns the BLAS surface.
+their buffers. [Vector.scale] and [Vector.axpy] mutate any vector storage through the default engine.
+[KoblasEngine] owns typed dense and sparse BLAS operations; vectors carry their own addressing.
+Raw array windows are internal kernel operations.
 
 [Vector.norm] and [Matrix.norm] share [Norm]. Vectors support [Norm.One], [Norm.Two] (the default),
 [Norm.Infinity] and [Norm.MaxAbs], with the last two equivalent. Matrices support [Norm.Frobenius]

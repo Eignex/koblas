@@ -1,6 +1,7 @@
 package com.eignex.koblas.internal.jvm25.simd
 
 import com.eignex.koblas.*
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.IntVector

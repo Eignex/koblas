@@ -2,6 +2,7 @@ package com.eignex.koblas.internal.operations
 
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import kotlin.test.*
 
@@ -10,7 +11,8 @@ class VectorOperationsTest {
     fun `sparse norms use selected kernels over stored values only`() {
         val source = SparseVector.wrap(Int.MAX_VALUE, intArrayOf(1, 100), doubleArrayOf(2.0, -3.0))
         val calls = mutableListOf<String>()
-        val engine = object : KoblasEngine by BuiltinEngines.scalar {
+        val engine = object : EngineKernels {
+            override val name = "recording"
             override fun asum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
                 assertSame(source.values, v)
                 assertEquals(2, len)
@@ -40,7 +42,8 @@ class VectorOperationsTest {
     fun `sparse sum uses the selected kernel over stored values only`() {
         val source = SparseVector.wrap(Int.MAX_VALUE, intArrayOf(1, 100), doubleArrayOf(2.0, -3.0))
         var length = -1
-        val engine = object : KoblasEngine by BuiltinEngines.scalar {
+        val engine = object : EngineKernels {
+            override val name = "recording"
             override fun sum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
                 assertSame(source.values, v)
                 length = len
@@ -204,9 +207,9 @@ class VectorOperationsTest {
     @Test
     fun `scale mutates in place and respects identity`() {
         val v = DenseVector.of(doubleArrayOf(1.0, -2.0, 3.0))
-        koblas.scale(v.values, v.offset, 0.5, v.size, v.stride)
+        koblas.scaleVector(0.5, v)
         assertEquals(dense(0.5, -1.0, 1.5), v)
-        koblas.scale(v.values, v.offset, 1.0, v.size, v.stride)
+        koblas.scaleVector(1.0, v)
         assertEquals(dense(0.5, -1.0, 1.5), v)
     }
 
@@ -283,7 +286,7 @@ class VectorOperationsTest {
         val expected = backing.copyOf()
         ScalarEngine.scale(expected, 0, 2.0, 4, 2)
 
-        koblas.scale(even.values, even.offset, 2.0, even.size, even.stride)
+        koblas.scaleVector(2.0, even)
 
         assertContentEquals(expected, backing)
     }

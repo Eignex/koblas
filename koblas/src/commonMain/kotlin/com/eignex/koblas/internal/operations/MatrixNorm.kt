@@ -1,6 +1,7 @@
 package com.eignex.koblas.internal.operations
 
 import com.eignex.koblas.*
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.scalarMatrixNorm
 import com.eignex.koblas.internal.kernels.scalar.sparse.sparseMatrixInfinityNorm
 import kotlin.math.hypot

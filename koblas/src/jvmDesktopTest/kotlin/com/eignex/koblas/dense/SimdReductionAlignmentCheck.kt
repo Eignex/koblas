@@ -3,6 +3,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.BuiltinEngines
 import com.eignex.koblas.internal.jvm25.simd.*
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.testutil.allocation.*
 
 /** Heap layout is fixed at startup, so alignment conformance needs a separate process per collector. */

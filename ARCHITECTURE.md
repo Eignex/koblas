@@ -8,15 +8,15 @@ multiplatform module; platform source sets supply their own runtime and arithmet
 
 - `Matrix` and `Vector` own fixed-shape mutable entry contracts and default materialization. Dense
   interfaces add addressing; sparse setters maintain sorted structure and retain written zeros.
-- `KoblasEngine` owns explicit BLAS calls, including windowed `ger` and sparse `dotColumn`. Its default
-  matrix methods prepare their operands and invoke shared schedules. Primitive Level 1 methods are implemented
-  by engines.
+- `KoblasEngine` owns typed BLAS calls over dense and sparse containers. Logical dimensions are validated
+  before views are unpacked. Its matrix methods prepare their operands and invoke shared schedules.
+  Primitive array windows, including windowed `ger`, belong to the internal `EngineKernels` interface.
 - `VectorOps.kt` and `MatrixOps.kt` are small container facades over the immutable default engine in
   `DefaultEngine.kt`. Both facades share the `Norm` enum, with norm dispatch and validation under
   `internal/operations`. Every facade extension targets `Matrix` or `Vector`; copies and matrix
   transposes are storage transformations, and copy-into operations validate shapes and stage aliases.
-  Sparse reductions traverse stored entries; custom storage uses scalar readers. BLAS calls stay on
-  the engine.
+  Sparse reductions traverse stored entries; custom storage uses scalar readers. Vector scale and AXPY
+  use the same storage adapters with the default engine. Explicit BLAS calls stay on the engine.
 - `engine` owns exact built-in engines, profiles, platform facts and provenance.
 
 ## Internal ownership

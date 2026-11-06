@@ -1,5 +1,6 @@
 package com.eignex.koblas.bench
 
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.*
 
 /** Reused, disjoint inputs for a sequence of rank updates with successively shorter trailing supports. */

@@ -1,6 +1,7 @@
 package com.eignex.koblas.internal.operations
 
 import com.eignex.koblas.*
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.storage.windowsOverlap
 import kotlin.test.Test
 import kotlin.test.assertContentEquals

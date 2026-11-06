@@ -88,6 +88,13 @@ kotlin.targets.configureEach {
     }
 }
 
+// Shared metadata compilation also needs the library's internals when several native targets are enabled.
+val libraryMetadata = project(":koblas").tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompileCommon>()
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompileCommon>().configureEach {
+    dependsOn(libraryMetadata)
+    friendPaths.from(libraryMetadata.map { it.destinationDirectory })
+}
+
 dependencies {
     add("jvmMainAnnotationProcessor", project(":koblas-bench:jmh"))
 }

@@ -35,6 +35,19 @@ internal fun scalarVectorMaximumMagnitude(x: Vector): Double {
     return maximum
 }
 
+internal fun scalarVectorScale(alpha: Double, x: Vector) {
+    for (i in 0 until x.size) x[i] *= alpha
+}
+
+/** The caller stages [x] before entering this loop when its storage may alias [y]. */
+internal fun scalarVectorAxpy(alpha: Double, x: Vector, y: Vector) {
+    if (x is SparseVector) {
+        for (k in x.indices.indices) y[x.indices[k]] += alpha * x.values[k]
+    } else {
+        for (i in 0 until x.size) y[i] += alpha * x[i]
+    }
+}
+
 /** Assignment is required here: scaling by zero need not erase nonfinite entries or negative zeros. */
 internal fun zeroVector(values: DoubleArray, offset: Int, size: Int, stride: Int) {
     if (stride == 1) {

@@ -11,6 +11,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.engine.EngineImplementation
 import com.eignex.koblas.internal.engine.wholeCallFor
+import com.eignex.koblas.internal.kernels.*
 import kotlin.native.concurrent.TransferMode
 import kotlin.native.concurrent.Worker
 import kotlin.random.Random

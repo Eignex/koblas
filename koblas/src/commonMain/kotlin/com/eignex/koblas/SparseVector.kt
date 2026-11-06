@@ -13,7 +13,8 @@ import kotlin.jvm.JvmStatic
  * zero-copy escape hatch
  * for specialized kernels and requires [UnsafeKoblasApi]; mutating it can invalidate the sparse structure.
  * [values] remains live so coefficients can be updated without changing the sparse pattern.
- * Inserting an entry through [set] or changing the pattern through [Vector.copyFrom] replaces the buffers;
+ * Inserting an entry through [set] or changing the pattern through [Vector.copyFrom] or [Vector.axpy]
+ * replaces the buffers;
  * obtain current arrays from the accessors after structural writes.
  *
  * @property size the logical length, counting the unstored zeros.

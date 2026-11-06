@@ -2,6 +2,7 @@ package com.eignex.koblas.internal.scheduling.sparse
 
 import com.eignex.koblas.*
 import com.eignex.koblas.internal.engine.panelProvider
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.PanelWork
 import com.eignex.koblas.internal.kernels.scalar.dense.scalarDivide
 import com.eignex.koblas.internal.kernels.scalar.sparse.sparseMaskedTriangularScatter

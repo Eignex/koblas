@@ -1,6 +1,7 @@
 package com.eignex.koblas.internal.scheduling.sparse
 
 import com.eignex.koblas.*
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.sparse.ReferenceSparseBlas
 import kotlin.random.Random
 import kotlin.test.Test

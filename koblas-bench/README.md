@@ -52,8 +52,9 @@ check their [definitions](REFERENCE.md#cases) before comparing them.
 
 ## Per-commit status sweep
 
-`lab/recipes/status-sweep.json` runs the default JVM engine on all 41 `KoblasEngine` routine overloads at
-exactly two sizes (82 cases). `lab/cases-status-sweep-v2.txt` freezes membership. Dense vectors and indexed
+`lab/recipes/status-sweep.json` runs the default JVM engine on 41 fixed arithmetic workloads spanning the
+`KoblasEngine` routine families at exactly two sizes (82 cases). Typed storage overloads share these
+underlying kernels; the sweep checks routine-family coverage without counting public overloads. `lab/cases-status-sweep-v2.txt` freezes membership. Dense vectors and indexed
 vectors use 64/4096 entries, dense Level 2 and sparse matrices use orders 32/128, and dense Level 3 uses
 16/64. Sparse density is 1/8; matrix panels have eight right-hand sides.
 

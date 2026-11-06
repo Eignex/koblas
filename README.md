@@ -39,9 +39,9 @@ val a = DenseMatrix.ofRows(arrayOf(
     doubleArrayOf(2.0, 1.0),
     doubleArrayOf(1.0, 3.0),
 ))
-val x = doubleArrayOf(3.0, 5.0)
-val y = DoubleArray(a.rows)
-koblas.gemv(1.0, a, x, 0, 1, 0.0, y, 0, 1)
+val x = DenseVector.of(doubleArrayOf(3.0, 5.0))
+val y = DenseVector.zero(a.rows)
+koblas.gemv(1.0, a, x, 0.0, y)
 ```
 
 GEMV computes `y = alpha * a * x + beta * y` into the supplied destination.
@@ -51,5 +51,5 @@ GEMV computes `y = alpha * a * x + beta * y` into the supplied destination.
 - [Engines and native libraries](BACKENDS.md): automatic selection, enabling acceleration and explicit engines.
 - [Architecture](ARCHITECTURE.md): storage, operation preparation, shared scheduling, and arithmetic kernels.
 - [Usage](USAGE.md): vector and matrix operations, reusable arrays, views, and Java and mobile setup.
-- [API overview](koblas/module.md): dense, sparse and raw array operations.
+- [API overview](koblas/module.md): typed dense and sparse operations.
 - [Benchmarks](koblas-bench/README.md): reproducible comparisons and measurement reports.

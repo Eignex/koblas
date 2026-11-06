@@ -24,7 +24,7 @@ val x = DenseVector.of(doubleArrayOf(3.0, 5.0))
 val b = DenseMatrix.diagonal(2) // Identity matrix
 
 val y = DenseVector.zero(a.rows)
-koblas.gemv(1.0, a, x.values, x.offset, x.stride, 0.0, y.values, y.offset, y.stride)
+koblas.gemv(1.0, a, x, 0.0, y)
 val product = DenseMatrix.zero(a.rows, b.cols)
 koblas.gemm(1.0, a, false, b, false, 0.0, product)
 val snapshot = x.copy()
@@ -67,7 +67,9 @@ a sparse source's pattern; other sources store nonzero entries and negative zero
 keeps indices sorted, and structural writes may replace the arrays returned by sparse accessors.
 
 Axis sums return a fresh dense vector. Sparse reductions visit stored entries without densifying.
-BLAS arithmetic uses `KoblasEngine` members with explicit destinations and vector windows.
+BLAS arithmetic uses typed `KoblasEngine` members with explicit destinations. Dense and sparse
+containers are public operands; primitive array windows belong to internal kernels.
+`vector.scale(alpha)` and `destination.axpy(alpha, source)` use the default engine across vector storage.
 
 Vectors and matrices share the `Norm` enum. Vectors support `One`, `Two` (the default), `Infinity`
 and `MaxAbs`, with the last two equivalent. Matrices support `Frobenius` (the default), `One` for the
@@ -82,12 +84,13 @@ The names come from BLAS: GEMV means general matrix-vector multiplication, and G
 matrix-matrix multiplication.
 
 ```kotlin
-val destination = DoubleArray(a.rows)
-koblas.gemv(1.0, a, x.values, x.offset, x.stride, 0.0, destination, 0, 1) // y = a * x
+val destination = DenseVector.zero(a.rows)
+koblas.gemv(1.0, a, x, 0.0, destination) // y = a * x
 ```
 
-Dense vector arguments specify their backing array, offset and stride. A whole array starts at zero
-with stride one. These calls can scale the product and add it to the destination in one call. For matrices,
+Dense vector arguments carry their own offsets and strides, including borrowed views. Wrap an existing
+array with `DenseVector.wrap` to reuse it. These calls can scale the product and add it to the destination
+in one call. For matrices,
 GEMM computes `c = alpha * a * b + beta * c` when neither operand is transposed. Pass a `Scratch`
 to reuse temporary buffers across calls:
 
@@ -135,12 +138,13 @@ Pass every argument from Java, including transpose flags and optional scratch:
 
 ```java
 import com.eignex.koblas.DenseMatrix;
+import com.eignex.koblas.DenseVector;
 import com.eignex.koblas.Koblas;
 
 DenseMatrix a = DenseMatrix.ofRows(new double[][] {{2.0, 1.0}, {1.0, 3.0}});
-double[] x = new double[] {3.0, 5.0};
-double[] destination = new double[a.getRows()];
-Koblas.getDefault().gemv(1.0, a, x, 0, 1, 0.0, destination, 0, 1, false, null);
+DenseVector x = DenseVector.of(new double[] {3.0, 5.0});
+DenseVector destination = DenseVector.zero(a.getRows());
+Koblas.getDefault().gemv(1.0, a, x, 0.0, destination, false, null);
 ```
 
 Android uses the same dependency as desktop JVM projects, with Java 17 bytecode support in your Android

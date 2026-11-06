@@ -2,6 +2,7 @@ package com.eignex.koblas
 
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.internal.kernels.*
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertContentEquals

@@ -3,6 +3,7 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.BuiltinEngines
 import com.eignex.koblas.internal.engine.*
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.PanelWork
 import com.eignex.koblas.testutil.allocation.*
 

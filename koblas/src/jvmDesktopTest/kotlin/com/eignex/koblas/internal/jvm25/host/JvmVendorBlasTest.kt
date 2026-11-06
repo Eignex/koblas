@@ -4,6 +4,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.host.vendorValues
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import com.eignex.koblas.internal.operations.*
 import java.nio.file.Path

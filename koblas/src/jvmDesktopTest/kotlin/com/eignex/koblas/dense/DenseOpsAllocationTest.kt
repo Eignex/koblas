@@ -2,6 +2,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.operations.dotVector
 import com.eignex.koblas.testutil.allocation.*
 import org.junit.runner.RunWith

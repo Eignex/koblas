@@ -34,7 +34,8 @@ the whole call.
 - `axpy-unit` accumulates with alpha one without a timed reset; ordinary `axpy` uses a nonunit multiplier and includes reset.
 - `ger-shrinking` and `ger-window-shrinking` report a batch of `n - 1` updates, excluding matrix reset and factorization work.
 - GEMM's `workspace=retained` reuses scratch; `layout=borrowed` uses offsets and padded storage.
-- Sparse construction cases include allocation; view and raw indexed cases include their public validation and dispatch.
+- Sparse construction cases include allocation; view cases include adapter validation and dispatch, while raw
+  indexed cases call the internal kernel windows.
 - Dense vector cases accept `stride=2`, `stride=-1` and `stride=-2`; omitted stride means contiguous owned arrays.
 
 Kernel timings do not establish an end-to-end solver speedup. For exact boundaries, see

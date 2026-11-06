@@ -3,6 +3,7 @@ package com.eignex.koblas.internal.operations
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.internal.kernels.*
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
