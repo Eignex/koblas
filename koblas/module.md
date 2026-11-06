@@ -42,6 +42,14 @@ column. Sparse matrices visit stored entries including zeros; other implementati
 Dense views use local indices and exclude padding. [Vector.forEachStored] provides the corresponding
 index and value traversal for vectors.
 
+[Matrix.columnView] and [Matrix.forEachColumns] expose writable columns. The concrete
+[DenseMatrix.columnView] and [SparseMatrix.columnView] methods return [DenseVector] and [SparseVector],
+with concrete [DenseMatrix.forEachColumns] and [SparseMatrix.forEachColumns] callbacks for typed engine
+calls. They borrow storage and return no new matrix; [Vector.copy] produces an independent vector.
+Sparse column views follow the owner's current buffers and CSC boundaries after structural edits.
+Their [SparseVector.offset] and [SparseVector.nnz] identify the stored window in the backing arrays.
+Sparse vector copies and serialization contain only their window and decode owning storage.
+
 [Vector.norm] and [Matrix.norm] share [Norm]. Vectors support [Norm.One], [Norm.Two] (the default),
 [Norm.Infinity] and [Norm.MaxAbs], with the last two equivalent. Matrices support [Norm.Frobenius]
 (the default), [Norm.One] for the largest absolute column sum, [Norm.Infinity] for the largest absolute

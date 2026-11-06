@@ -135,7 +135,7 @@ public interface KoblasEngine {
     public fun asum(v: SparseVector): Double = absoluteSumVector(v)
 
     /** Plain sum of stored entries. Reduction order and rounding follow the selected kernel. */
-    public fun sum(v: SparseVector): Double = kernels.sum(v.values, 0, v.nnz)
+    public fun sum(v: SparseVector): Double = kernels.sum(v.values, v.offset, v.nnz)
 
     /** Logical index of a maximum-magnitude entry, or minus one when empty. Ties and NaNs follow the selected kernel. */
     public fun iamax(v: DenseVector): Int = kernels.iamax(v.values, v.offset, v.size, v.stride)

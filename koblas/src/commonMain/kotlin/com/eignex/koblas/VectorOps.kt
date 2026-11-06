@@ -26,7 +26,7 @@ public inline fun Vector.forEachStored(block: (i: Int, v: Double) -> Unit) {
         is SparseVector -> {
             val idx = indices
             val vals = values
-            for (k in idx.indices) block(idx[k], vals[k])
+            for (k in offset until offset + nnz) block(idx[k], vals[k])
         }
 
         else -> for (i in 0 until size) block(i, this[i])

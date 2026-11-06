@@ -3,7 +3,11 @@ package com.eignex.koblas.internal.storage
 import com.eignex.koblas.*
 
 internal fun copyVectorStorage(source: Vector): Vector = when (source) {
-    is SparseVector -> SparseVector.wrap(source.size, source.indices.copyOf(), source.values.copyOf())
+    is SparseVector -> SparseVector.wrap(
+        source.size,
+        source.copyIndices(),
+        source.values.copyOfRange(source.offset, source.offset + source.nnz),
+    )
     else -> DenseVector.wrap(source.toDoubleArray())
 }
 

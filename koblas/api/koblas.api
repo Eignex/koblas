@@ -1,8 +1,10 @@
 public final class com/eignex/koblas/DenseMatrix : com/eignex/koblas/MatrixStorage {
 	public static final field Companion Lcom/eignex/koblas/DenseMatrix$Companion;
+	public final fun columnView (I)Lcom/eignex/koblas/DenseVector;
 	public static final fun diagonal (I)Lcom/eignex/koblas/DenseMatrix;
 	public static final fun diagonal (ID)Lcom/eignex/koblas/DenseMatrix;
 	public fun equals (Ljava/lang/Object;)Z
+	public final synthetic fun forEachColumns (Lkotlin/jvm/functions/Function1;)V
 	public fun get (II)D
 	public fun getCols ()I
 	public final fun getLeadingDimension ()I
@@ -125,11 +127,13 @@ public final class com/eignex/koblas/EngineImplementation : java/lang/Enum {
 public final class com/eignex/koblas/Koblas {
 	public static final fun asum (Lcom/eignex/koblas/Vector;)D
 	public static final synthetic fun borrow (Lcom/eignex/koblas/Scratch;ILkotlin/jvm/functions/Function1;)Ljava/lang/Object;
+	public static final fun columnView (Lcom/eignex/koblas/Matrix;I)Lcom/eignex/koblas/Vector;
 	public static final fun copy (Lcom/eignex/koblas/Matrix;)Lcom/eignex/koblas/Matrix;
 	public static final fun copy (Lcom/eignex/koblas/Vector;)Lcom/eignex/koblas/Vector;
 	public static final fun copyFrom (Lcom/eignex/koblas/Matrix;Lcom/eignex/koblas/Matrix;)V
 	public static final fun copyFrom (Lcom/eignex/koblas/Vector;Lcom/eignex/koblas/Vector;)V
 	public static final fun dot (Lcom/eignex/koblas/Vector;Lcom/eignex/koblas/Vector;)D
+	public static final synthetic fun forEachColumns (Lcom/eignex/koblas/Matrix;Lkotlin/jvm/functions/Function1;)V
 	public static final synthetic fun forEachStored (Lcom/eignex/koblas/Matrix;Lkotlin/jvm/functions/Function3;)V
 	public static final synthetic fun forEachStored (Lcom/eignex/koblas/Vector;Lkotlin/jvm/functions/Function2;)V
 	public static final fun getDefault ()Lcom/eignex/koblas/KoblasEngine;
@@ -364,9 +368,11 @@ public final class com/eignex/koblas/Scratch {
 
 public final class com/eignex/koblas/SparseMatrix : com/eignex/koblas/MatrixStorage {
 	public static final field Companion Lcom/eignex/koblas/SparseMatrix$Companion;
+	public final fun columnView (I)Lcom/eignex/koblas/SparseVector;
 	public final fun copyColumnPointers ()[I
 	public final fun copyRowIndices ()[I
 	public fun equals (Ljava/lang/Object;)Z
+	public final synthetic fun forEachColumns (Lkotlin/jvm/functions/Function1;)V
 	public final synthetic fun forEachInColumn (ILkotlin/jvm/functions/Function2;)V
 	public fun get (II)D
 	public final fun getColPointers ()[I
@@ -409,6 +415,7 @@ public final class com/eignex/koblas/SparseVector : com/eignex/koblas/VectorStor
 	public fun get (I)D
 	public final fun getIndices ()[I
 	public final fun getNnz ()I
+	public final fun getOffset ()I
 	public fun getSize ()I
 	public final fun getValues ()[D
 	public fun hashCode ()I
@@ -417,17 +424,6 @@ public final class com/eignex/koblas/SparseVector : com/eignex/koblas/VectorStor
 	public fun toDoubleArray ()[D
 	public fun toString ()Ljava/lang/String;
 	public static final fun wrap (I[I[D)Lcom/eignex/koblas/SparseVector;
-}
-
-public final synthetic class com/eignex/koblas/SparseVector$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
-	public static final field INSTANCE Lcom/eignex/koblas/SparseVector$$serializer;
-	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
-	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/eignex/koblas/SparseVector;
-	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
-	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
-	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/eignex/koblas/SparseVector;)V
-	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
-	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
 }
 
 public final class com/eignex/koblas/SparseVector$Companion {

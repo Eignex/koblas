@@ -7,7 +7,7 @@ import kotlin.math.abs
 internal fun scalarVectorDot(x: Vector, y: Vector): Double {
     var sum = 0.0
     if (x is SparseVector) {
-        for (k in x.indices.indices) sum += x.values[k] * y[x.indices[k]]
+        for (k in x.offset until x.offset + x.nnz) sum += x.values[k] * y[x.indices[k]]
     } else {
         for (i in 0 until x.size) sum += x[i] * y[i]
     }
@@ -42,7 +42,7 @@ internal fun scalarVectorScale(alpha: Double, x: Vector) {
 /** The caller stages [x] before entering this loop when its storage may alias [y]. */
 internal fun scalarVectorAxpy(alpha: Double, x: Vector, y: Vector) {
     if (x is SparseVector) {
-        for (k in x.indices.indices) y[x.indices[k]] += alpha * x.values[k]
+        for (k in x.offset until x.offset + x.nnz) y[x.indices[k]] += alpha * x.values[k]
     } else {
         for (i in 0 until x.size) y[i] += alpha * x[i]
     }

@@ -10,6 +10,30 @@ import com.eignex.koblas.internal.storage.copyMatrixStorage
 import com.eignex.koblas.internal.storage.transposeMatrixStorage
 
 /**
+ * A writable vector view of [column]. Mutations update this matrix; the vector's indices are local rows.
+ * Built-in containers return [DenseVector] or [SparseVector]; other implementations use [Matrix.get]
+ * and [Matrix.set]. Use [Vector.copy] for independent storage.
+ */
+public fun Matrix.columnView(column: Int): Vector {
+    if (column !in 0 until cols) throw IndexOutOfBoundsException("column $column outside [0,$cols)")
+    return when (this) {
+        is DenseMatrix -> columnView(column)
+        is SparseMatrix -> columnView(column)
+        else -> com.eignex.koblas.internal.storage.MatrixColumnVector(this, column)
+    }
+}
+
+/**
+ * Visits writable column views in column order, including empty columns. Mutations through a callback's
+ * vector update this matrix. Concrete containers retain their dense or sparse callback type for calls to
+ * [KoblasEngine]; through [Matrix], callbacks use the generic [Vector] contract. Returns no new matrix.
+ */
+@kotlin.jvm.JvmSynthetic
+public inline fun Matrix.forEachColumns(block: (column: Vector) -> Unit) {
+    for (j in 0 until cols) block(columnView(j))
+}
+
+/**
  * Visits stored entries as `(row, column, value)`, columns first and rows ascending within each column.
  * [SparseMatrix] visits only stored positions, including stored zeros; other implementations visit every
  * entry. Dense views report local indices and exclude padding. Empty matrices invoke no callbacks.

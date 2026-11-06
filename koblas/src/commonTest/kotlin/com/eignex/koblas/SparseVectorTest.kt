@@ -7,6 +7,122 @@ import kotlin.test.*
 
 class SparseVectorTest {
     @Test
+    fun `column views copy and serialize only their own stored window`() {
+        val matrix = columnOwner()
+        val view = matrix.columnView(1)
+        val owning = SparseVector.wrap(4, intArrayOf(1, 2), doubleArrayOf(3.0, 4.0))
+        val indices = mutableListOf<Int>()
+
+        val copied = assertIs<SparseVector>(view.copy())
+        view.forEachStored { index, _ -> indices += index }
+        val encoded = Json.encodeToString(SparseVector.serializer(), view)
+        val decoded = Json.decodeFromString(SparseVector.serializer(), encoded)
+        val polymorphic = Json.decodeFromString(
+            VectorStorage.serializer(), Json.encodeToString(VectorStorage.serializer(), view),
+        )
+
+        assertEquals(owning, view)
+        assertEquals(owning.hashCode(), view.hashCode())
+        assertEquals(listOf(1, 2), indices)
+        assertEquals(Json.encodeToString(SparseVector.serializer(), owning), encoded)
+        assertEquals(owning, copied)
+        assertEquals(owning, decoded)
+        assertEquals(owning, polymorphic)
+        assertEquals(0, decoded.offset)
+        assertEquals(2, decoded.values.size)
+        assertNotSame(view.values, copied.values)
+        copied[1] = -9.0
+        decoded[1] = -8.0
+        assertEquals(3.0, matrix[1, 1])
+    }
+
+    @Test
+    fun `column reductions and dots agree with owning scalar vector references`() {
+        val view = columnOwner().columnView(1)
+        val reference = SparseVector.wrap(4, intArrayOf(1, 2), doubleArrayOf(3.0, 4.0))
+        val dense = DenseVector.of(doubleArrayOf(1.0, -2.0, 3.0, 4.0))
+        val sparse = columnOwner().columnView(0)
+        val sparseReference = SparseVector.wrap(4, intArrayOf(0, 3), doubleArrayOf(2.0, -0.0))
+        for (engine in listOf(KoblasEngine.scalar, koblas)) {
+            assertColumnReductionAgreesWithReference(KoblasEngine.scalar.sum(reference), engine.sum(view))
+            assertColumnReductionAgreesWithReference(KoblasEngine.scalar.asum(reference), engine.asum(view))
+            assertColumnReductionAgreesWithReference(KoblasEngine.scalar.nrm2(reference), engine.nrm2(view))
+            assertColumnReductionAgreesWithReference(KoblasEngine.scalar.dot(reference, dense), engine.dot(view, dense))
+            assertColumnReductionAgreesWithReference(
+                KoblasEngine.scalar.dot(reference, sparseReference), engine.dot(view, sparse),
+            )
+        }
+        for (type in listOf(Norm.One, Norm.Two, Norm.Infinity, Norm.MaxAbs)) {
+            assertColumnReductionAgreesWithReference(reference.norm(type), view.norm(type))
+        }
+    }
+
+    @Test
+    fun `column scatter and gather respect windows and dense vector strides`() {
+        for (operation in listOf("copy", "scatter", "gather", "gatherZero")) {
+            for (stride in intArrayOf(-2, 1, 2)) {
+                val matrix = columnOwner()
+                val column = matrix.columnView(1)
+                val reference = SparseVector.wrap(4, intArrayOf(1, 2), doubleArrayOf(3.0, 4.0))
+                val backing = DoubleArray(12) { it * 0.5 - 2.0 }
+                val expected = backing.copyOf()
+                val origin = if (stride < 0) 9 else 1
+                val dense = DenseVector.wrap(backing, origin, 4, stride)
+                val expectedDense = DenseVector.wrap(expected, origin, 4, stride)
+                val expectedOwner = matrix.values.copyOf()
+                when (operation) {
+                    "copy" -> KoblasEngine.scalar.copy(reference, expectedDense)
+                    "scatter" -> KoblasEngine.scalar.scatter(reference, expectedDense)
+                    "gather" -> KoblasEngine.scalar.gather(expectedDense, reference)
+                    "gatherZero" -> KoblasEngine.scalar.gatherZero(expectedDense, reference)
+                }
+                reference.values.copyInto(expectedOwner, column.offset)
+
+                when (operation) {
+                    "copy" -> koblas.copy(column, dense)
+                    "scatter" -> koblas.scatter(column, dense)
+                    "gather" -> koblas.gather(dense, column)
+                    "gatherZero" -> koblas.gatherZero(dense, column)
+                }
+
+                assertColumnWritesAgreeWithReference(expected, backing)
+                assertColumnWritesAgreeWithReference(expectedOwner, matrix.values)
+            }
+        }
+    }
+
+    @Test
+    fun `copying an aliased dense vector into a column stages coefficients before replacing storage`() {
+        val matrix = columnOwner()
+        val column = matrix.columnView(1)
+        val source = DenseVector.wrap(matrix.values, 1, 4)
+        val expected = source.toDoubleArray()
+        val first = matrix.columnView(0)
+        val last = matrix.columnView(2)
+        val firstBefore = first.toDoubleArray()
+        val lastBefore = last.toDoubleArray()
+
+        koblas.copy(source, column)
+
+        assertContentEquals(expected, column.toDoubleArray())
+        assertContentEquals(intArrayOf(0, 1, 2, 3), column.copyIndices())
+        assertContentEquals(firstBefore, first.toDoubleArray())
+        assertContentEquals(lastBefore, last.toDoubleArray())
+    }
+
+    private fun columnOwner(): SparseMatrix = SparseMatrix.wrap(
+        4, 3, intArrayOf(0, 2, 4, 5), intArrayOf(0, 3, 1, 2, 0), doubleArrayOf(2.0, -0.0, 3.0, 4.0, -5.0),
+    )
+
+    private fun assertColumnReductionAgreesWithReference(expected: Double, actual: Double) {
+        assertClose(expected, actual, "column reduction")
+    }
+
+    private fun assertColumnWritesAgreeWithReference(expected: DoubleArray, actual: DoubleArray) {
+        assertClose(expected, actual, "column writes")
+    }
+
+    @Test
     fun `writes through the vector contract insert sorted entries and keep zeros`() {
         val vector = SparseVector.wrap(6, intArrayOf(1, 4), doubleArrayOf(2.0, -1.0))
         val mutable: Vector = vector

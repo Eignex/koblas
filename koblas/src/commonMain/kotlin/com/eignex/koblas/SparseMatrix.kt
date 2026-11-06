@@ -134,6 +134,22 @@ public class SparseMatrix internal constructor(
     public fun copyRowIndices(): IntArray = rowIndices.copyOf()
 
     /**
+     * A writable view of [column], indexed from zero within this matrix. Changes through the vector
+     * update the matrix. The view borrows storage; use [Vector.copy] for an independent result.
+     * The vector follows this column after structural changes, including writes through other views.
+     */
+    public fun columnView(column: Int): SparseVector {
+        requireInBounds(column, cols)
+        return SparseVector.columnView(this, column)
+    }
+
+    /** Visits writable column views in column order, including empty columns. Returns no new matrix. */
+    @kotlin.jvm.JvmSynthetic
+    public inline fun forEachColumns(block: (column: SparseVector) -> Unit) {
+        for (j in 0 until cols) block(columnView(j))
+    }
+
+    /**
      * Structural equality over the shape and the CSC arrays, so two matrices differing only in which
      * explicit zeros they store are not equal.
      */

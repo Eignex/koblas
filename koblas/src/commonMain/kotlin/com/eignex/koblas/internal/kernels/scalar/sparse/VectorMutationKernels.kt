@@ -11,18 +11,18 @@ internal fun scalarSparseVectorAxpy(alpha: Double, x: Vector, y: SparseVector): 
     if (x is SparseVector) {
         var a = 0
         while (a < x.nnz || b < y.nnz) {
-            val ia = if (a < x.nnz) x.indices[a] else Int.MAX_VALUE
-            val ib = if (b < y.nnz) y.indices[b] else Int.MAX_VALUE
+            val ia = if (a < x.nnz) x.indices[x.offset + a] else Int.MAX_VALUE
+            val ib = if (b < y.nnz) y.indices[y.offset + b] else Int.MAX_VALUE
             val index = minOf(ia, ib)
-            val previous = if (ib == index) y.values[b++] else 0.0
-            val value = if (ia == index) previous + alpha * x.values[a++] else previous
+            val previous = if (ib == index) y.values[y.offset + b++] else 0.0
+            val value = if (ia == index) previous + alpha * x.values[x.offset + a++] else previous
             indices += index
             values += value
         }
     } else {
         for (i in 0 until x.size) {
-            val stored = b < y.nnz && y.indices[b] == i
-            val previous = if (stored) y.values[b++] else 0.0
+            val stored = b < y.nnz && y.indices[y.offset + b] == i
+            val previous = if (stored) y.values[y.offset + b++] else 0.0
             val value = previous + alpha * x[i]
             if (stored || value.toBits() != 0L) {
                 indices += i

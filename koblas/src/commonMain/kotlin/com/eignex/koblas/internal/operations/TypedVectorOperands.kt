@@ -56,15 +56,17 @@ internal fun KoblasEngine.sparseTriangularVector(
 
 internal fun KoblasEngine.scatterVector(source: SparseVector, destination: DenseVector) {
     requireSameSize(source.size, destination.size, "scatter")
-    val values = if (source.values === destination.values) source.values.copyOf() else source.values
+    val aliased = source.values === destination.values
+    val values = if (aliased) source.values.copyOfRange(source.offset, source.offset + source.nnz) else source.values
+    val valueOffset = if (aliased) 0 else source.offset
     if (destination.isWholeArray) {
-        kernels.scatter(source.indices, 0, values, 0, source.nnz, destination.values)
+        kernels.scatter(source.indices, source.offset, values, valueOffset, source.nnz, destination.values)
     } else {
         indexedScatter(
             source.indices,
-            0,
+            source.offset,
             values,
-            0,
+            valueOffset,
             source.nnz,
             destination.values,
             destination.offset,
@@ -78,12 +80,16 @@ internal fun KoblasEngine.gatherVector(source: DenseVector, destination: SparseV
     require(source.values !== destination.values) { "gather requires distinct coefficient buffers" }
     if (source.isWholeArray) {
         if (zero) {
-            kernels.gatherZero(destination.indices, 0, destination.values, 0, destination.nnz, source.values)
+            kernels.gatherZero(
+                destination.indices, destination.offset, destination.values, destination.offset, destination.nnz, source.values,
+            )
         } else {
-            kernels.gather(destination.indices, 0, destination.values, 0, destination.nnz, source.values)
+            kernels.gather(
+                destination.indices, destination.offset, destination.values, destination.offset, destination.nnz, source.values,
+            )
         }
     } else {
-        for (k in destination.indices.indices) {
+        for (k in destination.offset until destination.offset + destination.nnz) {
             val i = destination.indices[k]
             destination.values[k] = source[i]
             if (zero) source[i] = 0.0

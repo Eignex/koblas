@@ -69,6 +69,22 @@ Axis sums return a fresh dense vector. Sparse reductions visit stored entries wi
 Use `a.forEachStored { row, col, value -> ... }` to visit matrix entries in column order.
 Sparse matrices visit only stored positions, including stored zeros; dense and custom matrices visit
 every entry. Views report local indices and skip padding.
+
+Dense and sparse matrices also expose writable column views for vector operations:
+
+```kotlin
+matrix.forEachColumns { column -> koblas.scale(column, 2.0) }
+val column = matrix.columnView(0)
+```
+
+These helpers modify the existing matrix through shared views; they return no new matrix. Use
+`column.copy()` for an independent vector. Concrete `DenseMatrix` and `SparseMatrix` callbacks retain
+`DenseVector` and `SparseVector` types for engine calls. Through the base `Matrix` contract, columns
+use the generic `Vector` API, including custom matrix storage. Columns are visited in order, including
+empty columns. Sparse views follow their matrix after insertions and replacements, and keep implicit
+zeros absent. A sparse column's stored entries occupy `offset` through `offset + nnz` in its backing
+arrays; copies and serialization contain only that window.
+
 BLAS arithmetic uses typed `KoblasEngine` members with explicit destinations. Dense and sparse
 containers are public operands; primitive array windows belong to internal kernels.
 Scaling uses `koblas.scale(vector, alpha)` and scaled vector addition uses

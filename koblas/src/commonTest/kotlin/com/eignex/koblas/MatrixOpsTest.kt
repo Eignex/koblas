@@ -13,6 +13,26 @@ import kotlin.test.assertNotSame
 
 class MatrixOpsTest {
     @Test
+    fun `column helpers expose writable vectors through the base matrix contract`() {
+        for (matrix in reductionMatrices()) {
+            val expected = List(matrix.cols) { matrix[0, it] }
+            val seen = mutableListOf<Double>()
+
+            matrix.forEachColumns { column ->
+                seen += column[0]
+                column[0] = 19.0
+            }
+
+            assertEquals(expected, seen)
+            for (j in 0 until matrix.cols) assertEquals(19.0, matrix[0, j])
+            matrix.columnView(0)[1] = -7.0
+            assertEquals(-7.0, matrix[1, 0])
+            assertFailsWith<IndexOutOfBoundsException> { matrix.columnView(-1) }
+            assertFailsWith<IndexOutOfBoundsException> { matrix.columnView(matrix.cols) }
+        }
+    }
+
+    @Test
     fun `stored traversal visits dense views and custom storage in column order`() {
         val dense = DenseMatrix.ofRows(arrayOf(doubleArrayOf(1.0, 0.0, -2.0), doubleArrayOf(3.0, 4.0, 5.0)))
         val parent = DenseMatrix.wrap(5, 6, DoubleArray(30) { Double.NaN })

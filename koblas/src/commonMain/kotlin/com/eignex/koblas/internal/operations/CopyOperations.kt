@@ -12,11 +12,7 @@ internal fun KoblasEngine.copyIntoVector(source: Vector, destination: Vector) {
 
         is SparseVector -> {
             val snapshot = if (source is SparseVector) copyVectorStorage(source) as SparseVector else sparseCopy(source)
-            if (snapshot.indices.contentEquals(destination.indices)) {
-                snapshot.values.copyInto(destination.values)
-            } else {
-                destination.replaceStorage(snapshot.indices, snapshot.values)
-            }
+            destination.replaceStorage(snapshot.indices, snapshot.values)
         }
 
         else -> {

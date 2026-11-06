@@ -13,6 +13,10 @@ multiplatform module; platform source sets supply their own runtime and arithmet
 - `KoblasEngine` owns typed BLAS calls over dense and sparse containers. Logical dimensions are validated
   before views are unpacked. Its matrix methods prepare their operands and invoke shared schedules.
   Primitive array windows, including windowed `ger`, belong to the internal `EngineKernels` interface.
+- Column views provide mutable vector access without copying matrix entries. Concrete containers retain
+  typed dense/sparse callbacks; base `Matrix` helpers also adapt custom storage. Sparse vectors identify
+  their packed window by offset and count. A sparse column view holds its owner and column index, so
+  structural replacements update the matrix and every retained view resolves the current CSC window.
 - `VectorOps.kt` and `MatrixOps.kt` are small container facades over the shared `koblas` variable in
   `KoblasEngine.kt`. Both facades share the `Norm` enum, with norm dispatch and validation under
   `internal/operations`. Every facade extension targets `Matrix` or `Vector`; copies and matrix

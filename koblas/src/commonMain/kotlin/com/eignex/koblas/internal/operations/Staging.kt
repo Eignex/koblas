@@ -37,7 +37,7 @@ internal fun DenseVector.stableFor(destination: DenseVector): DenseVector =
 
 /** Opaque storage may read the destination without exposing its buffer. */
 internal fun Vector.stableFor(destination: DenseVector): Vector = when (this) {
-    is SparseVector -> if (values === destination.values) SparseVector.wrap(size, indices, values.copyOf()) else this
+    is SparseVector -> if (values === destination.values) copyVectorStorage(this) else this
     is DenseVector -> stableFor(destination)
     else -> DenseVector.wrap(toDoubleArray())
 }

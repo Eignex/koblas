@@ -75,6 +75,22 @@ public class DenseMatrix internal constructor(
         return DenseMatrix(rows, cols, values, origin, leadingDimension)
     }
 
+    /**
+     * A writable view of [column], indexed from zero within this matrix. Changes through the vector
+     * update the matrix. The view borrows storage; use [Vector.copy] for an independent result.
+     */
+    public fun columnView(column: Int): DenseVector {
+        requireInBounds(column, cols)
+        val origin = if (rows == 0) offset else offset + column * leadingDimension
+        return DenseVector.wrap(values, origin, rows)
+    }
+
+    /** Visits writable column views in column order, including empty columns. Returns no new matrix. */
+    @kotlin.jvm.JvmSynthetic
+    public inline fun forEachColumns(block: (column: DenseVector) -> Unit) {
+        for (j in 0 until cols) block(columnView(j))
+    }
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is DenseMatrix) return false

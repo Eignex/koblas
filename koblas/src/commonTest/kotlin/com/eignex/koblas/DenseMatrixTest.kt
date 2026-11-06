@@ -4,6 +4,46 @@ import kotlinx.serialization.json.*
 import kotlin.test.*
 
 class DenseMatrixTest {
+    @Test
+    fun `column views share only the logical entries of padded matrix views`() {
+        val values = DoubleArray(42) { it * 0.25 - 3.0 }
+        val matrix = DenseMatrix.wrap(6, 7, values).view(1, 2, 3, 2)
+        val expected = values.copyOf()
+        for (j in 0 until matrix.cols) {
+            KoblasEngine.scalar.scale(DenseVector.wrap(expected, matrix.offset + j * matrix.leadingDimension, matrix.rows), -2.0)
+        }
+
+        matrix.forEachColumns { column -> koblas.scale(column, -2.0) }
+
+        assertColumnsAgreeWithReference(expected, values)
+        val column = matrix.columnView(1)
+        assertSame(values, column.values)
+        assertEquals(matrix.rows, column.size)
+        column[0] = 19.0
+        assertEquals(19.0, matrix[0, 1])
+        matrix[2, 1] = -7.0
+        assertEquals(-7.0, column[2])
+    }
+
+    @Test
+    fun `column traversal includes empty columns and supports empty matrix boundaries`() {
+        val matrix = DenseMatrix.wrap(0, 3, DoubleArray(0), leadingDimension = Int.MAX_VALUE)
+        val sizes = mutableListOf<Int>()
+
+        matrix.forEachColumns { sizes += it.size }
+
+        assertEquals(listOf(0, 0, 0), sizes)
+        assertEquals(0, matrix.columnView(2).size)
+        assertEquals(0, DenseMatrix.zero(0, Int.MAX_VALUE).columnView(Int.MAX_VALUE - 1).size)
+        DenseMatrix.zero(3, 0).forEachColumns { error("Unexpected column") }
+        assertFailsWith<IndexOutOfBoundsException> { matrix.columnView(-1) }
+        assertFailsWith<IndexOutOfBoundsException> { matrix.columnView(3) }
+    }
+
+    private fun assertColumnsAgreeWithReference(expected: DoubleArray, actual: DoubleArray) {
+        assertClose(expected, actual, "dense column writes")
+    }
+
 
     @Test
     fun `DenseMatrix of rejects ragged rows`() {
