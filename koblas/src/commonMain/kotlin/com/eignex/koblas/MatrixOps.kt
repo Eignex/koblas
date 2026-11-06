@@ -6,6 +6,7 @@ package com.eignex.koblas
 import com.eignex.koblas.internal.operations.copyIntoMatrix
 import com.eignex.koblas.internal.operations.normMatrix
 import com.eignex.koblas.internal.operations.sumMatrix
+import com.eignex.koblas.internal.storage.MatrixColumnVector
 import com.eignex.koblas.internal.storage.copyMatrixStorage
 import com.eignex.koblas.internal.storage.transposeMatrixStorage
 
@@ -19,7 +20,7 @@ public fun Matrix.columnView(column: Int): Vector {
     return when (this) {
         is DenseMatrix -> columnView(column)
         is SparseMatrix -> columnView(column)
-        else -> com.eignex.koblas.internal.storage.MatrixColumnVector(this, column)
+        else -> MatrixColumnVector(this, column)
     }
 }
 
