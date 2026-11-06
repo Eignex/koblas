@@ -66,6 +66,9 @@ a sparse source's pattern; other sources store nonzero entries and negative zero
 keeps indices sorted, and structural writes may replace the arrays returned by sparse accessors.
 
 Axis sums return a fresh dense vector. Sparse reductions visit stored entries without densifying.
+Use `a.forEachStored { row, col, value -> ... }` to visit matrix entries in column order.
+Sparse matrices visit only stored positions, including stored zeros; dense and custom matrices visit
+every entry. Views report local indices and skip padding.
 BLAS arithmetic uses typed `KoblasEngine` members with explicit destinations. Dense and sparse
 containers are public operands; primitive array windows belong to internal kernels.
 `vector.scale(alpha)` uses the default engine across vector storage. Scaled vector addition uses

@@ -130,6 +130,7 @@ public final class com/eignex/koblas/Koblas {
 	public static final fun copyFrom (Lcom/eignex/koblas/Matrix;Lcom/eignex/koblas/Matrix;)V
 	public static final fun copyFrom (Lcom/eignex/koblas/Vector;Lcom/eignex/koblas/Vector;)V
 	public static final fun dot (Lcom/eignex/koblas/Vector;Lcom/eignex/koblas/Vector;)D
+	public static final synthetic fun forEachStored (Lcom/eignex/koblas/Matrix;Lkotlin/jvm/functions/Function3;)V
 	public static final synthetic fun forEachStored (Lcom/eignex/koblas/Vector;Lkotlin/jvm/functions/Function2;)V
 	public static final fun getDefault ()Lcom/eignex/koblas/KoblasEngine;
 	public static final fun norm (Lcom/eignex/koblas/Matrix;Lcom/eignex/koblas/Norm;)D

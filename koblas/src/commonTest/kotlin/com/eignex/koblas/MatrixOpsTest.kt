@@ -13,6 +13,53 @@ import kotlin.test.assertNotSame
 
 class MatrixOpsTest {
     @Test
+    fun `stored traversal visits dense views and custom storage in column order`() {
+        val dense = DenseMatrix.ofRows(arrayOf(doubleArrayOf(1.0, 0.0, -2.0), doubleArrayOf(3.0, 4.0, 5.0)))
+        val parent = DenseMatrix.wrap(5, 6, DoubleArray(30) { Double.NaN })
+        val view = parent.view(1, 2, 2, 3)
+        for (j in 0 until dense.cols) for (i in 0 until dense.rows) view[i, j] = dense[i, j]
+        val expected = listOf(
+            Triple(0, 0, 1.0), Triple(1, 0, 3.0),
+            Triple(0, 1, 0.0), Triple(1, 1, 4.0),
+            Triple(0, 2, -2.0), Triple(1, 2, 5.0),
+        )
+        for (source in listOf<Matrix>(dense, view, ForeignMatrix(dense), ForeignMatrix(view))) {
+            val actual = mutableListOf<Triple<Int, Int, Double>>()
+
+            source.forEachStored { row, col, value -> actual += Triple(row, col, value) }
+
+            assertEquals(expected, actual)
+        }
+    }
+
+    @Test
+    fun `stored traversal preserves sparse zeros and skips absent positions in large shapes`() {
+        val source: Matrix = SparseMatrix.ofColumns(
+            Int.MAX_VALUE,
+            4,
+            listOf(listOf(1 to 2.0, Int.MAX_VALUE - 1 to -0.0), emptyList(), listOf(0 to 0.0), emptyList()),
+        )
+        val actual = mutableListOf<Triple<Int, Int, Double>>()
+
+        source.forEachStored { row, col, value -> actual += Triple(row, col, value) }
+
+        assertEquals(listOf(Triple(1, 0, 2.0), Triple(Int.MAX_VALUE - 1, 0, -0.0), Triple(0, 2, 0.0)), actual)
+    }
+
+    @Test
+    fun `stored traversal invokes no callbacks for empty matrix dimensions`() {
+        val sources: List<Matrix> = listOf(
+            DenseMatrix.zero(0, Int.MAX_VALUE),
+            DenseMatrix.zero(Int.MAX_VALUE, 0),
+            SparseMatrix.ofColumns(0, 3, List(3) { emptyList() }),
+            SparseMatrix.ofColumns(Int.MAX_VALUE, 0, emptyList()),
+        )
+        for (source in sources + sources.map { ForeignMatrix(it) }) {
+            source.forEachStored { _, _, _ -> error("Unexpected stored entry") }
+        }
+    }
+
+    @Test
     fun `empty matrix copies and transposes do not traverse the column domain`() {
         val source: Matrix = DenseMatrix.zero(0, Int.MAX_VALUE)
         val destination: Matrix = DenseMatrix.zero(0, Int.MAX_VALUE)

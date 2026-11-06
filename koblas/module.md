@@ -38,6 +38,11 @@ their buffers. [Vector.scale] mutates any vector storage through the default eng
 [KoblasEngine] owns typed dense and sparse BLAS operations; vectors carry their own addressing.
 Raw array windows are internal kernel operations.
 
+[Matrix.forEachStored] visits `(row, column, value)` in column order, with rows ascending within each
+column. Sparse matrices visit stored entries including zeros; other implementations visit every entry.
+Dense views use local indices and exclude padding. [Vector.forEachStored] provides the corresponding
+index and value traversal for vectors.
+
 [Vector.norm] and [Matrix.norm] share [Norm]. Vectors support [Norm.One], [Norm.Two] (the default),
 [Norm.Infinity] and [Norm.MaxAbs], with the last two equivalent. Matrices support [Norm.Frobenius]
 (the default), [Norm.One] for the largest absolute column sum, [Norm.Infinity] for the largest absolute

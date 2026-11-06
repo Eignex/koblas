@@ -10,6 +10,29 @@ import com.eignex.koblas.internal.storage.copyMatrixStorage
 import com.eignex.koblas.internal.storage.transposeMatrixStorage
 
 /**
+ * Visits stored entries as `(row, column, value)`, columns first and rows ascending within each column.
+ * [SparseMatrix] visits only stored positions, including stored zeros; other implementations visit every
+ * entry. Dense views report local indices and exclude padding. Empty matrices invoke no callbacks.
+ */
+@kotlin.jvm.JvmSynthetic
+public inline fun Matrix.forEachStored(block: (row: Int, col: Int, value: Double) -> Unit) {
+    if (rows == 0 || cols == 0) return
+    when (this) {
+        is DenseMatrix -> {
+            val data = values
+            for (j in 0 until cols) {
+                var p = offset + j * leadingDimension
+                for (i in 0 until rows) block(i, j, data[p++])
+            }
+        }
+
+        is SparseMatrix -> for (j in 0 until cols) forEachInColumn(j) { i, value -> block(i, j, value) }
+
+        else -> for (j in 0 until cols) for (i in 0 until rows) block(i, j, this[i, j])
+    }
+}
+
+/**
  * Fresh transposed matrix. Sparse storage remains CSC and preserves stored zeros; other implementations
  * produce dense storage. Views transpose only their logical entries. For products, prefer the transpose
  * flags on [KoblasEngine.gemv] and [KoblasEngine.gemm] to avoid materializing the transpose.
