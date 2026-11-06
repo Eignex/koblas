@@ -1,7 +1,6 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.internal.storage.*
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmOverloads
 import kotlin.jvm.JvmStatic
@@ -13,7 +12,6 @@ import kotlin.jvm.JvmStatic
  *   The matrix is mutable through this buffer and [set]; do not use it as a hash-map key while mutating it.
  */
 @Serializable
-@SerialName("DenseMatrix")
 public class DenseMatrix internal constructor(
     override val rows: Int,
     override val cols: Int,

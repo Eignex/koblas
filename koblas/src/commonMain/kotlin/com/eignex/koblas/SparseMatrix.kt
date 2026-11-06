@@ -2,7 +2,6 @@ package com.eignex.koblas
 
 import com.eignex.koblas.internal.storage.*
 import com.eignex.koblas.internal.storage.sparse.*
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlin.jvm.JvmStatic
@@ -23,13 +22,12 @@ import kotlin.jvm.JvmStatic
  * @property cols the number of columns.
  */
 @Serializable
-@SerialName("SparseMatrix")
 public class SparseMatrix internal constructor(
     override val rows: Int,
     override val cols: Int,
-    @SerialName("colPointers") private var storedColPointers: IntArray,
-    @SerialName("rowIndices") private var storedRowIndices: IntArray,
-    @SerialName("values") private var storedValues: DoubleArray,
+    private var storedColPointers: IntArray,
+    private var storedRowIndices: IntArray,
+    private var storedValues: DoubleArray,
     @Transient private val trustedPattern: Boolean = false,
 ) : MatrixStorage {
     /** Live column pointers; structural writes may replace this buffer. Do not mutate it. */

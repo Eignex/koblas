@@ -1,7 +1,6 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.internal.storage.requireInBounds
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
@@ -11,7 +10,6 @@ import kotlinx.serialization.Serializable
  *   a hash-map key while mutating it.
  */
 @Serializable
-@SerialName("ContiguousVector")
 public class ContiguousVector internal constructor(public override val values: DoubleArray) :
     VectorStorage,
     DenseVector {

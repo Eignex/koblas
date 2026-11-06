@@ -356,8 +356,8 @@ class SparseMatrixTest {
     fun `encodes its structure rather than a dense grid`() {
         val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(1 to 5.0), emptyList()))
         val encoded = Json.encodeToString(SparseMatrix.serializer(), a)
-        assertTrue(encoded.contains("colPointers"), "expected the CSC arrays in $encoded")
-        assertTrue(encoded.contains("rowIndices"), "expected the CSC arrays in $encoded")
+        assertTrue(encoded.contains("storedColPointers"), "expected the CSC arrays in $encoded")
+        assertTrue(encoded.contains("storedRowIndices"), "expected the CSC arrays in $encoded")
         assertTrue("0.0" !in encoded, "a structural zero leaked into the payload: $encoded")
     }
 }

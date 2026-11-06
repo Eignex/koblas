@@ -23,9 +23,7 @@ public interface Vector {
  * This is about which types koblas owns the definition of, not about which own their buffers: either may be
  * wrapped around an array the caller keeps a reference to.
  *
- * Encoded under the storage's own class name, with the numbers under `values` and any index array named for
- * the axis it indexes, the same as [MatrixStorage]. A reader of one payload can then predict the others, and
- * a name in a payload always resolves to the type that wrote it.
+ * Serialization uses the default class and property names, as for [MatrixStorage].
  */
 @Serializable
 public sealed interface VectorStorage : Vector

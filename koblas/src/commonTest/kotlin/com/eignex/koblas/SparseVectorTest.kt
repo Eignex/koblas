@@ -145,7 +145,7 @@ class SparseVectorTest {
     fun `deserialization rejects a negative size`() {
         val failure = assertFailsWith<JsonException> {
             Json.decodeFromString<VectorStorage>(
-                """{"type":"SparseVector","size":-5,"indices":[],"values":[]}""",
+                """{"type":"com.eignex.koblas.SparseVector","size":-5,"storedIndices":[],"storedValues":[]}""",
             )
         }
         assertIs<DimensionMismatch>(failure.cause)
