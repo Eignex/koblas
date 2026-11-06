@@ -17,8 +17,8 @@ multiplatform module; platform source sets supply their own runtime and arithmet
   `KoblasEngine.kt`. Both facades share the `Norm` enum, with norm dispatch and validation under
   `internal/operations`. Every facade extension targets `Matrix` or `Vector`; copies and matrix
   transposes are storage transformations, and copy-into operations validate shapes and stage aliases.
-  Sparse reductions traverse stored entries; custom storage uses scalar readers. Vector scale and AXPY
-  use the same storage adapters with the default engine. Explicit BLAS calls stay on the engine.
+  Sparse reductions traverse stored entries; custom storage uses scalar readers. Vector scale uses
+  the same storage adapters with the default engine. Explicit BLAS calls stay on the engine.
 - Applications may assign `koblas` during startup; launch settings initialize its first value. Callers own
   startup order and safe publication. Reads and writes have no lazy delegate or synchronization.
 - `KoblasEngine.scalar`, `KoblasEngine.simd` and `KoblasEngine.vendor` expose exact engines;

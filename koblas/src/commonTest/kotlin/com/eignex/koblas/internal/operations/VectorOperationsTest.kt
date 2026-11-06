@@ -8,6 +8,101 @@ import kotlin.test.*
 
 class VectorOperationsTest {
     @Test
+    fun `axpy agrees with the scalar reference across source and destination storage`() {
+        val x = doubleArrayOf(1.5, 0.0, -2.0, 3.25)
+        val y = doubleArrayOf(0.0, 2.5, 1.0, -1.5)
+        for (source in axpyOperands(x)) {
+            for (destination in axpyOperands(y)) {
+                val expected = y.copyOf()
+                KoblasEngine.scalar.axpy(expected, 0, -1.5, x, 0, x.size)
+
+                koblas.axpyVector(-1.5, source, destination)
+
+                assertAxpyAgreesWithReference(expected, destination.toDoubleArray())
+            }
+        }
+    }
+
+    @Test
+    fun `axpy snapshots sources sharing opaque destination storage`() {
+        for (sparseSource in booleanArrayOf(false, true)) {
+            val backing = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
+            val destination: Vector = ForeignVector(DenseVector.wrap(backing, 3, 4, -1))
+            val source: Vector = if (sparseSource) {
+                SparseVector.wrap(4, intArrayOf(0, 1, 2, 3), backing)
+            } else {
+                DenseVector.wrap(backing)
+            }
+            val expected = backing.copyOf()
+            KoblasEngine.scalar.axpy(expected, 3, 2.0, source.toDoubleArray(), 0, 4, -1)
+
+            koblas.axpyVector(2.0, source, destination)
+
+            assertAxpyAgreesWithReference(expected, backing)
+        }
+    }
+
+    @Test
+    fun `sparse mutations retain support without scanning large shapes`() {
+        val source: Vector = SparseVector.wrap(Int.MAX_VALUE, intArrayOf(1, Int.MAX_VALUE - 1), doubleArrayOf(0.0, 2.0))
+        val destination = SparseVector.wrap(Int.MAX_VALUE, intArrayOf(0, Int.MAX_VALUE - 1), doubleArrayOf(3.0, -4.0))
+        val expectedValues = doubleArrayOf(3.0, 0.0, -4.0)
+        KoblasEngine.scalar.axpy(intArrayOf(1, 2), 0, doubleArrayOf(0.0, 2.0), 0, 2, 2.0, expectedValues)
+        KoblasEngine.scalar.scale(expectedValues, 0, -2.0, expectedValues.size)
+
+        koblas.axpyVector(2.0, source, destination)
+        destination.scale(-2.0)
+
+        assertContentEquals(intArrayOf(0, 1, Int.MAX_VALUE - 1), destination.indices)
+        assertAxpyAgreesWithReference(expectedValues, destination.values)
+    }
+
+    @Test
+    fun `sparse axpy snapshots a custom source borrowing destination values`() {
+        val backing = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
+        val source: Vector = ForeignVector(DenseVector.wrap(backing, 3, 4, -1))
+        val destination = SparseVector.wrap(4, intArrayOf(0, 1, 2, 3), backing)
+        val expected = backing.copyOf()
+        KoblasEngine.scalar.axpy(expected, 0, 2.0, source.toDoubleArray(), 0, 4)
+
+        koblas.axpyVector(2.0, source, destination)
+
+        assertSame(backing, destination.values)
+        assertAxpyAgreesWithReference(expected, backing)
+    }
+
+    @Test
+    fun `zero axpy validates every destination without reading operands`() {
+        val source = object : Vector {
+            override val size = 4
+            override fun get(i: Int): Double = error("Unexpected read")
+            override fun set(i: Int, v: Double) = error("Unexpected write")
+        }
+        for (destination in axpyOperands(doubleArrayOf(1.0, 0.0, 2.0, 3.0))) {
+            val expected = destination.toDoubleArray()
+
+            koblas.axpyVector(0.0, source, destination)
+
+            assertContentEquals(expected, destination.toDoubleArray())
+            assertFailsWith<DimensionMismatch> { koblas.axpyVector(0.0, DenseVector.zero(3), destination) }
+        }
+    }
+
+    private fun axpyOperands(values: DoubleArray): List<Vector> = buildList {
+        add(DenseVector.of(values))
+        for (stride in intArrayOf(-3, -1, 1, 3)) {
+            val backing = DoubleArray(values.size * 3 + 4) { Double.NaN }
+            val offset = if (stride > 0 || values.isEmpty()) 2 else 2 + (values.size - 1) * -stride
+            val view = DenseVector.wrap(backing, offset, values.size, stride)
+            for (i in values.indices) view[i] = values[i]
+            add(view)
+        }
+        val indices = values.indices.filter { values[it] != 0.0 || it % 2 == 0 }.toIntArray()
+        add(SparseVector.of(values.size, indices, DoubleArray(indices.size) { values[indices[it]] }))
+        add(ForeignVector(DenseVector.of(values)))
+    }
+
+    @Test
     fun `sparse norms use selected kernels over stored values only`() {
         val source = SparseVector.wrap(Int.MAX_VALUE, intArrayOf(1, 100), doubleArrayOf(2.0, -3.0))
         val calls = mutableListOf<String>()

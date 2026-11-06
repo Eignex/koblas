@@ -124,7 +124,6 @@ public final class com/eignex/koblas/EngineImplementation : java/lang/Enum {
 
 public final class com/eignex/koblas/Koblas {
 	public static final fun asum (Lcom/eignex/koblas/Vector;)D
-	public static final fun axpy (Lcom/eignex/koblas/Vector;DLcom/eignex/koblas/Vector;)V
 	public static final synthetic fun borrow (Lcom/eignex/koblas/Scratch;ILkotlin/jvm/functions/Function1;)Ljava/lang/Object;
 	public static final fun copy (Lcom/eignex/koblas/Matrix;)Lcom/eignex/koblas/Matrix;
 	public static final fun copy (Lcom/eignex/koblas/Vector;)Lcom/eignex/koblas/Vector;

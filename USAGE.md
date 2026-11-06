@@ -68,7 +68,8 @@ keeps indices sorted, and structural writes may replace the arrays returned by s
 Axis sums return a fresh dense vector. Sparse reductions visit stored entries without densifying.
 BLAS arithmetic uses typed `KoblasEngine` members with explicit destinations. Dense and sparse
 containers are public operands; primitive array windows belong to internal kernels.
-`vector.scale(alpha)` and `destination.axpy(alpha, source)` use the default engine across vector storage.
+`vector.scale(alpha)` uses the default engine across vector storage. Scaled vector addition uses
+`koblas.axpy(alpha, source, destination)` with dense or sparse operands.
 
 Vectors and matrices share the `Norm` enum. Vectors support `One`, `Two` (the default), `Infinity`
 and `MaxAbs`, with the last two equivalent. Matrices support `Frobenius` (the default), `One` for the

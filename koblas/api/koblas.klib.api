@@ -363,7 +363,6 @@ final fun (com.eignex.koblas/Matrix).com.eignex.koblas/sum(): kotlin/Double // c
 final fun (com.eignex.koblas/Matrix).com.eignex.koblas/sum(kotlin/Int): com.eignex.koblas/DenseVector // com.eignex.koblas/sum|sum@com.eignex.koblas.Matrix(kotlin.Int){}[0]
 final fun (com.eignex.koblas/Matrix).com.eignex.koblas/transpose(): com.eignex.koblas/Matrix // com.eignex.koblas/transpose|transpose@com.eignex.koblas.Matrix(){}[0]
 final fun (com.eignex.koblas/Vector).com.eignex.koblas/asum(): kotlin/Double // com.eignex.koblas/asum|asum@com.eignex.koblas.Vector(){}[0]
-final fun (com.eignex.koblas/Vector).com.eignex.koblas/axpy(kotlin/Double, com.eignex.koblas/Vector) // com.eignex.koblas/axpy|axpy@com.eignex.koblas.Vector(kotlin.Double;com.eignex.koblas.Vector){}[0]
 final fun (com.eignex.koblas/Vector).com.eignex.koblas/copy(): com.eignex.koblas/Vector // com.eignex.koblas/copy|copy@com.eignex.koblas.Vector(){}[0]
 final fun (com.eignex.koblas/Vector).com.eignex.koblas/copyFrom(com.eignex.koblas/Vector) // com.eignex.koblas/copyFrom|copyFrom@com.eignex.koblas.Vector(com.eignex.koblas.Vector){}[0]
 final fun (com.eignex.koblas/Vector).com.eignex.koblas/dot(com.eignex.koblas/Vector): kotlin/Double // com.eignex.koblas/dot|dot@com.eignex.koblas.Vector(com.eignex.koblas.Vector){}[0]

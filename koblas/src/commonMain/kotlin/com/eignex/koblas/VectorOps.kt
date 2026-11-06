@@ -84,13 +84,3 @@ public fun Vector.copyFrom(source: Vector): Unit = koblas.copyIntoVector(source,
  * entries without reading them; rounding and non-finite behavior follow the selected implementation.
  */
 public fun Vector.scale(alpha: Double): Unit = koblas.scaleVector(alpha, this)
-
-/**
- * Adds `alpha * x` into this vector, requiring equal sizes before writing. Overlapping or opaque sources
- * are snapshotted when needed. A zero [alpha] returns after size validation without reading entries.
- *
- * A sparse [x] touches only stored positions, including stored zeros. Sparse destinations retain existing
- * stored positions and add those from a sparse [x]; other sources add nonzero results and negative zeros.
- * Structural changes replace sparse buffers. Dense views preserve their offsets, strides and padding.
- */
-public fun Vector.axpy(alpha: Double, x: Vector): Unit = koblas.axpyVector(alpha, x, this)
