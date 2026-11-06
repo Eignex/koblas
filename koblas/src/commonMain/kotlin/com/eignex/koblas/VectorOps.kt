@@ -36,10 +36,17 @@ public inline fun Vector.forEachStored(block: (i: Int, v: Double) -> Unit) {
 public infix fun Vector.dot(other: Vector): Double = koblas.dotVector(this, other)
 
 /**
- * Euclidean norm (BLAS `dnrm2`). Rescales when the sum of squares would overflow or underflow, so any
- * finite input gives the correct norm.
+ * Vector norm of [order]: `1` sums absolute values, `2` is the Euclidean norm, and [Int.MAX_VALUE]
+ * selects the infinity norm, the maximum absolute value. An empty vector has norm zero.
+ *
+ * Uses the default [koblas] engine for dense and packed sparse storage, preserving dense offsets and
+ * strides. Sparse vectors visit only stored values; custom vectors use portable fallbacks. Order two
+ * rescales to avoid unnecessary overflow and underflow. Rounding and non-finite behavior follow the
+ * selected implementation, including [KoblasEngine.iamax] for the infinity norm over built-in storage.
+ *
+ * @throws IllegalArgumentException if [order] is neither `1`, `2` nor [Int.MAX_VALUE].
  */
-public fun Vector.norm2(): Double = koblas.normVector(this)
+public fun Vector.norm(order: Int = 2): Double = koblas.normVector(this, order)
 
 /**
  * Plain sum of the entries. Distinct from [asum], which sums their absolute values.

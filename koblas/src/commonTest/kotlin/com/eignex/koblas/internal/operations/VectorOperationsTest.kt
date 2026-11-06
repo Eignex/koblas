@@ -6,6 +6,36 @@ import kotlin.test.*
 
 class VectorOperationsTest {
     @Test
+    fun `sparse norms use selected kernels over stored values only`() {
+        val source = SparseVector.wrap(Int.MAX_VALUE, intArrayOf(1, 100), doubleArrayOf(2.0, -3.0))
+        val calls = mutableListOf<String>()
+        val engine = object : KoblasEngine by BuiltinEngines.scalar {
+            override fun asum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
+                assertSame(source.values, v)
+                assertEquals(2, len)
+                calls += "asum"
+                return BuiltinEngines.scalar.asum(v, vOff, len, vStride)
+            }
+            override fun nrm2(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
+                assertSame(source.values, v)
+                assertEquals(2, len)
+                calls += "nrm2"
+                return BuiltinEngines.scalar.nrm2(v, vOff, len, vStride)
+            }
+            override fun iamax(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Int {
+                assertSame(source.values, v)
+                assertEquals(2, len)
+                calls += "iamax"
+                return BuiltinEngines.scalar.iamax(v, vOff, len, vStride)
+            }
+        }
+
+        for (order in intArrayOf(1, 2, Int.MAX_VALUE)) engine.normVector(source, order)
+
+        assertEquals(listOf("asum", "nrm2", "iamax"), calls)
+    }
+
+    @Test
     fun `sparse sum uses the selected kernel over stored values only`() {
         val source = SparseVector.wrap(Int.MAX_VALUE, intArrayOf(1, 100), doubleArrayOf(2.0, -3.0))
         var length = -1

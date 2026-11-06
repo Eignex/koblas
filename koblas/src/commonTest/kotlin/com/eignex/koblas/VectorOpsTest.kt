@@ -3,6 +3,7 @@ package com.eignex.koblas
 import com.eignex.koblas.engine.BuiltinEngines
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import com.eignex.koblas.internal.operations.dotVector
+import kotlin.math.abs
 import kotlin.test.*
 
 class VectorOpsTest {
@@ -190,25 +191,102 @@ class VectorOpsTest {
         val values = doubleArrayOf(3.0, 0.0, -4.0)
         assertReductionAgreesWithReference(
             BuiltinEngines.scalar.nrm2(values, 0, values.size),
-            DenseVector.of(values).norm2(),
+            DenseVector.of(values).norm(),
             "dense",
         )
         assertReductionAgreesWithReference(
             BuiltinEngines.scalar.nrm2(denseOfSparse.values, 0, denseOfSparse.size),
-            sparse.norm2(),
+            sparse.norm(),
             "sparse",
         )
-        assertEquals(0.0, DenseVector.zero(4).norm2())
-        assertEquals(0.0, DenseVector.zero(0).norm2())
+        assertEquals(0.0, DenseVector.zero(4).norm())
+        assertEquals(0.0, DenseVector.zero(0).norm())
+    }
+
+    @Test
+    fun `supported norms agree with the scalar oracle across vector storage`() {
+        val values = doubleArrayOf(-1.5, 0.0, 3.5, -7.25, 0.0, 2.0)
+        for (source in normOperands(values)) {
+            for (order in intArrayOf(1, 2, Int.MAX_VALUE)) {
+                val expected = referenceNorm(values, order)
+
+                val actual = source.norm(order)
+
+                assertReductionAgreesWithReference(expected, actual, "norm order $order")
+            }
+        }
+    }
+
+    @Test
+    fun `euclidean norm rescales across vector storage`() {
+        for (scale in doubleArrayOf(1e-200, 1e200)) {
+            val values = doubleArrayOf(3.0 * scale, 0.0, -4.0 * scale)
+            for (source in normOperands(values)) {
+                val expected = referenceNorm(values, 2)
+
+                val actual = source.norm(order = 2)
+
+                assertReductionAgreesWithReference(expected / scale, actual / scale, "rescaled norm")
+            }
+        }
+    }
+
+    @Test
+    fun `supported norms of empty and zero vectors are zero`() {
+        val emptySparse = SparseVector.wrap(Int.MAX_VALUE, IntArray(0), DoubleArray(0))
+        val emptyView = StridedVector(doubleArrayOf(Double.NaN), 1, 0, -3)
+        for (source in normOperands(DoubleArray(0)) + normOperands(DoubleArray(4)) + listOf(emptySparse, emptyView)) {
+            for (order in intArrayOf(1, 2, Int.MAX_VALUE)) {
+                assertEquals(0.0, source.norm(order))
+            }
+        }
+    }
+
+    @Test
+    fun `unsupported norm orders are rejected before reading the vector`() {
+        val source = object : Vector {
+            override val size: Int get() = error("Read vector size")
+            override fun get(i: Int): Double = error("Read vector entry")
+            override fun toDoubleArray(): DoubleArray = error("Materialized vector")
+        }
+
+        for (order in intArrayOf(Int.MIN_VALUE, -1, 0, 3, Int.MAX_VALUE - 1)) {
+            assertFailsWith<IllegalArgumentException> { source.norm(order) }
+        }
+    }
+
+    private fun normOperands(values: DoubleArray): List<Vector> = buildList {
+        add(DenseVector.of(values))
+        for (stride in intArrayOf(-3, -1, 1, 3)) {
+            val backing = DoubleArray(values.size * 3 + 4) { Double.NaN }
+            val offset = if (stride > 0 || values.isEmpty()) 2 else 2 + (values.size - 1) * -stride
+            val view = StridedVector(backing, offset, values.size, stride)
+            for (i in values.indices) view[i] = values[i]
+            add(view)
+        }
+        val indices = values.indices.filter { values[it] != 0.0 || it % 2 == 0 }.toIntArray()
+        add(SparseVector.of(values.size, indices, DoubleArray(indices.size) { values[indices[it]] }))
+        add(ForeignVector(DenseVector.of(values)))
+    }
+
+    private fun referenceNorm(values: DoubleArray, order: Int): Double = when (order) {
+        1 -> BuiltinEngines.scalar.asum(values, 0, values.size)
+
+        2 -> BuiltinEngines.scalar.nrm2(values, 0, values.size)
+
+        else -> {
+            val index = BuiltinEngines.scalar.iamax(values, 0, values.size)
+            if (index < 0) 0.0 else abs(values[index])
+        }
     }
 
     @Test
     fun `norm two survives overflow and underflow via the rescale fallback`() {
-        assertEquals(5.0e200, DenseVector.of(doubleArrayOf(3.0e200, 0.0, -4.0e200)).norm2(), 1e186)
-        assertEquals(5.0e-200, DenseVector.of(doubleArrayOf(3.0e-200, 4.0e-200)).norm2(), 1e-214)
-        assertEquals(1.0e-300, DenseVector.of(doubleArrayOf(1.0e-300)).norm2(), 1e-314)
+        assertEquals(5.0e200, DenseVector.of(doubleArrayOf(3.0e200, 0.0, -4.0e200)).norm(), 1e186)
+        assertEquals(5.0e-200, DenseVector.of(doubleArrayOf(3.0e-200, 4.0e-200)).norm(), 1e-214)
+        assertEquals(1.0e-300, DenseVector.of(doubleArrayOf(1.0e-300)).norm(), 1e-314)
         val sparseHuge = SparseVector.of(5, intArrayOf(0, 3), doubleArrayOf(3.0e200, 4.0e200))
-        assertEquals(5.0e200, sparseHuge.norm2(), 1e186)
+        assertEquals(5.0e200, sparseHuge.norm(), 1e186)
     }
 
     @Test
@@ -403,7 +481,7 @@ class VectorOpsTest {
         val values = source.toDoubleArray()
         val expected = ScalarEngine.nrm2(values, 0, values.size)
 
-        val actual = source.norm2()
+        val actual = source.norm()
 
         assertReductionAgreesWithReference(expected, actual, "foreign norm")
     }

@@ -27,6 +27,10 @@ default to unit scaling, and [trsv] and [trsm] solve triangular systems in place
 use the default engine. Vector arguments are [DenseVector] views with exact logical lengths; their
 offsets and strides are passed to the engine. [KoblasEngine] remains the full BLAS surface.
 
+[Vector.norm] accepts orders `1`, `2` (the default) and [Int.MAX_VALUE] for the absolute sum,
+Euclidean norm and maximum absolute value. Dense, strided, sparse and custom vectors are supported;
+sparse vectors visit only stored values. Empty vectors have norm zero and other orders are rejected.
+
 # Package com.eignex.koblas.engine
 
 Exact engines, standard profiles, host platform facts and vendor metadata.

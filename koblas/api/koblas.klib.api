@@ -535,7 +535,7 @@ final fun (com.eignex.koblas/Matrix).com.eignex.koblas/sum(kotlin/Int): com.eign
 final fun (com.eignex.koblas/SparseMatrix).com.eignex.koblas/transpose(): com.eignex.koblas/SparseMatrix // com.eignex.koblas/transpose|transpose@com.eignex.koblas.SparseMatrix(){}[0]
 final fun (com.eignex.koblas/Vector).com.eignex.koblas/asum(): kotlin/Double // com.eignex.koblas/asum|asum@com.eignex.koblas.Vector(){}[0]
 final fun (com.eignex.koblas/Vector).com.eignex.koblas/dot(com.eignex.koblas/Vector): kotlin/Double // com.eignex.koblas/dot|dot@com.eignex.koblas.Vector(com.eignex.koblas.Vector){}[0]
-final fun (com.eignex.koblas/Vector).com.eignex.koblas/norm2(): kotlin/Double // com.eignex.koblas/norm2|norm2@com.eignex.koblas.Vector(){}[0]
+final fun (com.eignex.koblas/Vector).com.eignex.koblas/norm(kotlin/Int = ...): kotlin/Double // com.eignex.koblas/norm|norm@com.eignex.koblas.Vector(kotlin.Int){}[0]
 final fun (com.eignex.koblas/Vector).com.eignex.koblas/sum(): kotlin/Double // com.eignex.koblas/sum|sum@com.eignex.koblas.Vector(){}[0]
 final fun com.eignex.koblas.engine/hostPlatform(): com.eignex.koblas.engine/HostPlatform // com.eignex.koblas.engine/hostPlatform|hostPlatform(){}[0]
 final inline fun (com.eignex.koblas/Vector).com.eignex.koblas/forEachStored(kotlin/Function2<kotlin/Int, kotlin/Double, kotlin/Unit>) // com.eignex.koblas/forEachStored|forEachStored@com.eignex.koblas.Vector(kotlin.Function2<kotlin.Int,kotlin.Double,kotlin.Unit>){}[0]

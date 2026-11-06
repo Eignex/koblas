@@ -8,6 +8,7 @@ import com.eignex.koblas.internal.engine.CombinedEngine
 import com.eignex.koblas.internal.kernels.scalar.*
 import com.eignex.koblas.internal.kernels.scalar.sparse.*
 import com.eignex.koblas.internal.storage.sameVectorMapping
+import kotlin.math.abs
 
 /** Storage adapters use selected array kernels where possible and portable readers for opaque storage. */
 internal fun KoblasEngine.dotVector(x: Vector, y: Vector): Double {
@@ -31,13 +32,32 @@ internal fun KoblasEngine.dotVector(x: Vector, y: Vector): Double {
     }
 }
 
-internal fun KoblasEngine.normVector(x: Vector): Double = when (x) {
+internal fun KoblasEngine.normVector(x: Vector, order: Int = 2): Double = when (order) {
+    1 -> absoluteSumVector(x)
+    2 -> euclideanNormVector(x)
+    Int.MAX_VALUE -> maximumMagnitudeVector(x)
+    else -> throw IllegalArgumentException("norm order must be 1, 2 or Int.MAX_VALUE, got $order")
+}
+
+private fun KoblasEngine.euclideanNormVector(x: Vector): Double = when (x) {
     is DenseVector -> nrm2(x.values, x.offset, x.size, x.stride)
 
     is SparseVector -> nrm2(x.values, 0, x.values.size)
 
     // Opaque storage needs the portable rescaling path and an owned snapshot.
     else -> ScalarEngine.nrm2(x.toDoubleArray(), 0, x.size)
+}
+
+private fun KoblasEngine.maximumMagnitudeVector(x: Vector): Double = when (x) {
+    is DenseVector -> maximumMagnitude(x.values, x.offset, x.size, x.stride)
+    is SparseVector -> maximumMagnitude(x.values, 0, x.values.size, 1)
+    else -> scalarVectorMaximumMagnitude(x)
+}
+
+private fun KoblasEngine.maximumMagnitude(values: DoubleArray, offset: Int, size: Int, stride: Int): Double {
+    if (size == 0) return 0.0
+    val index = iamax(values, offset, size, stride)
+    return abs(values[offset + index * stride])
 }
 
 internal fun KoblasEngine.sumVector(x: Vector): Double = when (x) {

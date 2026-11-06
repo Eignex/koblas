@@ -29,6 +29,9 @@ val product = DenseMatrix.zero(a.rows, b.cols)
 a.gemmInto(b, product)
 val scaled = DenseVector.wrap(x.toDoubleArray()).also { it.scale(2.0) }
 val squaredLength = x dot x
+val length = x.norm()              // Euclidean norm, order = 2
+val absoluteSum = x.norm(order = 1)
+val largestMagnitude = x.norm(order = Int.MAX_VALUE)
 ```
 
 `gemvInto` writes a matrix-vector product into `y`; `gemmInto` writes a matrix product into `product`.

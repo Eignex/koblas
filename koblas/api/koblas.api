@@ -144,7 +144,8 @@ public final class com/eignex/koblas/Koblas {
 	public static final fun ger (Lcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;DLcom/eignex/koblas/Scratch;)V
 	public static synthetic fun ger$default (Lcom/eignex/koblas/DenseMatrixRegion;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;DLcom/eignex/koblas/Scratch;ILjava/lang/Object;)V
 	public static final fun getDefault ()Lcom/eignex/koblas/KoblasEngine;
-	public static final fun norm2 (Lcom/eignex/koblas/Vector;)D
+	public static final fun norm (Lcom/eignex/koblas/Vector;I)D
+	public static synthetic fun norm$default (Lcom/eignex/koblas/Vector;IILjava/lang/Object;)D
 	public static final fun scale (Lcom/eignex/koblas/DenseVector;D)V
 	public static final fun sum (Lcom/eignex/koblas/Matrix;)D
 	public static final fun sum (Lcom/eignex/koblas/Matrix;I)Lcom/eignex/koblas/DenseVector;

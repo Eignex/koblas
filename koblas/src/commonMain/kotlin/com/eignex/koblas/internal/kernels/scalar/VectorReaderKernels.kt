@@ -26,6 +26,15 @@ internal fun scalarVectorAbsoluteSum(x: Vector): Double {
     return sum
 }
 
+internal fun scalarVectorMaximumMagnitude(x: Vector): Double {
+    var maximum = 0.0
+    for (i in 0 until x.size) {
+        val magnitude = abs(x[i])
+        if (magnitude > maximum) maximum = magnitude
+    }
+    return maximum
+}
+
 /** Assignment is required here: scaling by zero need not erase nonfinite entries or negative zeros. */
 internal fun zeroVector(values: DoubleArray, offset: Int, size: Int, stride: Int) {
     if (stride == 1) {
