@@ -85,7 +85,8 @@ internal fun KoblasEngine.copyVector(x: Vector, y: DenseVector) {
                 scatter(source.indices, source.offset, source.values, source.offset, source.nnz, y.values)
             } else {
                 indexedScatter(
-                    source.indices, source.offset, source.values, source.offset, source.nnz, y.values, y.offset, y.stride,
+                    source.indices, source.offset, source.values, source.offset, source.nnz,
+                    y.values, y.offset, y.stride,
                 )
             }
         }
@@ -135,13 +136,16 @@ private fun KoblasEngine.axpyDenseVector(alpha: Double, x: Vector, y: DenseVecto
             axpy(source.indices, source.offset, source.values, source.offset, source.nnz, alpha, y.values)
         } else {
             indexedAxpy(
-                source.indices, source.offset, source.values, source.offset, source.nnz, alpha, y.values, y.offset, y.stride,
+                source.indices, source.offset, source.values, source.offset, source.nnz,
+                alpha, y.values, y.offset, y.stride,
             )
         }
 
         is DenseVector -> {
             requireSameSize(source.size, y.size, "axpy")
-            axpy(y.values, y.offset, alpha, source.values, source.offset, source.size, y.stride, source.stride)
+            axpy(
+                y.values, y.offset, alpha, source.values, source.offset, source.size, y.stride, source.stride,
+            )
         }
     }
 }

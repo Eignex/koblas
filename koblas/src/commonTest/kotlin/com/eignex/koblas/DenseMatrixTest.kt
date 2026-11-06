@@ -10,7 +10,8 @@ class DenseMatrixTest {
         val matrix = DenseMatrix.wrap(6, 7, values).view(1, 2, 3, 2)
         val expected = values.copyOf()
         for (j in 0 until matrix.cols) {
-            KoblasEngine.scalar.scale(DenseVector.wrap(expected, matrix.offset + j * matrix.leadingDimension, matrix.rows), -2.0)
+            val reference = DenseVector.wrap(expected, matrix.offset + j * matrix.leadingDimension, matrix.rows)
+            KoblasEngine.scalar.scale(reference, -2.0)
         }
 
         matrix.forEachColumns { column -> koblas.scale(column, -2.0) }

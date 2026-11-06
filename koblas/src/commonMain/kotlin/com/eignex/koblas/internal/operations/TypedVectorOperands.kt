@@ -81,11 +81,13 @@ internal fun KoblasEngine.gatherVector(source: DenseVector, destination: SparseV
     if (source.isWholeArray) {
         if (zero) {
             kernels.gatherZero(
-                destination.indices, destination.offset, destination.values, destination.offset, destination.nnz, source.values,
+                destination.indices, destination.offset, destination.values, destination.offset,
+                destination.nnz, source.values,
             )
         } else {
             kernels.gather(
-                destination.indices, destination.offset, destination.values, destination.offset, destination.nnz, source.values,
+                destination.indices, destination.offset, destination.values, destination.offset,
+                destination.nnz, source.values,
             )
         }
     } else {
