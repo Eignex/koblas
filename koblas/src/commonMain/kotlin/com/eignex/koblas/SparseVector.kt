@@ -2,6 +2,7 @@ package com.eignex.koblas
 
 import com.eignex.koblas.internal.storage.*
 import com.eignex.koblas.internal.storage.sparse.lowerBound
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmStatic
 
@@ -18,10 +19,11 @@ import kotlin.jvm.JvmStatic
  * @property size the logical length, counting the unstored zeros.
  */
 @Serializable
+@SerialName("SparseVector")
 public class SparseVector internal constructor(
     override val size: Int,
-    private var storedIndices: IntArray,
-    private var storedValues: DoubleArray,
+    @SerialName("indices") private var storedIndices: IntArray,
+    @SerialName("values") private var storedValues: DoubleArray,
 ) : VectorStorage {
 
     /** Live stored positions; structural writes may replace this buffer. Do not mutate it. */

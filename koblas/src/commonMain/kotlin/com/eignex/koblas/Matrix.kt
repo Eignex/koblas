@@ -23,7 +23,8 @@ public interface Matrix {
 /**
  * The matrix storages koblas itself defines, [DenseMatrix] and [SparseMatrix].
  *
- * Serialization uses the default class and property names, as for [VectorStorage].
+ * Encoded on the terms [VectorStorage] states: the storage's own class name, the numbers under `values`, and
+ * each index array named for the axis it indexes.
  */
 @Serializable
 public sealed interface MatrixStorage : Matrix
