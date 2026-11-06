@@ -74,13 +74,3 @@ public fun Vector.copy(): Vector = copyVectorStorage(this)
  * entries and negative zeros. Structural changes replace sparse buffers; equal patterns reuse them.
  */
 public fun Vector.copyFrom(source: Vector): Unit = koblas.copyIntoVector(source, this)
-
-/**
- * Scales this vector in place by [alpha]. Dense views preserve their offsets and strides; sparse vectors
- * scale only stored values and retain their pattern, including stored zeros. Custom vectors use [get]
- * and [set]. A unit multiplier leaves the vector untouched.
- *
- * Built-in storage uses the selected [KoblasEngine.scale] implementation. A zero multiplier may overwrite
- * entries without reading them; rounding and non-finite behavior follow the selected implementation.
- */
-public fun Vector.scale(alpha: Double): Unit = koblas.scaleVector(alpha, this)

@@ -8,11 +8,26 @@ import kotlin.test.*
 
 class VectorOperationsTest {
     @Test
+    fun `scale agrees with the scalar reference across storage`() {
+        val values = doubleArrayOf(1.5, 0.0, -2.0, 3.25)
+        for (alpha in doubleArrayOf(-2.0, 0.0, 1.0)) {
+            for (destination in mutationOperands(values)) {
+                val expected = values.copyOf()
+                KoblasEngine.scalar.scale(expected, 0, alpha, expected.size)
+
+                koblas.scaleVector(alpha, destination)
+
+                assertClose(expected, destination.toDoubleArray(), "vector scale")
+            }
+        }
+    }
+
+    @Test
     fun `axpy agrees with the scalar reference across source and destination storage`() {
         val x = doubleArrayOf(1.5, 0.0, -2.0, 3.25)
         val y = doubleArrayOf(0.0, 2.5, 1.0, -1.5)
-        for (source in axpyOperands(x)) {
-            for (destination in axpyOperands(y)) {
+        for (source in mutationOperands(x)) {
+            for (destination in mutationOperands(y)) {
                 val expected = y.copyOf()
                 KoblasEngine.scalar.axpy(expected, 0, -1.5, x, 0, x.size)
 
@@ -51,7 +66,7 @@ class VectorOperationsTest {
         KoblasEngine.scalar.scale(expectedValues, 0, -2.0, expectedValues.size)
 
         koblas.axpyVector(2.0, source, destination)
-        destination.scale(-2.0)
+        koblas.scaleVector(-2.0, destination)
 
         assertContentEquals(intArrayOf(0, 1, Int.MAX_VALUE - 1), destination.indices)
         assertAxpyAgreesWithReference(expectedValues, destination.values)
@@ -78,7 +93,7 @@ class VectorOperationsTest {
             override fun get(i: Int): Double = error("Unexpected read")
             override fun set(i: Int, v: Double) = error("Unexpected write")
         }
-        for (destination in axpyOperands(doubleArrayOf(1.0, 0.0, 2.0, 3.0))) {
+        for (destination in mutationOperands(doubleArrayOf(1.0, 0.0, 2.0, 3.0))) {
             val expected = destination.toDoubleArray()
 
             koblas.axpyVector(0.0, source, destination)
@@ -88,7 +103,7 @@ class VectorOperationsTest {
         }
     }
 
-    private fun axpyOperands(values: DoubleArray): List<Vector> = buildList {
+    private fun mutationOperands(values: DoubleArray): List<Vector> = buildList {
         add(DenseVector.of(values))
         for (stride in intArrayOf(-3, -1, 1, 3)) {
             val backing = DoubleArray(values.size * 3 + 4) { Double.NaN }

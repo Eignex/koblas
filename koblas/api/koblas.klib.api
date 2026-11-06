@@ -367,7 +367,6 @@ final fun (com.eignex.koblas/Vector).com.eignex.koblas/copy(): com.eignex.koblas
 final fun (com.eignex.koblas/Vector).com.eignex.koblas/copyFrom(com.eignex.koblas/Vector) // com.eignex.koblas/copyFrom|copyFrom@com.eignex.koblas.Vector(com.eignex.koblas.Vector){}[0]
 final fun (com.eignex.koblas/Vector).com.eignex.koblas/dot(com.eignex.koblas/Vector): kotlin/Double // com.eignex.koblas/dot|dot@com.eignex.koblas.Vector(com.eignex.koblas.Vector){}[0]
 final fun (com.eignex.koblas/Vector).com.eignex.koblas/norm(com.eignex.koblas/Norm = ...): kotlin/Double // com.eignex.koblas/norm|norm@com.eignex.koblas.Vector(com.eignex.koblas.Norm){}[0]
-final fun (com.eignex.koblas/Vector).com.eignex.koblas/scale(kotlin/Double) // com.eignex.koblas/scale|scale@com.eignex.koblas.Vector(kotlin.Double){}[0]
 final fun (com.eignex.koblas/Vector).com.eignex.koblas/sum(): kotlin/Double // com.eignex.koblas/sum|sum@com.eignex.koblas.Vector(){}[0]
 final inline fun (com.eignex.koblas/Matrix).com.eignex.koblas/forEachStored(kotlin/Function3<kotlin/Int, kotlin/Int, kotlin/Double, kotlin/Unit>) // com.eignex.koblas/forEachStored|forEachStored@com.eignex.koblas.Matrix(kotlin.Function3<kotlin.Int,kotlin.Int,kotlin.Double,kotlin.Unit>){}[0]
 final inline fun (com.eignex.koblas/Vector).com.eignex.koblas/forEachStored(kotlin/Function2<kotlin/Int, kotlin/Double, kotlin/Unit>) // com.eignex.koblas/forEachStored|forEachStored@com.eignex.koblas.Vector(kotlin.Function2<kotlin.Int,kotlin.Double,kotlin.Unit>){}[0]

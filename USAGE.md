@@ -71,8 +71,8 @@ Sparse matrices visit only stored positions, including stored zeros; dense and c
 every entry. Views report local indices and skip padding.
 BLAS arithmetic uses typed `KoblasEngine` members with explicit destinations. Dense and sparse
 containers are public operands; primitive array windows belong to internal kernels.
-`vector.scale(alpha)` uses the default engine across vector storage. Scaled vector addition uses
-`koblas.axpy(alpha, source, destination)` with dense or sparse operands.
+Scaling uses `koblas.scale(vector, alpha)` and scaled vector addition uses
+`koblas.axpy(alpha, source, destination)`, with dense or sparse operands.
 
 Vectors and matrices share the `Norm` enum. Vectors support `One`, `Two` (the default), `Infinity`
 and `MaxAbs`, with the last two equivalent. Matrices support `Frobenius` (the default), `One` for the

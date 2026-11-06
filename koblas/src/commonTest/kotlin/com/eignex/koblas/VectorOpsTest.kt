@@ -9,25 +9,6 @@ import kotlin.test.*
 
 class VectorOpsTest {
     @Test
-    fun `scale agrees with the scalar reference across storage`() {
-        val values = doubleArrayOf(1.5, 0.0, -2.0, 3.25)
-        for (alpha in doubleArrayOf(-2.0, 0.0, 1.0)) {
-            for (destination in normOperands(values)) {
-                val expected = values.copyOf()
-                KoblasEngine.scalar.scale(expected, 0, alpha, expected.size)
-
-                destination.scale(alpha)
-
-                assertVectorAgreesWithReference(expected, destination.toDoubleArray())
-            }
-        }
-    }
-
-    private fun assertVectorAgreesWithReference(expected: DoubleArray, actual: DoubleArray) {
-        assertClose(expected, actual, "vector mutation")
-    }
-
-    @Test
     fun `sparse copies preserve large shapes and stored zeros without densifying`() {
         val source: Vector = SparseVector.wrap(
             Int.MAX_VALUE,
