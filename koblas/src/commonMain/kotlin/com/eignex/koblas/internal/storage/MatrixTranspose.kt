@@ -9,7 +9,7 @@ internal fun transposeMatrixStorage(source: Matrix): Matrix {
     if (source.rows == 0 || source.cols == 0) return result
     for (j in 0 until source.cols) {
         for (i in 0 until source.rows) {
-            result.values[j + i * source.cols] = if (source is DenseMatrixRegion) {
+            result.values[j + i * source.cols] = if (source is DenseMatrix) {
                 source.values[source.offset + i + j * source.leadingDimension]
             } else {
                 source[i, j]

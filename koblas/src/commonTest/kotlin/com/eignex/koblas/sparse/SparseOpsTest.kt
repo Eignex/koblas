@@ -694,7 +694,7 @@ class SparseOpsTest {
         assertEquals(1, workspace.idleLengths(), "$what borrowed scratch besides its snapshot")
     }
 
-    private fun region(seed: Int): DenseMatrixView {
+    private fun region(seed: Int): DenseMatrix {
         val parent = DenseMatrix.wrap(9, 8, DoubleArray(72) { -77.0 })
         val result = parent.view(1, 1, 7, 6).view(1, 1, 5, 5)
         for (j in 0 until 5) for (i in 0 until 5) result[i, j] = (i + j + seed) / 17.0
@@ -715,7 +715,7 @@ class SparseOpsTest {
      * Runs [call] on a fresh region and [reference] on a dense copy of it, then checks the region's whole
      * backing array: the view's entries against the reference and every other entry of the parent unchanged.
      */
-    private fun assertRegionCall(context: String, reference: (DenseMatrix) -> Unit, call: (DenseMatrixView) -> Unit) {
+    private fun assertRegionCall(context: String, reference: (DenseMatrix) -> Unit, call: (DenseMatrix) -> Unit) {
         val c = region(3)
         val before = c.values.copyOf()
         val expected = copy(c)

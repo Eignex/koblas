@@ -75,7 +75,7 @@ internal fun Arena.stage(vector: DenseVector, read: Boolean = true): NativeVecto
 internal class NativeMatrix(
     val segment: MemorySegment,
     val leadingDimension: Int,
-    private val matrix: DenseMatrixRegion,
+    private val matrix: DenseMatrix,
     private val structure: MatrixStructure,
 ) {
     /** Writes only selected logical entries, preserving padding and the other triangle. */
@@ -93,7 +93,7 @@ internal class NativeMatrix(
 
 /** Packs the logical region; structure controls both transfer and writeback. */
 internal fun Arena.stage(
-    matrix: DenseMatrixRegion,
+    matrix: DenseMatrix,
     structure: MatrixStructure = MatrixStructure.General,
     read: Boolean = true,
 ): NativeMatrix {

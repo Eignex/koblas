@@ -16,7 +16,7 @@ internal fun KoblasEngine.updateRank(
     y: DoubleArray,
     yOffset: Int,
     yStride: Int,
-    a: DenseMatrixRegion,
+    a: DenseMatrix,
     rowOffset: Int,
     columnOffset: Int,
     rows: Int,

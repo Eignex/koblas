@@ -203,7 +203,7 @@ internal interface EngineKernels : KoblasEngine {
      */
     fun gemv(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         x: DoubleArray,
         xOffset: Int,
         xStride: Int,
@@ -215,7 +215,7 @@ internal interface EngineKernels : KoblasEngine {
         scratch: Scratch? = null,
     ) {
         val operation = if (transpose) EngineImplementation.GemvTransposed else EngineImplementation.Gemv
-        val routed = routedWholeCall(operation, a.rows, a.cols, 1, a !is DenseMatrix)
+        val routed = routedWholeCall(operation, a.rows, a.cols, 1, !a.isWholeBuffer)
         if (routed !=
             null
         ) {
@@ -237,7 +237,7 @@ internal interface EngineKernels : KoblasEngine {
      */
     fun symv(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         x: DoubleArray,
         xOffset: Int,
         xStride: Int,
@@ -248,7 +248,7 @@ internal interface EngineKernels : KoblasEngine {
         lower: Boolean = true,
         scratch: Scratch? = null,
     ) {
-        val routed = routedWholeCall(EngineImplementation.Symv, a.rows, a.cols, 1, a !is DenseMatrix)
+        val routed = routedWholeCall(EngineImplementation.Symv, a.rows, a.cols, 1, !a.isWholeBuffer)
         if (routed != null) return routed.symv(alpha, a, x, xOffset, xStride, beta, y, yOffset, yStride, lower, scratch)
         requireSquare(a, "symv")
         prepareMatrixVector(this, alpha, a, false, x, xOffset, xStride, beta, y, yOffset, yStride, lower, scratch) {
@@ -270,10 +270,10 @@ internal interface EngineKernels : KoblasEngine {
         y: DoubleArray,
         yOffset: Int,
         yStride: Int,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         scratch: Scratch? = null,
     ) {
-        val routed = routedWholeCall(EngineImplementation.Ger, a.rows, a.cols, 1, a !is DenseMatrix)
+        val routed = routedWholeCall(EngineImplementation.Ger, a.rows, a.cols, 1, !a.isWholeBuffer)
         if (routed != null) return routed.ger(alpha, x, xOffset, xStride, y, yOffset, yStride, a, scratch)
         updateRank(alpha, x, xOffset, xStride, y, yOffset, yStride, a, 0, 0, a.rows, a.cols, scratch)
     }
@@ -294,7 +294,7 @@ internal interface EngineKernels : KoblasEngine {
         alpha: Double,
         x: DoubleArray,
         y: DoubleArray,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         rowOffset: Int,
         columnOffset: Int,
         rows: Int,
@@ -313,11 +313,11 @@ internal interface EngineKernels : KoblasEngine {
         x: DoubleArray,
         xOffset: Int,
         xStride: Int,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         lower: Boolean = true,
         scratch: Scratch? = null,
     ) {
-        val routed = routedWholeCall(EngineImplementation.Syr, a.rows, a.rows, 1, a !is DenseMatrix)
+        val routed = routedWholeCall(EngineImplementation.Syr, a.rows, a.rows, 1, !a.isWholeBuffer)
         if (routed != null) return routed.syr(alpha, x, xOffset, xStride, a, lower, scratch)
         requireSquare(a, "syr")
         prepareRankUpdate(alpha, x, xOffset, xStride, x, xOffset, xStride, a, scratch) { sx, xo, xs, _, _, _ ->
@@ -334,11 +334,11 @@ internal interface EngineKernels : KoblasEngine {
         y: DoubleArray,
         yOffset: Int,
         yStride: Int,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         lower: Boolean = true,
         scratch: Scratch? = null,
     ) {
-        val routed = routedWholeCall(EngineImplementation.Syr2, a.rows, a.rows, 1, a !is DenseMatrix)
+        val routed = routedWholeCall(EngineImplementation.Syr2, a.rows, a.rows, 1, !a.isWholeBuffer)
         if (routed != null) return routed.syr2(alpha, x, xOffset, xStride, y, yOffset, yStride, a, lower, scratch)
         requireSquare(a, "syr2")
         prepareRankUpdate(alpha, x, xOffset, xStride, y, yOffset, yStride, a, scratch) {
@@ -363,7 +363,7 @@ internal interface EngineKernels : KoblasEngine {
      * snapshotted first.
      */
     fun trsv(
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         x: DoubleArray,
         xOffset: Int,
         xStride: Int,
@@ -373,7 +373,7 @@ internal interface EngineKernels : KoblasEngine {
         scratch: Scratch? = null,
     ) {
         val operation = if (transpose) EngineImplementation.TrsvTransposed else EngineImplementation.Trsv
-        val routed = routedWholeCall(operation, a.rows, a.rows, 1, a !is DenseMatrix)
+        val routed = routedWholeCall(operation, a.rows, a.rows, 1, !a.isWholeBuffer)
         if (routed != null) return routed.trsv(a, x, xOffset, xStride, lower, transpose, unitDiag, scratch)
         prepareTriangularVector(a, x, xOffset, xStride, lower, unitDiag, "trsv", scratch) { sa ->
             scheduleTrsv(sa, x, xOffset, xStride, lower, transpose, unitDiag)
@@ -382,7 +382,7 @@ internal interface EngineKernels : KoblasEngine {
 
     /** `x = op(T) · x` in place (BLAS `dtrmv`), with the flags and overlap of [trsv]. */
     fun trmv(
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         x: DoubleArray,
         xOffset: Int,
         xStride: Int,
@@ -392,7 +392,7 @@ internal interface EngineKernels : KoblasEngine {
         scratch: Scratch? = null,
     ) {
         val operation = if (transpose) EngineImplementation.TrmvTransposed else EngineImplementation.Trmv
-        val routed = routedWholeCall(operation, a.rows, a.rows, 1, a !is DenseMatrix)
+        val routed = routedWholeCall(operation, a.rows, a.rows, 1, !a.isWholeBuffer)
         if (routed != null) return routed.trmv(a, x, xOffset, xStride, lower, transpose, unitDiag, scratch)
         prepareTriangularVector(a, x, xOffset, xStride, lower, unitDiag, "trmv", scratch) { sa ->
             scheduleTrmv(sa, x, xOffset, xStride, lower, transpose, unitDiag)

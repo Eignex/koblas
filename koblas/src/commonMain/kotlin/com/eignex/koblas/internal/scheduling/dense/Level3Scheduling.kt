@@ -21,12 +21,12 @@ import com.eignex.koblas.internal.operations.*
  */
 internal fun KoblasEngine.scheduleGemm(
     alpha: Double,
-    a: DenseMatrixRegion,
+    a: DenseMatrix,
     transposeA: Boolean,
-    b: DenseMatrixRegion,
+    b: DenseMatrix,
     transposeB: Boolean,
     beta: Double,
-    c: DenseMatrixRegion,
+    c: DenseMatrix,
     depth: Int,
     arrays: Scratch?,
 ) {
@@ -55,12 +55,12 @@ internal fun KoblasEngine.scheduleGemm(
 
 internal fun KoblasEngine.scheduleGemmt(
     alpha: Double,
-    a: DenseMatrixRegion,
+    a: DenseMatrix,
     transposeA: Boolean,
-    b: DenseMatrixRegion,
+    b: DenseMatrix,
     transposeB: Boolean,
     beta: Double,
-    c: DenseMatrixRegion,
+    c: DenseMatrix,
     lower: Boolean,
     arrays: Scratch?,
 ) {
@@ -74,10 +74,10 @@ internal fun KoblasEngine.scheduleGemmt(
 
 internal fun KoblasEngine.scheduleSymm(
     alpha: Double,
-    a: DenseMatrixRegion,
-    b: DenseMatrixRegion,
+    a: DenseMatrix,
+    b: DenseMatrix,
     beta: Double,
-    c: DenseMatrixRegion,
+    c: DenseMatrix,
     lower: Boolean,
     right: Boolean,
     arrays: Scratch?,
@@ -91,10 +91,10 @@ internal fun KoblasEngine.scheduleSymm(
 
 internal fun KoblasEngine.scheduleSyrk(
     alpha: Double,
-    a: DenseMatrixRegion,
+    a: DenseMatrix,
     transpose: Boolean,
     beta: Double,
-    c: DenseMatrixRegion,
+    c: DenseMatrix,
     lower: Boolean,
     arrays: Scratch?,
 ) {
@@ -108,11 +108,11 @@ internal fun KoblasEngine.scheduleSyrk(
 
 internal fun KoblasEngine.scheduleSyr2k(
     alpha: Double,
-    a: DenseMatrixRegion,
-    b: DenseMatrixRegion,
+    a: DenseMatrix,
+    b: DenseMatrix,
     transpose: Boolean,
     beta: Double,
-    c: DenseMatrixRegion,
+    c: DenseMatrix,
     lower: Boolean,
     arrays: Scratch?,
 ) {
@@ -132,10 +132,10 @@ internal fun KoblasEngine.scheduleSyr2k(
 
 internal fun KoblasEngine.scheduleTriangularMatrix(
     alpha: Double,
-    a: DenseMatrixRegion,
+    a: DenseMatrix,
     structure: MatrixStructure,
     transpose: Boolean,
-    b: DenseMatrixRegion,
+    b: DenseMatrix,
     right: Boolean,
     solve: Boolean,
     arrays: Scratch?,

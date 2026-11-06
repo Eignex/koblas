@@ -58,7 +58,7 @@ class DenseOpsTest {
         }
     }
 
-    private fun operand(rows: Int, cols: Int, seed: Int, view: Boolean): DenseMatrixRegion {
+    private fun operand(rows: Int, cols: Int, seed: Int, view: Boolean): DenseMatrix {
         val region = paddedRegion(rows, cols, seed)
         return if (view) region else contiguousCopy(region)
     }
@@ -366,7 +366,7 @@ class DenseOpsTest {
     private fun assertStructuredProduct(
         context: String,
         reference: (DenseMatrix) -> Unit,
-        call: (DenseMatrixView) -> Unit,
+        call: (DenseMatrix) -> Unit,
     ) {
         val c = paddedRegion(5, 5, 3)
         val before = c.values.copyOf()

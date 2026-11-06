@@ -10,13 +10,13 @@ internal fun KoblasEngine.normMatrix(a: Matrix, type: Norm = Norm.Frobenius): Do
     require(type != Norm.Two) { "Spectral matrix norm is not supported" }
     if (a.rows == 0 || a.cols == 0) return 0.0
     return when (a) {
-        is DenseMatrixRegion -> denseMatrixNorm(a, type)
+        is DenseMatrix -> denseMatrixNorm(a, type)
         is SparseMatrix -> sparseMatrixNorm(a, type)
         else -> scalarMatrixNorm(a, type)
     }
 }
 
-private fun KoblasEngine.denseMatrixNorm(a: DenseMatrixRegion, type: Norm): Double {
+private fun KoblasEngine.denseMatrixNorm(a: DenseMatrix, type: Norm): Double {
     if (type == Norm.Frobenius && a.leadingDimension == a.rows) {
         return nrm2(a.values, a.offset, a.rows * a.cols)
     }

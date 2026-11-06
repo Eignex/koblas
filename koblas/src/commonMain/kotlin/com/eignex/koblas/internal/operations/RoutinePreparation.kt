@@ -21,7 +21,7 @@ import com.eignex.koblas.internal.storage.*
 internal inline fun prepareMatrixVector(
     vectors: KoblasEngine,
     alpha: Double,
-    a: DenseMatrixRegion,
+    a: DenseMatrix,
     transpose: Boolean,
     x: DoubleArray,
     xOffset: Int,
@@ -32,7 +32,7 @@ internal inline fun prepareMatrixVector(
     yStride: Int,
     lower: Boolean?,
     arrays: Scratch?,
-    body: (DenseMatrixRegion, DoubleArray, Int, Int) -> Unit,
+    body: (DenseMatrix, DoubleArray, Int, Int) -> Unit,
 ) {
     val rows = if (transpose) a.cols else a.rows
     val depth = if (transpose) a.rows else a.cols
@@ -62,7 +62,7 @@ internal inline fun prepareRankUpdate(
     y: DoubleArray,
     yOffset: Int,
     yStride: Int,
-    a: DenseMatrixRegion,
+    a: DenseMatrix,
     arrays: Scratch?,
     body: (DoubleArray, Int, Int, DoubleArray, Int, Int) -> Unit,
 ) {
@@ -78,7 +78,7 @@ internal inline fun prepareRankUpdate(
  * sharing that storage is snapshotted first.
  */
 internal inline fun prepareTriangularVector(
-    a: DenseMatrixRegion,
+    a: DenseMatrix,
     x: DoubleArray,
     xOffset: Int,
     xStride: Int,
@@ -86,7 +86,7 @@ internal inline fun prepareTriangularVector(
     unitDiag: Boolean,
     what: String,
     arrays: Scratch?,
-    body: (DenseMatrixRegion) -> Unit,
+    body: (DenseMatrix) -> Unit,
 ) {
     requireSquare(a, what)
     val n = a.rows
@@ -102,16 +102,16 @@ internal inline fun prepareTriangularVector(
  */
 internal inline fun prepareProduct(
     alpha: Double,
-    a: DenseMatrixRegion,
-    b: DenseMatrixRegion,
+    a: DenseMatrix,
+    b: DenseMatrix,
     beta: Double,
-    c: DenseMatrixRegion,
+    c: DenseMatrix,
     depth: Int,
     selected: Boolean?,
     aTriangle: Boolean?,
     vectors: KoblasEngine?,
     arrays: Scratch?,
-    body: (DenseMatrixRegion, DenseMatrixRegion) -> Unit,
+    body: (DenseMatrix, DenseMatrix) -> Unit,
 ) {
     // Return before borrowing operand-sized scratch for an empty destination.
     if (c.rows == 0 || c.cols == 0) return
@@ -132,15 +132,15 @@ internal inline fun prepareProduct(
  * substitution is about to read.
  */
 internal inline fun prepareTriangularMatrix(
-    a: DenseMatrixRegion,
-    b: DenseMatrixRegion,
+    a: DenseMatrix,
+    b: DenseMatrix,
     lower: Boolean,
     unitDiag: Boolean,
     right: Boolean,
     alpha: Double,
     what: String,
     arrays: Scratch?,
-    body: (DenseMatrixRegion) -> Unit,
+    body: (DenseMatrix) -> Unit,
 ) {
     requireTriangularMatrixOperands(a, b, right, what)
     if (alpha == 0.0) {

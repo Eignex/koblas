@@ -231,12 +231,12 @@ class CombinedEngineTest {
             override val implementations = setOf(EngineImplementation.Gemm)
             override fun gemm(
                 alpha: Double,
-                a: DenseMatrixRegion,
+                a: DenseMatrix,
                 transposeA: Boolean,
-                b: DenseMatrixRegion,
+                b: DenseMatrix,
                 transposeB: Boolean,
                 beta: Double,
-                c: DenseMatrixRegion,
+                c: DenseMatrix,
                 scratch: Scratch?,
             ) {
                 calls += "matrix product"
@@ -295,11 +295,11 @@ class CombinedEngineTest {
             val blas = engineWithHost(portable, recorder, borrowed = false)
             val parent = matrix(ORDER + 2)
             val view = parent.view(1, 1, ORDER, ORDER)
-            val a: DenseMatrixRegion = if (borrowedOperand == "left") view else matrix(ORDER)
-            val b: DenseMatrixRegion = if (borrowedOperand == "right") view else matrix(ORDER)
-            val c: DenseMatrixRegion = if (borrowedOperand == "destination") view else matrix(ORDER)
+            val a: DenseMatrix = if (borrowedOperand == "left") view else matrix(ORDER)
+            val b: DenseMatrix = if (borrowedOperand == "right") view else matrix(ORDER)
+            val c: DenseMatrix = if (borrowedOperand == "destination") view else matrix(ORDER)
             val before = c.values.copyOf()
-            fun copy(region: DenseMatrixRegion) = DenseMatrix.wrap(
+            fun copy(region: DenseMatrix) = DenseMatrix.wrap(
                 ORDER,
                 ORDER,
                 DoubleArray(ORDER * ORDER) { region[it % ORDER, it / ORDER] },
@@ -316,6 +316,27 @@ class CombinedEngineTest {
             }
             assertTrue(recorder.calls.isEmpty(), borrowedOperand)
             assertClose(before, c.values, context = "$borrowedOperand region eligibility fallback")
+        }
+    }
+
+    @Test
+    fun `matrix routing checks layout rather than how the matrix was created`() {
+        val compact = matrix(ORDER)
+        val cases = listOf(
+            compact to false,
+            compact.view() to false,
+            DenseMatrix.wrap(ORDER, ORDER, DoubleArray(ORDER * ORDER + 1)) to true,
+            DenseMatrix.wrap(ORDER, ORDER, DoubleArray(ORDER * ORDER + 1), offset = 1) to true,
+            DenseMatrix.wrap(ORDER, ORDER, DoubleArray((ORDER + 1) * ORDER), leadingDimension = ORDER + 1) to true,
+        )
+        for ((a, borrowed) in cases) {
+            val recorder = RecordingBlas()
+            val engine = engineWithHost(engineWithKernels(), recorder, borrowed = false)
+
+            engine.gemv(1.0, a, DenseVector.zero(ORDER), 0.0, DenseVector.zero(ORDER))
+
+            val expected = if (borrowed) emptyList() else listOf(EngineImplementation.Gemv)
+            assertEquals(expected, recorder.calls.map { it.operation })
         }
     }
 
@@ -617,42 +638,42 @@ class CombinedEngineTest {
 private class ReferenceProductBlas : RecordingBlas() {
     override fun cblasGemm(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         transposeA: Boolean,
-        b: DenseMatrixRegion,
+        b: DenseMatrix,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
     ) = ReferenceBlas.gemm(alpha, a, transposeA, b, transposeB, beta, c)
 
     override fun cblasGemmt(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         transposeA: Boolean,
-        b: DenseMatrixRegion,
+        b: DenseMatrix,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         structure: MatrixStructure,
     ) = ReferenceBlas.gemmt(alpha, a, transposeA, b, transposeB, beta, c, structure == MatrixStructure.SymmetricLower)
 
     override fun cblasSymm(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         structure: MatrixStructure,
-        b: DenseMatrixRegion,
+        b: DenseMatrix,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         rightSide: Boolean,
     ) = ReferenceBlas.symm(alpha, a, b, beta, c, structure == MatrixStructure.SymmetricLower, rightSide)
 
     override fun cblasSyr2k(
         alpha: Double,
-        a: DenseMatrixRegion,
-        b: DenseMatrixRegion,
+        a: DenseMatrix,
+        b: DenseMatrix,
         transposeA: Boolean,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         structure: MatrixStructure,
     ) = ReferenceBlas.syr2k(alpha, a, b, transposeA, beta, c, structure == MatrixStructure.SymmetricLower)
 }

@@ -111,8 +111,9 @@ separate `Scratch` instances.
 
 You can also reuse storage you already have. The wrapping factories share the supplied array without
 copying it. Dense matrix storage is column-major: elements in a column are adjacent, and `a[i, j]`
-is stored at `i + j * a.rows`. Use `ofRows` when starting with rows; use `wrap` when your flat array
-already has this layout.
+is stored at `a.offset + i + j * a.leadingDimension`. Allocating factories use offset zero and a leading
+dimension equal to the row count. Use `ofRows` for rows, or `wrap` for an existing buffer with optional
+offset and column spacing.
 
 A view borrows a rectangular part of a matrix without copying, much like an array slice:
 
@@ -120,6 +121,10 @@ A view borrows a rectangular part of a matrix without copying, much like an arra
 val firstColumn = a.view(columnOffset = 0, cols = 1)
 firstColumn[0, 0] = 4.0 // Also changes a[0, 0]
 ```
+
+`DenseMatrix` represents both whole buffers and views; `view()` returns the same type. Equality and
+hashing compare logical entries, and serialization writes only those entries, decoding into compact,
+independent storage.
 
 Every dense BLAS routine accepts views directly, including dense operands in sparse products.
 A view itself shares storage, but an operation on it can still need temporary buffers. Built-in calls

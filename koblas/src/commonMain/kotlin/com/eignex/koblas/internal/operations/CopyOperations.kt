@@ -45,7 +45,7 @@ internal fun copyIntoMatrix(source: Matrix, destination: Matrix) {
         }
         return
     }
-    val snapshot = if (source is DenseMatrixRegion && destination is DenseMatrixRegion &&
+    val snapshot = if (source is DenseMatrix && destination is DenseMatrix &&
         source.values !== destination.values
     ) {
         source
@@ -55,7 +55,7 @@ internal fun copyIntoMatrix(source: Matrix, destination: Matrix) {
     if (snapshot is SparseMatrix) {
         for (j in 0 until destination.cols) for (i in 0 until destination.rows) destination[i, j] = 0.0
         for (j in 0 until snapshot.cols) snapshot.forEachInColumn(j) { i, value -> destination[i, j] = value }
-    } else if (snapshot is DenseMatrixRegion && destination is DenseMatrixRegion) {
+    } else if (snapshot is DenseMatrix && destination is DenseMatrix) {
         if (source.rows == 0) return
         for (j in 0 until snapshot.cols) {
             val start = snapshot.offset + j * snapshot.leadingDimension

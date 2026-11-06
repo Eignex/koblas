@@ -137,7 +137,7 @@ internal fun KoblasEngine.gatherZero(
 
 internal fun KoblasEngine.gemv(
     alpha: Double,
-    a: DenseMatrixRegion,
+    a: DenseMatrix,
     x: DoubleArray,
     xOffset: Int,
     xStride: Int,
@@ -151,7 +151,7 @@ internal fun KoblasEngine.gemv(
 
 internal fun KoblasEngine.symv(
     alpha: Double,
-    a: DenseMatrixRegion,
+    a: DenseMatrix,
     x: DoubleArray,
     xOffset: Int,
     xStride: Int,
@@ -171,7 +171,7 @@ internal fun KoblasEngine.ger(
     y: DoubleArray,
     yOffset: Int,
     yStride: Int,
-    a: DenseMatrixRegion,
+    a: DenseMatrix,
     scratch: Scratch? = null,
 ): Unit = kernels.ger(alpha, x, xOffset, xStride, y, yOffset, yStride, a, scratch)
 
@@ -179,7 +179,7 @@ internal fun KoblasEngine.ger(
     alpha: Double,
     x: DoubleArray,
     y: DoubleArray,
-    a: DenseMatrixRegion,
+    a: DenseMatrix,
     rowOffset: Int,
     columnOffset: Int,
     rows: Int,
@@ -194,7 +194,7 @@ internal fun KoblasEngine.syr(
     x: DoubleArray,
     xOffset: Int,
     xStride: Int,
-    a: DenseMatrixRegion,
+    a: DenseMatrix,
     lower: Boolean = true,
     scratch: Scratch? = null,
 ): Unit = kernels.syr(alpha, x, xOffset, xStride, a, lower, scratch)
@@ -207,13 +207,13 @@ internal fun KoblasEngine.syr2(
     y: DoubleArray,
     yOffset: Int,
     yStride: Int,
-    a: DenseMatrixRegion,
+    a: DenseMatrix,
     lower: Boolean = true,
     scratch: Scratch? = null,
 ): Unit = kernels.syr2(alpha, x, xOffset, xStride, y, yOffset, yStride, a, lower, scratch)
 
 internal fun KoblasEngine.trsv(
-    a: DenseMatrixRegion,
+    a: DenseMatrix,
     x: DoubleArray,
     xOffset: Int,
     xStride: Int,
@@ -224,7 +224,7 @@ internal fun KoblasEngine.trsv(
 ): Unit = kernels.trsv(a, x, xOffset, xStride, lower, transpose, unitDiag, scratch)
 
 internal fun KoblasEngine.trmv(
-    a: DenseMatrixRegion,
+    a: DenseMatrix,
     x: DoubleArray,
     xOffset: Int,
     xStride: Int,

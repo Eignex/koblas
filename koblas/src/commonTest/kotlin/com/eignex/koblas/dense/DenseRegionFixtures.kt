@@ -10,7 +10,7 @@ import kotlin.test.assertEquals
  * addresses it as contiguous storage reads or writes the guard. The diagonal dominates, so a triangular
  * solve over the view is well conditioned.
  */
-internal fun paddedRegion(rows: Int, cols: Int, seed: Int = 1): DenseMatrixView {
+internal fun paddedRegion(rows: Int, cols: Int, seed: Int = 1): DenseMatrix {
     val parent = DenseMatrix.wrap(rows + 4, cols + 3, DoubleArray((rows + 4) * (cols + 3)) { -999.0 })
     val view = parent.view(1, 1, rows + 2, cols + 1).view(1, 1, rows, cols)
     for (j in 0 until cols) {
@@ -34,7 +34,7 @@ internal fun contiguousCopy(a: Matrix): DenseMatrix = DenseMatrix.wrap(
  */
 internal fun assertRegionAgreesWithReference(
     expected: DenseMatrix,
-    actual: DenseMatrixRegion,
+    actual: DenseMatrix,
     before: DoubleArray,
     context: String = "region",
 ) {

@@ -139,7 +139,7 @@ class RegionPreparationTest {
     @Test
     fun `matrix vector products snapshot a shared destination buffer`() = withRegionEngines { blas ->
         val actual = doubleArrayOf(2.0, -0.5, 4.0)
-        val a = DenseMatrixView.wrap(3, 1, actual, leadingDimension = 5)
+        val a = DenseMatrix.wrap(3, 1, actual, leadingDimension = 5)
         val expected = actual.copyOf()
         ReferenceBlas.gemv(0.875, contiguousCopy(a), doubleArrayOf(2.0), -0.25, expected)
 

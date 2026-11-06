@@ -6,7 +6,7 @@ sparse matrices are validated CSC.
 Container conveniences use the immutable default engine [koblas][com.eignex.koblas.koblas],
 selected once from the platform's standard profile. [BuiltinEngines][com.eignex.koblas.engine.BuiltinEngines] names
 exact engines, such as portable Kotlin through [BuiltinEngines.scalar][com.eignex.koblas.engine.BuiltinEngines.scalar].
-Each BLAS routine is one member of [KoblasEngine][com.eignex.koblas.KoblasEngine]. Engines share validation, alias
+BLAS routines are typed members of [KoblasEngine][com.eignex.koblas.KoblasEngine]. Engines share validation, alias
 handling and scheduling, and differ only in arithmetic: rounding, FMA, exceptional results and tied-index choices
 follow the selected implementation.
 
@@ -15,12 +15,14 @@ separate [Scratch][com.eignex.koblas.Scratch].
 
 # Package com.eignex.koblas
 
-Owning dense and sparse containers, vector views, the default [koblas] engine, the [KoblasEngine]
-contract and [Scratch] arrays. [Matrix] and [Vector] are mutable contracts with fixed shapes that custom
-types can implement. Dense storage interfaces add buffer addressing and inherit the base setters.
+Dense and sparse containers, views, the default [koblas] engine, the [KoblasEngine] contract and [Scratch]
+arrays. [Matrix] and [Vector] are mutable contracts with fixed shapes that custom types can implement.
+[DenseMatrix] represents whole buffers and views through offsets and leading dimensions; [DenseVector]
+provides vector addressing. Dense matrix equality and hashing compare logical entries, and serialization
+writes only the visible rectangle and decodes independent compact storage.
 Products accept at most one sparse operand, on either side, and produce dense storage.
-No sparse operand is densified. Products of two sparse matrices are unsupported. Windowed rank updates and
-sparse column dots are [KoblasEngine.ger] and [KoblasEngine.dotColumn] members.
+No sparse operand is densified. Products of two sparse matrices are unsupported. Rank updates and sparse
+column dots are [KoblasEngine.ger] and [KoblasEngine.dotColumn] members.
 
 The matrix and vector facades extend [Matrix] and [Vector]. [Matrix.copy] and [Vector.copy] return
 independent storage; [Matrix.copyFrom] and [Vector.copyFrom] copy into existing, equally shaped storage

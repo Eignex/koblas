@@ -9,7 +9,7 @@ internal fun symmetricRankInto(
     alpha: Double,
     a: SparseMatrix,
     transpose: Boolean,
-    c: DenseMatrixRegion,
+    c: DenseMatrix,
     lower: Boolean,
     sums: DoubleArray,
     touchedAt: IntArray,

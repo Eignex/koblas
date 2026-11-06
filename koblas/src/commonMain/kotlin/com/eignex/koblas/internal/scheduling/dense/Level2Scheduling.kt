@@ -11,7 +11,7 @@ import com.eignex.koblas.internal.operations.applyBeta
 
 internal fun KoblasEngine.scheduleGemv(
     alpha: Double,
-    a: DenseMatrixRegion,
+    a: DenseMatrix,
     x: DoubleArray,
     xOffset: Int,
     xStride: Int,
@@ -51,7 +51,7 @@ internal fun KoblasEngine.scheduleGemv(
 @Suppress("LongParameterList") // the operands, their snapshots and the BLAS dsymv scalars
 internal fun KoblasEngine.scheduleSymv(
     alpha: Double,
-    a: DenseMatrixRegion,
+    a: DenseMatrix,
     x: DoubleArray,
     xOffset: Int,
     xStride: Int,
@@ -87,7 +87,7 @@ internal fun KoblasEngine.scheduleSymv(
  */
 private fun symmetricCorner(
     alpha: Double,
-    a: DenseMatrixRegion,
+    a: DenseMatrix,
     x: DoubleArray,
     xOffset: Int,
     xStride: Int,
@@ -123,7 +123,7 @@ internal fun KoblasEngine.scheduleGer(
     sy: DoubleArray,
     syOffset: Int,
     syStride: Int,
-    a: DenseMatrixRegion,
+    a: DenseMatrix,
     aOffset: Int,
     rows: Int,
     columns: Int,
@@ -149,7 +149,7 @@ internal fun KoblasEngine.scheduleSyr2(
     yv: DoubleArray,
     yOrigin: Int,
     yStep: Int,
-    a: DenseMatrixRegion,
+    a: DenseMatrix,
     lower: Boolean,
 ) {
     val panels = panelProvider
@@ -187,7 +187,7 @@ internal fun KoblasEngine.scheduleSyr2(
  * one step.
  */
 internal fun KoblasEngine.scheduleTrsv(
-    a: DenseMatrixRegion,
+    a: DenseMatrix,
     x: DoubleArray,
     xOffset: Int,
     xStride: Int,
@@ -198,7 +198,7 @@ internal fun KoblasEngine.scheduleTrsv(
 
 /** `x = op(T) · x` in place, the multiply counterpart of [scheduleTrsv]. */
 internal fun KoblasEngine.scheduleTrmv(
-    a: DenseMatrixRegion,
+    a: DenseMatrix,
     x: DoubleArray,
     xOffset: Int,
     xStride: Int,
@@ -213,7 +213,7 @@ internal fun KoblasEngine.scheduleTrmv(
  * it is overwritten.
  */
 private fun KoblasEngine.triangularVector(
-    a: DenseMatrixRegion,
+    a: DenseMatrix,
     x: DoubleArray,
     xOffset: Int,
     xStride: Int,
@@ -267,7 +267,7 @@ internal fun KoblasEngine.scheduleSyr(
     xv: DoubleArray,
     origin: Int,
     step: Int,
-    a: DenseMatrixRegion,
+    a: DenseMatrix,
     lower: Boolean,
 ) {
     val n = a.rows

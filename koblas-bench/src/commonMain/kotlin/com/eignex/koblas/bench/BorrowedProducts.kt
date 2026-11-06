@@ -12,7 +12,7 @@ internal fun borrowedProductWork(case: BenchCase, engine: KoblasEngine): CaseWor
     val sourceA = Fixtures.matrix(if (ta) depth else rows, if (ta) rows else depth, 1)
     val sourceB = Fixtures.matrix(if (tb) columns else depth, if (tb) depth else columns, 2)
     val initialC = Fixtures.matrix(rows, columns, 3)
-    fun borrow(source: DenseMatrix): DenseMatrixRegion {
+    fun borrow(source: DenseMatrix): DenseMatrix {
         val parent = DenseMatrix.wrap(source.rows + 3, source.cols + 2,
             DoubleArray((source.rows + 3) * (source.cols + 2)) { -77.0 })
         val region = parent.view(1, 1, source.rows, source.cols)

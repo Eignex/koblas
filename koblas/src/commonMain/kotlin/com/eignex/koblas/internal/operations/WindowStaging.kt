@@ -30,14 +30,14 @@ internal inline fun <T> stagedWindow(
 /** [block] over [a], or over a snapshot of it when its logical entries overlap the destination window. */
 internal inline fun <T> stagedRegionAgainst(
     arrays: Scratch?,
-    a: DenseMatrixRegion,
+    a: DenseMatrix,
     values: DoubleArray,
     offset: Int,
     count: Int,
     stride: Int,
     lower: Boolean? = null,
     unitDiag: Boolean = false,
-    block: (DenseMatrixRegion) -> T,
+    block: (DenseMatrix) -> T,
 ): T {
     if (!regionWindowOverlap(a, values, offset, count, stride)) return block(a)
     return stagedRegion(arrays, a, values, lower = lower, unitDiag = unitDiag, block = block)
@@ -54,7 +54,7 @@ internal inline fun <T> stagedWindows(
     yOffset: Int,
     yCount: Int,
     yStride: Int,
-    destination: DenseMatrixRegion,
+    destination: DenseMatrix,
     block: (DoubleArray, Int, Int, DoubleArray, Int, Int) -> T,
 ): T {
     val xAliased = regionWindowOverlap(destination, x, xOffset, xCount, xStride)

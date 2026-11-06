@@ -46,7 +46,7 @@ final class JavaInteropSmoke {
         assertArrayEquals(new double[] {8.0, 15.0}, gemvResult);
 
         KoblasEngine engine = BuiltinEngines.getScalar();
-        DenseMatrixRegion outputRegion = DenseMatrix.zero(5, 5).view(1, 1, 2, 2);
+        DenseMatrix outputRegion = DenseMatrix.zero(5, 5).view(1, 1, 2, 2);
         engine.gemm(1.0, sparse, false, identity, false, 0.0, outputRegion, false, new Scratch());
         assertEquals(2.0, outputRegion.get(0, 0));
         assertEquals(3.0, outputRegion.get(1, 1));

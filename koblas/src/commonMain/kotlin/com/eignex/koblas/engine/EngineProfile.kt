@@ -26,7 +26,7 @@ public class EngineRule @kotlin.jvm.JvmOverloads constructor(
     public val work: Long = 0,
     /** Required vector layout, or null for either layout. */
     public val contiguous: Boolean? = null,
-    /** Required matrix ownership/layout, or null for either layout. */
+    /** Require a dense matrix layout outside compact whole-buffer storage, or null to accept either layout. */
     public val borrowed: Boolean? = null,
 ) {
     /** Implementations selected together by this rule. */

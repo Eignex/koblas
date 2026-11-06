@@ -19,7 +19,7 @@ internal fun copyMatrixStorage(source: Matrix): Matrix = when (source) {
     else -> {
         val result = DenseMatrix.zero(source.rows, source.cols)
         if (source.rows > 0 && source.cols > 0) {
-            if (source is DenseMatrixRegion) {
+            if (source is DenseMatrix) {
                 for (j in 0 until source.cols) {
                     val start = source.offset + j * source.leadingDimension
                     source.values.copyInto(result.values, j * source.rows, start, start + source.rows)

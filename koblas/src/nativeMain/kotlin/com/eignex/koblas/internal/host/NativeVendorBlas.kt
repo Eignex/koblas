@@ -322,7 +322,7 @@ internal class NativeVendorBlas private constructor(
 
     override fun cblasGemv(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         transposeA: Boolean,
         x: DenseVector,
         beta: Double,
@@ -342,7 +342,7 @@ internal class NativeVendorBlas private constructor(
 
     override fun cblasSymv(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         structure: MatrixStructure,
         x: DenseVector,
         beta: Double,
@@ -360,7 +360,7 @@ internal class NativeVendorBlas private constructor(
         }
     }
 
-    override fun cblasGer(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrixRegion) {
+    override fun cblasGer(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix) {
         withPins { pins ->
             val pa = pins.stage(a)
             val px = pins.stage(x)
@@ -373,7 +373,7 @@ internal class NativeVendorBlas private constructor(
         }
     }
 
-    override fun cblasSyr(alpha: Double, x: DenseVector, a: DenseMatrixRegion, structure: MatrixStructure) {
+    override fun cblasSyr(alpha: Double, x: DenseVector, a: DenseMatrix, structure: MatrixStructure) {
         withPins { pins ->
             val pa = pins.stage(a)
             val px = pins.stage(x)
@@ -391,13 +391,7 @@ internal class NativeVendorBlas private constructor(
         }
     }
 
-    override fun cblasSyr2(
-        alpha: Double,
-        x: DenseVector,
-        y: DenseVector,
-        a: DenseMatrixRegion,
-        structure: MatrixStructure,
-    ) {
+    override fun cblasSyr2(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix, structure: MatrixStructure) {
         withPins { pins ->
             val pa = pins.stage(a)
             val px = pins.stage(x)
@@ -412,7 +406,7 @@ internal class NativeVendorBlas private constructor(
 
     override fun cblasTriangularVector(
         operation: EngineImplementation,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         structure: MatrixStructure,
         transposeA: Boolean,
         x: DenseVector,
@@ -432,12 +426,12 @@ internal class NativeVendorBlas private constructor(
 
     override fun cblasGemm(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         transposeA: Boolean,
-        b: DenseMatrixRegion,
+        b: DenseMatrix,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
     ) {
         val depth = if (transposeA) a.rows else a.cols
         withPins { pins ->
@@ -456,11 +450,11 @@ internal class NativeVendorBlas private constructor(
 
     override fun cblasSymm(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         structure: MatrixStructure,
-        b: DenseMatrixRegion,
+        b: DenseMatrix,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         rightSide: Boolean,
     ) {
         withPins { pins ->
@@ -478,10 +472,10 @@ internal class NativeVendorBlas private constructor(
 
     override fun cblasSyrk(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         transposeA: Boolean,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         structure: MatrixStructure,
     ) {
         val depth = if (transposeA) a.rows else a.cols
@@ -499,11 +493,11 @@ internal class NativeVendorBlas private constructor(
 
     override fun cblasSyr2k(
         alpha: Double,
-        a: DenseMatrixRegion,
-        b: DenseMatrixRegion,
+        a: DenseMatrix,
+        b: DenseMatrix,
         transposeA: Boolean,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         structure: MatrixStructure,
     ) {
         val depth = if (transposeA) a.rows else a.cols
@@ -523,10 +517,10 @@ internal class NativeVendorBlas private constructor(
     override fun cblasTriangularMatrix(
         operation: EngineImplementation,
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         structure: MatrixStructure,
         transposeA: Boolean,
-        b: DenseMatrixRegion,
+        b: DenseMatrix,
         rightSide: Boolean,
     ) {
         withPins { pins ->
@@ -544,12 +538,12 @@ internal class NativeVendorBlas private constructor(
     /** Calls only this library's exported `cblas_dgemmt`. */
     override fun cblasGemmt(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         transposeA: Boolean,
-        b: DenseMatrixRegion,
+        b: DenseMatrix,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         structure: MatrixStructure,
     ) {
         val depth = if (transposeA) a.rows else a.cols

@@ -152,7 +152,7 @@ public interface KoblasEngine {
      */
     public fun gemv(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         x: DenseVector,
         beta: Double,
         y: DenseVector,
@@ -188,7 +188,7 @@ public interface KoblasEngine {
      */
     public fun symv(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         x: DenseVector,
         beta: Double,
         y: DenseVector,
@@ -218,19 +218,13 @@ public interface KoblasEngine {
     }
 
     /** Adds `alpha * x * yᵀ` to [a], requiring matching logical dimensions and staging aliased inputs. */
-    public fun ger(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrixRegion, scratch: Scratch? = null) {
+    public fun ger(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix, scratch: Scratch? = null) {
         requireGerOperands(x.size, y.size, a)
         kernels.ger(alpha, x.values, x.offset, x.stride, y.values, y.offset, y.stride, a, scratch)
     }
 
     /** Adds `alpha * x * xᵀ` to the selected triangle of square [a]. Aliased inputs are staged. */
-    public fun syr(
-        alpha: Double,
-        x: DenseVector,
-        a: DenseMatrixRegion,
-        lower: Boolean = true,
-        scratch: Scratch? = null,
-    ) {
+    public fun syr(alpha: Double, x: DenseVector, a: DenseMatrix, lower: Boolean = true, scratch: Scratch? = null) {
         requireSyrOperands(a, x.size, "syr")
         kernels.syr(alpha, x.values, x.offset, x.stride, a, lower, scratch)
     }
@@ -240,7 +234,7 @@ public interface KoblasEngine {
         alpha: Double,
         x: DenseVector,
         y: DenseVector,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         lower: Boolean = true,
         scratch: Scratch? = null,
     ) {
@@ -253,7 +247,7 @@ public interface KoblasEngine {
      * Views preserve their addressing and aliased matrix entries are staged. No singularity check is performed.
      */
     public fun trsv(
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         x: DenseVector,
         lower: Boolean,
         transpose: Boolean = false,
@@ -285,7 +279,7 @@ public interface KoblasEngine {
      * Views preserve their addressing and aliased matrix entries are staged. No singularity check is performed.
      */
     public fun trmv(
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         x: DenseVector,
         lower: Boolean,
         transpose: Boolean = false,
@@ -348,16 +342,16 @@ public interface KoblasEngine {
      */
     public fun gemm(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         transposeA: Boolean,
-        b: DenseMatrixRegion,
+        b: DenseMatrix,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         scratch: Scratch? = null,
     ) {
         val depth = if (transposeA) a.rows else a.cols
-        val borrowed = a !is DenseMatrix || b !is DenseMatrix || c !is DenseMatrix
+        val borrowed = !a.isWholeBuffer || !b.isWholeBuffer || !c.isWholeBuffer
         val routed = routedWholeCall(EngineImplementation.Gemm, c.rows, c.cols, depth, borrowed)
         if (routed != null) return routed.gemm(alpha, a, transposeA, b, transposeB, beta, c, scratch)
         requireGemmOperands(a, transposeA, b, transposeB, c)
@@ -373,17 +367,17 @@ public interface KoblasEngine {
      */
     public fun gemmt(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         transposeA: Boolean,
-        b: DenseMatrixRegion,
+        b: DenseMatrix,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         lower: Boolean = true,
         scratch: Scratch? = null,
     ) {
         val depth = if (transposeA) a.rows else a.cols
-        val borrowed = a !is DenseMatrix || b !is DenseMatrix || c !is DenseMatrix
+        val borrowed = !a.isWholeBuffer || !b.isWholeBuffer || !c.isWholeBuffer
         val routed = routedWholeCall(EngineImplementation.Gemmt, c.rows, c.cols, depth, borrowed)
         if (routed != null) return routed.gemmt(alpha, a, transposeA, b, transposeB, beta, c, lower, scratch)
         requireGemmtOperands(a, transposeA, b, transposeB, c)
@@ -398,15 +392,15 @@ public interface KoblasEngine {
      */
     public fun symm(
         alpha: Double,
-        a: DenseMatrixRegion,
-        b: DenseMatrixRegion,
+        a: DenseMatrix,
+        b: DenseMatrix,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         lower: Boolean = true,
         right: Boolean = false,
         scratch: Scratch? = null,
     ) {
-        val borrowed = a !is DenseMatrix || b !is DenseMatrix || c !is DenseMatrix
+        val borrowed = !a.isWholeBuffer || !b.isWholeBuffer || !c.isWholeBuffer
         val routed = routedWholeCall(EngineImplementation.Symm, c.rows, c.cols, a.rows, borrowed)
         if (routed != null) return routed.symm(alpha, a, b, beta, c, lower, right, scratch)
         requireSymmOperands(a, b, c, right)
@@ -424,10 +418,10 @@ public interface KoblasEngine {
      */
     public fun syrk(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         transpose: Boolean,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         lower: Boolean = true,
         scratch: Scratch? = null,
     ) {
@@ -437,7 +431,7 @@ public interface KoblasEngine {
             c.rows,
             c.cols,
             depth,
-            a !is DenseMatrix || c !is DenseMatrix,
+            !a.isWholeBuffer || !c.isWholeBuffer,
         )
         if (routed != null) return routed.syrk(alpha, a, transpose, beta, c, lower, scratch)
         requireSyrkOperands(a, transpose, c)
@@ -453,16 +447,16 @@ public interface KoblasEngine {
      */
     public fun syr2k(
         alpha: Double,
-        a: DenseMatrixRegion,
-        b: DenseMatrixRegion,
+        a: DenseMatrix,
+        b: DenseMatrix,
         transpose: Boolean,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         lower: Boolean = true,
         scratch: Scratch? = null,
     ) {
         val depth = if (transpose) a.rows else a.cols
-        val borrowed = a !is DenseMatrix || b !is DenseMatrix || c !is DenseMatrix
+        val borrowed = !a.isWholeBuffer || !b.isWholeBuffer || !c.isWholeBuffer
         val routed = routedWholeCall(EngineImplementation.Syr2k, c.rows, c.cols, depth, borrowed)
         if (routed != null) return routed.syr2k(alpha, a, b, transpose, beta, c, lower, scratch)
         requireSyr2kOperands(a, b, transpose, c)
@@ -476,8 +470,8 @@ public interface KoblasEngine {
      * [trsv]; the right-hand sides are the columns of [b] from the left and its rows from the right.
      */
     public fun trsm(
-        a: DenseMatrixRegion,
-        b: DenseMatrixRegion,
+        a: DenseMatrix,
+        b: DenseMatrix,
         lower: Boolean,
         transpose: Boolean = false,
         unitDiag: Boolean = false,
@@ -490,7 +484,7 @@ public interface KoblasEngine {
             b.rows,
             b.cols,
             a.rows,
-            a !is DenseMatrix || b !is DenseMatrix,
+            !a.isWholeBuffer || !b.isWholeBuffer,
         )
         if (routed != null) return routed.trsm(a, b, lower, transpose, unitDiag, right, alpha, scratch)
         prepareTriangularMatrix(a, b, lower, unitDiag, right, alpha, "trsm", scratch) { sa ->
@@ -500,8 +494,8 @@ public interface KoblasEngine {
 
     /** `B = alpha · op(T) · B`, or `B = alpha · B · op(T)` when [right] (BLAS `dtrmm`), the counterpart of [trsm]. */
     public fun trmm(
-        a: DenseMatrixRegion,
-        b: DenseMatrixRegion,
+        a: DenseMatrix,
+        b: DenseMatrix,
         lower: Boolean,
         transpose: Boolean = false,
         unitDiag: Boolean = false,
@@ -514,7 +508,7 @@ public interface KoblasEngine {
             b.rows,
             b.cols,
             a.rows,
-            a !is DenseMatrix || b !is DenseMatrix,
+            !a.isWholeBuffer || !b.isWholeBuffer,
         )
         if (routed != null) return routed.trmm(a, b, lower, transpose, unitDiag, right, alpha, scratch)
         prepareTriangularMatrix(a, b, lower, unitDiag, right, alpha, "trmm", scratch) { sa ->
@@ -532,9 +526,9 @@ public interface KoblasEngine {
     public fun symm(
         alpha: Double,
         a: SparseMatrix,
-        b: DenseMatrixRegion,
+        b: DenseMatrix,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         lower: Boolean = true,
         right: Boolean = false,
         scratch: Scratch? = null,
@@ -566,10 +560,10 @@ public interface KoblasEngine {
         alpha: Double,
         a: SparseMatrix,
         transposeA: Boolean,
-        b: DenseMatrixRegion,
+        b: DenseMatrix,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         right: Boolean = false,
         scratch: Scratch? = null,
     ) {
@@ -611,7 +605,7 @@ public interface KoblasEngine {
         a: SparseMatrix,
         transpose: Boolean,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         lower: Boolean = true,
         scratch: Scratch? = null,
     ) {
@@ -645,7 +639,7 @@ public interface KoblasEngine {
      */
     public fun trsm(
         a: SparseMatrix,
-        b: DenseMatrixRegion,
+        b: DenseMatrix,
         lower: Boolean,
         transpose: Boolean = false,
         unitDiag: Boolean = false,
@@ -661,7 +655,7 @@ public interface KoblasEngine {
      */
     public fun trmm(
         a: SparseMatrix,
-        b: DenseMatrixRegion,
+        b: DenseMatrix,
         lower: Boolean,
         transpose: Boolean = false,
         unitDiag: Boolean = false,

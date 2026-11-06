@@ -9,13 +9,13 @@ import com.eignex.koblas.internal.storage.*
 /** Snapshots a region only when it shares the destination buffer. */
 internal inline fun <T> stagedRegion(
     arrays: Scratch?,
-    a: DenseMatrixRegion,
+    a: DenseMatrix,
     destination: DoubleArray,
-    stable: DenseMatrixRegion? = null,
-    original: DenseMatrixRegion? = null,
+    stable: DenseMatrix? = null,
+    original: DenseMatrix? = null,
     lower: Boolean? = null,
     unitDiag: Boolean = false,
-    block: (DenseMatrixRegion) -> T,
+    block: (DenseMatrix) -> T,
 ): T {
     if (a.values !== destination) return block(a)
     if (original != null && stable != null && sameRegion(a, original)) return block(stable)
@@ -31,20 +31,20 @@ internal inline fun <T> stagedRegion(
 /** Disjoint submatrices of the same parent need no snapshot. */
 internal inline fun <T> stagedRegion(
     arrays: Scratch?,
-    a: DenseMatrixRegion,
-    destination: DenseMatrixRegion,
-    stable: DenseMatrixRegion? = null,
-    original: DenseMatrixRegion? = null,
+    a: DenseMatrix,
+    destination: DenseMatrix,
+    stable: DenseMatrix? = null,
+    original: DenseMatrix? = null,
     lower: Boolean? = null,
     unitDiag: Boolean = false,
-    block: (DenseMatrixRegion) -> T,
+    block: (DenseMatrix) -> T,
 ): T {
     if (!regionsOverlap(a, destination)) return block(a)
     return stagedRegion(arrays, a, destination.values, stable, original, lower, unitDiag, block)
 }
 
 /** Scales selected entries, never reading a zero-scaled destination or visiting its padding. */
-internal fun scaleRegion(a: DenseMatrixRegion, beta: Double, lower: Boolean? = null, vectors: KoblasEngine? = null) {
+internal fun scaleRegion(a: DenseMatrix, beta: Double, lower: Boolean? = null, vectors: KoblasEngine? = null) {
     if (beta == 1.0 || a.rows == 0 || a.cols == 0) return
     if (lower == null && vectors != null) {
         if (a.leadingDimension == a.rows) {
