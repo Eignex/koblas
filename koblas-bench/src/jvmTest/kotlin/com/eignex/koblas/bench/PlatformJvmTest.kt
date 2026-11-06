@@ -1,7 +1,7 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.KoblasEngine
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
@@ -12,12 +12,12 @@ class PlatformJvmTest {
         val (engine, identity) = resolveEngine("jvm-scalar")
 
         assertTrue(identity.startsWith("jvm-scalar/scalar"), identity)
-        assertTrue(engine === BuiltinEngines.scalar)
+        assertTrue(engine === KoblasEngine.scalar)
     }
 
     @Test
     fun `jvm simd mode resolves the vector api engine or refuses to stand in for it`() {
-        val available = BuiltinEngines.simd
+        val available = KoblasEngine.simd
         if (available == null) {
             assertFailsWith<IllegalArgumentException> { resolveEngine("jvm-simd") }
             return

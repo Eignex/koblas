@@ -3,8 +3,8 @@
 package com.eignex.koblas.internal.operations
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.EngineImplementation
-import com.eignex.koblas.internal.engine.CombinedEngine
+import com.eignex.koblas.EngineImplementation
+import com.eignex.koblas.internal.engine.vectorProviderFor
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.*
 import com.eignex.koblas.internal.kernels.scalar.sparse.*
@@ -64,8 +64,8 @@ internal fun KoblasEngine.maximumMagnitude(values: DoubleArray, offset: Int, siz
 }
 
 internal fun KoblasEngine.sumVector(x: Vector): Double = when (x) {
-    is DenseVector -> sum(x.values, x.offset, x.size, x.stride)
-    is SparseVector -> sum(x.values, 0, x.values.size)
+    is DenseVector -> sum(x)
+    is SparseVector -> sum(x)
     else -> scalarVectorSum(x)
 }
 
@@ -96,7 +96,7 @@ private fun KoblasEngine.copyDense(x: DenseVector, y: DenseVector) {
     requireSameSize(x.size, y.size, "copy")
     if (sameVectorMapping(x, y)) return
     val contiguous = x.stride == 1 && y.stride == 1
-    val provider = if (this is CombinedEngine) vectorProvider(EngineImplementation.Copy, x.size, contiguous) else this
+    val provider = vectorProviderFor(EngineImplementation.Copy, x.size, contiguous)
     // Portable contiguous copy is a memmove, so it needs no alias snapshot.
     val source = if (provider === ScalarEngine && contiguous) x else x.stableFor(y)
     provider.copy(source.values, source.offset, y.values, y.offset, x.size, source.stride, y.stride)

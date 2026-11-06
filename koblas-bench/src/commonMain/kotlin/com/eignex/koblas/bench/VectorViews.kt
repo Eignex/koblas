@@ -3,7 +3,7 @@ package com.eignex.koblas.bench
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.operations.axpyVector
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.internal.operations.dotVector
 
 /**
@@ -20,7 +20,7 @@ internal fun vectorViewsArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
         val dense = Fixtures.vector(size, 2)
         val backing = DoubleArray(2 * size) { if (it % 2 == 0) dense[it / 2] else Double.NaN }
         val view = DenseVector.wrap(backing, 0, size, 2)
-        val expected = BuiltinEngines.scalar.dotVector(sparse, DenseVector.wrap(dense))
+        val expected = KoblasEngine.scalar.dotVector(sparse, DenseVector.wrap(dense))
         DenseReference.check(doubleArrayOf(expected), doubleArrayOf(sparse dot view), case.id)
         return ArmChoice(CaseWork("default-policy", "arithmetic", { sparse dot view },
             kernel = "portable-vector+scalar/dot-view"), null)
@@ -33,7 +33,7 @@ internal fun vectorViewsArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
     val destination = DenseVector.wrap(backing, 1, size, stride)
     val x = DoubleArray(size) { initial[it * stride] }
     val y = DoubleArray(size) { initial[1 + it * stride] }
-    val kernels = BuiltinEngines.scalar
+    val kernels = KoblasEngine.scalar
     when (case.operation) {
         "copy-overlap" -> x.copyInto(y)
         "axpy-views" -> kernels.axpy(y, 0, 0.875, x, 0, size)

@@ -2,14 +2,14 @@ package com.eignex.koblas.internal.jvm25.simd
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.engine.implementationFor
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-private val selectedBackend = BuiltinEngines.simd ?: ScalarEngine
+private val selectedBackend = KoblasEngine.simd ?: ScalarEngine
 
 /**
  * Checks per-operation routing on the Vector API arm. Reductions and AXPY use explicit vector kernels;
@@ -28,7 +28,7 @@ class SimdVectorKernelsTest {
 
         for (operation in listOf(EngineImplementation.Dot, EngineImplementation.Sum, EngineImplementation.Asum)) {
             assertEquals(
-                simdContributions.first().name,
+                simdKernels.vectors.name,
                 reached(operation, WIDE),
                 "$operation stayed scalar at $WIDE",
             )
@@ -53,7 +53,7 @@ class SimdVectorKernelsTest {
         if (!simdAvailable) return skipped()
 
         assertEquals(
-            simdContributions.first().name,
+            simdKernels.vectors.name,
             reached(EngineImplementation.Axpy, WIDE),
         )
         assertLevel1KernelsAgreeWithReference(kernels)
@@ -62,12 +62,12 @@ class SimdVectorKernelsTest {
     @Test
     fun `the standard index search observes its configured crossover`() {
         if (!simdAvailable) return skipped()
-        val profile = StandardEngineProfiles.forTarget(EngineRuntime.Jvm, hostPlatform(), nativeAccess = false)
-        val tuned = BuiltinEngines.configured(profile)
-        val minimum = profile.rules.first { EngineImplementation.Iamax in it.implementations }.rows.first
+        val tuning = EngineTuning(EngineRuntime.Jvm, hostPlatform(), null)
+        val tuned = standardEngine(EngineRuntime.Jvm, nativeAccess = false)
+        val minimum = tuning.simdMinimum(EngineImplementation.Iamax)
 
         assertEquals(ScalarEngine.name, tuned.implementationFor(EngineImplementation.Iamax, minimum - 1))
-        assertEquals(simdContributions.first().name, tuned.implementationFor(EngineImplementation.Iamax, minimum))
+        assertEquals(simdKernels.vectors.name, tuned.implementationFor(EngineImplementation.Iamax, minimum))
     }
 
     @Test
@@ -103,7 +103,7 @@ class SimdVectorKernelsTest {
 
     @Test
     fun `simd iamax honours its contract across windows`() {
-        val simd = BuiltinEngines.simd ?: return
+        val simd = KoblasEngine.simd ?: return
         assertIamaxHonoursItsContract(simd)
     }
 }

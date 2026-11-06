@@ -1,28 +1,44 @@
-# Engines and native libraries
+# Engine selection
 
-Koblas supports dense and sparse BLAS Levels 1–3 without a native library. Operators such as `a * b`
-and convenience functions use `koblas`, an immutable engine selected once on first use.
+Koblas initializes a shared engine from launch settings or automatic platform selection. Libraries and
+convenience operations use it through `koblas`. Most applications need no setup.
 
-## Automatic selection
+## Override at startup
 
-The default combines available implementations using one standard profile for the runtime and target.
-JDK 25+ adds Kotlin SIMD when enabled; JDK 17–24, Android and iOS use portable Kotlin without host lookup.
-Missing libraries, exports or native-access permission retain the remaining providers and portable coverage.
+Choose an engine during startup, before libraries use Koblas or concurrent work begins:
 
-| Target | Standard composition and tuning |
+```kotlin
+import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.koblas
+
+fun main() {
+    koblas = KoblasEngine.scalar
+    // Start the application and its libraries.
+}
+```
+
+Launch settings accept the names below, for example `KOBLAS_ENGINE=scalar` or, on JVM, `-Dkoblas.engine=scalar`.
+Java applications can call `Koblas.setDefault(KoblasEngine.getScalar())`.
+
+| Name | Selection |
 |---|---|
-| Linux x86-64 | oneMKL, OpenBLAS and portable Kotlin have separate AVX2/AVX-512 tunings. JVM profiles add SIMD and estimated AOCL preferences. |
-| Linux Arm64 | OpenBLAS and portable Kotlin use SVE-256 tuning. JVM profiles add SIMD and estimated ArmPL preferences. |
-| macOS Arm64 | Accelerate combines with portable Kotlin, plus SIMD on JVM. Native thresholds use measurements; JVM thresholds are estimates. |
-| Other supported hosts | Windows borrows Linux tuning; Intel macOS borrows Arm64 Accelerate and Linux x86 JVM SIMD tuning. Other CPU classes and SVE widths use the closest compatible profile, labeled unmeasured best effort. |
+| `auto` | Platform tuning with available acceleration and portable fallback. This is the default. |
+| `scalar` | Portable Kotlin, without SIMD or host library lookup. |
+| `simd` | Owned JVM Vector API kernels with portable fallbacks. Requires JDK 25+ and the Vector API module. |
+| `accelerate`, `onemkl`, `openblas`, `aocl`, `armpl` | The named vendor, with portable coverage for operations it does not export. |
 
-Profiles contain broad operation, shape and layout thresholds. Native routing favors host libraries;
-JVM transfers use higher cutoffs. Declarations and measurement references live in
-`engine/StandardEngineProfiles.kt`; thresholds are tuning estimates.
+The initial default uses the JVM property, then the environment variable. Assigning `koblas` directly
+replaces that initial value with any `KoblasEngine`, used as supplied.
+The initial default is constructed before a programmatic override, so launch settings must be valid
+even when overridden. Names ignore case and surrounding whitespace; unknown or unavailable selections
+fail when resolved.
+
+Reads and configuration are unsynchronized. Callers own startup order and safe publication before
+concurrent use; the library does not guard against late or concurrent configuration.
 
 ## Enable acceleration
 
-On JDK 25+, enable SIMD with the first flag and native library calls with the second:
+On JDK 25+, enable SIMD and native calls with:
 
 ```text
 --add-modules=jdk.incubator.vector
@@ -30,25 +46,19 @@ On JDK 25+, enable SIMD with the first flag and native library calls with the se
 ```
 
 On the module path, use `--enable-native-access=com.eignex.koblas` instead.
-Install compatible LP64 libraries with 32-bit BLAS indices and make them discoverable by the system loader.
-Windows DLLs and dependencies need an absolute directory on PATH. Linux oneMKL is also searched under
-`~/intel/oneapi/mkl/latest` and `/opt/intel/oneapi/mkl/latest`. Set these before application startup.
+Vendor calls need compatible LP64 libraries with 32-bit BLAS indices, discoverable by the system loader.
+Windows DLLs and their dependencies need an absolute directory on PATH. Linux oneMKL is also searched
+under `~/intel/oneapi/mkl/latest` and `/opt/intel/oneapi/mkl/latest`.
 
-JVM native calls copy arrays to and from native memory, so they mainly help larger matrix products.
-Kotlin/Native can pin arrays in place. Sparse operations keep portable CSC traversal and use selected
-kernels for arithmetic within it.
+Automatic selection tries compatible host libraries in platform order and keeps the first available vendor.
+That library handles calls above internal measured cutoffs or documented estimates; other calls and missing
+exports use the owned SIMD/scalar kernels. Explicitly naming a vendor uses it for every operation it exports. JDK 17–24, Android and iOS automatically use portable Kotlin.
+Sparse operations always keep portable CSC traversal. See the [benchmark reference](koblas-bench/REFERENCE.md)
+for tuning and measurement details.
 
-## Explicit engines
+## Exact engines for comparisons
 
-`BuiltinEngines.scalar` selects portable Kotlin; `BuiltinEngines.simd` and
-`BuiltinEngines.vendor(Vendor.OneMkl)` return an exact engine or null when unavailable.
-An exact vendor engine supports only its declared operations. To combine providers with portable coverage:
-
-```kotlin
-val profile = StandardEngineProfiles.forTarget(EngineRuntime.Native, hostPlatform())
-val engine = BuiltinEngines.configured(profile)
-```
-
-A custom profile's applicability can be checked with `profile.appliesTo(runtime, hostPlatform())`; include SIMD rules explicitly when wanted.
-Profiles are recalculated explicitly through the [benchmark workflow](koblas-bench/REFERENCE.md#recalculate-routing-profiles);
-application startup only selects a prebuilt one.
+`KoblasEngine.scalar`, `KoblasEngine.simd` and `KoblasEngine.vendor(Vendor.OneMkl)` select exact
+engines for tests and benchmarks. Optional engines return null when unavailable. An exact vendor engine
+supports only its exported operations; launch selection by name includes portable coverage.
+Calls through an explicit engine instance are independent of the shared default.

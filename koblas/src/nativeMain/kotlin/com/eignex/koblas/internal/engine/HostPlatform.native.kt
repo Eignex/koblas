@@ -1,8 +1,7 @@
 @file:OptIn(kotlin.experimental.ExperimentalNativeApi::class)
 
-package com.eignex.koblas.engine
+package com.eignex.koblas.internal.engine
 
-import com.eignex.koblas.internal.engine.*
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.allocArray
 import kotlinx.cinterop.memScoped
@@ -15,7 +14,7 @@ import platform.posix.fopen
 private val host: HostPlatform by lazy { detectHost(operatingSystem(), architecture(), ::cpuInfo, ::sveVectorBits) }
 
 /** The platform this process is running on, which a Native target largely knows at compile time. */
-public actual fun hostPlatform(): HostPlatform = host
+internal actual fun hostPlatform(): HostPlatform = host
 
 /** The target's own identity, which Kotlin/Native knows at compile time and needs no probe for. */
 private fun operatingSystem(): OperatingSystem = when (Platform.osFamily) {
@@ -31,7 +30,7 @@ private fun architecture(): Architecture = when (Platform.cpuArchitecture) {
     else -> Architecture.Other
 }
 
-/** Linux supplies the model and instruction flags used by calibrated profiles. */
+/** Linux supplies the model and instruction flags used by measured cutoffs. */
 @OptIn(ExperimentalForeignApi::class)
 private fun cpuInfo(key: String): String? {
     val file = fopen("/proc/cpuinfo", "r") ?: return null

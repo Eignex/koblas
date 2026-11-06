@@ -1,7 +1,7 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.testutil.allocation.*
 import org.junit.runner.RunWith
@@ -18,7 +18,7 @@ class SparseOpsAllocationTest internal constructor(private val case: AllocationC
     fun `warmed calls stay within their allocation budget`() = case.assertWithinBudget()
 
     companion object {
-        private val engine = BuiltinEngines.simd ?: BuiltinEngines.scalar
+        private val engine = KoblasEngine.simd ?: KoblasEngine.scalar
 
         @JvmStatic
         @Parameterized.Parameters(name = "{0}")

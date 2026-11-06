@@ -1,8 +1,8 @@
 package com.eignex.koblas.internal.operations
 
 import com.eignex.koblas.*
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.dense.ReferenceBlas
-import com.eignex.koblas.engine.BuiltinEngines
 import com.eignex.koblas.internal.kernels.*
 import kotlin.random.Random
 import kotlin.test.Test
@@ -104,5 +104,5 @@ class StagingTest {
         assertEquals(1, workspace.idleLengths(), "$what borrowed scratch besides its snapshot")
     }
 
-    private val blas: KoblasEngine get() = BuiltinEngines.scalar
+    private val blas: KoblasEngine get() = KoblasEngine.scalar
 }

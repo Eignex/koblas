@@ -1,4 +1,4 @@
-package com.eignex.koblas.engine
+package com.eignex.koblas
 
 import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.host.*
@@ -6,7 +6,7 @@ import com.eignex.koblas.internal.host.*
 /**
  * The closed set of BLAS libraries Koblas can bind.
  *
- * The supported library bindings are fixed at compile time. Measured engine profiles choose among
+ * The supported library bindings are fixed at compile time. Internal tuning chooses among
  * available bindings; explicit selection opens one named vendor.
  */
 public enum class Vendor(

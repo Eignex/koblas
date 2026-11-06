@@ -3,9 +3,12 @@
 Double-precision dense and sparse BLAS Levels 1–3 for Kotlin Multiplatform. Dense matrices are column-major and
 sparse matrices are validated CSC.
 
-Container conveniences use the immutable default engine [koblas][com.eignex.koblas.koblas],
-selected once from the platform's standard profile. [BuiltinEngines][com.eignex.koblas.engine.BuiltinEngines] names
-exact engines, such as portable Kotlin through [BuiltinEngines.scalar][com.eignex.koblas.engine.BuiltinEngines.scalar].
+Container conveniences use the shared engine [koblas][com.eignex.koblas.koblas], initialized from the
+`koblas.engine` JVM property, `KOBLAS_ENGINE` environment variable or automatic platform selection.
+Applications may assign it during ordered startup,
+before library operations or concurrent work. Callers own safe publication; configuration and reads are
+unsynchronized. [KoblasEngine][com.eignex.koblas.KoblasEngine] names
+exact engines, such as portable Kotlin through [KoblasEngine.scalar][com.eignex.koblas.KoblasEngine.scalar].
 BLAS routines are typed members of [KoblasEngine][com.eignex.koblas.KoblasEngine]. Engines share validation, alias
 handling and scheduling, and differ only in arithmetic: rounding, FMA, exceptional results and tied-index choices
 follow the selected implementation.
@@ -41,6 +44,4 @@ row sum and [Norm.MaxAbs] for the largest absolute entry. Matrix [Norm.Two] and 
 are rejected. Norms accept dense, sparse and custom storage; empty inputs have norm zero for supported
 choices, and sparse operands are never densified.
 
-# Package com.eignex.koblas.engine
-
-Exact engines, standard profiles, host platform facts and vendor metadata.
+Exact built-in engines for comparisons and vendor metadata also live in this package.

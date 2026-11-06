@@ -2,7 +2,6 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.ReferenceBlas
-import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.EngineKernels
 import com.eignex.koblas.internal.operations.*
@@ -22,9 +21,9 @@ import kotlin.test.assertTrue
 // except where a shape that test leaves out, repeated support or an aliased operand, reaches the vector body.
 @OptIn(UnsafeKoblasApi::class)
 class SparseOpsTest {
-    private val vectorEngines: List<KoblasEngine> = listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd).distinct()
+    private val vectorEngines: List<KoblasEngine> = listOfNotNull(KoblasEngine.scalar, KoblasEngine.simd).distinct()
     private val regionEngines: List<KoblasEngine> =
-        listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd, koblas).distinct()
+        listOfNotNull(KoblasEngine.scalar, KoblasEngine.simd, koblas).distinct()
 
     // Indexed vector operations.
 
@@ -35,7 +34,7 @@ class SparseOpsTest {
             val size = nnz * 8
             val x = randomSparseVector(size, nnz, rng)
             val y = randomVector(size, rng)
-            val expected = BuiltinEngines.scalar.dot(x.indices, 0, x.values, 0, x.values.size, y)
+            val expected = KoblasEngine.scalar.dot(x.indices, 0, x.values, 0, x.values.size, y)
 
             val actual = koblas.dot(x.indices, 0, x.values, 0, x.values.size, y)
 
@@ -163,7 +162,7 @@ class SparseOpsTest {
             for (column in 0 until matrix.cols) {
                 val start = matrix.colPointers[column]
                 val length = matrix.colPointers[column + 1] - start
-                val expected = BuiltinEngines.scalar.dot(indices, start, values, start, length, dense)
+                val expected = KoblasEngine.scalar.dot(indices, start, values, start, length, dense)
 
                 for (selected in vectorEngines) {
                     val actual = selected.dotColumn(matrix, column, dense)
@@ -224,7 +223,7 @@ class SparseOpsTest {
             )
             for (rhs in listOf(3.0, Double.POSITIVE_INFINITY, Double.NaN)) {
                 val dense = doubleArrayOf(Double.NaN, Double.NEGATIVE_INFINITY, rhs, Double.NaN)
-                val expected = BuiltinEngines.scalar.dot(matrix.rowIndices, 1, matrix.values, 1, 1, dense)
+                val expected = KoblasEngine.scalar.dot(matrix.rowIndices, 1, matrix.values, 1, 1, dense)
 
                 val actual = koblas.dotColumn(matrix, 1, dense)
 
@@ -245,7 +244,7 @@ class SparseOpsTest {
         val dense = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
         for (coefficient in listOf(2.0, 5.0, -0.0)) {
             matrix.values[1] = coefficient
-            val expected = BuiltinEngines.scalar.dot(matrix.rowIndices, 1, matrix.values, 1, 2, dense)
+            val expected = KoblasEngine.scalar.dot(matrix.rowIndices, 1, matrix.values, 1, 2, dense)
 
             val actual = koblas.dotColumn(matrix, 1, dense)
 
@@ -263,7 +262,7 @@ class SparseOpsTest {
             doubleArrayOf(8.0, 2.0, -3.0, 9.0),
         )
         val before = matrix.values.copyOf()
-        val expected = BuiltinEngines.scalar.dot(matrix.rowIndices, 1, before, 1, 2, before)
+        val expected = KoblasEngine.scalar.dot(matrix.rowIndices, 1, before, 1, 2, before)
 
         for (engine in vectorEngines) {
             val actual = engine.dotColumn(matrix, 1, matrix.values)
@@ -277,7 +276,7 @@ class SparseOpsTest {
     fun `column dots accept empty columns with no rows`() {
         val matrix = SparseMatrix.wrap(0, 2, intArrayOf(0, 0, 0), IntArray(0), DoubleArray(0))
         val dense = DoubleArray(0)
-        val expected = BuiltinEngines.scalar.dot(IntArray(0), 0, DoubleArray(0), 0, 0, dense)
+        val expected = KoblasEngine.scalar.dot(IntArray(0), 0, DoubleArray(0), 0, 0, dense)
 
         for (column in 0 until matrix.cols) {
             assertDotAgreesWithReference(expected, koblas.dotColumn(matrix, column, dense), "column=$column")

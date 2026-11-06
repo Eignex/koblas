@@ -1,8 +1,8 @@
 package com.eignex.koblas.internal.scheduling.sparse
 
 import com.eignex.koblas.*
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.dense.ReferenceBlas
-import com.eignex.koblas.engine.BuiltinEngines
 import com.eignex.koblas.internal.engine.panelProvider
 import com.eignex.koblas.internal.kernels.PanelWork
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
@@ -46,7 +46,7 @@ class SparseTriangularTest {
     private fun assertTriangularAgreesWithReference(solve: Boolean) {
         val rng = Random(20261013)
         val order = 32
-        for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd).distinct()) {
+        for (engine in listOfNotNull(KoblasEngine.scalar, KoblasEngine.simd).distinct()) {
             for (lower in booleanArrayOf(true, false)) {
                 for (transpose in booleanArrayOf(false, true)) {
                     val work = if (transpose) PanelWork.SparseRightHandSideReduction else PanelWork.SparseRightHandSides
@@ -54,7 +54,7 @@ class SparseTriangularTest {
                         work,
                         order,
                         1024,
-                        contiguous = engine == BuiltinEngines.simd,
+                        contiguous = engine == KoblasEngine.simd,
                     )
                     val sides = group + 1
                     for (unitDiag in booleanArrayOf(false, true)) {

@@ -1,7 +1,7 @@
 # Architecture
 
-Koblas keeps public storage and operation contracts in `com.eignex.koblas`, engine configuration in
-`com.eignex.koblas.engine`, and execution details under `internal`. All of these belong to the same
+Koblas keeps public storage, operation contracts, exact engine access and vendor metadata in
+`com.eignex.koblas`, and execution details under `internal`. All of these belong to the same
 multiplatform module; platform source sets supply their own runtime and arithmetic implementations.
 
 ## Public entry points
@@ -13,13 +13,16 @@ multiplatform module; platform source sets supply their own runtime and arithmet
 - `KoblasEngine` owns typed BLAS calls over dense and sparse containers. Logical dimensions are validated
   before views are unpacked. Its matrix methods prepare their operands and invoke shared schedules.
   Primitive array windows, including windowed `ger`, belong to the internal `EngineKernels` interface.
-- `VectorOps.kt` and `MatrixOps.kt` are small container facades over the immutable default engine in
-  `DefaultEngine.kt`. Both facades share the `Norm` enum, with norm dispatch and validation under
+- `VectorOps.kt` and `MatrixOps.kt` are small container facades over the shared `koblas` variable in
+  `KoblasEngine.kt`. Both facades share the `Norm` enum, with norm dispatch and validation under
   `internal/operations`. Every facade extension targets `Matrix` or `Vector`; copies and matrix
   transposes are storage transformations, and copy-into operations validate shapes and stage aliases.
   Sparse reductions traverse stored entries; custom storage uses scalar readers. Vector scale and AXPY
   use the same storage adapters with the default engine. Explicit BLAS calls stay on the engine.
-- `engine` owns exact built-in engines, profiles, platform facts and provenance.
+- Applications may assign `koblas` during startup; launch settings initialize its first value. Callers own
+  startup order and safe publication. Reads and writes have no lazy delegate or synchronization.
+- `KoblasEngine.scalar`, `KoblasEngine.simd` and `KoblasEngine.vendor` expose exact engines;
+  `Vendor`, `EngineImplementation` and `ThreadEvidence` describe their capabilities and provenance.
 
 ## Internal ownership
 
@@ -31,12 +34,12 @@ multiplatform module; platform source sets supply their own runtime and arithmet
 | `scheduling.sparse` | CSC traversal, right-hand-side grouping and sparse accumulation schedules. |
 | `kernels` | The `EngineKernels` arithmetic contract, `PanelWork` and shared kernel policies. |
 | `kernels.scalar` | The complete scalar engine and numerical leaves over addressed windows. |
-| `engine` | Engine selection, composition, provider inspection and whole-call routing. |
+| `engine` | Startup selection, fixed kernel roles, one optional host library, host facts and measured cutoffs. |
 | `host` | Shared host-library contracts and ABI adaptation. |
 
 A default matrix method prepares its operands and calls a shared schedule, which invokes the selected
 kernel provider. Preparation settles shapes, empty cases, BLAS no-read rules and aliasing before
-arithmetic writes the destination. A composed engine can route an eligible whole call to a host engine;
+arithmetic writes the destination. The built-in engine can hand an eligible whole call to its selected host library;
 that binding owns its argument preparation and numerical library call.
 
 Schedules own traversal and workspace extents. Kernels own arithmetic and recommend grouping or packing
@@ -55,3 +58,12 @@ stay within Koblas.
 
 Tests mirror the internal package that owns the implementation. Public API and published-artifact
 checks exercise calls through the engine and container entry points.
+
+`BuiltinEngine` binds fixed vector, indexed, panel, product and triangular kernel roles, plus at most one
+host library. Automatic selection stops at the first available compatible vendor. Missing exports and calls
+below its cutoffs use the owned kernels. Internal factories keep kernel types through selection; tuning
+binds the selected vendor once. Runtime dispatch and attribution share provider lookup.
+
+Tuning cutoffs live in `internal/engine/EngineTuning.kt` as direct predicates; unmeasured targets borrow
+compatible estimates. The benchmark fitter reports cutoffs for one backend and retains target provenance
+for review before those predicates are updated.

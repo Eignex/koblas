@@ -1,7 +1,7 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.internal.engine.providerFor
 import java.nio.file.Files
 import java.nio.file.Path
@@ -16,8 +16,8 @@ internal actual fun writeTextFile(path: String, text: String) {
 
 internal actual fun resolveEngine(mode: String): Pair<KoblasEngine, String> {
     val engine = when (mode) {
-        "jvm-scalar" -> BuiltinEngines.scalar
-        "jvm-simd" -> requireNotNull(BuiltinEngines.simd) {
+        "jvm-scalar" -> KoblasEngine.scalar
+        "jvm-simd" -> requireNotNull(KoblasEngine.simd) {
             "requested jvm-simd engine is unavailable; launch with jdk.incubator.vector"
         }
         // What an ordinary caller gets, which is a policy rather than an exact arm: its panels and kernels

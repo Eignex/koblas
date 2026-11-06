@@ -10,128 +10,49 @@ open annotation class com.eignex.koblas/UnsafeKoblasApi : kotlin/Annotation { //
     constructor <init>() // com.eignex.koblas/UnsafeKoblasApi.<init>|<init>(){}[0]
 }
 
-final enum class com.eignex.koblas.engine/Architecture : kotlin/Enum<com.eignex.koblas.engine/Architecture> { // com.eignex.koblas.engine/Architecture|null[0]
-    enum entry Arm64 // com.eignex.koblas.engine/Architecture.Arm64|null[0]
-    enum entry Other // com.eignex.koblas.engine/Architecture.Other|null[0]
-    enum entry X86_64 // com.eignex.koblas.engine/Architecture.X86_64|null[0]
+final enum class com.eignex.koblas/EngineImplementation : kotlin/Enum<com.eignex.koblas/EngineImplementation> { // com.eignex.koblas/EngineImplementation|null[0]
+    enum entry Asum // com.eignex.koblas/EngineImplementation.Asum|null[0]
+    enum entry Axpy // com.eignex.koblas/EngineImplementation.Axpy|null[0]
+    enum entry Copy // com.eignex.koblas/EngineImplementation.Copy|null[0]
+    enum entry Dot // com.eignex.koblas/EngineImplementation.Dot|null[0]
+    enum entry Gemm // com.eignex.koblas/EngineImplementation.Gemm|null[0]
+    enum entry Gemmt // com.eignex.koblas/EngineImplementation.Gemmt|null[0]
+    enum entry Gemv // com.eignex.koblas/EngineImplementation.Gemv|null[0]
+    enum entry GemvTransposed // com.eignex.koblas/EngineImplementation.GemvTransposed|null[0]
+    enum entry Ger // com.eignex.koblas/EngineImplementation.Ger|null[0]
+    enum entry Iamax // com.eignex.koblas/EngineImplementation.Iamax|null[0]
+    enum entry IndexedAxpy // com.eignex.koblas/EngineImplementation.IndexedAxpy|null[0]
+    enum entry IndexedDot // com.eignex.koblas/EngineImplementation.IndexedDot|null[0]
+    enum entry IndexedGather // com.eignex.koblas/EngineImplementation.IndexedGather|null[0]
+    enum entry IndexedGatherZero // com.eignex.koblas/EngineImplementation.IndexedGatherZero|null[0]
+    enum entry IndexedScatter // com.eignex.koblas/EngineImplementation.IndexedScatter|null[0]
+    enum entry IndexedSparseDot // com.eignex.koblas/EngineImplementation.IndexedSparseDot|null[0]
+    enum entry Nrm2 // com.eignex.koblas/EngineImplementation.Nrm2|null[0]
+    enum entry Panels // com.eignex.koblas/EngineImplementation.Panels|null[0]
+    enum entry Products // com.eignex.koblas/EngineImplementation.Products|null[0]
+    enum entry Rot // com.eignex.koblas/EngineImplementation.Rot|null[0]
+    enum entry Scale // com.eignex.koblas/EngineImplementation.Scale|null[0]
+    enum entry Sum // com.eignex.koblas/EngineImplementation.Sum|null[0]
+    enum entry Swap // com.eignex.koblas/EngineImplementation.Swap|null[0]
+    enum entry Symm // com.eignex.koblas/EngineImplementation.Symm|null[0]
+    enum entry Symv // com.eignex.koblas/EngineImplementation.Symv|null[0]
+    enum entry Syr // com.eignex.koblas/EngineImplementation.Syr|null[0]
+    enum entry Syr2 // com.eignex.koblas/EngineImplementation.Syr2|null[0]
+    enum entry Syr2k // com.eignex.koblas/EngineImplementation.Syr2k|null[0]
+    enum entry Syrk // com.eignex.koblas/EngineImplementation.Syrk|null[0]
+    enum entry Triangular // com.eignex.koblas/EngineImplementation.Triangular|null[0]
+    enum entry Trmm // com.eignex.koblas/EngineImplementation.Trmm|null[0]
+    enum entry Trmv // com.eignex.koblas/EngineImplementation.Trmv|null[0]
+    enum entry TrmvTransposed // com.eignex.koblas/EngineImplementation.TrmvTransposed|null[0]
+    enum entry Trsm // com.eignex.koblas/EngineImplementation.Trsm|null[0]
+    enum entry Trsv // com.eignex.koblas/EngineImplementation.Trsv|null[0]
+    enum entry TrsvTransposed // com.eignex.koblas/EngineImplementation.TrsvTransposed|null[0]
 
-    final val entries // com.eignex.koblas.engine/Architecture.entries|#static{}entries[0]
-        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas.engine/Architecture> // com.eignex.koblas.engine/Architecture.entries.<get-entries>|<get-entries>#static(){}[0]
+    final val entries // com.eignex.koblas/EngineImplementation.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas/EngineImplementation> // com.eignex.koblas/EngineImplementation.entries.<get-entries>|<get-entries>#static(){}[0]
 
-    final fun valueOf(kotlin/String): com.eignex.koblas.engine/Architecture // com.eignex.koblas.engine/Architecture.valueOf|valueOf#static(kotlin.String){}[0]
-    final fun values(): kotlin/Array<com.eignex.koblas.engine/Architecture> // com.eignex.koblas.engine/Architecture.values|values#static(){}[0]
-}
-
-final enum class com.eignex.koblas.engine/CpuClass : kotlin/Enum<com.eignex.koblas.engine/CpuClass> { // com.eignex.koblas.engine/CpuClass|null[0]
-    enum entry Arm64 // com.eignex.koblas.engine/CpuClass.Arm64|null[0]
-    enum entry Avx2 // com.eignex.koblas.engine/CpuClass.Avx2|null[0]
-    enum entry Avx512 // com.eignex.koblas.engine/CpuClass.Avx512|null[0]
-    enum entry Sve // com.eignex.koblas.engine/CpuClass.Sve|null[0]
-    enum entry X86_64 // com.eignex.koblas.engine/CpuClass.X86_64|null[0]
-
-    final val entries // com.eignex.koblas.engine/CpuClass.entries|#static{}entries[0]
-        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas.engine/CpuClass> // com.eignex.koblas.engine/CpuClass.entries.<get-entries>|<get-entries>#static(){}[0]
-
-    final fun valueOf(kotlin/String): com.eignex.koblas.engine/CpuClass // com.eignex.koblas.engine/CpuClass.valueOf|valueOf#static(kotlin.String){}[0]
-    final fun values(): kotlin/Array<com.eignex.koblas.engine/CpuClass> // com.eignex.koblas.engine/CpuClass.values|values#static(){}[0]
-}
-
-final enum class com.eignex.koblas.engine/EngineImplementation : kotlin/Enum<com.eignex.koblas.engine/EngineImplementation> { // com.eignex.koblas.engine/EngineImplementation|null[0]
-    enum entry Asum // com.eignex.koblas.engine/EngineImplementation.Asum|null[0]
-    enum entry Axpy // com.eignex.koblas.engine/EngineImplementation.Axpy|null[0]
-    enum entry Copy // com.eignex.koblas.engine/EngineImplementation.Copy|null[0]
-    enum entry Dot // com.eignex.koblas.engine/EngineImplementation.Dot|null[0]
-    enum entry Gemm // com.eignex.koblas.engine/EngineImplementation.Gemm|null[0]
-    enum entry Gemmt // com.eignex.koblas.engine/EngineImplementation.Gemmt|null[0]
-    enum entry Gemv // com.eignex.koblas.engine/EngineImplementation.Gemv|null[0]
-    enum entry GemvTransposed // com.eignex.koblas.engine/EngineImplementation.GemvTransposed|null[0]
-    enum entry Ger // com.eignex.koblas.engine/EngineImplementation.Ger|null[0]
-    enum entry Iamax // com.eignex.koblas.engine/EngineImplementation.Iamax|null[0]
-    enum entry IndexedAxpy // com.eignex.koblas.engine/EngineImplementation.IndexedAxpy|null[0]
-    enum entry IndexedDot // com.eignex.koblas.engine/EngineImplementation.IndexedDot|null[0]
-    enum entry IndexedGather // com.eignex.koblas.engine/EngineImplementation.IndexedGather|null[0]
-    enum entry IndexedGatherZero // com.eignex.koblas.engine/EngineImplementation.IndexedGatherZero|null[0]
-    enum entry IndexedScatter // com.eignex.koblas.engine/EngineImplementation.IndexedScatter|null[0]
-    enum entry IndexedSparseDot // com.eignex.koblas.engine/EngineImplementation.IndexedSparseDot|null[0]
-    enum entry Nrm2 // com.eignex.koblas.engine/EngineImplementation.Nrm2|null[0]
-    enum entry Panels // com.eignex.koblas.engine/EngineImplementation.Panels|null[0]
-    enum entry Products // com.eignex.koblas.engine/EngineImplementation.Products|null[0]
-    enum entry Rot // com.eignex.koblas.engine/EngineImplementation.Rot|null[0]
-    enum entry Scale // com.eignex.koblas.engine/EngineImplementation.Scale|null[0]
-    enum entry Sum // com.eignex.koblas.engine/EngineImplementation.Sum|null[0]
-    enum entry Swap // com.eignex.koblas.engine/EngineImplementation.Swap|null[0]
-    enum entry Symm // com.eignex.koblas.engine/EngineImplementation.Symm|null[0]
-    enum entry Symv // com.eignex.koblas.engine/EngineImplementation.Symv|null[0]
-    enum entry Syr // com.eignex.koblas.engine/EngineImplementation.Syr|null[0]
-    enum entry Syr2 // com.eignex.koblas.engine/EngineImplementation.Syr2|null[0]
-    enum entry Syr2k // com.eignex.koblas.engine/EngineImplementation.Syr2k|null[0]
-    enum entry Syrk // com.eignex.koblas.engine/EngineImplementation.Syrk|null[0]
-    enum entry Triangular // com.eignex.koblas.engine/EngineImplementation.Triangular|null[0]
-    enum entry Trmm // com.eignex.koblas.engine/EngineImplementation.Trmm|null[0]
-    enum entry Trmv // com.eignex.koblas.engine/EngineImplementation.Trmv|null[0]
-    enum entry TrmvTransposed // com.eignex.koblas.engine/EngineImplementation.TrmvTransposed|null[0]
-    enum entry Trsm // com.eignex.koblas.engine/EngineImplementation.Trsm|null[0]
-    enum entry Trsv // com.eignex.koblas.engine/EngineImplementation.Trsv|null[0]
-    enum entry TrsvTransposed // com.eignex.koblas.engine/EngineImplementation.TrsvTransposed|null[0]
-
-    final val entries // com.eignex.koblas.engine/EngineImplementation.entries|#static{}entries[0]
-        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas.engine/EngineImplementation> // com.eignex.koblas.engine/EngineImplementation.entries.<get-entries>|<get-entries>#static(){}[0]
-
-    final fun valueOf(kotlin/String): com.eignex.koblas.engine/EngineImplementation // com.eignex.koblas.engine/EngineImplementation.valueOf|valueOf#static(kotlin.String){}[0]
-    final fun values(): kotlin/Array<com.eignex.koblas.engine/EngineImplementation> // com.eignex.koblas.engine/EngineImplementation.values|values#static(){}[0]
-}
-
-final enum class com.eignex.koblas.engine/EngineRuntime : kotlin/Enum<com.eignex.koblas.engine/EngineRuntime> { // com.eignex.koblas.engine/EngineRuntime|null[0]
-    enum entry Jvm // com.eignex.koblas.engine/EngineRuntime.Jvm|null[0]
-    enum entry Native // com.eignex.koblas.engine/EngineRuntime.Native|null[0]
-
-    final val entries // com.eignex.koblas.engine/EngineRuntime.entries|#static{}entries[0]
-        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas.engine/EngineRuntime> // com.eignex.koblas.engine/EngineRuntime.entries.<get-entries>|<get-entries>#static(){}[0]
-
-    final fun valueOf(kotlin/String): com.eignex.koblas.engine/EngineRuntime // com.eignex.koblas.engine/EngineRuntime.valueOf|valueOf#static(kotlin.String){}[0]
-    final fun values(): kotlin/Array<com.eignex.koblas.engine/EngineRuntime> // com.eignex.koblas.engine/EngineRuntime.values|values#static(){}[0]
-}
-
-final enum class com.eignex.koblas.engine/OperatingSystem : kotlin/Enum<com.eignex.koblas.engine/OperatingSystem> { // com.eignex.koblas.engine/OperatingSystem|null[0]
-    enum entry Linux // com.eignex.koblas.engine/OperatingSystem.Linux|null[0]
-    enum entry MacOs // com.eignex.koblas.engine/OperatingSystem.MacOs|null[0]
-    enum entry Other // com.eignex.koblas.engine/OperatingSystem.Other|null[0]
-    enum entry Windows // com.eignex.koblas.engine/OperatingSystem.Windows|null[0]
-
-    final val entries // com.eignex.koblas.engine/OperatingSystem.entries|#static{}entries[0]
-        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas.engine/OperatingSystem> // com.eignex.koblas.engine/OperatingSystem.entries.<get-entries>|<get-entries>#static(){}[0]
-
-    final fun valueOf(kotlin/String): com.eignex.koblas.engine/OperatingSystem // com.eignex.koblas.engine/OperatingSystem.valueOf|valueOf#static(kotlin.String){}[0]
-    final fun values(): kotlin/Array<com.eignex.koblas.engine/OperatingSystem> // com.eignex.koblas.engine/OperatingSystem.values|values#static(){}[0]
-}
-
-final enum class com.eignex.koblas.engine/ThreadEvidence : kotlin/Enum<com.eignex.koblas.engine/ThreadEvidence> { // com.eignex.koblas.engine/ThreadEvidence|null[0]
-    enum entry Confirmed // com.eignex.koblas.engine/ThreadEvidence.Confirmed|null[0]
-    enum entry Unconfirmed // com.eignex.koblas.engine/ThreadEvidence.Unconfirmed|null[0]
-
-    final val entries // com.eignex.koblas.engine/ThreadEvidence.entries|#static{}entries[0]
-        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas.engine/ThreadEvidence> // com.eignex.koblas.engine/ThreadEvidence.entries.<get-entries>|<get-entries>#static(){}[0]
-    final val label // com.eignex.koblas.engine/ThreadEvidence.label|{}label[0]
-        final fun <get-label>(): kotlin/String // com.eignex.koblas.engine/ThreadEvidence.label.<get-label>|<get-label>(){}[0]
-
-    final fun valueOf(kotlin/String): com.eignex.koblas.engine/ThreadEvidence // com.eignex.koblas.engine/ThreadEvidence.valueOf|valueOf#static(kotlin.String){}[0]
-    final fun values(): kotlin/Array<com.eignex.koblas.engine/ThreadEvidence> // com.eignex.koblas.engine/ThreadEvidence.values|values#static(){}[0]
-}
-
-final enum class com.eignex.koblas.engine/Vendor : kotlin/Enum<com.eignex.koblas.engine/Vendor> { // com.eignex.koblas.engine/Vendor|null[0]
-    enum entry Accelerate // com.eignex.koblas.engine/Vendor.Accelerate|null[0]
-    enum entry Aocl // com.eignex.koblas.engine/Vendor.Aocl|null[0]
-    enum entry ArmPl // com.eignex.koblas.engine/Vendor.ArmPl|null[0]
-    enum entry OneMkl // com.eignex.koblas.engine/Vendor.OneMkl|null[0]
-    enum entry OpenBlas // com.eignex.koblas.engine/Vendor.OpenBlas|null[0]
-
-    final val entries // com.eignex.koblas.engine/Vendor.entries|#static{}entries[0]
-        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas.engine/Vendor> // com.eignex.koblas.engine/Vendor.entries.<get-entries>|<get-entries>#static(){}[0]
-    final val vendorName // com.eignex.koblas.engine/Vendor.vendorName|{}vendorName[0]
-        final fun <get-vendorName>(): kotlin/String // com.eignex.koblas.engine/Vendor.vendorName.<get-vendorName>|<get-vendorName>(){}[0]
-
-    final fun valueOf(kotlin/String): com.eignex.koblas.engine/Vendor // com.eignex.koblas.engine/Vendor.valueOf|valueOf#static(kotlin.String){}[0]
-    final fun values(): kotlin/Array<com.eignex.koblas.engine/Vendor> // com.eignex.koblas.engine/Vendor.values|values#static(){}[0]
+    final fun valueOf(kotlin/String): com.eignex.koblas/EngineImplementation // com.eignex.koblas/EngineImplementation.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<com.eignex.koblas/EngineImplementation> // com.eignex.koblas/EngineImplementation.values|values#static(){}[0]
 }
 
 final enum class com.eignex.koblas/Norm : kotlin/Enum<com.eignex.koblas/Norm> { // com.eignex.koblas/Norm|null[0]
@@ -148,21 +69,50 @@ final enum class com.eignex.koblas/Norm : kotlin/Enum<com.eignex.koblas/Norm> { 
     final fun values(): kotlin/Array<com.eignex.koblas/Norm> // com.eignex.koblas/Norm.values|values#static(){}[0]
 }
 
+final enum class com.eignex.koblas/ThreadEvidence : kotlin/Enum<com.eignex.koblas/ThreadEvidence> { // com.eignex.koblas/ThreadEvidence|null[0]
+    enum entry Confirmed // com.eignex.koblas/ThreadEvidence.Confirmed|null[0]
+    enum entry Unconfirmed // com.eignex.koblas/ThreadEvidence.Unconfirmed|null[0]
+
+    final val entries // com.eignex.koblas/ThreadEvidence.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas/ThreadEvidence> // com.eignex.koblas/ThreadEvidence.entries.<get-entries>|<get-entries>#static(){}[0]
+    final val label // com.eignex.koblas/ThreadEvidence.label|{}label[0]
+        final fun <get-label>(): kotlin/String // com.eignex.koblas/ThreadEvidence.label.<get-label>|<get-label>(){}[0]
+
+    final fun valueOf(kotlin/String): com.eignex.koblas/ThreadEvidence // com.eignex.koblas/ThreadEvidence.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<com.eignex.koblas/ThreadEvidence> // com.eignex.koblas/ThreadEvidence.values|values#static(){}[0]
+}
+
+final enum class com.eignex.koblas/Vendor : kotlin/Enum<com.eignex.koblas/Vendor> { // com.eignex.koblas/Vendor|null[0]
+    enum entry Accelerate // com.eignex.koblas/Vendor.Accelerate|null[0]
+    enum entry Aocl // com.eignex.koblas/Vendor.Aocl|null[0]
+    enum entry ArmPl // com.eignex.koblas/Vendor.ArmPl|null[0]
+    enum entry OneMkl // com.eignex.koblas/Vendor.OneMkl|null[0]
+    enum entry OpenBlas // com.eignex.koblas/Vendor.OpenBlas|null[0]
+
+    final val entries // com.eignex.koblas/Vendor.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas/Vendor> // com.eignex.koblas/Vendor.entries.<get-entries>|<get-entries>#static(){}[0]
+    final val vendorName // com.eignex.koblas/Vendor.vendorName|{}vendorName[0]
+        final fun <get-vendorName>(): kotlin/String // com.eignex.koblas/Vendor.vendorName.<get-vendorName>|<get-vendorName>(){}[0]
+
+    final fun valueOf(kotlin/String): com.eignex.koblas/Vendor // com.eignex.koblas/Vendor.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<com.eignex.koblas/Vendor> // com.eignex.koblas/Vendor.values|values#static(){}[0]
+}
+
 abstract interface com.eignex.koblas/KoblasEngine { // com.eignex.koblas/KoblasEngine|null[0]
     abstract val name // com.eignex.koblas/KoblasEngine.name|{}name[0]
         abstract fun <get-name>(): kotlin/String // com.eignex.koblas/KoblasEngine.name.<get-name>|<get-name>(){}[0]
     open val id // com.eignex.koblas/KoblasEngine.id|{}id[0]
         open fun <get-id>(): kotlin/String // com.eignex.koblas/KoblasEngine.id.<get-id>|<get-id>(){}[0]
     open val implementations // com.eignex.koblas/KoblasEngine.implementations|{}implementations[0]
-        open fun <get-implementations>(): kotlin.collections/Set<com.eignex.koblas.engine/EngineImplementation> // com.eignex.koblas/KoblasEngine.implementations.<get-implementations>|<get-implementations>(){}[0]
+        open fun <get-implementations>(): kotlin.collections/Set<com.eignex.koblas/EngineImplementation> // com.eignex.koblas/KoblasEngine.implementations.<get-implementations>|<get-implementations>(){}[0]
     open val libraryPath // com.eignex.koblas/KoblasEngine.libraryPath|{}libraryPath[0]
         open fun <get-libraryPath>(): kotlin/String // com.eignex.koblas/KoblasEngine.libraryPath.<get-libraryPath>|<get-libraryPath>(){}[0]
     open val providers // com.eignex.koblas/KoblasEngine.providers|{}providers[0]
         open fun <get-providers>(): kotlin.collections/List<com.eignex.koblas/KoblasEngine> // com.eignex.koblas/KoblasEngine.providers.<get-providers>|<get-providers>(){}[0]
     open val threadEvidence // com.eignex.koblas/KoblasEngine.threadEvidence|{}threadEvidence[0]
-        open fun <get-threadEvidence>(): com.eignex.koblas.engine/ThreadEvidence // com.eignex.koblas/KoblasEngine.threadEvidence.<get-threadEvidence>|<get-threadEvidence>(){}[0]
+        open fun <get-threadEvidence>(): com.eignex.koblas/ThreadEvidence // com.eignex.koblas/KoblasEngine.threadEvidence.<get-threadEvidence>|<get-threadEvidence>(){}[0]
     open val vendor // com.eignex.koblas/KoblasEngine.vendor|{}vendor[0]
-        open fun <get-vendor>(): com.eignex.koblas.engine/Vendor? // com.eignex.koblas/KoblasEngine.vendor.<get-vendor>|<get-vendor>(){}[0]
+        open fun <get-vendor>(): com.eignex.koblas/Vendor? // com.eignex.koblas/KoblasEngine.vendor.<get-vendor>|<get-vendor>(){}[0]
     open val version // com.eignex.koblas/KoblasEngine.version|{}version[0]
         open fun <get-version>(): kotlin/String // com.eignex.koblas/KoblasEngine.version.<get-version>|<get-version>(){}[0]
 
@@ -216,6 +166,15 @@ abstract interface com.eignex.koblas/KoblasEngine { // com.eignex.koblas/KoblasE
     open fun trsm(com.eignex.koblas/SparseMatrix, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Boolean = ..., kotlin/Double = ..., com.eignex.koblas/Scratch? = ...) // com.eignex.koblas/KoblasEngine.trsm|trsm(com.eignex.koblas.SparseMatrix;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Double;com.eignex.koblas.Scratch?){}[0]
     open fun trsv(com.eignex.koblas/DenseMatrix, com.eignex.koblas/DenseVector, kotlin/Boolean, kotlin/Boolean = ..., kotlin/Boolean = ..., com.eignex.koblas/Scratch? = ...) // com.eignex.koblas/KoblasEngine.trsv|trsv(com.eignex.koblas.DenseMatrix;com.eignex.koblas.DenseVector;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;com.eignex.koblas.Scratch?){}[0]
     open fun trsv(com.eignex.koblas/SparseMatrix, com.eignex.koblas/DenseVector, kotlin/Boolean, kotlin/Boolean = ..., kotlin/Boolean = ..., com.eignex.koblas/Scratch? = ...) // com.eignex.koblas/KoblasEngine.trsv|trsv(com.eignex.koblas.SparseMatrix;com.eignex.koblas.DenseVector;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;com.eignex.koblas.Scratch?){}[0]
+
+    final object Companion { // com.eignex.koblas/KoblasEngine.Companion|null[0]
+        final val scalar // com.eignex.koblas/KoblasEngine.Companion.scalar|{}scalar[0]
+            final fun <get-scalar>(): com.eignex.koblas/KoblasEngine // com.eignex.koblas/KoblasEngine.Companion.scalar.<get-scalar>|<get-scalar>(){}[0]
+        final val simd // com.eignex.koblas/KoblasEngine.Companion.simd|{}simd[0]
+            final fun <get-simd>(): com.eignex.koblas/KoblasEngine? // com.eignex.koblas/KoblasEngine.Companion.simd.<get-simd>|<get-simd>(){}[0]
+
+        final fun vendor(com.eignex.koblas/Vendor): com.eignex.koblas/KoblasEngine? // com.eignex.koblas/KoblasEngine.Companion.vendor|vendor(com.eignex.koblas.Vendor){}[0]
+    }
 }
 
 abstract interface com.eignex.koblas/Matrix { // com.eignex.koblas/Matrix|null[0]
@@ -250,61 +209,6 @@ sealed interface com.eignex.koblas/VectorStorage : com.eignex.koblas/Vector { //
         final fun serializer(): kotlinx.serialization/KSerializer<com.eignex.koblas/VectorStorage> // com.eignex.koblas/VectorStorage.Companion.serializer|serializer(){}[0]
         final fun serializer(kotlin/Array<out kotlinx.serialization/KSerializer<*>>...): kotlinx.serialization/KSerializer<*> // com.eignex.koblas/VectorStorage.Companion.serializer|serializer(kotlin.Array<out|kotlinx.serialization.KSerializer<*>>...){}[0]
     }
-}
-
-final class com.eignex.koblas.engine/EngineProfile { // com.eignex.koblas.engine/EngineProfile|null[0]
-    constructor <init>(kotlin/String, kotlin.collections/List<com.eignex.koblas.engine/EngineRule>, com.eignex.koblas.engine/EngineRuntime? = ..., com.eignex.koblas.engine/HostPlatform? = ..., kotlin/String = ...) // com.eignex.koblas.engine/EngineProfile.<init>|<init>(kotlin.String;kotlin.collections.List<com.eignex.koblas.engine.EngineRule>;com.eignex.koblas.engine.EngineRuntime?;com.eignex.koblas.engine.HostPlatform?;kotlin.String){}[0]
-
-    final val evidence // com.eignex.koblas.engine/EngineProfile.evidence|{}evidence[0]
-        final fun <get-evidence>(): kotlin/String // com.eignex.koblas.engine/EngineProfile.evidence.<get-evidence>|<get-evidence>(){}[0]
-    final val name // com.eignex.koblas.engine/EngineProfile.name|{}name[0]
-        final fun <get-name>(): kotlin/String // com.eignex.koblas.engine/EngineProfile.name.<get-name>|<get-name>(){}[0]
-    final val rules // com.eignex.koblas.engine/EngineProfile.rules|{}rules[0]
-        final fun <get-rules>(): kotlin.collections/List<com.eignex.koblas.engine/EngineRule> // com.eignex.koblas.engine/EngineProfile.rules.<get-rules>|<get-rules>(){}[0]
-    final val runtime // com.eignex.koblas.engine/EngineProfile.runtime|{}runtime[0]
-        final fun <get-runtime>(): com.eignex.koblas.engine/EngineRuntime? // com.eignex.koblas.engine/EngineProfile.runtime.<get-runtime>|<get-runtime>(){}[0]
-    final val target // com.eignex.koblas.engine/EngineProfile.target|{}target[0]
-        final fun <get-target>(): com.eignex.koblas.engine/HostPlatform? // com.eignex.koblas.engine/EngineProfile.target.<get-target>|<get-target>(){}[0]
-
-    final fun appliesTo(com.eignex.koblas.engine/EngineRuntime, com.eignex.koblas.engine/HostPlatform): kotlin/Boolean // com.eignex.koblas.engine/EngineProfile.appliesTo|appliesTo(com.eignex.koblas.engine.EngineRuntime;com.eignex.koblas.engine.HostPlatform){}[0]
-}
-
-final class com.eignex.koblas.engine/EngineRule { // com.eignex.koblas.engine/EngineRule|null[0]
-    constructor <init>(kotlin/String, kotlin.collections/Set<com.eignex.koblas.engine/EngineImplementation>, kotlin.ranges/IntRange = ..., kotlin.ranges/IntRange = ..., kotlin.ranges/IntRange = ..., kotlin/Long = ..., kotlin/Boolean? = ..., kotlin/Boolean? = ...) // com.eignex.koblas.engine/EngineRule.<init>|<init>(kotlin.String;kotlin.collections.Set<com.eignex.koblas.engine.EngineImplementation>;kotlin.ranges.IntRange;kotlin.ranges.IntRange;kotlin.ranges.IntRange;kotlin.Long;kotlin.Boolean?;kotlin.Boolean?){}[0]
-
-    final val borrowed // com.eignex.koblas.engine/EngineRule.borrowed|{}borrowed[0]
-        final fun <get-borrowed>(): kotlin/Boolean? // com.eignex.koblas.engine/EngineRule.borrowed.<get-borrowed>|<get-borrowed>(){}[0]
-    final val columns // com.eignex.koblas.engine/EngineRule.columns|{}columns[0]
-        final fun <get-columns>(): kotlin.ranges/IntRange // com.eignex.koblas.engine/EngineRule.columns.<get-columns>|<get-columns>(){}[0]
-    final val contiguous // com.eignex.koblas.engine/EngineRule.contiguous|{}contiguous[0]
-        final fun <get-contiguous>(): kotlin/Boolean? // com.eignex.koblas.engine/EngineRule.contiguous.<get-contiguous>|<get-contiguous>(){}[0]
-    final val depth // com.eignex.koblas.engine/EngineRule.depth|{}depth[0]
-        final fun <get-depth>(): kotlin.ranges/IntRange // com.eignex.koblas.engine/EngineRule.depth.<get-depth>|<get-depth>(){}[0]
-    final val implementations // com.eignex.koblas.engine/EngineRule.implementations|{}implementations[0]
-        final fun <get-implementations>(): kotlin.collections/Set<com.eignex.koblas.engine/EngineImplementation> // com.eignex.koblas.engine/EngineRule.implementations.<get-implementations>|<get-implementations>(){}[0]
-    final val rows // com.eignex.koblas.engine/EngineRule.rows|{}rows[0]
-        final fun <get-rows>(): kotlin.ranges/IntRange // com.eignex.koblas.engine/EngineRule.rows.<get-rows>|<get-rows>(){}[0]
-    final val source // com.eignex.koblas.engine/EngineRule.source|{}source[0]
-        final fun <get-source>(): kotlin/String // com.eignex.koblas.engine/EngineRule.source.<get-source>|<get-source>(){}[0]
-    final val work // com.eignex.koblas.engine/EngineRule.work|{}work[0]
-        final fun <get-work>(): kotlin/Long // com.eignex.koblas.engine/EngineRule.work.<get-work>|<get-work>(){}[0]
-}
-
-final class com.eignex.koblas.engine/HostPlatform { // com.eignex.koblas.engine/HostPlatform|null[0]
-    constructor <init>(com.eignex.koblas.engine/OperatingSystem, com.eignex.koblas.engine/Architecture, kotlin/String? = ..., com.eignex.koblas.engine/CpuClass? = ..., kotlin/Int? = ...) // com.eignex.koblas.engine/HostPlatform.<init>|<init>(com.eignex.koblas.engine.OperatingSystem;com.eignex.koblas.engine.Architecture;kotlin.String?;com.eignex.koblas.engine.CpuClass?;kotlin.Int?){}[0]
-
-    final val architecture // com.eignex.koblas.engine/HostPlatform.architecture|{}architecture[0]
-        final fun <get-architecture>(): com.eignex.koblas.engine/Architecture // com.eignex.koblas.engine/HostPlatform.architecture.<get-architecture>|<get-architecture>(){}[0]
-    final val cpuClass // com.eignex.koblas.engine/HostPlatform.cpuClass|{}cpuClass[0]
-        final fun <get-cpuClass>(): com.eignex.koblas.engine/CpuClass? // com.eignex.koblas.engine/HostPlatform.cpuClass.<get-cpuClass>|<get-cpuClass>(){}[0]
-    final val cpuModel // com.eignex.koblas.engine/HostPlatform.cpuModel|{}cpuModel[0]
-        final fun <get-cpuModel>(): kotlin/String? // com.eignex.koblas.engine/HostPlatform.cpuModel.<get-cpuModel>|<get-cpuModel>(){}[0]
-    final val operatingSystem // com.eignex.koblas.engine/HostPlatform.operatingSystem|{}operatingSystem[0]
-        final fun <get-operatingSystem>(): com.eignex.koblas.engine/OperatingSystem // com.eignex.koblas.engine/HostPlatform.operatingSystem.<get-operatingSystem>|<get-operatingSystem>(){}[0]
-    final val sveVectorBits // com.eignex.koblas.engine/HostPlatform.sveVectorBits|{}sveVectorBits[0]
-        final fun <get-sveVectorBits>(): kotlin/Int? // com.eignex.koblas.engine/HostPlatform.sveVectorBits.<get-sveVectorBits>|<get-sveVectorBits>(){}[0]
-
-    final fun toString(): kotlin/String // com.eignex.koblas.engine/HostPlatform.toString|toString(){}[0]
 }
 
 final class com.eignex.koblas/DenseMatrix : com.eignex.koblas/MatrixStorage { // com.eignex.koblas/DenseMatrix|null[0]
@@ -448,22 +352,9 @@ final class com.eignex.koblas/SparseVector : com.eignex.koblas/VectorStorage { /
     }
 }
 
-final object com.eignex.koblas.engine/BuiltinEngines { // com.eignex.koblas.engine/BuiltinEngines|null[0]
-    final val scalar // com.eignex.koblas.engine/BuiltinEngines.scalar|{}scalar[0]
-        final fun <get-scalar>(): com.eignex.koblas/KoblasEngine // com.eignex.koblas.engine/BuiltinEngines.scalar.<get-scalar>|<get-scalar>(){}[0]
-    final val simd // com.eignex.koblas.engine/BuiltinEngines.simd|{}simd[0]
-        final fun <get-simd>(): com.eignex.koblas/KoblasEngine? // com.eignex.koblas.engine/BuiltinEngines.simd.<get-simd>|<get-simd>(){}[0]
-
-    final fun configured(com.eignex.koblas.engine/EngineProfile): com.eignex.koblas/KoblasEngine // com.eignex.koblas.engine/BuiltinEngines.configured|configured(com.eignex.koblas.engine.EngineProfile){}[0]
-    final fun vendor(com.eignex.koblas.engine/Vendor): com.eignex.koblas/KoblasEngine? // com.eignex.koblas.engine/BuiltinEngines.vendor|vendor(com.eignex.koblas.engine.Vendor){}[0]
-}
-
-final object com.eignex.koblas.engine/StandardEngineProfiles { // com.eignex.koblas.engine/StandardEngineProfiles|null[0]
-    final fun forTarget(com.eignex.koblas.engine/EngineRuntime, com.eignex.koblas.engine/HostPlatform, kotlin/Boolean = ...): com.eignex.koblas.engine/EngineProfile // com.eignex.koblas.engine/StandardEngineProfiles.forTarget|forTarget(com.eignex.koblas.engine.EngineRuntime;com.eignex.koblas.engine.HostPlatform;kotlin.Boolean){}[0]
-}
-
-final val com.eignex.koblas/koblas // com.eignex.koblas/koblas|{}koblas[0]
+final var com.eignex.koblas/koblas // com.eignex.koblas/koblas|{}koblas[0]
     final fun <get-koblas>(): com.eignex.koblas/KoblasEngine // com.eignex.koblas/koblas.<get-koblas>|<get-koblas>(){}[0]
+    final fun <set-koblas>(com.eignex.koblas/KoblasEngine) // com.eignex.koblas/koblas.<set-koblas>|<set-koblas>(com.eignex.koblas.KoblasEngine){}[0]
 
 final fun (com.eignex.koblas/Matrix).com.eignex.koblas/copy(): com.eignex.koblas/Matrix // com.eignex.koblas/copy|copy@com.eignex.koblas.Matrix(){}[0]
 final fun (com.eignex.koblas/Matrix).com.eignex.koblas/copyFrom(com.eignex.koblas/Matrix) // com.eignex.koblas/copyFrom|copyFrom@com.eignex.koblas.Matrix(com.eignex.koblas.Matrix){}[0]
@@ -479,6 +370,5 @@ final fun (com.eignex.koblas/Vector).com.eignex.koblas/dot(com.eignex.koblas/Vec
 final fun (com.eignex.koblas/Vector).com.eignex.koblas/norm(com.eignex.koblas/Norm = ...): kotlin/Double // com.eignex.koblas/norm|norm@com.eignex.koblas.Vector(com.eignex.koblas.Norm){}[0]
 final fun (com.eignex.koblas/Vector).com.eignex.koblas/scale(kotlin/Double) // com.eignex.koblas/scale|scale@com.eignex.koblas.Vector(kotlin.Double){}[0]
 final fun (com.eignex.koblas/Vector).com.eignex.koblas/sum(): kotlin/Double // com.eignex.koblas/sum|sum@com.eignex.koblas.Vector(){}[0]
-final fun com.eignex.koblas.engine/hostPlatform(): com.eignex.koblas.engine/HostPlatform // com.eignex.koblas.engine/hostPlatform|hostPlatform(){}[0]
 final inline fun (com.eignex.koblas/Vector).com.eignex.koblas/forEachStored(kotlin/Function2<kotlin/Int, kotlin/Double, kotlin/Unit>) // com.eignex.koblas/forEachStored|forEachStored@com.eignex.koblas.Vector(kotlin.Function2<kotlin.Int,kotlin.Double,kotlin.Unit>){}[0]
 final inline fun <#A: kotlin/Any?> (com.eignex.koblas/Scratch?).com.eignex.koblas/borrow(kotlin/Int, kotlin/Function1<kotlin/DoubleArray, #A>): #A // com.eignex.koblas/borrow|borrow@com.eignex.koblas.Scratch?(kotlin.Int;kotlin.Function1<kotlin.DoubleArray,0:0>){0§<kotlin.Any?>}[0]

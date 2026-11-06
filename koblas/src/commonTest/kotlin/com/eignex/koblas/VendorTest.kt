@@ -1,5 +1,6 @@
-package com.eignex.koblas.engine
+package com.eignex.koblas
 
+import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.engine.cpuClass
 import kotlin.test.Test
 import kotlin.test.assertEquals

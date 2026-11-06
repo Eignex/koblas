@@ -1,8 +1,8 @@
 package com.eignex.koblas.internal.operations
 
 import com.eignex.koblas.*
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.engine.BuiltinEngines
 import com.eignex.koblas.internal.kernels.*
 import kotlin.random.Random
 import kotlin.test.Test
@@ -161,7 +161,7 @@ class RegionPreparationTest {
         ReferenceBlas.trsm(start.copyOf(), expected, lower = true)
         val aliased = start.copyOf()
 
-        BuiltinEngines.scalar.trsm(aliased, aliased, lower = true, scratch = workspace)
+        KoblasEngine.scalar.trsm(aliased, aliased, lower = true, scratch = workspace)
 
         assertClose(expected.values, aliased.values, "trsm with its own triangle", tolerance = 1e-9)
         assertEquals(1, workspace.available(n * n), "the triangle was not staged from the workspace")
@@ -175,7 +175,7 @@ class RegionPreparationTest {
         val workspace = Scratch()
         val a = randomMatrix(order, order, rng)
         val b = randomMatrix(order, 4, rng)
-        val blas = BuiltinEngines.scalar
+        val blas = KoblasEngine.scalar
 
         blas.gemm(0.5, a, false, b, false, 0.5, b, scratch = workspace)
         val afterOne = workspace.idleLengths()

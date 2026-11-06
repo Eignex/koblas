@@ -2,7 +2,6 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.*
 
 /**
  * The work for one benchmark case on one arm, or the reason there is none to time.
@@ -44,7 +43,7 @@ internal fun vendorForRuntime(mode: String, prefix: String): Vendor? =
  */
 internal fun openVendorForMode(mode: String): Pair<KoblasEngine, String> {
     val vendor = vendorFromMode(mode) ?: error("$mode is not a vendor mode")
-    val blas = BuiltinEngines.vendor(vendor)
+    val blas = KoblasEngine.vendor(vendor)
         ?: error("requested vendor ${vendor.vendorName} is not installed; it cannot be benchmarked on this host")
     return blas to engineIdentity(mode, blas)
 }

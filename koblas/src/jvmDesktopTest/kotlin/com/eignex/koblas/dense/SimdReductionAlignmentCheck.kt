@@ -1,7 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.internal.jvm25.simd.*
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.testutil.allocation.*
@@ -10,7 +10,7 @@ import com.eignex.koblas.testutil.allocation.*
 internal object SimdReductionAlignmentCheck {
     @JvmStatic
     fun main(args: Array<String>) {
-        checkNotNull(BuiltinEngines.simd) { "alignment check requires the Vector API arm" }
+        checkNotNull(KoblasEngine.simd) { "alignment check requires the Vector API arm" }
         val values = DoubleArray(65_560)
         val prefix = HotSpotArrayAlignment.prefix(values, 0, 65_536)
         val knownAlignment = HotSpotArrayAlignment.hasKnownAlignment(values)
@@ -42,7 +42,7 @@ internal object SimdReductionAlignmentCheck {
         SimdOpsTest().`reductions agree with the scalar oracle for windows in large backing arrays`()
         SimdOpsTest().assertFiniteReductionsAgreeWithReference(65_536)
         SimdOpsTest().assertFiniteReductionsAgreeWithReference(65_537)
-        val kernels = requireNotNull(BuiltinEngines.simd)
+        val kernels = requireNotNull(KoblasEngine.simd)
         for (i in values.indices) values[i] = (i % 17 - 8) / 16.0
         val other = DoubleArray(values.size) { (it % 11 - 5) / 8.0 }
         assertAllocationFree("asum") { kernels.asum(values, 0, 65_536) }

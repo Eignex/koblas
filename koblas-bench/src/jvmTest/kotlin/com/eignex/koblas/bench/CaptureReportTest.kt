@@ -1,6 +1,7 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.internal.kernels.*
+import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.koblas
 import java.io.File
 import java.nio.file.Files

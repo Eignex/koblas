@@ -1,7 +1,7 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.engine.*
-import com.eignex.koblas.internal.engine.combine
+import com.eignex.koblas.internal.engine.*
+import com.eignex.koblas.*
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.koblas
 import kotlin.test.Test
@@ -15,15 +15,15 @@ class RunnerTest {
         var calls = 0
         val leaf = object : EngineKernels {
             override val name = "chosen"
+            override fun minimumLength(implementation: EngineImplementation): Int = 64
+            override fun requiresUnitStride(implementation: EngineImplementation): Boolean = true
             override val implementations = setOf(EngineImplementation.Dot)
             override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int): Double {
                 calls++
-                return BuiltinEngines.scalar.dot(a, aOff, b, bOff, len, aStride, bStride)
+                return KoblasEngine.scalar.dot(a, aOff, b, bOff, len, aStride, bStride)
             }
         }
-        val engine = combine(EngineProfile("threshold", listOf(
-            EngineRule(leaf.id, leaf.implementations, rows = 64..Int.MAX_VALUE, contiguous = true),
-        )), leaf)
+        val engine = BuiltinEngine("threshold", KernelSet(vectors = leaf))
         for ((id, expected) in listOf("dot+63+uniform" to "portable", "dot+64+uniform" to leaf.id,
             "dot+64+uniform+stride=2" to "portable")) {
             calls = 0
@@ -151,7 +151,7 @@ class RunnerTest {
     private fun settings() = Settings("jvm-scalar", "all", "cases.txt", "output.csv", 0, 1, 1_000_000, 2)
 
     @Test
-    fun `combined identity attributes only the supplied capabilities to each source`() {
+    fun `host identity attributes only its supplied capabilities`() {
         val source = object : EngineKernels {
             override val name = "vendor"
             override val vendor = Vendor.OneMkl
@@ -159,21 +159,12 @@ class RunnerTest {
             override val version = "mkl-version"
             override val implementations = setOf(EngineImplementation.Dot)
         }
-        val second = object : EngineKernels {
-            override val name = "second"
-            override val vendor = Vendor.OpenBlas
-            override val libraryPath = "/openblas"
-            override val version = "openblas-version"
-            override val implementations = setOf(EngineImplementation.Asum)
-        }
-        val engine = combine(EngineProfile("combined", emptyList()), source, second)
+        val engine = BuiltinEngine("selected", host = source)
 
         val identity = engineIdentity("native-default", engine)
 
-        assertTrue(identity.startsWith("native-default/combined/"), identity)
+        assertTrue(identity.startsWith("native-default/selected/"), identity)
         assertTrue("/oneMKL//mkl/mkl-version/threads=" in identity, identity)
-        assertTrue("/OpenBLAS//openblas/openblas-version/threads=" in identity, identity)
-        assertTrue("/caps[openblas:Asum]" in identity, identity)
         assertEquals(1, Regex("/caps\\[onemkl:").findAll(identity).count())
         assertTrue(identity.contains("/caps[onemkl:Dot]"), identity)
         assertTrue(identity.contains("/caps[portable:"), identity)

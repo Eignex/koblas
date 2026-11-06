@@ -4,9 +4,9 @@
 
 package com.eignex.koblas
 
-import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.kernels.*
+import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import com.eignex.koblas.internal.operations.*
 import com.eignex.koblas.internal.scheduling.dense.*
 import com.eignex.koblas.internal.scheduling.sparse.*
@@ -16,10 +16,10 @@ import com.eignex.koblas.internal.storage.*
  * Dense and sparse BLAS through one immutable engine.
  *
  * BLAS routines are typed members. The portable engine runs the shared schedule over its own kernels; a
- * composed engine such as [koblas] routes each call to the provider its profile selects and otherwise runs the
- * same schedule over its own kernels; a vendor engine from [BuiltinEngines.vendor] calls its library for the
- * routines it exports and fails for the rest. [BuiltinEngines] names exact engines, while [koblas] selects its
- * standard platform configuration once.
+ * built-in engine such as [koblas] uses one optional host library above its cutoffs and otherwise runs the
+ * same schedule over its owned kernels; a vendor engine from [KoblasEngine.vendor] calls its library for the
+ * routines it exports and fails for the rest. The companion names exact engines, while [koblas] selects its
+ * platform default unless startup configuration overrides it.
  *
  * Operands are typed containers; dense views retain their offsets and strides. Routines validate logical
  * dimensions and preserve BLAS no-read rules. Copies, AXPY and matrix operations stage destructive aliases,
@@ -29,15 +29,35 @@ import com.eignex.koblas.internal.storage.*
  */
 public interface KoblasEngine {
 
+    /** Exact engines for tests and comparisons, also assignable to [koblas] during startup. */
+    public companion object {
+        /** Opens exactly [vendor] when available. Unsupported operations remain unsupported. */
+        @kotlin.jvm.JvmStatic
+        public fun vendor(vendor: Vendor): KoblasEngine? = vendorEngine(vendor)
+
+        /** Portable Kotlin across all three levels. */
+        @get:kotlin.jvm.JvmStatic
+        public val scalar: KoblasEngine get() = ScalarEngine
+
+        /**
+         * Every JVM Vector API kernel this library owns, or null when the module is unavailable.
+         *
+         * On the JVM, [koblas] retains these kernels when available, alongside its selected host library.
+         * A window too short or too strided for a vector body runs a portable fallback.
+         */
+        @get:kotlin.jvm.JvmStatic
+        public val simd: KoblasEngine? get() = simdEngine
+    }
+
     // Engine identity and provenance.
 
     /** Implementation identifier for diagnostics. */
     public val name: String
 
-    /** Stable identifier used by routing profiles. */
+    /** Stable provider identifier for diagnostics and internal routing. */
     public val id: String get() = vendor?.vendorName?.lowercase() ?: name
 
-    /** Callbacks supplied by this provider, trusted by the composer. Shared matrix schedules select arithmetic directly from leaf [providers]. */
+    /** Callbacks supplied by this provider. Shared matrix schedules select arithmetic directly from leaf [providers]. */
     public val implementations: Set<EngineImplementation> get() = emptySet()
 
     /** Library provenance, when applicable. */
@@ -52,7 +72,7 @@ public interface KoblasEngine {
     /** Evidence for the host library's compute thread count. */
     public val threadEvidence: ThreadEvidence get() = ThreadEvidence.Unconfirmed
 
-    /** Leaf providers in routing order, including their own capabilities and host provenance. */
+    /** Kernel providers and the selected host library, including capabilities and host provenance. */
     public val providers: List<KoblasEngine> get() = listOf(this)
 
     // Typed vector and matrix operations.
@@ -103,7 +123,7 @@ public interface KoblasEngine {
     public fun asum(v: DenseVector): Double = absoluteSumVector(v)
 
     /** Plain sum of stored entries. Reduction order and rounding follow the selected kernel. */
-    public fun sum(v: DenseVector): Double = sumVector(v)
+    public fun sum(v: DenseVector): Double = kernels.sum(v.values, v.offset, v.size, v.stride)
 
     /** Scales stored entries in place, preserving views and sparse structure. Non-finite behavior follows the selected kernel. */
     public fun scale(v: SparseVector, alpha: Double): Unit = scaleVector(alpha, v)
@@ -115,7 +135,7 @@ public interface KoblasEngine {
     public fun asum(v: SparseVector): Double = absoluteSumVector(v)
 
     /** Plain sum of stored entries. Reduction order and rounding follow the selected kernel. */
-    public fun sum(v: SparseVector): Double = sumVector(v)
+    public fun sum(v: SparseVector): Double = kernels.sum(v.values, 0, v.nnz)
 
     /** Logical index of a maximum-magnitude entry, or minus one when empty. Ties and NaNs follow the selected kernel. */
     public fun iamax(v: DenseVector): Int = kernels.iamax(v.values, v.offset, v.size, v.stride)
@@ -664,3 +684,17 @@ public interface KoblasEngine {
         scratch: Scratch? = null,
     ): Unit = sparseTriangularMatrix(a, b, lower, transpose, unitDiag, right, alpha, solve = false, scratch)
 }
+
+/**
+ * The shared BLAS engine used by convenience operations and libraries using this Koblas instance.
+ *
+ * Initialized from `koblas.engine` on JVM, then `KOBLAS_ENGINE`, or automatic platform selection.
+ * Applications may assign an engine during startup, before libraries use Koblas or concurrent work begins.
+ * Callers own startup order and safe publication; reads and writes are unsynchronized.
+ *
+ * The initial default is constructed before an assignment, so launch settings must be valid even when
+ * overridden programmatically. Assigned engines are used as supplied, including any unsupported operations.
+ */
+@get:kotlin.jvm.JvmName("getDefault")
+@set:kotlin.jvm.JvmName("setDefault")
+public var koblas: KoblasEngine = engineFromSetting(platformEngineSetting())

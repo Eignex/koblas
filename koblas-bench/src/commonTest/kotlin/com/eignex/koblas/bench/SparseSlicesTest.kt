@@ -1,6 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.koblas
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -12,7 +12,7 @@ class SparseSlicesTest {
     fun `slice cases use each explicit engine`() {
         for (operation in listOf("spdot-slice", "spaxpy-slice", "spscatter-slice")) {
             val case = Cases.parse("$operation+37+sparse-uniform+density=0.5").single()
-            for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd, koblas).distinct()) {
+            for (engine in listOfNotNull(KoblasEngine.scalar, KoblasEngine.simd, koblas).distinct()) {
                 val arm = assertNotNull(sparseArm(case, engine))
                 val work = assertNotNull(arm.work)
                 assertEquals(ENGINE_COMPARISON, work.comparisonKind)

@@ -1,7 +1,7 @@
 package com.eignex.koblas.internal.jvm25.simd
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import org.junit.Assume
@@ -239,7 +239,7 @@ class SimdOpsTest {
     /** The exact Vector API engine, which hands each window to [SimdOps] once it fills a lane block. */
     private fun simdEngine(): KoblasEngine {
         assumeSimd()
-        return checkNotNull(BuiltinEngines.simd)
+        return checkNotNull(KoblasEngine.simd)
     }
 
     private fun assertIamaxAgreesWithReference(expected: Int, actual: Int, context: String) {

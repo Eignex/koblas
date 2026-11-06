@@ -2,7 +2,6 @@ package com.eignex.koblas.internal.jvm
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.ReferenceBlas
-import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.engine.productProvider
 import org.junit.Assume
 import kotlin.test.Test
@@ -24,16 +23,16 @@ class JvmBackendTest {
     fun `baseline runtime selects scalar without opening a host library`() {
         Assume.assumeTrue("the desktop section replaces the baseline from Java 25", Runtime.version().feature() < 25)
 
-        assertSame(BuiltinEngines.scalar, koblas)
-        assertNull(BuiltinEngines.simd)
-        assertNull(Vendor.entries.firstNotNullOfOrNull { BuiltinEngines.vendor(it) })
+        assertSame(KoblasEngine.scalar, koblas)
+        assertNull(KoblasEngine.simd)
+        assertNull(Vendor.entries.firstNotNullOfOrNull { KoblasEngine.vendor(it) })
     }
 
     // An installed host takes whole products from the default, which must not change the tile the owned
     // product kernels block around.
     @Test
     fun `the default keeps the owned product tile with an installed host`() {
-        val exact = BuiltinEngines.simd ?: BuiltinEngines.scalar
+        val exact = KoblasEngine.simd ?: KoblasEngine.scalar
 
         assertEquals(exact.productProvider.tileRows, koblas.productProvider.tileRows)
         assertEquals(exact.productProvider.tileColumns, koblas.productProvider.tileColumns)

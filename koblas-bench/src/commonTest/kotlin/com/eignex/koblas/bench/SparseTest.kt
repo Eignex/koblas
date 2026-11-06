@@ -1,6 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.koblas
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -13,8 +13,8 @@ class SparseTest {
     fun `gather timing variants return the same values across repeated calls`() {
         val resetCase = Cases.parse("spgather+64+sparse-uniform+density=0.25").single()
         val arithmeticCase = Cases.parse("${resetCase.id}+timing=arithmetic").single()
-        val reset = assertNotNull(sparseArm(resetCase, BuiltinEngines.scalar)?.work)
-        val arithmetic = assertNotNull(sparseArm(arithmeticCase, BuiltinEngines.scalar)?.work)
+        val reset = assertNotNull(sparseArm(resetCase, KoblasEngine.scalar)?.work)
+        val arithmetic = assertNotNull(sparseArm(arithmeticCase, KoblasEngine.scalar)?.work)
 
         repeat(3) {
             reset.run()
@@ -25,7 +25,7 @@ class SparseTest {
 
     @Test
     fun `a sparse matrix row names the engine it ran on`() {
-        for (engine in listOfNotNull(BuiltinEngines.scalar, BuiltinEngines.simd)) {
+        for (engine in listOfNotNull(KoblasEngine.scalar, KoblasEngine.simd)) {
             for (id in listOf(
                 "spdot+4096+sparse-uniform+density=0.25",
                 "spsymv+65+sparse-triangular+density=0.05+mode=oneshot+uplo=L",
@@ -64,7 +64,7 @@ class SparseTest {
             "spsyrk-dense+9x5+sparse-uniform+density=0.3+uplo=L",
         )) {
             val case = Cases.parse(id).single()
-            val work = assertNotNull(sparseArm(case, BuiltinEngines.scalar)?.work, id)
+            val work = assertNotNull(sparseArm(case, KoblasEngine.scalar)?.work, id)
             assertTrue(work.run().isFinite(), id)
         }
     }

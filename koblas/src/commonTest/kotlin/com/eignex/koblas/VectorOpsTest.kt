@@ -1,6 +1,6 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import com.eignex.koblas.internal.operations.dotVector
@@ -14,7 +14,7 @@ class VectorOpsTest {
         for (alpha in doubleArrayOf(-2.0, 0.0, 1.0)) {
             for (destination in normOperands(values)) {
                 val expected = values.copyOf()
-                BuiltinEngines.scalar.scale(expected, 0, alpha, expected.size)
+                KoblasEngine.scalar.scale(expected, 0, alpha, expected.size)
 
                 destination.scale(alpha)
 
@@ -30,7 +30,7 @@ class VectorOpsTest {
         for (source in normOperands(x)) {
             for (destination in normOperands(y)) {
                 val expected = y.copyOf()
-                BuiltinEngines.scalar.axpy(expected, 0, -1.5, x, 0, x.size)
+                KoblasEngine.scalar.axpy(expected, 0, -1.5, x, 0, x.size)
 
                 destination.axpy(-1.5, source)
 
@@ -50,7 +50,7 @@ class VectorOpsTest {
                 DenseVector.wrap(backing)
             }
             val expected = backing.copyOf()
-            BuiltinEngines.scalar.axpy(expected, 3, 2.0, source.toDoubleArray(), 0, 4, -1)
+            KoblasEngine.scalar.axpy(expected, 3, 2.0, source.toDoubleArray(), 0, 4, -1)
 
             destination.axpy(2.0, source)
 
@@ -63,8 +63,8 @@ class VectorOpsTest {
         val source: Vector = SparseVector.wrap(Int.MAX_VALUE, intArrayOf(1, Int.MAX_VALUE - 1), doubleArrayOf(0.0, 2.0))
         val destination = SparseVector.wrap(Int.MAX_VALUE, intArrayOf(0, Int.MAX_VALUE - 1), doubleArrayOf(3.0, -4.0))
         val expectedValues = doubleArrayOf(3.0, 0.0, -4.0)
-        BuiltinEngines.scalar.axpy(intArrayOf(1, 2), 0, doubleArrayOf(0.0, 2.0), 0, 2, 2.0, expectedValues)
-        BuiltinEngines.scalar.scale(expectedValues, 0, -2.0, expectedValues.size)
+        KoblasEngine.scalar.axpy(intArrayOf(1, 2), 0, doubleArrayOf(0.0, 2.0), 0, 2, 2.0, expectedValues)
+        KoblasEngine.scalar.scale(expectedValues, 0, -2.0, expectedValues.size)
 
         destination.axpy(2.0, source)
         destination.scale(-2.0)
@@ -79,7 +79,7 @@ class VectorOpsTest {
         val source: Vector = ForeignVector(DenseVector.wrap(backing, 3, 4, -1))
         val destination = SparseVector.wrap(4, intArrayOf(0, 1, 2, 3), backing)
         val expected = backing.copyOf()
-        BuiltinEngines.scalar.axpy(expected, 0, 2.0, source.toDoubleArray(), 0, 4)
+        KoblasEngine.scalar.axpy(expected, 0, 2.0, source.toDoubleArray(), 0, 4)
 
         destination.axpy(2.0, source)
 
@@ -204,7 +204,7 @@ class VectorOpsTest {
         for (stride in intArrayOf(-3, -1, 1, 3)) {
             val backing = DoubleArray(18) { it * 0.125 - 0.75 }
             val view = DenseVector.wrap(backing, if (stride > 0) 2 else 14, 5, stride)
-            val expected = BuiltinEngines.scalar.dotVector(source, DenseVector.wrap(view.toDoubleArray()))
+            val expected = KoblasEngine.scalar.dotVector(source, DenseVector.wrap(view.toDoubleArray()))
 
             assertDotAgreesWithReference(expected, source dot view)
             assertDotAgreesWithReference(expected, view dot source)
@@ -215,7 +215,7 @@ class VectorOpsTest {
     fun `sparse dot against dense views evaluates stored zeros`() {
         val source = sparse(3, 1 to 0.0)
         val view = DenseVector.wrap(doubleArrayOf(Double.NaN, 1.0, Double.POSITIVE_INFINITY, 1.0, Double.NaN), 0, 3, 2)
-        val expected = BuiltinEngines.scalar.dotVector(source, DenseVector.wrap(view.toDoubleArray()))
+        val expected = KoblasEngine.scalar.dotVector(source, DenseVector.wrap(view.toDoubleArray()))
 
         assertDotAgreesWithReference(expected, source dot view)
         assertDotAgreesWithReference(expected, view dot source)
@@ -251,8 +251,8 @@ class VectorOpsTest {
         val a = dense(1.0, 2.0, 3.0, 4.0)
         val b = dense(0.5, 0.0, -1.0, 2.0)
         val bSparse = sparse(4, 0 to 0.5, 2 to -1.0, 3 to 2.0)
-        val expected = BuiltinEngines.scalar.dot(a.values, 0, b.values, 0, 4)
-        val sparseByDense = BuiltinEngines.scalar.dot(b.values, 0, b.values, 0, 4)
+        val expected = KoblasEngine.scalar.dot(a.values, 0, b.values, 0, 4)
+        val sparseByDense = KoblasEngine.scalar.dot(b.values, 0, b.values, 0, 4)
 
         for ((actual, context) in listOf(
             (a dot b) to "dense by dense",
@@ -269,12 +269,12 @@ class VectorOpsTest {
     fun `norm two agrees with the scalar oracle on dense and sparse`() {
         val values = doubleArrayOf(3.0, 0.0, -4.0)
         assertReductionAgreesWithReference(
-            BuiltinEngines.scalar.nrm2(values, 0, values.size),
+            KoblasEngine.scalar.nrm2(values, 0, values.size),
             DenseVector.of(values).norm(),
             "dense",
         )
         assertReductionAgreesWithReference(
-            BuiltinEngines.scalar.nrm2(denseOfSparse.values, 0, denseOfSparse.size),
+            KoblasEngine.scalar.nrm2(denseOfSparse.values, 0, denseOfSparse.size),
             sparse.norm(),
             "sparse",
         )
@@ -348,12 +348,12 @@ class VectorOpsTest {
     }
 
     private fun referenceNorm(values: DoubleArray, type: Norm): Double = when (type) {
-        Norm.One -> BuiltinEngines.scalar.asum(values, 0, values.size)
+        Norm.One -> KoblasEngine.scalar.asum(values, 0, values.size)
 
-        Norm.Two -> BuiltinEngines.scalar.nrm2(values, 0, values.size)
+        Norm.Two -> KoblasEngine.scalar.nrm2(values, 0, values.size)
 
         Norm.Infinity, Norm.MaxAbs -> {
-            val index = BuiltinEngines.scalar.iamax(values, 0, values.size)
+            val index = KoblasEngine.scalar.iamax(values, 0, values.size)
             if (index < 0) 0.0 else abs(values[index])
         }
 
@@ -372,12 +372,12 @@ class VectorOpsTest {
     @Test
     fun `sum adds the entries for any storage`() {
         val values = doubleArrayOf(2.0, -3.5, 0.0, 4.25, -1.0, 0.5)
-        val expected = BuiltinEngines.scalar.sum(values, 0, values.size)
+        val expected = KoblasEngine.scalar.sum(values, 0, values.size)
         val strided = DenseVector.wrap(DoubleArray(12) { values[it / 2] }, 0, 6, 2)
         assertReductionAgreesWithReference(expected, DenseVector.of(values).sum(), "dense")
         assertReductionAgreesWithReference(expected, strided.sum(), "strided")
         assertReductionAgreesWithReference(
-            BuiltinEngines.scalar.sum(denseOfSparse.values, 0, denseOfSparse.size),
+            KoblasEngine.scalar.sum(denseOfSparse.values, 0, denseOfSparse.size),
             sparse.sum(),
             "sparse",
         )
@@ -388,12 +388,12 @@ class VectorOpsTest {
     fun `asum agrees with the scalar oracle on dense and sparse`() {
         val values = doubleArrayOf(3.0, 0.0, -4.0)
         assertReductionAgreesWithReference(
-            BuiltinEngines.scalar.asum(values, 0, values.size),
+            KoblasEngine.scalar.asum(values, 0, values.size),
             DenseVector.of(values).asum(),
             "dense",
         )
         assertReductionAgreesWithReference(
-            BuiltinEngines.scalar.asum(denseOfSparse.values, 0, denseOfSparse.size),
+            KoblasEngine.scalar.asum(denseOfSparse.values, 0, denseOfSparse.size),
             sparse.asum(),
             "sparse",
         )

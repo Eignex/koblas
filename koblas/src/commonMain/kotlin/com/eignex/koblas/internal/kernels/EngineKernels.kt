@@ -3,8 +3,9 @@
 package com.eignex.koblas.internal.kernels
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.EngineImplementation
+import com.eignex.koblas.EngineImplementation
 import com.eignex.koblas.internal.engine.*
+import com.eignex.koblas.internal.engine.implementationFor
 import com.eignex.koblas.internal.operations.*
 import com.eignex.koblas.internal.scheduling.dense.*
 import com.eignex.koblas.internal.scheduling.sparse.*
@@ -14,8 +15,8 @@ import com.eignex.koblas.internal.storage.*
  * The kernels a shared schedule calls into, and the hints routing reads before it calls them.
  *
  * Portable, Vector API and vendor engines implement it; the BLAS routines on [KoblasEngine] are what callers
- * see. A kernel an engine does not supply fails rather than reaching another engine's, and engine composition
- * combines engines into complete coverage.
+ * see. A kernel an engine does not supply fails. Built-in engines bind fixed kernel roles and provide
+ * scalar coverage for omitted operations.
  */
 internal interface EngineKernels : KoblasEngine {
 
@@ -515,7 +516,7 @@ internal interface EngineKernels : KoblasEngine {
     /** Whether this contribution requires unit strides. */
     fun requiresUnitStride(implementation: EngineImplementation): Boolean = false
 
-    /** Smallest run the contribution can execute. The composer checks it before calling the provider. */
+    /** Smallest run the contribution can execute. The built-in engine checks it before calling the provider. */
     fun minimumLength(implementation: EngineImplementation): Int = 0
 
     /** The body a panel of these extents reaches, which is this engine's own unless it hands some shapes on. */

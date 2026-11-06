@@ -1,7 +1,6 @@
 package com.eignex.koblas.internal.scheduling.sparse
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 
@@ -41,5 +40,5 @@ internal fun sparsePanelEngines(): List<Pair<String, KoblasEngine>> = buildList 
     add("strided" to engineWithKernels(panels = ScalarEngine))
     add("staged" to engineWithKernels(panels = AdjacentPreferringPanels))
     add("selected" to koblas)
-    BuiltinEngines.simd?.let { add("simd" to it) }
+    KoblasEngine.simd?.let { add("simd" to it) }
 }

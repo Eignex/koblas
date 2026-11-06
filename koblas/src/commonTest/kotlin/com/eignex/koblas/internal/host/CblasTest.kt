@@ -2,7 +2,6 @@ package com.eignex.koblas.internal.host
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import com.eignex.koblas.internal.operations.*
@@ -19,10 +18,10 @@ import kotlin.test.assertTrue
  *
  * Real bindings expose operand, stride and flag translation, which is what these check. A loose tolerance
  * admits the library's accumulation order while catching incorrect translation, and the composed fixtures
- * admit every size so translation is isolated from the platform cutoffs, which StandardEngineProfilesTest covers.
+ * admit every size so translation is isolated from the platform cutoffs, which EngineTuningTest covers.
  */
 class CblasTest {
-    private val scalar = BuiltinEngines.scalar
+    private val scalar = KoblasEngine.scalar
 
     @Test
     fun `singleton norm accepts extreme strides`() {
@@ -445,7 +444,7 @@ class CblasTest {
 
     /** Each installed vendor behind the portable composition, admitted at every size. */
     private inline fun withHost(what: String, block: (KoblasEngine) -> Unit) {
-        val hosts = Vendor.entries.mapNotNull { BuiltinEngines.vendor(it) }
+        val hosts = Vendor.entries.mapNotNull { KoblasEngine.vendor(it) }
         if (hosts.isEmpty()) {
             println("SKIPPED: no CBLAS library installed; $what was not verified on this host")
             return
@@ -502,10 +501,10 @@ class CblasTest {
 
     private companion object {
         // Some vendors special-case singletons and hide a negative increment; prefer the affected binding.
-        val vendor = BuiltinEngines.vendor(
+        val vendor = KoblasEngine.vendor(
             Vendor.OpenBlas,
         ) ?: Vendor.entries.firstNotNullOfOrNull {
-            BuiltinEngines.vendor(
+            KoblasEngine.vendor(
                 it,
             )
         }

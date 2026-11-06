@@ -1,7 +1,7 @@
 package com.eignex.koblas.bench
 
+import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.*
 import kotlin.math.max
 import kotlin.time.TimeSource
 

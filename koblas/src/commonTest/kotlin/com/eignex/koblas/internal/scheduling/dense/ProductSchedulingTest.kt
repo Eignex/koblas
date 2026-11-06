@@ -1,8 +1,8 @@
 package com.eignex.koblas.internal.scheduling.dense
 
 import com.eignex.koblas.*
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.engine.BuiltinEngines
 import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
@@ -540,7 +540,7 @@ class ProductSchedulingTest {
         }
     }
 
-    private fun koblasPanels(): EngineKernels = BuiltinEngines.simd?.panelProvider ?: ScalarEngine
+    private fun koblasPanels(): EngineKernels = KoblasEngine.simd?.panelProvider ?: ScalarEngine
 
     /** The panel backend that belongs beside [products], so a composition under test is a real one. */
     private fun panelsFor(products: EngineKernels): EngineKernels =
@@ -548,7 +548,7 @@ class ProductSchedulingTest {
 
     /** The blocked shape and the direct one, so every conformance check covers both routes. */
     private fun shapes(): List<Pair<Int, Int>> {
-        val products = BuiltinEngines.simd?.productProvider ?: ScalarEngine
+        val products = KoblasEngine.simd?.productProvider ?: ScalarEngine
         val order = blockedOrder(products)
         return listOf(order to blockedDepth(products, order), directOrder to directDepth)
     }

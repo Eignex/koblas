@@ -8,8 +8,8 @@
 package com.eignex.koblas.internal.host
 
 import com.eignex.koblas.*
+import com.eignex.koblas.EngineImplementation
 import com.eignex.koblas.dense.ReferenceBlas
-import com.eignex.koblas.engine.EngineImplementation
 import com.eignex.koblas.internal.engine.wholeCallFor
 import com.eignex.koblas.internal.kernels.*
 import kotlin.native.concurrent.TransferMode

@@ -1,8 +1,8 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.KoblasEngine
-import com.eignex.koblas.engine.BuiltinEngines
 import com.eignex.lab.bench.BenchRequest
+import java.lang.reflect.Modifier
 import kotlin.test.*
 
 class StatusSweepTest {
@@ -11,7 +11,7 @@ class StatusSweepTest {
 
     @Test fun `fixed sweep covers engine routine families at two sizes and executes numerical checks`() {
         val routines = KoblasEngine::class.java.declaredMethods
-            .filter { !it.name.startsWith("get") && '$' !in it.name }.map { it.name }.toSet()
+            .filter { !Modifier.isStatic(it.modifiers) && !it.name.startsWith("get") && '$' !in it.name }.map { it.name }.toSet()
         val cases = KoblasLabSuite.plan(BenchRequest(parameters))
         assertEquals(82, cases.size)
         val workloads = cases.map { Cases.parse(it.parameters.getValue("row")).single() }
@@ -29,7 +29,7 @@ class StatusSweepTest {
             assertTrue(case.inputs.none { it.role == "executable" })
         }
         for (workload in workloads) {
-            val work = assertNotNull(engineArm(workload, BuiltinEngines.scalar)?.work, workload.id)
+            val work = assertNotNull(engineArm(workload, KoblasEngine.scalar)?.work, workload.id)
             try { assertTrue(work.run().isFinite(), workload.id) } finally { work.close() }
         }
     }

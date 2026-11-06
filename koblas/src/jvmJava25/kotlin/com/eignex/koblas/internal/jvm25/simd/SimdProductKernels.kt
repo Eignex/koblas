@@ -3,7 +3,6 @@
 package com.eignex.koblas.internal.jvm25.simd
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.kernels.*
 import jdk.incubator.vector.DoubleVector
 
@@ -18,7 +17,7 @@ import jdk.incubator.vector.DoubleVector
  * fewer stores. Partial rows use the scalar edge because masked stores allocate on this
  * implementation. [implementationsFor] reports both bodies when needed.
  *
- * Species initialization requires the Vector API module. [BuiltinEngines] checks
+ * Species initialization requires the Vector API module. [KoblasEngine] checks
  * availability before constructing an engine with this backend.
  */
 internal object SimdProductKernels : EngineKernels {

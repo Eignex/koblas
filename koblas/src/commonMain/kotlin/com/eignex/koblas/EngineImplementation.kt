@@ -1,6 +1,6 @@
-package com.eignex.koblas.engine
+package com.eignex.koblas
 
-/** Arithmetic boundaries a routing configuration can select independently. */
+/** Arithmetic capabilities supplied by a [KoblasEngine]. */
 public enum class EngineImplementation(
     /** Unsuffixed LP64 CBLAS entry point, when this contribution is a foreign call. */
     internal val entryPoint: String = "",

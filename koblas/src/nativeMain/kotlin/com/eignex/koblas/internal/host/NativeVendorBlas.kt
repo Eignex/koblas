@@ -4,7 +4,7 @@
 package com.eignex.koblas.internal.host
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.*
+import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.operations.MatrixStructure
 import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.CFunction

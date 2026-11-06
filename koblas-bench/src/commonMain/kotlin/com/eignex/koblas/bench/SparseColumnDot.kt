@@ -2,7 +2,7 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.KoblasEngine
 
 /** Matched CSC column windows, including public validation, through the selected engine. */
 internal fun sparseColumnDotArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
@@ -20,7 +20,7 @@ internal fun sparseColumnDotArm(case: BenchCase, engine: KoblasEngine): ArmChoic
     } else {
         { kernels.dotColumn(matrix, 3, dense) }
     }
-    val expected = BuiltinEngines.scalar.dot(indices, 3, values, 3, count, dense)
+    val expected = KoblasEngine.scalar.dot(indices, 3, values, 3, count, dense)
     DenseReference.check(doubleArrayOf(expected), doubleArrayOf(run()), case.id)
     return ArmChoice(engineWork(engine, case.operation, "arithmetic", run), null)
 }

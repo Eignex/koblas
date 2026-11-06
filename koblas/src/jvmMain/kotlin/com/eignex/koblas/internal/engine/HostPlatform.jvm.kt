@@ -1,8 +1,5 @@
-@file:kotlin.jvm.JvmName("HostPlatforms")
+package com.eignex.koblas.internal.engine
 
-package com.eignex.koblas.engine
-
-import com.eignex.koblas.internal.engine.detectHost
 import com.sun.management.HotSpotDiagnosticMXBean
 import java.io.File
 import java.lang.management.ManagementFactory
@@ -11,7 +8,7 @@ import java.lang.management.ManagementFactory
 private val host: HostPlatform by lazy { detectHost(operatingSystem(), architecture(), ::cpuInfo, ::sveVectorBits) }
 
 /** Platform facts read once from JVM properties and Linux CPU metadata where available. */
-public actual fun hostPlatform(): HostPlatform = host
+internal actual fun hostPlatform(): HostPlatform = host
 
 /** The scalar arm omits the Vector API module but must report the same active VM width. */
 private fun sveVectorBits(): Int? = try {

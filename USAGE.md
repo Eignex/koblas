@@ -14,7 +14,6 @@ Create a matrix from rows and a vector from a one-dimensional array:
 
 ```kotlin
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.*
 
 val a = DenseMatrix.ofRows(arrayOf(
     doubleArrayOf(2.0, 1.0),

@@ -1,7 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.engine.BuiltinEngines
+import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.operations.dotVector
 import com.eignex.koblas.testutil.allocation.*
@@ -236,7 +236,7 @@ class DenseOpsAllocationTest internal constructor(private val case: AllocationCa
     }
 
     private class StridedDotFixture {
-        val engine = BuiltinEngines.simd ?: BuiltinEngines.scalar
+        val engine = KoblasEngine.simd ?: KoblasEngine.scalar
         val n = 256
         val x = DenseVector.wrap(DoubleArray(2 * n) { it * 0.01 }, 0, n, 2)
         val y = DenseVector.wrap(DoubleArray(2 * n) { 1.0 / (it + 1) }, 0, n, 2)
@@ -251,7 +251,7 @@ class DenseOpsAllocationTest internal constructor(private val case: AllocationCa
         val x = DoubleArray(n) { 1.0 + (it % 7) * 0.25 }
         val y = DoubleArray(n) { 0.5 }
         val view = DenseVector.wrap(x)
-        val portable = BuiltinEngines.scalar
+        val portable = KoblasEngine.scalar
     }
 
     private class ContiguousFixture {
@@ -286,7 +286,7 @@ class DenseOpsAllocationTest internal constructor(private val case: AllocationCa
 
     private class AliasedLevelTwoFixture {
         val n = 128
-        val portable = BuiltinEngines.scalar
+        val portable = KoblasEngine.scalar
         val a = DenseMatrix.wrap(n, n, DoubleArray(n * n) { 1.0 + (it % 13) * 0.125 })
         val y = DoubleArray(n) { 1.0 + (it % 7) * 0.25 }
         val workspace = Scratch()
@@ -309,7 +309,7 @@ class DenseOpsAllocationTest internal constructor(private val case: AllocationCa
     private class DenseLevelThreeFixture {
         val order = 32
         val sides = 8
-        val portable = BuiltinEngines.scalar
+        val portable = KoblasEngine.scalar
         val triangle = DenseMatrix.wrap(order, order, DoubleArray(order * order) { 0.25 + (it % 11) * 0.0625 }).also {
             for (i in 0 until order) it.values[i + i * order] = 4.0
         }
@@ -322,7 +322,7 @@ class DenseOpsAllocationTest internal constructor(private val case: AllocationCa
     }
 
     private class DenseProductFixture {
-        val portable = BuiltinEngines.scalar
+        val portable = KoblasEngine.scalar
         val workspace = Scratch()
         val wide = DenseMatrix.wrap(48, 48, DoubleArray(48 * 48) { 1.0 + (it % 13) * 0.125 })
         val deepLeft = DenseMatrix.wrap(12, 400, DoubleArray(12 * 400) { 1.0 + (it % 7) * 0.25 })
@@ -340,7 +340,7 @@ class DenseOpsAllocationTest internal constructor(private val case: AllocationCa
 
     private class UnpackedProductFixture {
         val order = 64
-        val portable = BuiltinEngines.scalar
+        val portable = KoblasEngine.scalar
         val a = DenseMatrix.wrap(order, 2, DoubleArray(order * 2) { 1.0 + (it % 13) * 0.125 })
         val b = DenseMatrix.wrap(2, 2, DoubleArray(4) { 0.5 })
         val c = DenseMatrix.wrap(order, 2, DoubleArray(order * 2))
