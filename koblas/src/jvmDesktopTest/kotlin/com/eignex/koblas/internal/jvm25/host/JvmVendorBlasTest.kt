@@ -84,8 +84,8 @@ class JvmVendorBlasTest {
                 val yStorage = vendorValues(3 * abs(yStride) + 7, 38)
                 val xOffset = if (xStride > 0) 2 else 2 + 3 * -xStride
                 val yOffset = if (yStride > 0) 3 else 3 + 3 * -yStride
-                val x = StridedVector(xStorage, xOffset, size, xStride)
-                val y = StridedVector(yStorage, yOffset, size, yStride)
+                val x = DenseVector.wrap(xStorage, xOffset, size, xStride)
+                val y = DenseVector.wrap(yStorage, yOffset, size, yStride)
                 val expected = ScalarEngine.dot(xStorage, xOffset, yStorage, yOffset, size, xStride, yStride)
 
                 val actual = blas.dotVector(x, y)
@@ -105,8 +105,8 @@ class JvmVendorBlasTest {
                 val expected = yStorage.copyOf()
                 val xOffset = if (xStride > 0) 2 else 2 + 3 * -xStride
                 val yOffset = if (yStride > 0) 3 else 3 + 3 * -yStride
-                val x = StridedVector(xStorage, xOffset, size, xStride)
-                val y = StridedVector(yStorage, yOffset, size, yStride)
+                val x = DenseVector.wrap(xStorage, xOffset, size, xStride)
+                val y = DenseVector.wrap(yStorage, yOffset, size, yStride)
                 ScalarEngine.axpy(
                     expected,
                     yOffset,
@@ -157,8 +157,8 @@ class JvmVendorBlasTest {
         val lda = 3
         val storage = vendorValues(lda * size, 31)
         val expected = storage.copyOf()
-        val first = StridedVector(storage, 0, size, lda)
-        val second = StridedVector(storage, 1, size, lda)
+        val first = DenseVector.wrap(storage, 0, size, lda)
+        val second = DenseVector.wrap(storage, 1, size, lda)
         ScalarEngine.swap(expected, 0, expected, 1, size, lda, lda)
 
         blas.swap(first.values, first.offset, second.values, second.offset, first.size, first.stride, second.stride)

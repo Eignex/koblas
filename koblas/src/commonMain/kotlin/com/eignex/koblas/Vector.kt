@@ -18,7 +18,7 @@ public interface Vector {
 }
 
 /**
- * The vector storages koblas defines and serializes, [ContiguousVector] and [SparseVector].
+ * The vector storages koblas defines and serializes, [DenseVector] and [SparseVector].
  *
  * This is about which types koblas owns the definition of, not about which own their buffers: either may be
  * wrapped around an array the caller keeps a reference to.

@@ -26,7 +26,7 @@ final class JavaInteropSmoke {
         assertArrayEquals(result.toDoubleArray(), destination.toDoubleArray());
         assertEquals(8.0, Koblas.asum(vector));
 
-        StridedVector view = Koblas.view(vector, 0, vector.getSize(), 1);
+        DenseVector view = vector.view(0, vector.getSize(), 1);
         Koblas.scale(view, 2.0);
         assertArrayEquals(new double[] {6.0, 10.0}, vector.toDoubleArray());
 
@@ -53,9 +53,9 @@ final class JavaInteropSmoke {
         engine.trmm(sparse, outputRegion, true, false, true, false, 1.0, new Scratch());
         assertEquals(2.0, outputRegion.get(0, 0));
 
-        DenseVector reverseInput = new StridedVector(new double[] {5.0, 0.0, 3.0}, 2, 2, -2);
+        DenseVector reverseInput = DenseVector.wrap(new double[] {5.0, 0.0, 3.0}, 2, 2, -2);
         double[] outputBuffer = new double[] {-7.0, -7.0, -7.0, -7.0, -7.0};
-        DenseVector reverseOutput = new StridedVector(outputBuffer, 3, 2, -2);
+        DenseVector reverseOutput = DenseVector.wrap(outputBuffer, 3, 2, -2);
         engine.gemv(1.0, matrix, reverseInput, 0.0, reverseOutput, false, null);
         assertArrayEquals(new double[] {-7.0, 18.0, -7.0, 11.0, -7.0}, outputBuffer);
 

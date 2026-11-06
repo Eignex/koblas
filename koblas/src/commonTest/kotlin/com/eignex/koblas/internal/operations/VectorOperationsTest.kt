@@ -93,7 +93,7 @@ class VectorOperationsTest {
         for (stride in intArrayOf(-3, -1, 1, 3)) {
             for (copy in booleanArrayOf(false, true)) {
                 val backing = DoubleArray(16) { it * 0.25 - 2.0 }
-                val destination = StridedVector(backing, if (stride < 0) 11 else 2, 4, stride)
+                val destination = DenseVector.wrap(backing, if (stride < 0) 11 else 2, 4, stride)
                 val expected = backing.copyOf()
                 val packed = destination.toDoubleArray()
                 if (copy) {
@@ -172,8 +172,8 @@ class VectorOperationsTest {
     @Test
     fun `reversed overlapping axpy agrees with the scalar snapshot reference`() {
         val backing = DoubleArray(12) { it + 0.25 }
-        val source = StridedVector(backing, 2, 5)
-        val destination = StridedVector(backing, 6, 5, -1)
+        val source = DenseVector.wrap(backing, 2, 5)
+        val destination = DenseVector.wrap(backing, 6, 5, -1)
         val expected = backing.copyOf()
         BuiltinEngines.scalar.axpy(expected, 6, 0.75, source.toDoubleArray(), 0, 5, -1)
 
@@ -186,7 +186,7 @@ class VectorOperationsTest {
     fun `sparse axpy accepts a prefix view and preserves its padding`() {
         for (size in intArrayOf(0, 3)) {
             val backing = DoubleArray(7) { it + 0.5 }
-            val destination = StridedVector(backing, 0, size)
+            val destination = DenseVector.wrap(backing, 0, size)
             val source = if (size == 0) sparse(0) else sparse(size, 0 to 2.0, 2 to -1.0)
             val expected = backing.copyOf()
             BuiltinEngines.scalar.axpy(source.indices, 0, source.values, 0, source.indices.size, 2.0, expected)
@@ -227,8 +227,8 @@ class VectorOperationsTest {
             } else {
                 doubleArrayOf(1.0, 2.0, 3.0, 4.0)
             }
-            val destination = if (borrowed) StridedVector(backing, 1, 4) else DenseVector.wrap(backing)
-            val source = ForeignVector(StridedVector(backing, destination.offset + 3, 4, -1))
+            val destination = if (borrowed) DenseVector.wrap(backing, 1, 4) else DenseVector.wrap(backing)
+            val source = ForeignVector(DenseVector.wrap(backing, destination.offset + 3, 4, -1))
             val expected = backing.copyOf()
             BuiltinEngines.scalar.axpy(expected, destination.offset, 2.0, source.toDoubleArray(), 0, 4)
 
@@ -242,11 +242,11 @@ class VectorOperationsTest {
     fun `axpy preserves a borrowed source sharing the destination buffer`() {
         for (borrowed in booleanArrayOf(false, true)) {
             val backing = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
-            val source = StridedVector(backing, 3, 4, -1)
+            val source = DenseVector.wrap(backing, 3, 4, -1)
             val expected = DoubleArray(backing.size) { backing[it] + 2.0 * source[it] }
 
             if (borrowed) {
-                koblas.axpyVector(2.0, source, StridedVector(backing, 0, 4))
+                koblas.axpyVector(2.0, source, DenseVector.wrap(backing, 0, 4))
             } else {
                 koblas.axpyVector(2.0, source, DenseVector.wrap(backing))
             }
@@ -259,7 +259,7 @@ class VectorOperationsTest {
     fun `borrowed axpy with sparse input leaves unstored positions untouched`() {
         val backing = doubleArrayOf(1.0, 2.0, 3.0)
         val source = sparse(3, 1 to 2.0)
-        val destination = StridedVector(backing, 2, 3, -1)
+        val destination = DenseVector.wrap(backing, 2, 3, -1)
         val expected = DenseVector.of(destination.toDoubleArray())
         koblas.axpyVector(Double.POSITIVE_INFINITY, source, expected)
 
@@ -282,7 +282,7 @@ class VectorOperationsTest {
     @Test
     fun `scaling a borrowed slice leaves other entries untouched`() {
         val backing = DoubleArray(8) { it + 1.0 }
-        val even = StridedVector(backing, 0, 4, 2)
+        val even = DenseVector.wrap(backing, 0, 4, 2)
         val expected = backing.copyOf()
         ScalarEngine.scale(expected, 0, 2.0, 4, 2)
 
@@ -333,7 +333,7 @@ class VectorOperationsTest {
                 for (stride in intArrayOf(1, 3, -1, -3)) {
                     val backing = DoubleArray(3 * size + 4) { it + 0.25 }
                     val offset = if (stride > 0 || size == 0) 2 else 2 + (size - 1) * -stride
-                    val source = StridedVector(backing, offset, size, stride)
+                    val source = DenseVector.wrap(backing, offset, size, stride)
                     add(source to if (sameWrapper) source else source.view(0, source.size))
                 }
             }

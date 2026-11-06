@@ -122,9 +122,16 @@ val firstColumn = a.view(columnOffset = 0, cols = 1)
 firstColumn[0, 0] = 4.0 // Also changes a[0, 0]
 ```
 
-`DenseMatrix` represents both whole buffers and views; `view()` returns the same type. Equality and
+`DenseMatrix` represents both whole buffers and views; `view()` returns the same type. `DenseVector`
+likewise represents whole buffers and strided slices, including reversed slices:
+
+```kotlin
+val reversed = x.view(offset = x.size - 1, size = x.size, stride = -1)
+```
+
+Use `DenseVector.wrap(buffer, offset, size, stride)` to borrow an array window. Dense equality and
 hashing compare logical entries, and serialization writes only those entries, decoding into compact,
-independent storage.
+independent storage. `MatrixStorage` and `VectorStorage` support polymorphic dense/sparse serialization.
 
 Every dense BLAS routine accepts views directly, including dense operands in sparse products.
 A view itself shares storage, but an operation on it can still need temporary buffers. Built-in calls

@@ -238,21 +238,6 @@ abstract interface com.eignex.koblas/Vector { // com.eignex.koblas/Vector|null[0
     open fun toDoubleArray(): kotlin/DoubleArray // com.eignex.koblas/Vector.toDoubleArray|toDoubleArray(){}[0]
 }
 
-sealed interface com.eignex.koblas/DenseVector : com.eignex.koblas/Vector { // com.eignex.koblas/DenseVector|null[0]
-    abstract val offset // com.eignex.koblas/DenseVector.offset|{}offset[0]
-        abstract fun <get-offset>(): kotlin/Int // com.eignex.koblas/DenseVector.offset.<get-offset>|<get-offset>(){}[0]
-    abstract val stride // com.eignex.koblas/DenseVector.stride|{}stride[0]
-        abstract fun <get-stride>(): kotlin/Int // com.eignex.koblas/DenseVector.stride.<get-stride>|<get-stride>(){}[0]
-    abstract val values // com.eignex.koblas/DenseVector.values|{}values[0]
-        abstract fun <get-values>(): kotlin/DoubleArray // com.eignex.koblas/DenseVector.values.<get-values>|<get-values>(){}[0]
-
-    final object Companion { // com.eignex.koblas/DenseVector.Companion|null[0]
-        final fun of(kotlin/DoubleArray): com.eignex.koblas/ContiguousVector // com.eignex.koblas/DenseVector.Companion.of|of(kotlin.DoubleArray){}[0]
-        final fun wrap(kotlin/DoubleArray): com.eignex.koblas/ContiguousVector // com.eignex.koblas/DenseVector.Companion.wrap|wrap(kotlin.DoubleArray){}[0]
-        final fun zero(kotlin/Int): com.eignex.koblas/ContiguousVector // com.eignex.koblas/DenseVector.Companion.zero|zero(kotlin.Int){}[0]
-    }
-}
-
 sealed interface com.eignex.koblas/MatrixStorage : com.eignex.koblas/Matrix { // com.eignex.koblas/MatrixStorage|null[0]
     final object Companion : kotlinx.serialization.internal/SerializerFactory { // com.eignex.koblas/MatrixStorage.Companion|null[0]
         final fun serializer(): kotlinx.serialization/KSerializer<com.eignex.koblas/MatrixStorage> // com.eignex.koblas/MatrixStorage.Companion.serializer|serializer(){}[0]
@@ -322,37 +307,6 @@ final class com.eignex.koblas.engine/HostPlatform { // com.eignex.koblas.engine/
     final fun toString(): kotlin/String // com.eignex.koblas.engine/HostPlatform.toString|toString(){}[0]
 }
 
-final class com.eignex.koblas/ContiguousVector : com.eignex.koblas/DenseVector, com.eignex.koblas/VectorStorage { // com.eignex.koblas/ContiguousVector|null[0]
-    final val offset // com.eignex.koblas/ContiguousVector.offset|{}offset[0]
-        final fun <get-offset>(): kotlin/Int // com.eignex.koblas/ContiguousVector.offset.<get-offset>|<get-offset>(){}[0]
-    final val size // com.eignex.koblas/ContiguousVector.size|{}size[0]
-        final fun <get-size>(): kotlin/Int // com.eignex.koblas/ContiguousVector.size.<get-size>|<get-size>(){}[0]
-    final val stride // com.eignex.koblas/ContiguousVector.stride|{}stride[0]
-        final fun <get-stride>(): kotlin/Int // com.eignex.koblas/ContiguousVector.stride.<get-stride>|<get-stride>(){}[0]
-    final val values // com.eignex.koblas/ContiguousVector.values|{}values[0]
-        final fun <get-values>(): kotlin/DoubleArray // com.eignex.koblas/ContiguousVector.values.<get-values>|<get-values>(){}[0]
-
-    final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas/ContiguousVector.equals|equals(kotlin.Any?){}[0]
-    final fun get(kotlin/Int): kotlin/Double // com.eignex.koblas/ContiguousVector.get|get(kotlin.Int){}[0]
-    final fun hashCode(): kotlin/Int // com.eignex.koblas/ContiguousVector.hashCode|hashCode(){}[0]
-    final fun set(kotlin/Int, kotlin/Double) // com.eignex.koblas/ContiguousVector.set|set(kotlin.Int;kotlin.Double){}[0]
-    final fun toDoubleArray(): kotlin/DoubleArray // com.eignex.koblas/ContiguousVector.toDoubleArray|toDoubleArray(){}[0]
-    final fun toString(): kotlin/String // com.eignex.koblas/ContiguousVector.toString|toString(){}[0]
-
-    final object $serializer : kotlinx.serialization.internal/GeneratedSerializer<com.eignex.koblas/ContiguousVector> { // com.eignex.koblas/ContiguousVector.$serializer|null[0]
-        final val descriptor // com.eignex.koblas/ContiguousVector.$serializer.descriptor|{}descriptor[0]
-            final fun <get-descriptor>(): kotlinx.serialization.descriptors/SerialDescriptor // com.eignex.koblas/ContiguousVector.$serializer.descriptor.<get-descriptor>|<get-descriptor>(){}[0]
-
-        final fun childSerializers(): kotlin/Array<kotlinx.serialization/KSerializer<*>> // com.eignex.koblas/ContiguousVector.$serializer.childSerializers|childSerializers(){}[0]
-        final fun deserialize(kotlinx.serialization.encoding/Decoder): com.eignex.koblas/ContiguousVector // com.eignex.koblas/ContiguousVector.$serializer.deserialize|deserialize(kotlinx.serialization.encoding.Decoder){}[0]
-        final fun serialize(kotlinx.serialization.encoding/Encoder, com.eignex.koblas/ContiguousVector) // com.eignex.koblas/ContiguousVector.$serializer.serialize|serialize(kotlinx.serialization.encoding.Encoder;com.eignex.koblas.ContiguousVector){}[0]
-    }
-
-    final object Companion { // com.eignex.koblas/ContiguousVector.Companion|null[0]
-        final fun serializer(): kotlinx.serialization/KSerializer<com.eignex.koblas/ContiguousVector> // com.eignex.koblas/ContiguousVector.Companion.serializer|serializer(){}[0]
-    }
-}
-
 final class com.eignex.koblas/DenseMatrix : com.eignex.koblas/MatrixStorage { // com.eignex.koblas/DenseMatrix|null[0]
     final val cols // com.eignex.koblas/DenseMatrix.cols|{}cols[0]
         final fun <get-cols>(): kotlin/Int // com.eignex.koblas/DenseMatrix.cols.<get-cols>|<get-cols>(){}[0]
@@ -379,6 +333,32 @@ final class com.eignex.koblas/DenseMatrix : com.eignex.koblas/MatrixStorage { //
         final fun serializer(): kotlinx.serialization/KSerializer<com.eignex.koblas/DenseMatrix> // com.eignex.koblas/DenseMatrix.Companion.serializer|serializer(){}[0]
         final fun wrap(kotlin/Int, kotlin/Int, kotlin/DoubleArray, kotlin/Int = ..., kotlin/Int = ...): com.eignex.koblas/DenseMatrix // com.eignex.koblas/DenseMatrix.Companion.wrap|wrap(kotlin.Int;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
         final fun zero(kotlin/Int, kotlin/Int = ...): com.eignex.koblas/DenseMatrix // com.eignex.koblas/DenseMatrix.Companion.zero|zero(kotlin.Int;kotlin.Int){}[0]
+    }
+}
+
+final class com.eignex.koblas/DenseVector : com.eignex.koblas/VectorStorage { // com.eignex.koblas/DenseVector|null[0]
+    final val offset // com.eignex.koblas/DenseVector.offset|{}offset[0]
+        final fun <get-offset>(): kotlin/Int // com.eignex.koblas/DenseVector.offset.<get-offset>|<get-offset>(){}[0]
+    final val size // com.eignex.koblas/DenseVector.size|{}size[0]
+        final fun <get-size>(): kotlin/Int // com.eignex.koblas/DenseVector.size.<get-size>|<get-size>(){}[0]
+    final val stride // com.eignex.koblas/DenseVector.stride|{}stride[0]
+        final fun <get-stride>(): kotlin/Int // com.eignex.koblas/DenseVector.stride.<get-stride>|<get-stride>(){}[0]
+    final val values // com.eignex.koblas/DenseVector.values|{}values[0]
+        final fun <get-values>(): kotlin/DoubleArray // com.eignex.koblas/DenseVector.values.<get-values>|<get-values>(){}[0]
+
+    final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas/DenseVector.equals|equals(kotlin.Any?){}[0]
+    final fun get(kotlin/Int): kotlin/Double // com.eignex.koblas/DenseVector.get|get(kotlin.Int){}[0]
+    final fun hashCode(): kotlin/Int // com.eignex.koblas/DenseVector.hashCode|hashCode(){}[0]
+    final fun set(kotlin/Int, kotlin/Double) // com.eignex.koblas/DenseVector.set|set(kotlin.Int;kotlin.Double){}[0]
+    final fun toDoubleArray(): kotlin/DoubleArray // com.eignex.koblas/DenseVector.toDoubleArray|toDoubleArray(){}[0]
+    final fun toString(): kotlin/String // com.eignex.koblas/DenseVector.toString|toString(){}[0]
+    final fun view(kotlin/Int, kotlin/Int, kotlin/Int = ...): com.eignex.koblas/DenseVector // com.eignex.koblas/DenseVector.view|view(kotlin.Int;kotlin.Int;kotlin.Int){}[0]
+
+    final object Companion { // com.eignex.koblas/DenseVector.Companion|null[0]
+        final fun of(kotlin/DoubleArray): com.eignex.koblas/DenseVector // com.eignex.koblas/DenseVector.Companion.of|of(kotlin.DoubleArray){}[0]
+        final fun serializer(): kotlinx.serialization/KSerializer<com.eignex.koblas/DenseVector> // com.eignex.koblas/DenseVector.Companion.serializer|serializer(){}[0]
+        final fun wrap(kotlin/DoubleArray, kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ...): com.eignex.koblas/DenseVector // com.eignex.koblas/DenseVector.Companion.wrap|wrap(kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.Int){}[0]
+        final fun zero(kotlin/Int): com.eignex.koblas/DenseVector // com.eignex.koblas/DenseVector.Companion.zero|zero(kotlin.Int){}[0]
     }
 }
 
@@ -468,24 +448,6 @@ final class com.eignex.koblas/SparseVector : com.eignex.koblas/VectorStorage { /
     }
 }
 
-final class com.eignex.koblas/StridedVector : com.eignex.koblas/DenseVector { // com.eignex.koblas/StridedVector|null[0]
-    constructor <init>(kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/Int = ...) // com.eignex.koblas/StridedVector.<init>|<init>(kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.Int){}[0]
-
-    final val offset // com.eignex.koblas/StridedVector.offset|{}offset[0]
-        final fun <get-offset>(): kotlin/Int // com.eignex.koblas/StridedVector.offset.<get-offset>|<get-offset>(){}[0]
-    final val size // com.eignex.koblas/StridedVector.size|{}size[0]
-        final fun <get-size>(): kotlin/Int // com.eignex.koblas/StridedVector.size.<get-size>|<get-size>(){}[0]
-    final val stride // com.eignex.koblas/StridedVector.stride|{}stride[0]
-        final fun <get-stride>(): kotlin/Int // com.eignex.koblas/StridedVector.stride.<get-stride>|<get-stride>(){}[0]
-    final val values // com.eignex.koblas/StridedVector.values|{}values[0]
-        final fun <get-values>(): kotlin/DoubleArray // com.eignex.koblas/StridedVector.values.<get-values>|<get-values>(){}[0]
-
-    final fun get(kotlin/Int): kotlin/Double // com.eignex.koblas/StridedVector.get|get(kotlin.Int){}[0]
-    final fun set(kotlin/Int, kotlin/Double) // com.eignex.koblas/StridedVector.set|set(kotlin.Int;kotlin.Double){}[0]
-    final fun toDoubleArray(): kotlin/DoubleArray // com.eignex.koblas/StridedVector.toDoubleArray|toDoubleArray(){}[0]
-    final fun toString(): kotlin/String // com.eignex.koblas/StridedVector.toString|toString(){}[0]
-}
-
 final object com.eignex.koblas.engine/BuiltinEngines { // com.eignex.koblas.engine/BuiltinEngines|null[0]
     final val scalar // com.eignex.koblas.engine/BuiltinEngines.scalar|{}scalar[0]
         final fun <get-scalar>(): com.eignex.koblas/KoblasEngine // com.eignex.koblas.engine/BuiltinEngines.scalar.<get-scalar>|<get-scalar>(){}[0]
@@ -503,7 +465,6 @@ final object com.eignex.koblas.engine/StandardEngineProfiles { // com.eignex.kob
 final val com.eignex.koblas/koblas // com.eignex.koblas/koblas|{}koblas[0]
     final fun <get-koblas>(): com.eignex.koblas/KoblasEngine // com.eignex.koblas/koblas.<get-koblas>|<get-koblas>(){}[0]
 
-final fun (com.eignex.koblas/DenseVector).com.eignex.koblas/view(kotlin/Int, kotlin/Int, kotlin/Int = ...): com.eignex.koblas/StridedVector // com.eignex.koblas/view|view@com.eignex.koblas.DenseVector(kotlin.Int;kotlin.Int;kotlin.Int){}[0]
 final fun (com.eignex.koblas/Matrix).com.eignex.koblas/copy(): com.eignex.koblas/Matrix // com.eignex.koblas/copy|copy@com.eignex.koblas.Matrix(){}[0]
 final fun (com.eignex.koblas/Matrix).com.eignex.koblas/copyFrom(com.eignex.koblas/Matrix) // com.eignex.koblas/copyFrom|copyFrom@com.eignex.koblas.Matrix(com.eignex.koblas.Matrix){}[0]
 final fun (com.eignex.koblas/Matrix).com.eignex.koblas/norm(com.eignex.koblas/Norm = ...): kotlin/Double // com.eignex.koblas/norm|norm@com.eignex.koblas.Matrix(com.eignex.koblas.Norm){}[0]

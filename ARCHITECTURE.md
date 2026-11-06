@@ -7,9 +7,9 @@ multiplatform module; platform source sets supply their own runtime and arithmet
 ## Public entry points
 
 - `Matrix` and `Vector` own fixed-shape mutable entry contracts and default materialization. `DenseMatrix`
-  represents compact buffers and borrowed views with offsets and leading dimensions. `DenseVector` adds
-  vector addressing; sparse setters maintain sorted structure and retain written zeros. Dense matrix equality
-  and serialization visit logical entries only. Engine eligibility checks layout rather than concrete types.
+  represents compact buffers and borrowed views with offsets and leading dimensions. `DenseVector`
+  represents contiguous buffers and stepped or reversed slices with offsets and strides. Sparse setters
+  maintain sorted structure and retain written zeros. Dense equality and serialization visit logical entries only. Engine eligibility checks layout rather than concrete types.
 - `KoblasEngine` owns typed BLAS calls over dense and sparse containers. Logical dimensions are validated
   before views are unpacked. Its matrix methods prepare their operands and invoke shared schedules.
   Primitive array windows, including windowed `ger`, belong to the internal `EngineKernels` interface.

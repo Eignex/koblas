@@ -25,11 +25,14 @@ object ConsumerCheck {
                 val expectedY = referenceGemv(a, x)
                 val transposed = DoubleArray(cols)
                 val expectedTransposed = referenceGemv(a, expectedY, transpose = true)
+                val input = DenseVector.wrap(x)
+                val output = DenseVector.wrap(y)
+                val transposedOutput = DenseVector.wrap(transposed)
                 val gram = DenseMatrix.zero(cols, cols)
                 val expectedGram = referenceProduct(a, a, transposeA = true)
                 repeat(8) {
-                    engine.gemv(1.0, a, x, 0, 1, 0.0, y, 0, 1, scratch = scratch)
-                    engine.gemv(1.0, a, y, 0, 1, 0.0, transposed, 0, 1, transpose = true, scratch = scratch)
+                    engine.gemv(1.0, a, input, 0.0, output, scratch = scratch)
+                    engine.gemv(1.0, a, output, 0.0, transposedOutput, transpose = true, scratch = scratch)
                     engine.gemm(1.0, a, true, a, false, 0.0, gram, scratch = scratch)
                     assertAgreesWithReference(expectedY, y)
                     assertAgreesWithReference(expectedTransposed, transposed)
@@ -39,7 +42,8 @@ object ConsumerCheck {
             val matrix = DenseMatrix.wrap(2, 2, doubleArrayOf(2.0, 3.0, 5.0, 7.0))
             val storage = doubleArrayOf(2.0, 3.0)
             val expected = referenceGemv(matrix, storage.copyOf())
-            engine.gemv(1.0, matrix, storage, 0, 1, 0.0, storage, 0, 1, scratch = scratch)
+            val aliased = DenseVector.wrap(storage)
+            engine.gemv(1.0, matrix, aliased, 0.0, aliased, scratch = scratch)
             assertAgreesWithReference(expected, storage)
             val source = SparseMatrix.ofTriplets(2, 2, intArrayOf(0, 1), intArrayOf(0, 1), doubleArrayOf(2.0, 3.0))
             val sparse = source
@@ -52,10 +56,10 @@ object ConsumerCheck {
                 val expectedEntry = if (i in 2..3 && j in 3..4) expectedProduct[i - 2, j - 3] else -99.0
                 assertAgreesWithReference(doubleArrayOf(expectedEntry), doubleArrayOf(parent[i, j]))
             }
-            val reversed = StridedVector(doubleArrayOf(3.0, 0.0, 2.0), 2, 2, -2)
+            val reversed = DenseVector.wrap(doubleArrayOf(3.0, 0.0, 2.0), 2, 2, -2)
             val output = DoubleArray(5) { -99.0 }
-            val outputView = StridedVector(output, 3, 2, -2)
-            engine.gemv(1.0, matrix, reversed.values, reversed.offset, reversed.stride, 0.0, outputView.values, outputView.offset, outputView.stride, scratch = scratch)
+            val outputView = DenseVector.wrap(output, 3, 2, -2)
+            engine.gemv(1.0, matrix, reversed, 0.0, outputView, scratch = scratch)
             val expectedStrided = referenceGemv(matrix, reversed.toDoubleArray())
             assertAgreesWithReference(doubleArrayOf(-99.0, expectedStrided[1], -99.0, expectedStrided[0], -99.0), output)
         }

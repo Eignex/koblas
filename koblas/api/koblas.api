@@ -1,32 +1,3 @@
-public final class com/eignex/koblas/ContiguousVector : com/eignex/koblas/DenseVector, com/eignex/koblas/VectorStorage {
-	public static final field Companion Lcom/eignex/koblas/ContiguousVector$Companion;
-	public fun equals (Ljava/lang/Object;)Z
-	public fun get (I)D
-	public fun getOffset ()I
-	public fun getSize ()I
-	public fun getStride ()I
-	public fun getValues ()[D
-	public fun hashCode ()I
-	public fun set (ID)V
-	public fun toDoubleArray ()[D
-	public fun toString ()Ljava/lang/String;
-}
-
-public final synthetic class com/eignex/koblas/ContiguousVector$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
-	public static final field INSTANCE Lcom/eignex/koblas/ContiguousVector$$serializer;
-	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
-	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/eignex/koblas/ContiguousVector;
-	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
-	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
-	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/eignex/koblas/ContiguousVector;)V
-	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
-	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
-}
-
-public final class com/eignex/koblas/ContiguousVector$Companion {
-	public final fun serializer ()Lkotlinx/serialization/KSerializer;
-}
-
 public final class com/eignex/koblas/DenseMatrix : com/eignex/koblas/MatrixStorage {
 	public static final field Companion Lcom/eignex/koblas/DenseMatrix$Companion;
 	public static final fun diagonal (I)Lcom/eignex/koblas/DenseMatrix;
@@ -71,24 +42,38 @@ public final class com/eignex/koblas/DenseMatrix$Companion {
 	public static synthetic fun zero$default (Lcom/eignex/koblas/DenseMatrix$Companion;IIILjava/lang/Object;)Lcom/eignex/koblas/DenseMatrix;
 }
 
-public abstract interface class com/eignex/koblas/DenseVector : com/eignex/koblas/Vector {
+public final class com/eignex/koblas/DenseVector : com/eignex/koblas/VectorStorage {
 	public static final field Companion Lcom/eignex/koblas/DenseVector$Companion;
-	public abstract fun getOffset ()I
-	public abstract fun getStride ()I
-	public abstract fun getValues ()[D
-	public static fun of ([D)Lcom/eignex/koblas/ContiguousVector;
-	public static fun wrap ([D)Lcom/eignex/koblas/ContiguousVector;
-	public static fun zero (I)Lcom/eignex/koblas/ContiguousVector;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun get (I)D
+	public final fun getOffset ()I
+	public fun getSize ()I
+	public final fun getStride ()I
+	public final fun getValues ()[D
+	public fun hashCode ()I
+	public static final fun of ([D)Lcom/eignex/koblas/DenseVector;
+	public fun set (ID)V
+	public fun toDoubleArray ()[D
+	public fun toString ()Ljava/lang/String;
+	public final fun view (II)Lcom/eignex/koblas/DenseVector;
+	public final fun view (III)Lcom/eignex/koblas/DenseVector;
+	public static synthetic fun view$default (Lcom/eignex/koblas/DenseVector;IIIILjava/lang/Object;)Lcom/eignex/koblas/DenseVector;
+	public static final fun wrap ([D)Lcom/eignex/koblas/DenseVector;
+	public static final fun wrap ([DI)Lcom/eignex/koblas/DenseVector;
+	public static final fun wrap ([DII)Lcom/eignex/koblas/DenseVector;
+	public static final fun wrap ([DIII)Lcom/eignex/koblas/DenseVector;
+	public static final fun zero (I)Lcom/eignex/koblas/DenseVector;
 }
 
 public final class com/eignex/koblas/DenseVector$Companion {
-	public final fun of ([D)Lcom/eignex/koblas/ContiguousVector;
-	public final fun wrap ([D)Lcom/eignex/koblas/ContiguousVector;
-	public final fun zero (I)Lcom/eignex/koblas/ContiguousVector;
-}
-
-public final class com/eignex/koblas/DenseVector$DefaultImpls {
-	public static fun toDoubleArray (Lcom/eignex/koblas/DenseVector;)[D
+	public final fun of ([D)Lcom/eignex/koblas/DenseVector;
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+	public final fun wrap ([D)Lcom/eignex/koblas/DenseVector;
+	public final fun wrap ([DI)Lcom/eignex/koblas/DenseVector;
+	public final fun wrap ([DII)Lcom/eignex/koblas/DenseVector;
+	public final fun wrap ([DIII)Lcom/eignex/koblas/DenseVector;
+	public static synthetic fun wrap$default (Lcom/eignex/koblas/DenseVector$Companion;[DIIIILjava/lang/Object;)Lcom/eignex/koblas/DenseVector;
+	public final fun zero (I)Lcom/eignex/koblas/DenseVector;
 }
 
 public final class com/eignex/koblas/DimensionMismatch : java/lang/IllegalArgumentException {
@@ -115,9 +100,6 @@ public final class com/eignex/koblas/Koblas {
 	public static final fun sum (Lcom/eignex/koblas/Matrix;I)Lcom/eignex/koblas/DenseVector;
 	public static final fun sum (Lcom/eignex/koblas/Vector;)D
 	public static final fun transpose (Lcom/eignex/koblas/Matrix;)Lcom/eignex/koblas/Matrix;
-	public static final fun view (Lcom/eignex/koblas/DenseVector;II)Lcom/eignex/koblas/StridedVector;
-	public static final fun view (Lcom/eignex/koblas/DenseVector;III)Lcom/eignex/koblas/StridedVector;
-	public static synthetic fun view$default (Lcom/eignex/koblas/DenseVector;IIIILjava/lang/Object;)Lcom/eignex/koblas/StridedVector;
 }
 
 public abstract interface class com/eignex/koblas/KoblasEngine {
@@ -400,20 +382,6 @@ public final class com/eignex/koblas/SparseVector$Companion {
 	public final fun of (I[I[D)Lcom/eignex/koblas/SparseVector;
 	public final fun serializer ()Lkotlinx/serialization/KSerializer;
 	public final fun wrap (I[I[D)Lcom/eignex/koblas/SparseVector;
-}
-
-public final class com/eignex/koblas/StridedVector : com/eignex/koblas/DenseVector {
-	public fun <init> ([DII)V
-	public fun <init> ([DIII)V
-	public synthetic fun <init> ([DIIIILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public fun get (I)D
-	public fun getOffset ()I
-	public fun getSize ()I
-	public fun getStride ()I
-	public fun getValues ()[D
-	public fun set (ID)V
-	public fun toDoubleArray ()[D
-	public fun toString ()Ljava/lang/String;
 }
 
 public abstract interface annotation class com/eignex/koblas/UnsafeKoblasApi : java/lang/annotation/Annotation {

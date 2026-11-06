@@ -238,8 +238,8 @@ class DenseOpsAllocationTest internal constructor(private val case: AllocationCa
     private class StridedDotFixture {
         val engine = BuiltinEngines.simd ?: BuiltinEngines.scalar
         val n = 256
-        val x = StridedVector(DoubleArray(2 * n) { it * 0.01 }, 0, n, 2)
-        val y = StridedVector(DoubleArray(2 * n) { 1.0 / (it + 1) }, 0, n, 2)
+        val x = DenseVector.wrap(DoubleArray(2 * n) { it * 0.01 }, 0, n, 2)
+        val y = DenseVector.wrap(DoubleArray(2 * n) { 1.0 / (it + 1) }, 0, n, 2)
     }
 
     private class DenseLevelTwoFixture {
@@ -265,7 +265,7 @@ class DenseOpsAllocationTest internal constructor(private val case: AllocationCa
     private class StridedOperandFixture {
         val n = 128
         val a = DenseMatrix.wrap(n, n, DoubleArray(n * n) { 1.0 + (it % 13) * 0.125 })
-        val strided = StridedVector(DoubleArray(2 * n) { 1.0 + (it % 7) * 0.25 }, 0, n, 2)
+        val strided = DenseVector.wrap(DoubleArray(2 * n) { 1.0 + (it % 7) * 0.25 }, 0, n, 2)
         val destination = DenseVector.wrap(DoubleArray(n))
         val workspace = Scratch()
         init {

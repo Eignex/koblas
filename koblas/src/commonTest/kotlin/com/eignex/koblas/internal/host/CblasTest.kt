@@ -29,7 +29,7 @@ class CblasTest {
         val vendor = vendor ?: return skipped()
         for (stride in STRIDES) {
             val values = doubleArrayOf(Double.NaN, -3.25, Double.NaN)
-            val vector = StridedVector(values, 1, 1, stride)
+            val vector = DenseVector.wrap(values, 1, 1, stride)
             val expected = scalar.nrm2(values, 1, 1, stride)
 
             val actual = vendor.normVector(vector)
@@ -43,7 +43,7 @@ class CblasTest {
         val vendor = vendor ?: return skipped()
         for (stride in STRIDES) {
             val values = doubleArrayOf(Double.NaN, -3.25, Double.NaN)
-            val vector = StridedVector(values, 1, 1, stride)
+            val vector = DenseVector.wrap(values, 1, 1, stride)
             val expected = scalar.asum(values, 1, 1, stride)
 
             val actual = vendor.absoluteSumVector(vector)
@@ -58,7 +58,7 @@ class CblasTest {
         for (stride in STRIDES) {
             val values = doubleArrayOf(Double.NaN, -3.25, Double.NaN)
             val expected = values.copyOf()
-            val vector = StridedVector(values, 1, 1, stride)
+            val vector = DenseVector.wrap(values, 1, 1, stride)
             scalar.scale(expected, 1, -0.75, 1, stride)
 
             vendor.scale(vector.values, vector.offset, -0.75, vector.size, vector.stride)
@@ -122,7 +122,7 @@ class CblasTest {
             val forward = strideVector(stride, 3, 24)
             val entries = doubleArrayOf(1.0, 5.0, 2.0, -5.0, 3.0, 0.5)
             for (i in entries.indices) forward.values[forward.offset + i * stride] = entries[i]
-            val backward = StridedVector(
+            val backward = DenseVector.wrap(
                 forward.values,
                 forward.offset + (forward.size - 1) * stride,
                 forward.size,
@@ -424,7 +424,7 @@ class CblasTest {
             val expectedGemv = DoubleArray(ORDER)
             ReferenceBlas.gemv(ALPHA, separate, square.values.copyOf(ORDER), 0.0, expectedGemv)
             val matrix = DenseMatrix.wrap(ORDER, ORDER, square.values.copyOf())
-            val column = StridedVector(matrix.values, 0, ORDER)
+            val column = DenseVector.wrap(matrix.values, 0, ORDER)
             blas.gemv(
                 ALPHA,
                 matrix,
@@ -453,11 +453,11 @@ class CblasTest {
         for (host in hosts) block(engineWithHost(engineWithKernels(ScalarEngine, ScalarEngine), host))
     }
 
-    private fun forEachStride(body: (StridedVector) -> Unit) {
+    private fun forEachStride(body: (DenseVector) -> Unit) {
         for (stride in MULTI_ENTRY_STRIDES) body(strideVector(stride, 3, 24))
     }
 
-    private fun forEachStridePair(body: (StridedVector, StridedVector) -> Unit) {
+    private fun forEachStridePair(body: (DenseVector, DenseVector) -> Unit) {
         for (xStride in MULTI_ENTRY_STRIDES) {
             for (yStride in MULTI_ENTRY_STRIDES) {
                 body(strideVector(xStride, 3, 24), strideVector(yStride, 7, 25))
@@ -465,14 +465,14 @@ class CblasTest {
         }
     }
 
-    private fun strideVector(stride: Int, padding: Int, seed: Int): StridedVector {
+    private fun strideVector(stride: Int, padding: Int, seed: Int): DenseVector {
         val size = 6
         val offset = padding + if (stride < 0) (size - 1) * -stride else 0
         val length = maxOf(32, 2 * padding + (size - 1) * abs(stride) + 1)
-        return StridedVector(vendorValues(length, seed), offset, size, stride)
+        return DenseVector.wrap(vendorValues(length, seed), offset, size, stride)
     }
 
-    private fun context(vendor: KoblasEngine, operation: String, x: StridedVector, y: StridedVector? = null): String =
+    private fun context(vendor: KoblasEngine, operation: String, x: DenseVector, y: DenseVector? = null): String =
         "${vendor.vendor} $operation x offset=${x.offset} stride=${x.stride}" +
             y?.let { " y offset=${it.offset} stride=${it.stride}" }.orEmpty()
 
@@ -482,7 +482,7 @@ class CblasTest {
     private fun assertAgreesWithReference(expected: DoubleArray, actual: DoubleArray, context: String) =
         assertClose(expected, actual, context)
 
-    private fun assertIamaxHonoursItsContract(expected: Int, actual: Int, x: StridedVector, context: String) {
+    private fun assertIamaxHonoursItsContract(expected: Int, actual: Int, x: DenseVector, context: String) {
         assertTrue(actual in 0 until x.size, "$context returned index $actual")
         assertEquals(abs(x[expected]), abs(x[actual]), context)
     }

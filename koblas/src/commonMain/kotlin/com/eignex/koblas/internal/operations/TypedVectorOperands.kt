@@ -3,6 +3,7 @@ package com.eignex.koblas.internal.operations
 import com.eignex.koblas.*
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.sparse.indexedScatter
+import com.eignex.koblas.internal.storage.isWholeArray
 
 /** Sparse schedules consume contiguous vectors; view packing preserves their no-read and alias rules. */
 @Suppress("LongParameterList") // BLAS operands, flags and scratch

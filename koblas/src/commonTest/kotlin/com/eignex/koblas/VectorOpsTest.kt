@@ -43,7 +43,7 @@ class VectorOpsTest {
     fun `axpy snapshots sources sharing opaque destination storage`() {
         for (sparseSource in booleanArrayOf(false, true)) {
             val backing = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
-            val destination: Vector = ForeignVector(StridedVector(backing, 3, 4, -1))
+            val destination: Vector = ForeignVector(DenseVector.wrap(backing, 3, 4, -1))
             val source: Vector = if (sparseSource) {
                 SparseVector.wrap(4, intArrayOf(0, 1, 2, 3), backing)
             } else {
@@ -76,7 +76,7 @@ class VectorOpsTest {
     @Test
     fun `sparse axpy snapshots a custom source borrowing destination values`() {
         val backing = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
-        val source: Vector = ForeignVector(StridedVector(backing, 3, 4, -1))
+        val source: Vector = ForeignVector(DenseVector.wrap(backing, 3, 4, -1))
         val destination = SparseVector.wrap(4, intArrayOf(0, 1, 2, 3), backing)
         val expected = backing.copyOf()
         BuiltinEngines.scalar.axpy(expected, 0, 2.0, source.toDoubleArray(), 0, 4)
@@ -163,7 +163,7 @@ class VectorOpsTest {
     @Test
     fun `copy from snapshots overlapping custom destinations`() {
         val backing = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
-        val source: Vector = ForeignVector(StridedVector(backing, 3, 4, -1))
+        val source: Vector = ForeignVector(DenseVector.wrap(backing, 3, 4, -1))
         val destination: Vector = ForeignVector(DenseVector.wrap(backing))
         val expected = source.toDoubleArray()
 
@@ -191,7 +191,7 @@ class VectorOpsTest {
                 for (stride in intArrayOf(1, 3, -1, -3)) {
                     val backing = DoubleArray(3 * size + 4) { it + 0.25 }
                     val offset = if (stride > 0 || size == 0) 2 else 2 + (size - 1) * -stride
-                    val source = StridedVector(backing, offset, size, stride)
+                    val source = DenseVector.wrap(backing, offset, size, stride)
                     add(source to if (sameWrapper) source else source.view(0, source.size))
                 }
             }
@@ -203,7 +203,7 @@ class VectorOpsTest {
         val source = sparse(5, 0 to 2.0, 2 to -1.5, 4 to 0.0)
         for (stride in intArrayOf(-3, -1, 1, 3)) {
             val backing = DoubleArray(18) { it * 0.125 - 0.75 }
-            val view = StridedVector(backing, if (stride > 0) 2 else 14, 5, stride)
+            val view = DenseVector.wrap(backing, if (stride > 0) 2 else 14, 5, stride)
             val expected = BuiltinEngines.scalar.dotVector(source, DenseVector.wrap(view.toDoubleArray()))
 
             assertDotAgreesWithReference(expected, source dot view)
@@ -214,7 +214,7 @@ class VectorOpsTest {
     @Test
     fun `sparse dot against dense views evaluates stored zeros`() {
         val source = sparse(3, 1 to 0.0)
-        val view = StridedVector(doubleArrayOf(Double.NaN, 1.0, Double.POSITIVE_INFINITY, 1.0, Double.NaN), 0, 3, 2)
+        val view = DenseVector.wrap(doubleArrayOf(Double.NaN, 1.0, Double.POSITIVE_INFINITY, 1.0, Double.NaN), 0, 3, 2)
         val expected = BuiltinEngines.scalar.dotVector(source, DenseVector.wrap(view.toDoubleArray()))
 
         assertDotAgreesWithReference(expected, source dot view)
@@ -313,7 +313,7 @@ class VectorOpsTest {
     @Test
     fun `supported norms of empty and zero vectors are zero`() {
         val emptySparse = SparseVector.wrap(Int.MAX_VALUE, IntArray(0), DoubleArray(0))
-        val emptyView = StridedVector(doubleArrayOf(Double.NaN), 1, 0, -3)
+        val emptyView = DenseVector.wrap(doubleArrayOf(Double.NaN), 1, 0, -3)
         for (source in normOperands(DoubleArray(0)) + normOperands(DoubleArray(4)) + listOf(emptySparse, emptyView)) {
             for (type in listOf(Norm.One, Norm.Two, Norm.Infinity, Norm.MaxAbs)) {
                 assertEquals(0.0, source.norm(type))
@@ -338,7 +338,7 @@ class VectorOpsTest {
         for (stride in intArrayOf(-3, -1, 1, 3)) {
             val backing = DoubleArray(values.size * 3 + 4) { Double.NaN }
             val offset = if (stride > 0 || values.isEmpty()) 2 else 2 + (values.size - 1) * -stride
-            val view = StridedVector(backing, offset, values.size, stride)
+            val view = DenseVector.wrap(backing, offset, values.size, stride)
             for (i in values.indices) view[i] = values[i]
             add(view)
         }
@@ -373,7 +373,7 @@ class VectorOpsTest {
     fun `sum adds the entries for any storage`() {
         val values = doubleArrayOf(2.0, -3.5, 0.0, 4.25, -1.0, 0.5)
         val expected = BuiltinEngines.scalar.sum(values, 0, values.size)
-        val strided = StridedVector(DoubleArray(12) { values[it / 2] }, 0, 6, 2)
+        val strided = DenseVector.wrap(DoubleArray(12) { values[it / 2] }, 0, 6, 2)
         assertReductionAgreesWithReference(expected, DenseVector.of(values).sum(), "dense")
         assertReductionAgreesWithReference(expected, strided.sum(), "strided")
         assertReductionAgreesWithReference(
@@ -435,7 +435,7 @@ class VectorOpsTest {
     fun `sparse dot ignores unstored entries in borrowed and foreign vectors`() {
         val sparse = sparse(3, 1 to 2.0)
         val backing = doubleArrayOf(Double.NaN, 3.0, Double.POSITIVE_INFINITY)
-        val borrowed = StridedVector(backing, 2, 3, -1)
+        val borrowed = DenseVector.wrap(backing, 2, 3, -1)
         val foreign = ForeignVector(DenseVector.wrap(backing))
 
         for (other in listOf(borrowed, foreign)) {
@@ -454,8 +454,8 @@ class VectorOpsTest {
             } else {
                 doubleArrayOf(1.0, 2.0, 3.0, 4.0)
             }
-            val destination = if (borrowed) StridedVector(backing, 1, 4) else DenseVector.wrap(backing)
-            val source = ForeignVector(StridedVector(backing, destination.offset + 3, 4, -1))
+            val destination = if (borrowed) DenseVector.wrap(backing, 1, 4) else DenseVector.wrap(backing)
+            val source = ForeignVector(DenseVector.wrap(backing, destination.offset + 3, 4, -1))
             val expected = backing.copyOf()
             val snapshot = source.toDoubleArray()
             snapshot.copyInto(expected, destination.offset)
@@ -470,7 +470,7 @@ class VectorOpsTest {
     fun `copy into dense storage preserves a borrowed source sharing its buffer`() {
         for (reverse in booleanArrayOf(false, true)) {
             val backing = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
-            val source = StridedVector(backing, if (reverse) 3 else 0, 4, if (reverse) -1 else 1)
+            val source = DenseVector.wrap(backing, if (reverse) 3 else 0, 4, if (reverse) -1 else 1)
             val expected = source.toDoubleArray()
 
             DenseVector.wrap(backing).copyFrom(source)
@@ -487,7 +487,7 @@ class VectorOpsTest {
             val expected = if (borrowed) backing.reversedArray() else backing.copyOf()
 
             if (borrowed) {
-                StridedVector(backing, 2, 3, -1).copyFrom(source)
+                DenseVector.wrap(backing, 2, 3, -1).copyFrom(source)
             } else {
                 DenseVector.wrap(backing).copyFrom(source)
             }
@@ -549,8 +549,8 @@ class VectorOpsTest {
     @Test
     fun `dot reads the logical entries of borrowed slices`() {
         val backing = DoubleArray(8) { it + 1.0 }
-        val even = StridedVector(backing, 0, 4, 2)
-        val odd = StridedVector(backing, 1, 4, 2)
+        val even = DenseVector.wrap(backing, 0, 4, 2)
+        val odd = DenseVector.wrap(backing, 1, 4, 2)
         val expected = ScalarEngine.dot(backing, 0, backing, 1, 4, 2, 2)
 
         val actual = even dot odd
