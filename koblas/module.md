@@ -16,20 +16,25 @@ separate [Scratch][com.eignex.koblas.Scratch].
 # Package com.eignex.koblas
 
 Owning dense and sparse containers, vector views, the default [koblas] engine, the [KoblasEngine]
-contract and [Scratch] arrays. [Matrix] and [Vector] are read-only contracts custom types can
-implement. Products accept at most one sparse operand, on either side, and produce dense storage.
+contract and [Scratch] arrays. [Matrix] and [Vector] are mutable contracts with fixed shapes that custom
+types can implement. Dense storage interfaces add buffer addressing and inherit the base setters.
+Products accept at most one sparse operand, on either side, and produce dense storage.
 No sparse operand is densified. Products of two sparse matrices are unsupported. Windowed rank updates and
 sparse column dots are [KoblasEngine.ger] and [KoblasEngine.dotColumn] members.
 
-The matrix facade provides total and axis-wise [Matrix.sum] for dense, sparse and custom storage.
-On [DenseMatrixRegion], [gemvInto] and [gemmInto] default to replacing the destination, [ger] and [syr]
-default to unit scaling, and [trsv] and [trsm] solve triangular systems in place. These conveniences
-use the default engine. Vector arguments are [DenseVector] views with exact logical lengths; their
-offsets and strides are passed to the engine. [KoblasEngine] remains the full BLAS surface.
+The matrix and vector facades extend [Matrix] and [Vector]. [Matrix.copy] and [Vector.copy] return
+independent storage; [Matrix.copyFrom] and [Vector.copyFrom] copy into existing, equally shaped storage
+and handle overlapping inputs. [Matrix.transpose] preserves sparse storage and materializes other
+implementations into dense storage. [Matrix.sum] provides total and axis-wise sums. Sparse writes
+preserve ascending indices, including explicitly written zeros, and structural changes may replace
+their buffers. [KoblasEngine] owns the BLAS surface.
 
-[Vector.norm] accepts orders `1`, `2` (the default) and [Int.MAX_VALUE] for the absolute sum,
-Euclidean norm and maximum absolute value. Dense, strided, sparse and custom vectors are supported;
-sparse vectors visit only stored values. Empty vectors have norm zero and other orders are rejected.
+[Vector.norm] and [Matrix.norm] share [Norm]. Vectors support [Norm.One], [Norm.Two] (the default),
+[Norm.Infinity] and [Norm.MaxAbs], with the last two equivalent. Matrices support [Norm.Frobenius]
+(the default), [Norm.One] for the largest absolute column sum, [Norm.Infinity] for the largest absolute
+row sum and [Norm.MaxAbs] for the largest absolute entry. Matrix [Norm.Two] and vector [Norm.Frobenius]
+are rejected. Norms accept dense, sparse and custom storage; empty inputs have norm zero for supported
+choices, and sparse operands are never densified.
 
 # Package com.eignex.koblas.engine
 

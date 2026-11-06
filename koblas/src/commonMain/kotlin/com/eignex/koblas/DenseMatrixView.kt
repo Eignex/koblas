@@ -19,9 +19,6 @@ public sealed interface DenseMatrixRegion : Matrix {
     /** Distance between consecutive column starts. */
     public val leadingDimension: Int
 
-    /** Writes [v] to `A(i, j)`, checking both logical indices. */
-    public operator fun set(i: Int, j: Int, v: Double)
-
     /**
      * Borrows a rectangle without copying. Mutations through either reference are shared.
      * Offsets and extents are relative to this region; a nested view retains the parent's leading dimension.

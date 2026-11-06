@@ -32,11 +32,11 @@ internal fun KoblasEngine.dotVector(x: Vector, y: Vector): Double {
     }
 }
 
-internal fun KoblasEngine.normVector(x: Vector, order: Int = 2): Double = when (order) {
-    1 -> absoluteSumVector(x)
-    2 -> euclideanNormVector(x)
-    Int.MAX_VALUE -> maximumMagnitudeVector(x)
-    else -> throw IllegalArgumentException("norm order must be 1, 2 or Int.MAX_VALUE, got $order")
+internal fun KoblasEngine.normVector(x: Vector, type: Norm = Norm.Two): Double = when (type) {
+    Norm.One -> absoluteSumVector(x)
+    Norm.Two -> euclideanNormVector(x)
+    Norm.Infinity, Norm.MaxAbs -> maximumMagnitudeVector(x)
+    Norm.Frobenius -> throw IllegalArgumentException("Frobenius norm is only supported for matrices")
 }
 
 private fun KoblasEngine.euclideanNormVector(x: Vector): Double = when (x) {
@@ -54,7 +54,7 @@ private fun KoblasEngine.maximumMagnitudeVector(x: Vector): Double = when (x) {
     else -> scalarVectorMaximumMagnitude(x)
 }
 
-private fun KoblasEngine.maximumMagnitude(values: DoubleArray, offset: Int, size: Int, stride: Int): Double {
+internal fun KoblasEngine.maximumMagnitude(values: DoubleArray, offset: Int, size: Int, stride: Int): Double {
     if (size == 0) return 0.0
     val index = iamax(values, offset, size, stride)
     return abs(values[offset + index * stride])

@@ -1,12 +1,13 @@
 package com.eignex.koblas.bench
 
+import com.eignex.koblas.internal.operations.axpyVector
 import com.eignex.koblas.*
 import com.eignex.koblas.engine.BuiltinEngines
 import com.eignex.koblas.internal.operations.dotVector
 
 /**
- * Vector entry points include their alias checks and view adaptation. They select the platform engine
- * themselves, so the row names the whole portable wrapper and is measured only on the default-policy arm.
+ * Vector storage adapters include their alias checks and view adaptation. The row measures the default
+ * engine's complete adaptation path and is measured only on the default-policy arm.
  */
 internal fun vectorViewsArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
     if (engine !== koblas) {
@@ -45,7 +46,7 @@ internal fun vectorViewsArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
         initial.copyInto(backing)
         when (case.operation) {
             "copy-overlap" -> destination.copyFrom(source)
-            "axpy-views" -> destination.axpy(0.875, source)
+            "axpy-views" -> koblas.axpyVector(0.875, source, destination)
         }
         backing[0] + backing.last()
     }

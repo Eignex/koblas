@@ -2,13 +2,230 @@ package com.eignex.koblas
 
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.engine.BuiltinEngines
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 import kotlin.test.assertNotSame
 
 class MatrixOpsTest {
+    @Test
+    fun `empty matrix copies and transposes do not traverse the column domain`() {
+        val source: Matrix = DenseMatrix.zero(0, Int.MAX_VALUE)
+        val destination: Matrix = DenseMatrix.zero(0, Int.MAX_VALUE)
+
+        val result = source.copy()
+        val transpose = source.transpose()
+        destination.copyFrom(source)
+
+        assertEquals(0, result.rows)
+        assertEquals(Int.MAX_VALUE, result.cols)
+        assertEquals(Int.MAX_VALUE, transpose.rows)
+        assertEquals(0, transpose.cols)
+    }
+
+    @Test
+    fun `sparse matrix copies preserve large shapes and stored zeros without densifying`() {
+        val source: Matrix = SparseMatrix.ofColumns(
+            Int.MAX_VALUE,
+            2,
+            listOf(listOf(0 to 0.0), listOf(Int.MAX_VALUE - 1 to -2.0)),
+        )
+        val destination: Matrix = SparseMatrix.ofColumns(Int.MAX_VALUE, 2, listOf(emptyList(), emptyList()))
+
+        val result = source.copy()
+        destination.copyFrom(source)
+
+        assertEquals(source, result)
+        assertEquals(source, destination)
+        assertNotSame(assertIs<SparseMatrix>(source).values, assertIs<SparseMatrix>(result).values)
+        assertNotSame(source.values, assertIs<SparseMatrix>(destination).values)
+    }
+
+    @Test
+    fun `copies own their storage across matrix implementations`() {
+        for (source in reductionMatrices()) {
+            val result = source.copy()
+
+            for (j in 0 until source.cols) for (i in 0 until source.rows) assertEquals(source[i, j], result[i, j])
+            if (source is SparseMatrix) {
+                val sparseCopy = assertIs<SparseMatrix>(result)
+                assertContentEquals(source.colPointers, sparseCopy.colPointers)
+                assertContentEquals(source.rowIndices, sparseCopy.rowIndices)
+                assertNotSame(source.colPointers, sparseCopy.colPointers)
+                assertNotSame(source.rowIndices, sparseCopy.rowIndices)
+                assertNotSame(source.values, sparseCopy.values)
+            }
+            val before = source[0, 0]
+            result[0, 0] = 99.0
+            assertEquals(before, source[0, 0])
+        }
+    }
+
+    @Test
+    fun `copy from supports every matrix storage without sharing arrays`() {
+        for (source in reductionMatrices()) {
+            for (destination in reductionMatrices(3.0)) {
+                destination.copyFrom(source)
+
+                for (j in 0 until source.cols) {
+                    for (i in 0 until source.rows) assertEquals(source[i, j], destination[i, j])
+                }
+                if (source is SparseMatrix && destination is SparseMatrix) {
+                    assertContentEquals(source.rowIndices, destination.rowIndices)
+                    assertNotSame(source.values, destination.values)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `copy from snapshots overlapping matrix views and custom storage`() {
+        for (customSource in booleanArrayOf(false, true)) {
+            for (customDestination in booleanArrayOf(false, true)) {
+                val parent = paddedRegion(5, 5)
+                val source = parent.view(0, 0, 3, 2)
+                val destination = parent.view(1, 1, 3, 2)
+                val expected = contiguousCopy(source)
+                val before = parent.values.copyOf()
+                val input: Matrix = if (customSource) ForeignMatrix(source) else source
+                val output: Matrix = if (customDestination) ForeignMatrix(destination) else destination
+
+                output.copyFrom(input)
+
+                assertRegionAgreesWithReference(expected, destination, before)
+            }
+        }
+    }
+
+    @Test
+    fun `copy from validates the whole shape before writing`() {
+        for (destination in reductionMatrices()) {
+            val before = destination.toArray()
+
+            assertFailsWith<DimensionMismatch> { destination.copyFrom(DenseMatrix.zero(4, 3)) }
+
+            for (i in 0 until destination.rows) assertContentEquals(before[i], destination.toArray()[i])
+        }
+    }
+
+    @Test
+    fun `transpose accepts views and custom matrices through the base contract`() {
+        for (source in reductionMatrices()) {
+            val result = source.transpose()
+
+            assertEquals(source.cols, result.rows)
+            assertEquals(source.rows, result.cols)
+            for (j in 0 until source.cols) for (i in 0 until source.rows) assertEquals(source[i, j], result[j, i])
+            val before = source[0, 0]
+            result[0, 0] = 123.0
+            assertEquals(before, source[0, 0])
+        }
+    }
+
+    @Test
+    fun `matrix norms agree with the scalar oracle across storage types`() {
+        for (a in reductionMatrices()) {
+            for (type in listOf(Norm.One, Norm.Infinity, Norm.Frobenius, Norm.MaxAbs)) {
+                val expected = referenceMatrixNorm(a, type)
+
+                val actual = a.norm(type)
+
+                assertNormAgreesWithReference(expected, actual)
+            }
+        }
+    }
+
+    @Test
+    fun `matrix norm defaults to rescaled Frobenius across storage types`() {
+        for (scale in doubleArrayOf(1e-200, 1.0, 1e200)) {
+            for (a in reductionMatrices(scale)) {
+                val expected = referenceMatrixNorm(a, Norm.Frobenius)
+
+                val actual = a.norm()
+
+                assertNormAgreesWithReference(expected / scale, actual / scale)
+            }
+        }
+    }
+
+    @Test
+    fun `supported matrix norms of empty and zero matrices are zero`() {
+        for ((rows, cols) in listOf(0 to 0, 0 to 3, 4 to 0, 3 to 4)) {
+            val dense = DenseMatrix.zero(rows, cols)
+            val sparse = SparseMatrix.ofColumns(rows, cols, List(cols) { emptyList<Pair<Int, Double>>() })
+            val view = paddedRegion(rows, cols)
+            for (j in 0 until cols) for (i in 0 until rows) view[i, j] = 0.0
+            for (a in listOf(dense, sparse, view, ForeignMatrix(dense))) {
+                for (type in listOf(Norm.One, Norm.Infinity, Norm.Frobenius, Norm.MaxAbs)) {
+                    assertEquals(0.0, a.norm(type))
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `spectral matrix norm is rejected before reading the matrix`() {
+        val a = object : Matrix {
+            override val rows: Int get() = error("Read row count")
+            override val cols: Int get() = error("Read column count")
+            override fun get(i: Int, j: Int): Double = error("Read entry")
+            override fun set(i: Int, j: Int, v: Double) = error("Unexpected mutation")
+            override fun toArray(): Array<DoubleArray> = error("Materialized matrix")
+        }
+
+        assertFailsWith<IllegalArgumentException> { a.norm(Norm.Two) }
+        assertFailsWith<IllegalArgumentException> { DenseMatrix.zero(0, 0).norm(Norm.Two) }
+    }
+
+    @Test
+    fun `sparse matrix norms scale with stored entries for large row domains`() {
+        val a = SparseMatrix.ofColumns(
+            Int.MAX_VALUE,
+            2,
+            listOf(listOf(0 to 2.0), listOf(0 to -3.0, Int.MAX_VALUE - 1 to 4.0)),
+        )
+        val compact = DenseMatrix.ofRows(arrayOf(doubleArrayOf(2.0, -3.0), doubleArrayOf(0.0, 4.0)))
+        for (type in listOf(Norm.One, Norm.Infinity, Norm.Frobenius, Norm.MaxAbs)) {
+            val expected = referenceMatrixNorm(compact, type)
+
+            val actual = a.norm(type)
+
+            assertNormAgreesWithReference(expected, actual)
+        }
+    }
+
+    @Test
+    fun `matrix norms leave the whole backing buffer unchanged`() {
+        val a = paddedRegion(3, 4)
+        val before = a.values.copyOf()
+
+        for (type in listOf(Norm.One, Norm.Infinity, Norm.Frobenius, Norm.MaxAbs)) a.norm(type)
+
+        assertContentEquals(before, a.values)
+    }
+
+    private fun referenceMatrixNorm(a: Matrix, type: Norm): Double {
+        if (type == Norm.One || type == Norm.Infinity) {
+            val rows = type == Norm.Infinity
+            val sums = DoubleArray(if (rows) a.rows else a.cols) { index ->
+                val entries = if (rows) DoubleArray(a.cols) { a[index, it] } else DoubleArray(a.rows) { a[it, index] }
+                BuiltinEngines.scalar.asum(entries, 0, entries.size)
+            }
+            return sums.maxOrNull() ?: 0.0
+        }
+        val entries = DoubleArray(a.rows * a.cols) { a[it % a.rows, it / a.rows] }
+        if (type == Norm.Frobenius) return BuiltinEngines.scalar.nrm2(entries, 0, entries.size)
+        val index = BuiltinEngines.scalar.iamax(entries, 0, entries.size)
+        return if (index < 0) 0.0 else abs(entries[index])
+    }
+
+    private fun assertNormAgreesWithReference(expected: Double, actual: Double) {
+        assertClose(expected, actual, "matrix norm")
+    }
+
     @Test
     fun `dense transpose round trips and maps entries`() {
         val a = DenseMatrix.ofRows(
@@ -37,7 +254,7 @@ class MatrixOpsTest {
                 listOf(1 to 7.0),
             ),
         )
-        val t = a.transpose()
+        val t = assertIs<SparseMatrix>(a.transpose())
         assertEquals(2, t.rows)
         assertEquals(3, t.cols)
         assertEquals(a.nnz, t.nnz, "an explicitly stored zero was dropped")
@@ -52,7 +269,7 @@ class MatrixOpsTest {
         val empty = SparseMatrix.ofColumns(0, 0, emptyList())
         assertEquals(empty, empty.transpose().transpose())
         val noEntries = SparseMatrix.ofColumns(3, 2, listOf(emptyList(), emptyList()))
-        val t = noEntries.transpose()
+        val t = assertIs<SparseMatrix>(noEntries.transpose())
         assertEquals(2, t.rows)
         assertEquals(3, t.cols)
         assertEquals(0, t.nnz)
@@ -140,12 +357,18 @@ class MatrixOpsTest {
         assertVectorAgreesWithReference(values, a.sum(0), DoubleArray(2))
     }
 
-    private fun reductionMatrices(): List<Matrix> {
+    private fun reductionMatrices(scale: Double = 1.0): List<Matrix> {
         val sparse = SparseMatrix.ofColumns(
             3,
             4,
-            listOf(listOf(0 to 2.5, 2 to -1.0), listOf(0 to 0.0, 1 to 4.0), emptyList(), listOf(1 to -2.0, 2 to 0.75)),
+            listOf(
+                listOf(0 to 2.5, 1 to -3.0, 2 to -1.0),
+                listOf(0 to 0.0, 1 to 4.0),
+                emptyList(),
+                listOf(1 to -2.0, 2 to 0.75),
+            ),
         )
+        for (k in sparse.values.indices) sparse.values[k] *= scale
         val dense = sparse.denseCopy()
         val view = paddedRegion(3, 4)
         for (j in 0 until view.cols) for (i in 0 until view.rows) view[i, j] = dense[i, j]
@@ -156,179 +379,13 @@ class MatrixOpsTest {
         override val rows: Int get() = source.rows
         override val cols: Int get() = source.cols
         override fun get(i: Int, j: Int): Double = source[i, j]
-        override fun toArray(): Array<DoubleArray> = source.toArray()
+        override fun set(i: Int, j: Int, v: Double) {
+            source[i, j] = v
+        }
     }
 
     private fun assertSumAgreesWithReference(expected: Double, actual: Double) {
         assertClose(expected, actual, "matrix sum")
-    }
-
-    @Test
-    fun `matrix vector product snapshots overlapping strided operands`() {
-        for (transpose in booleanArrayOf(false, true)) {
-            for (stride in intArrayOf(-2, 2)) {
-                for (beta in doubleArrayOf(0.0, -0.25)) {
-                    val a = paddedRegion(3, 4)
-                    val x = StridedVector(a.values, a.offset + 8, if (transpose) 3 else 4, stride)
-                    val y = StridedVector(a.values, a.offset + 8, if (transpose) 4 else 3, -stride)
-                    val before = a.values.copyOf()
-                    val expected = y.toDoubleArray()
-                    ReferenceBlas.gemv(-0.75, contiguousCopy(a), x.toDoubleArray(), beta, expected, transpose)
-
-                    a.gemvInto(x, y, alpha = -0.75, beta = beta, transpose = transpose, scratch = Scratch())
-
-                    assertVectorAgreesWithReference(expected, y, before)
-                }
-            }
-        }
-    }
-
-    @Test
-    fun `matrix vector product defaults replace the destination`() {
-        val a = paddedRegion(3, 4)
-        val x = DenseVector.of(doubleArrayOf(0.25, -1.0, 2.0, 0.5))
-        val y = DenseVector.wrap(DoubleArray(3) { Double.NaN })
-        val expected = DoubleArray(3)
-        ReferenceBlas.gemv(1.0, a, x.toDoubleArray(), 0.0, expected)
-
-        a.gemvInto(x, y)
-
-        assertVectorAgreesWithReference(expected, y, DoubleArray(3))
-    }
-
-    @Test
-    fun `matrix product preserves overlapping rectangles across transpose flags`() {
-        for (transposeA in booleanArrayOf(false, true)) {
-            for (transposeB in booleanArrayOf(false, true)) {
-                val parent = paddedRegion(6, 6)
-                val a = parent.view(rows = if (transposeA) 4 else 3, cols = if (transposeA) 3 else 4)
-                val b = parent.view(1, 1, if (transposeB) 2 else 4, if (transposeB) 4 else 2)
-                val destination = parent.view(rows = 3, cols = 2)
-                val before = parent.values.copyOf()
-                val expected = contiguousCopy(destination)
-                ReferenceBlas.gemm(-0.75, contiguousCopy(a), transposeA, contiguousCopy(b), transposeB, 0.25, expected)
-
-                a.gemmInto(b, destination, -0.75, 0.25, transposeA, transposeB, Scratch())
-
-                assertRegionAgreesWithReference(expected, destination, before)
-            }
-        }
-    }
-
-    @Test
-    fun `matrix product defaults replace the destination`() {
-        val a = paddedRegion(3, 4)
-        val b = paddedRegion(4, 2)
-        val destination = paddedRegion(3, 2)
-        for (j in 0 until destination.cols) for (i in 0 until destination.rows) destination[i, j] = Double.NaN
-        val before = destination.values.copyOf()
-        val expected = DenseMatrix.zero(3, 2)
-        ReferenceBlas.gemm(1.0, a, false, b, false, 0.0, expected)
-
-        a.gemmInto(b, destination)
-
-        assertRegionAgreesWithReference(expected, destination, before)
-    }
-
-    @Test
-    fun `general rank update snapshots both strided vectors sharing matrix storage`() {
-        for (alpha in doubleArrayOf(1.0, -0.75)) {
-            val a = paddedRegion(3, 4)
-            val x = StridedVector(a.values, a.offset, a.rows, 1)
-            val y = StridedVector(a.values, a.offset + 6, a.cols, -2)
-            val before = a.values.copyOf()
-            val expected = contiguousCopy(a)
-            ReferenceBlas.ger(alpha, x.toDoubleArray(), y.toDoubleArray(), expected)
-
-            if (alpha == 1.0) {
-                a.ger(x, y)
-            } else {
-                a.ger(x, y, alpha = alpha, scratch = Scratch())
-            }
-
-            assertRegionAgreesWithReference(expected, a, before)
-        }
-    }
-
-    @Test
-    fun `symmetric rank update snapshots a vector sharing matrix storage`() {
-        for (lower in booleanArrayOf(false, true)) {
-            for (stride in intArrayOf(-1, 1)) {
-                val a = paddedRegion(4, 4)
-                val x = StridedVector(a.values, a.offset + if (stride < 0) 3 else 0, 4, stride)
-                val before = a.values.copyOf()
-                val expected = contiguousCopy(a)
-                ReferenceBlas.syr(-0.75, DenseVector.of(x.toDoubleArray()), expected, lower)
-
-                a.syr(x, alpha = -0.75, lower = lower, scratch = Scratch())
-
-                assertRegionAgreesWithReference(expected, a, before)
-            }
-        }
-    }
-
-    @Test
-    fun `triangular vector solve preserves aliased views across flags`() {
-        for (lower in booleanArrayOf(false, true)) {
-            for (transpose in booleanArrayOf(false, true)) {
-                for (unitDiag in booleanArrayOf(false, true)) {
-                    for (stride in intArrayOf(-1, 1)) {
-                        val a = paddedRegion(4, 4)
-                        val x = StridedVector(a.values, a.offset + if (stride < 0) 3 else 0, 4, stride)
-                        val before = a.values.copyOf()
-                        val expected = x.toDoubleArray()
-                        ReferenceBlas.trsv(contiguousCopy(a), expected, lower, transpose, unitDiag)
-
-                        a.trsv(x, lower, transpose, unitDiag, Scratch())
-
-                        assertVectorAgreesWithReference(expected, x, before)
-                    }
-                }
-            }
-        }
-    }
-
-    @Test
-    fun `triangular matrix solve snapshots an overlapping factor across flags`() {
-        for (right in booleanArrayOf(false, true)) {
-            for (lower in booleanArrayOf(false, true)) {
-                for (transpose in booleanArrayOf(false, true)) {
-                    for (unitDiag in booleanArrayOf(false, true)) {
-                        val a = paddedRegion(4, 4)
-                        val destination = a.view(rows = if (right) 3 else 4, cols = if (right) 4 else 3)
-                        val before = a.values.copyOf()
-                        val expected = contiguousCopy(destination)
-                        ReferenceBlas.trsm(contiguousCopy(a), expected, lower, transpose, unitDiag, right, -0.75)
-
-                        a.trsm(destination, lower, transpose, unitDiag, right, -0.75, Scratch())
-
-                        assertRegionAgreesWithReference(expected, destination, before)
-                    }
-                }
-            }
-        }
-    }
-
-    @Test
-    fun `vector sizes are validated before writing even at zero alpha`() {
-        val a = paddedRegion(3, 3)
-        val before = a.values.copyOf()
-        val valid = DenseVector.zero(3)
-        for (size in intArrayOf(2, 4)) {
-            // Both sizes have enough backing storage for a raw window of three entries.
-            val wrong = StridedVector(a.values, a.offset, size)
-            for (transpose in booleanArrayOf(false, true)) {
-                assertFailsWith<DimensionMismatch> { a.gemvInto(wrong, valid, alpha = 0.0, transpose = transpose) }
-                assertFailsWith<DimensionMismatch> { a.gemvInto(valid, wrong, alpha = 0.0, transpose = transpose) }
-            }
-            assertFailsWith<DimensionMismatch> { a.ger(wrong, valid, alpha = 0.0) }
-            assertFailsWith<DimensionMismatch> { a.ger(valid, wrong, alpha = 0.0) }
-            assertFailsWith<DimensionMismatch> { a.syr(wrong, alpha = 0.0) }
-            assertFailsWith<DimensionMismatch> { a.trsv(wrong, lower = true) }
-        }
-
-        assertContentEquals(before, a.values)
-        assertContentEquals(DoubleArray(3), valid.values)
     }
 
     private fun assertVectorAgreesWithReference(expected: DoubleArray, actual: DenseVector, before: DoubleArray) {

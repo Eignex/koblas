@@ -16,23 +16,33 @@ import kotlin.jvm.JvmStatic
  * [rowIndices] are live zero-copy escape hatches for specialized kernels and require [UnsafeKoblasApi]; mutating
  * them can invalidate the CSC structure. [values] remains live so coefficients can be updated without
  * rebuilding the pattern; do not use the matrix as a hash-map key while mutating it.
+ * Inserting an entry through [set] or changing the pattern through [Matrix.copyFrom] replaces the buffers;
+ * obtain current arrays from the accessors after structural writes.
  *
  * @property rows the number of rows.
  * @property cols the number of columns.
- * @property colPointers live column start offsets, length `cols + 1`; do not mutate.
- * @property rowIndices live row index of each stored entry, length `values.size`; do not mutate.
- * @property values the stored values, parallel to the row indices.
  */
 @Serializable
 @SerialName("SparseMatrix")
 public class SparseMatrix internal constructor(
     override val rows: Int,
     override val cols: Int,
-    @property:UnsafeKoblasApi public val colPointers: IntArray,
-    @property:UnsafeKoblasApi public val rowIndices: IntArray,
-    public val values: DoubleArray,
+    @SerialName("colPointers") private var storedColPointers: IntArray,
+    @SerialName("rowIndices") private var storedRowIndices: IntArray,
+    @SerialName("values") private var storedValues: DoubleArray,
     @Transient private val trustedPattern: Boolean = false,
 ) : MatrixStorage {
+    /** Live column pointers; structural writes may replace this buffer. Do not mutate it. */
+    @property:UnsafeKoblasApi
+    public val colPointers: IntArray get() = storedColPointers
+
+    /** Live row positions; structural writes may replace this buffer. Do not mutate it. */
+    @property:UnsafeKoblasApi
+    public val rowIndices: IntArray get() = storedRowIndices
+
+    /** Live coefficients; structural writes may replace this buffer. */
+    public val values: DoubleArray get() = storedValues
+
     init {
         requireNonNegativeShape(rows, cols)
         requireShape(colPointers.size.toLong() == cols.toLong() + 1) {
@@ -77,18 +87,37 @@ public class SparseMatrix internal constructor(
      */
     override fun get(i: Int, j: Int): Double {
         requireInBounds(i, j, rows, cols)
-        var lo = colPointers[j]
-        var hi = colPointers[j + 1] - 1
-        while (lo <= hi) {
-            val mid = (lo + hi) ushr 1
-            val row = rowIndices[mid]
-            when {
-                row < i -> lo = mid + 1
-                row > i -> hi = mid - 1
-                else -> return values[mid]
-            }
+        val position = lowerBound(rowIndices, colPointers[j], colPointers[j + 1], i)
+        return if (position < colPointers[j + 1] && rowIndices[position] == i) values[position] else 0.0
+    }
+
+    /** Writes an entry, inserting its position when absent. Explicitly written zeros remain stored. */
+    override fun set(i: Int, j: Int, v: Double) {
+        requireInBounds(i, j, rows, cols)
+        val position = lowerBound(rowIndices, colPointers[j], colPointers[j + 1], i)
+        if (position < colPointers[j + 1] && rowIndices[position] == i) {
+            values[position] = v
+            return
         }
-        return 0.0
+        requireShape(nnz < Int.MAX_VALUE) { "stored entry count exceeds Int capacity" }
+        val slot = position
+        val pointers = colPointers.copyOf()
+        val indices = IntArray(nnz + 1)
+        val coefficients = DoubleArray(nnz + 1)
+        rowIndices.copyInto(indices, 0, 0, slot)
+        values.copyInto(coefficients, 0, 0, slot)
+        indices[slot] = i
+        coefficients[slot] = v
+        rowIndices.copyInto(indices, slot + 1, slot)
+        values.copyInto(coefficients, slot + 1, slot)
+        for (column in j + 1..cols) pointers[column]++
+        replaceStorage(pointers, indices, coefficients)
+    }
+
+    internal fun replaceStorage(pointers: IntArray, indices: IntArray, coefficients: DoubleArray) {
+        storedColPointers = pointers
+        storedRowIndices = indices
+        storedValues = coefficients
     }
 
     /** Materialises into a fresh `rows × cols` array of rows; unstored entries stay zero. */

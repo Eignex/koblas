@@ -27,7 +27,7 @@ final class JavaInteropSmoke {
         assertEquals(8.0, Koblas.asum(vector));
 
         StridedVector view = Koblas.view(vector, 0, vector.getSize(), 1);
-        Koblas.scale(view, 2.0);
+        Koblas.getDefault().scale(view.getValues(), view.getOffset(), 2.0, view.getSize(), view.getStride());
         assertArrayEquals(new double[] {6.0, 10.0}, vector.toDoubleArray());
 
         SparseMatrix sparse = SparseMatrix.ofTriplets(

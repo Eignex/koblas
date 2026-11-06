@@ -24,18 +24,20 @@ val x = DenseVector.of(doubleArrayOf(3.0, 5.0))
 val b = DenseMatrix.diagonal(2) // Identity matrix
 
 val y = DenseVector.zero(a.rows)
-a.gemvInto(x, y)
+koblas.gemv(1.0, a, x.values, x.offset, x.stride, 0.0, y.values, y.offset, y.stride)
 val product = DenseMatrix.zero(a.rows, b.cols)
-a.gemmInto(b, product)
-val scaled = DenseVector.wrap(x.toDoubleArray()).also { it.scale(2.0) }
+koblas.gemm(1.0, a, false, b, false, 0.0, product)
+val snapshot = x.copy()
 val squaredLength = x dot x
-val length = x.norm()              // Euclidean norm, order = 2
-val absoluteSum = x.norm(order = 1)
-val largestMagnitude = x.norm(order = Int.MAX_VALUE)
+val length = x.norm()              // Euclidean norm, Norm.Two
+val absoluteSum = x.norm(Norm.One)
+val largestMagnitude = x.norm(Norm.Infinity)
+val matrixLength = a.norm()        // Frobenius norm
+val largestEntry = a.norm(Norm.MaxAbs)
 ```
 
-`gemvInto` writes a matrix-vector product into `y`; `gemmInto` writes a matrix product into `product`.
-`scale` changes a vector in place, and a dot product returns a scalar. Access individual elements
+GEMV writes a matrix-vector product into `y`; GEMM writes a matrix product into `product`.
+`copy()` returns independent storage, and a dot product returns a scalar. Access individual elements
 with `a[row, column]` or `x[index]`.
 
 Dense containers store every element. Sparse containers store only selected positions and are useful
@@ -44,32 +46,34 @@ and produce a dense result. Sparse inputs stay sparse during the computation. Pr
 matrices are unsupported. See the [API overview](koblas/module.md) for construction and the full
 operation set.
 
-The dense matrix facade supplies ordinary product and unit-scaling defaults, and takes vectors without
-unpacking their backing arrays, offsets and strides:
+The container facades work through the mutable `Matrix` and `Vector` contracts, including sparse,
+strided and custom storage:
 
 ```kotlin
-a.gemvInto(x, y)                         // y = A * x
-a.gemmInto(b, product)                   // product = A * B
-a.ger(x, x, alpha = -0.5)                // A -= 0.5 * x * xT
-a.syr(x)                                // Lower triangle of A += x * xT
-val total = a.sum()                      // Sum of all entries
-val columnSums = a.sum(axis = 0)          // Reduce rows, one result per column
-val rowSums = a.sum(axis = 1)             // Reduce columns, one result per row
+val vectorCopy = x.copy()
+val matrixCopy = a.copy()
+vectorCopy.copyFrom(x)
+matrixCopy.copyFrom(b)
+val transposed = a.transpose()
+val total = a.sum()
+val columnSums = a.sum(axis = 0) // Reduce rows, one result per column
+val rowSums = a.sum(axis = 1)    // Reduce columns, one result per row
 ```
 
-`sum()` and `sum(axis)` also accept sparse and custom matrices; sparse sums visit stored entries
-without densifying. Axis sums return a fresh dense vector, with zero for each empty reduction.
-`trsv` and `trsm` solve triangular systems in place with vector and matrix right-hand sides:
+`copy()` and `transpose()` return independent storage. Sparse sources keep their stored zeros;
+dense views and custom sources produce owning dense results. `copyFrom()` validates equal logical
+shapes before writing and handles aliases, including overlapping views. A sparse destination keeps
+a sparse source's pattern; other sources store nonzero entries and negative zeros. Sparse insertion
+keeps indices sorted, and structural writes may replace the arrays returned by sparse accessors.
 
-```kotlin
-a.trsv(x, lower = true)                  // Solve A * x = b with b initially in x
-a.trsm(b, lower = true)                  // Solve A * X = B with B initially in b
-```
+Axis sums return a fresh dense vector. Sparse reductions visit stored entries without densifying.
+BLAS arithmetic uses `KoblasEngine` members with explicit destinations and vector windows.
 
-These conveniences use the default engine, accept matrix views, and preserve dense vector offsets
-and strides. Vector lengths must match the matrix
-dimensions exactly. Wrap a whole array with `DenseVector.wrap` to borrow it without copying.
-Use `KoblasEngine` members for explicit engines and the full dense and sparse BLAS surface.
+Vectors and matrices share the `Norm` enum. Vectors support `One`, `Two` (the default), `Infinity`
+and `MaxAbs`, with the last two equivalent. Matrices support `Frobenius` (the default), `One` for the
+largest absolute column sum, `Infinity` for the largest absolute row sum, and `MaxAbs` for the largest
+absolute entry. Matrix `Two` and vector `Frobenius` throw `IllegalArgumentException`. Norms accept
+dense, sparse and custom storage, and empty inputs have norm zero for every supported choice.
 
 ## Reusing arrays
 
@@ -92,7 +96,7 @@ val result = DenseMatrix.zero(a.rows, b.cols)
 val scratch = Scratch()
 
 repeat(1_000) {
-    a.gemmInto(b, result, scratch = scratch)
+    koblas.gemm(1.0, a, false, b, false, 0.0, result, scratch = scratch)
 }
 ```
 

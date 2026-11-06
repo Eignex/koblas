@@ -29,9 +29,6 @@ public sealed interface DenseVector : Vector {
     /** Physical distance between adjacent entries, which may be negative but is never zero. */
     public val stride: Int
 
-    /** Writes (v) at index (i). */
-    public operator fun set(i: Int, v: Double)
-
     /**
      * Factories for dense vectors.
      *

@@ -1,5 +1,6 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.internal.operations.axpyVector
 import com.eignex.koblas.testutil.allocation.*
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -27,7 +28,7 @@ class VectorOpsAllocationTest internal constructor(private val case: AllocationC
                 },
                 with(SharedBufferFixture()) {
                     AllocationCase("disjoint shared buffer vector axpy allocates nothing", 1_000) {
-                        destination.axpy(1e-12, source)
+                        koblas.axpyVector(1e-12, source, destination)
                         backing
                     }
                 },
@@ -54,7 +55,7 @@ class VectorOpsAllocationTest internal constructor(private val case: AllocationC
         ) + intArrayOf(1, -3).map { stride ->
             with(IdenticalMappingFixture(stride)) {
                 AllocationCase("identical vector axpy at stride $stride allocates nothing", 1_000) {
-                    destination.axpy(1e-12, source)
+                    koblas.axpyVector(1e-12, source, destination)
                     backing
                 }
             }

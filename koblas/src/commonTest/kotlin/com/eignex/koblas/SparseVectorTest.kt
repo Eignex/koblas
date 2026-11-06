@@ -7,6 +7,27 @@ import kotlin.test.*
 
 class SparseVectorTest {
     @Test
+    fun `writes through the vector contract insert sorted entries and keep zeros`() {
+        val vector = SparseVector.wrap(6, intArrayOf(1, 4), doubleArrayOf(2.0, -1.0))
+        val mutable: Vector = vector
+
+        mutable[5] = 0.0
+        mutable[0] = -3.0
+        mutable[3] = 8.0
+        val indices = vector.indices
+        val values = vector.values
+        mutable[4] = 0.0
+
+        assertContentEquals(intArrayOf(0, 1, 3, 4, 5), vector.indices)
+        assertContentEquals(doubleArrayOf(-3.0, 2.0, 8.0, 0.0, 0.0), vector.values)
+        assertSame(indices, vector.indices)
+        assertSame(values, vector.values)
+        assertEquals(vector, Json.decodeFromString(SparseVector.serializer(), Json.encodeToString(vector)))
+        assertFailsWith<IndexOutOfBoundsException> { mutable[-1] = 1.0 }
+        assertFailsWith<IndexOutOfBoundsException> { mutable[6] = 1.0 }
+    }
+
+    @Test
     fun `factories reject negative sizes`() {
         assertFailsWith<DimensionMismatch> { SparseVector.wrap(-5, IntArray(0), DoubleArray(0)) }
         assertFailsWith<DimensionMismatch> { SparseVector.of(-3, IntArray(0), DoubleArray(0)) }

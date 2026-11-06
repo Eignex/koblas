@@ -5,6 +5,7 @@ import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.engine.*
 import com.eignex.koblas.internal.kernels.EngineKernels
 import com.eignex.koblas.internal.operations.*
+import com.eignex.koblas.internal.operations.axpyVector
 import com.eignex.koblas.internal.scheduling.sparse.AdjacentPreferringPanels
 import kotlin.math.abs
 import kotlin.random.Random
@@ -124,7 +125,7 @@ class SparseOpsTest {
         val destination = doubleArrayOf(Double.NaN, -0.0)
         val poisoned = SparseVector.of(2, intArrayOf(0, 1), doubleArrayOf(Double.POSITIVE_INFINITY, Double.NaN))
 
-        DenseVector.wrap(destination).axpy(-0.0, poisoned)
+        koblas.axpyVector(-0.0, poisoned, DenseVector.wrap(destination))
 
         assertTrue(destination[0].isNaN())
         assertEquals((-0.0).toBits(), destination[1].toBits())

@@ -1,6 +1,7 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.internal.storage.*
+import com.eignex.koblas.internal.storage.sparse.lowerBound
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmStatic
@@ -12,18 +13,25 @@ import kotlin.jvm.JvmStatic
  * zero-copy escape hatch
  * for specialized kernels and requires [UnsafeKoblasApi]; mutating it can invalidate the sparse structure.
  * [values] remains live so coefficients can be updated without changing the sparse pattern.
+ * Inserting an entry through [set] or changing the pattern through [Vector.copyFrom] replaces the buffers;
+ * obtain current arrays from the accessors after structural writes.
  *
  * @property size the logical length, counting the unstored zeros.
- * @property indices live positions of the stored entries; do not mutate.
- * @property values the stored entry values, parallel to the stored positions.
  */
 @Serializable
 @SerialName("SparseVector")
 public class SparseVector internal constructor(
     override val size: Int,
-    @property:UnsafeKoblasApi public val indices: IntArray,
-    public val values: DoubleArray,
+    @SerialName("indices") private var storedIndices: IntArray,
+    @SerialName("values") private var storedValues: DoubleArray,
 ) : VectorStorage {
+
+    /** Live stored positions; structural writes may replace this buffer. Do not mutate it. */
+    @property:UnsafeKoblasApi
+    public val indices: IntArray get() = storedIndices
+
+    /** Live stored values; structural writes may replace this buffer. */
+    public val values: DoubleArray get() = storedValues
 
     init {
         requireShape(size >= 0) { "negative size: $size" }
@@ -44,18 +52,34 @@ public class SparseVector internal constructor(
     /** The stored value at (i), or 0.0 where nothing is stored. */
     override fun get(i: Int): Double {
         requireInBounds(i, size)
-        var lo = 0
-        var hi = indices.size - 1
-        while (lo <= hi) {
-            val mid = (lo + hi) ushr 1
-            val idx = indices[mid]
-            when {
-                idx < i -> lo = mid + 1
-                idx > i -> hi = mid - 1
-                else -> return values[mid]
-            }
+        val position = lowerBound(indices, 0, nnz, i)
+        return if (position < nnz && indices[position] == i) values[position] else 0.0
+    }
+
+    /** Writes an entry, inserting its position when absent. Explicitly written zeros remain stored. */
+    override fun set(i: Int, v: Double) {
+        requireInBounds(i, size)
+        val position = lowerBound(indices, 0, nnz, i)
+        if (position < nnz && indices[position] == i) {
+            values[position] = v
+            return
         }
-        return 0.0
+        requireShape(nnz < Int.MAX_VALUE) { "stored entry count exceeds Int capacity" }
+        val slot = position
+        val newIndices = IntArray(nnz + 1)
+        val newValues = DoubleArray(nnz + 1)
+        indices.copyInto(newIndices, 0, 0, slot)
+        values.copyInto(newValues, 0, 0, slot)
+        newIndices[slot] = i
+        newValues[slot] = v
+        indices.copyInto(newIndices, slot + 1, slot)
+        values.copyInto(newValues, slot + 1, slot)
+        replaceStorage(newIndices, newValues)
+    }
+
+    internal fun replaceStorage(indices: IntArray, values: DoubleArray) {
+        storedIndices = indices
+        storedValues = values
     }
 
     override fun toDoubleArray(): DoubleArray {

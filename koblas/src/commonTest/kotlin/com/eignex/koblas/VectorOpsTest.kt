@@ -8,36 +8,67 @@ import kotlin.test.*
 
 class VectorOpsTest {
     @Test
-    fun `identical mapping axpy agrees with the scalar snapshot reference`() {
-        val inputs = doubleArrayOf(
-            1.5e200,
-            -1.5e200,
-            0.75,
-            -0.0,
-            0.0,
-            Double.POSITIVE_INFINITY,
-            Double.NEGATIVE_INFINITY,
-            Double.NaN,
+    fun `sparse copies preserve large shapes and stored zeros without densifying`() {
+        val source: Vector = SparseVector.wrap(
+            Int.MAX_VALUE,
+            intArrayOf(0, Int.MAX_VALUE - 1),
+            doubleArrayOf(0.0, -2.0),
         )
-        for (alpha in doubleArrayOf(0.0, -0.0, 0.75, -1.0)) {
-            for ((source, destination) in identicalDenseMappings()) {
-                for (i in 0 until source.size) source[i] = inputs[i % inputs.size]
-                val expected = source.values.copyOf()
-                BuiltinEngines.scalar.axpy(
-                    expected,
-                    destination.offset,
-                    alpha,
-                    source.toDoubleArray(),
-                    0,
-                    source.size,
-                    destination.stride,
-                )
+        val destination: Vector = SparseVector.wrap(Int.MAX_VALUE, IntArray(0), DoubleArray(0))
 
-                destination.axpy(alpha, source)
+        val result = source.copy()
+        destination.copyFrom(source)
 
-                assertAxpyAgreesWithReference(expected, source.values)
+        assertEquals(source, result)
+        assertEquals(source, destination)
+        assertNotSame(assertIs<SparseVector>(source).values, assertIs<SparseVector>(result).values)
+        assertNotSame(source.values, assertIs<SparseVector>(destination).values)
+    }
+
+    @Test
+    fun `copies own their storage across vector implementations`() {
+        val values = doubleArrayOf(1.5, 0.0, -0.0, -2.0)
+        for (source in normOperands(values)) {
+            val result = source.copy()
+
+            assertContentEquals(values, result.toDoubleArray())
+            if (source is SparseVector) {
+                val sparseCopy = assertIs<SparseVector>(result)
+                assertContentEquals(source.indices, sparseCopy.indices)
+                assertNotSame(source.indices, sparseCopy.indices)
+                assertNotSame(source.values, sparseCopy.values)
+            }
+            result[0] = 9.0
+            assertContentEquals(values, source.toDoubleArray())
+        }
+    }
+
+    @Test
+    fun `copy from supports every source and destination storage`() {
+        val values = doubleArrayOf(1.5, 0.0, -0.0, -2.0)
+        for (source in normOperands(values)) {
+            for (destination in normOperands(DoubleArray(values.size) { 7.0 })) {
+                destination.copyFrom(source)
+
+                assertContentEquals(values, destination.toDoubleArray())
+                if (destination is SparseVector && source is SparseVector) {
+                    assertContentEquals(source.indices, destination.indices)
+                    assertNotSame(source.values, destination.values)
+                }
             }
         }
+    }
+
+    @Test
+    fun `copy from snapshots overlapping custom destinations`() {
+        val backing = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
+        val source: Vector = ForeignVector(StridedVector(backing, 3, 4, -1))
+        val destination: Vector = ForeignVector(DenseVector.wrap(backing))
+        val expected = source.toDoubleArray()
+
+        destination.copyFrom(source)
+
+        assertContentEquals(expected, backing)
     }
 
     @Test
@@ -64,19 +95,6 @@ class VectorOpsTest {
                 }
             }
         }
-    }
-
-    @Test
-    fun `reversed overlapping axpy agrees with the scalar snapshot reference`() {
-        val backing = DoubleArray(12) { it + 0.25 }
-        val source = StridedVector(backing, 2, 5)
-        val destination = StridedVector(backing, 6, 5, -1)
-        val expected = backing.copyOf()
-        BuiltinEngines.scalar.axpy(expected, 6, 0.75, source.toDoubleArray(), 0, 5, -1)
-
-        destination.axpy(0.75, source)
-
-        assertAxpyAgreesWithReference(expected, backing)
     }
 
     @Test
@@ -110,7 +128,9 @@ class VectorOpsTest {
     private class ForeignVector(private val backing: DenseVector) : Vector {
         override val size: Int get() = backing.size
         override fun get(i: Int): Double = backing[i]
-        override fun toDoubleArray(): DoubleArray = backing.toDoubleArray()
+        override fun set(i: Int, v: Double) {
+            backing[i] = v
+        }
     }
 
     private fun foreignRamp(size: Int) = ForeignVector(DenseVector.of(DoubleArray(size) { it * 0.5 - 1.0 }))
@@ -124,32 +144,6 @@ class VectorOpsTest {
         entries.map { it.first }.toIntArray(),
         entries.map { it.second }.toDoubleArray(),
     )
-
-    @Test
-    fun `sparse axpy accepts a prefix view and preserves its padding`() {
-        for (size in intArrayOf(0, 3)) {
-            val backing = DoubleArray(7) { it + 0.5 }
-            val destination = StridedVector(backing, 0, size)
-            val source = if (size == 0) sparse(0) else sparse(size, 0 to 2.0, 2 to -1.0)
-            val expected = backing.copyOf()
-            BuiltinEngines.scalar.axpy(source.indices, 0, source.values, 0, source.indices.size, 2.0, expected)
-
-            destination.axpy(2.0, source)
-
-            assertAxpyAgreesWithReference(expected, backing)
-        }
-    }
-
-    private fun assertAxpyAgreesWithReference(expected: DoubleArray, actual: DoubleArray) {
-        assertEquals(expected.size, actual.size)
-        for (i in expected.indices) {
-            when {
-                expected[i].isNaN() -> assertTrue(actual[i].isNaN(), "axpy backing index $i should be NaN")
-                expected[i] == 0.0 -> assertEquals(expected[i].toBits(), actual[i].toBits(), "axpy backing index $i")
-                else -> assertClose(expected[i], actual[i], "axpy backing index $i")
-            }
-        }
-    }
 
     @Test
     fun `dot is symmetric and sparsity agnostic`() {
@@ -168,22 +162,6 @@ class VectorOpsTest {
             assertReductionAgreesWithReference(expected, actual, context)
         }
         assertReductionAgreesWithReference(sparseByDense, bSparse dot b, "sparse by its own dense form")
-    }
-
-    @Test
-    fun `axpy adds alpha scaled x to y for any sparsity`() {
-        val y = DenseVector.of(doubleArrayOf(1.0, 2.0, 3.0))
-        y.axpy(2.0, sparse(3, 0 to 1.0, 2 to -1.0))
-        assertEquals(dense(3.0, 2.0, 1.0), y)
-    }
-
-    @Test
-    fun `scale mutates in place and respects identity`() {
-        val v = DenseVector.of(doubleArrayOf(1.0, -2.0, 3.0))
-        v.scale(0.5)
-        assertEquals(dense(0.5, -1.0, 1.5), v)
-        v.scale(1.0)
-        assertEquals(dense(0.5, -1.0, 1.5), v)
     }
 
     @Test
@@ -207,12 +185,12 @@ class VectorOpsTest {
     fun `supported norms agree with the scalar oracle across vector storage`() {
         val values = doubleArrayOf(-1.5, 0.0, 3.5, -7.25, 0.0, 2.0)
         for (source in normOperands(values)) {
-            for (order in intArrayOf(1, 2, Int.MAX_VALUE)) {
-                val expected = referenceNorm(values, order)
+            for (type in listOf(Norm.One, Norm.Two, Norm.Infinity, Norm.MaxAbs)) {
+                val expected = referenceNorm(values, type)
 
-                val actual = source.norm(order)
+                val actual = source.norm(type)
 
-                assertReductionAgreesWithReference(expected, actual, "norm order $order")
+                assertReductionAgreesWithReference(expected, actual, "norm type $type")
             }
         }
     }
@@ -222,9 +200,9 @@ class VectorOpsTest {
         for (scale in doubleArrayOf(1e-200, 1e200)) {
             val values = doubleArrayOf(3.0 * scale, 0.0, -4.0 * scale)
             for (source in normOperands(values)) {
-                val expected = referenceNorm(values, 2)
+                val expected = referenceNorm(values, Norm.Two)
 
-                val actual = source.norm(order = 2)
+                val actual = source.norm(Norm.Two)
 
                 assertReductionAgreesWithReference(expected / scale, actual / scale, "rescaled norm")
             }
@@ -236,23 +214,22 @@ class VectorOpsTest {
         val emptySparse = SparseVector.wrap(Int.MAX_VALUE, IntArray(0), DoubleArray(0))
         val emptyView = StridedVector(doubleArrayOf(Double.NaN), 1, 0, -3)
         for (source in normOperands(DoubleArray(0)) + normOperands(DoubleArray(4)) + listOf(emptySparse, emptyView)) {
-            for (order in intArrayOf(1, 2, Int.MAX_VALUE)) {
-                assertEquals(0.0, source.norm(order))
+            for (type in listOf(Norm.One, Norm.Two, Norm.Infinity, Norm.MaxAbs)) {
+                assertEquals(0.0, source.norm(type))
             }
         }
     }
 
     @Test
-    fun `unsupported norm orders are rejected before reading the vector`() {
+    fun `unsupported vector norm is rejected before reading the vector`() {
         val source = object : Vector {
             override val size: Int get() = error("Read vector size")
+            override fun set(i: Int, v: Double) = error("Unexpected mutation")
             override fun get(i: Int): Double = error("Read vector entry")
             override fun toDoubleArray(): DoubleArray = error("Materialized vector")
         }
 
-        for (order in intArrayOf(Int.MIN_VALUE, -1, 0, 3, Int.MAX_VALUE - 1)) {
-            assertFailsWith<IllegalArgumentException> { source.norm(order) }
-        }
+        assertFailsWith<IllegalArgumentException> { source.norm(Norm.Frobenius) }
     }
 
     private fun normOperands(values: DoubleArray): List<Vector> = buildList {
@@ -269,15 +246,17 @@ class VectorOpsTest {
         add(ForeignVector(DenseVector.of(values)))
     }
 
-    private fun referenceNorm(values: DoubleArray, order: Int): Double = when (order) {
-        1 -> BuiltinEngines.scalar.asum(values, 0, values.size)
+    private fun referenceNorm(values: DoubleArray, type: Norm): Double = when (type) {
+        Norm.One -> BuiltinEngines.scalar.asum(values, 0, values.size)
 
-        2 -> BuiltinEngines.scalar.nrm2(values, 0, values.size)
+        Norm.Two -> BuiltinEngines.scalar.nrm2(values, 0, values.size)
 
-        else -> {
+        Norm.Infinity, Norm.MaxAbs -> {
             val index = BuiltinEngines.scalar.iamax(values, 0, values.size)
             if (index < 0) 0.0 else abs(values[index])
         }
+
+        Norm.Frobenius -> error("Unsupported vector norm")
     }
 
     @Test
@@ -328,12 +307,6 @@ class VectorOpsTest {
         dst.copyFrom(DenseVector.of(doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0)))
         assertContentEquals(doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0), dst.values)
         assertFailsWith<DimensionMismatch> { DenseVector.zero(3).copyFrom(DenseVector.zero(2)) }
-    }
-
-    @Test
-    fun `vector operations reject mismatched sizes`() {
-        assertFailsWith<DimensionMismatch> { dense(1.0) dot dense(1.0, 2.0) }
-        assertFailsWith<DimensionMismatch> { dense(1.0).axpy(1.0, dense(1.0, 2.0)) }
     }
 
     @Test
@@ -393,25 +366,6 @@ class VectorOpsTest {
     }
 
     @Test
-    fun `axpy snapshots a foreign source sharing the destination buffer`() {
-        for (borrowed in booleanArrayOf(false, true)) {
-            val backing = if (borrowed) {
-                doubleArrayOf(9.0, 1.0, 2.0, 3.0, 4.0, 9.0)
-            } else {
-                doubleArrayOf(1.0, 2.0, 3.0, 4.0)
-            }
-            val destination = if (borrowed) StridedVector(backing, 1, 4) else DenseVector.wrap(backing)
-            val source = ForeignVector(StridedVector(backing, destination.offset + 3, 4, -1))
-            val expected = backing.copyOf()
-            BuiltinEngines.scalar.axpy(expected, destination.offset, 2.0, source.toDoubleArray(), 0, 4)
-
-            destination.axpy(2.0, source)
-
-            assertAxpyAgreesWithReference(expected, backing)
-        }
-    }
-
-    @Test
     fun `copy into dense storage preserves a borrowed source sharing its buffer`() {
         for (reverse in booleanArrayOf(false, true)) {
             val backing = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
@@ -439,36 +393,6 @@ class VectorOpsTest {
 
             assertContentEquals(expected, backing)
         }
-    }
-
-    @Test
-    fun `axpy preserves a borrowed source sharing the destination buffer`() {
-        for (borrowed in booleanArrayOf(false, true)) {
-            val backing = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
-            val source = StridedVector(backing, 3, 4, -1)
-            val expected = DoubleArray(backing.size) { backing[it] + 2.0 * source[it] }
-
-            if (borrowed) {
-                StridedVector(backing, 0, 4).axpy(2.0, source)
-            } else {
-                DenseVector.wrap(backing).axpy(2.0, source)
-            }
-
-            assertContentEquals(expected, backing)
-        }
-    }
-
-    @Test
-    fun `borrowed axpy with sparse input leaves unstored positions untouched`() {
-        val backing = doubleArrayOf(1.0, 2.0, 3.0)
-        val source = sparse(3, 1 to 2.0)
-        val destination = StridedVector(backing, 2, 3, -1)
-        val expected = DenseVector.of(destination.toDoubleArray())
-        expected.axpy(Double.POSITIVE_INFINITY, source)
-
-        destination.axpy(Double.POSITIVE_INFINITY, source)
-
-        assertContentEquals(expected.values.reversedArray(), backing)
     }
 
     private fun assertReductionAgreesWithReference(expected: Double, actual: Double, context: String) {
@@ -512,17 +436,6 @@ class VectorOpsTest {
     }
 
     @Test
-    fun `axpy accepts a foreign source`() {
-        val source = foreignRamp(6)
-        val destination = DenseVector.zero(6)
-        val expected = DoubleArray(6) { 2.0 * source[it] }
-
-        destination.axpy(2.0, source)
-
-        assertClose(expected, destination.values, "foreign axpy")
-    }
-
-    @Test
     fun `copy accepts a foreign source`() {
         val source = foreignRamp(6)
         val destination = DenseVector.zero(6)
@@ -542,26 +455,5 @@ class VectorOpsTest {
         val actual = even dot odd
 
         assertClose(expected, actual, "borrowed dot")
-    }
-
-    @Test
-    fun `scaling a borrowed slice leaves other entries untouched`() {
-        val backing = DoubleArray(8) { it + 1.0 }
-        val even = StridedVector(backing, 0, 4, 2)
-        val expected = backing.copyOf()
-        ScalarEngine.scale(expected, 0, 2.0, 4, 2)
-
-        even.scale(2.0)
-
-        assertContentEquals(expected, backing)
-    }
-
-    @Test
-    fun `alpha zero leaves the destination unchanged`() {
-        val y = DenseVector.of(doubleArrayOf(1.0, 2.0, 3.0))
-
-        y.axpy(0.0, DenseVector.of(doubleArrayOf(9.0, 9.0, 9.0)))
-
-        assertContentEquals(doubleArrayOf(1.0, 2.0, 3.0), y.values)
     }
 }

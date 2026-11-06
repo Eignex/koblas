@@ -5,6 +5,30 @@ import kotlin.test.*
 
 class SparseMatrixTest {
     @Test
+    fun `writes through the matrix contract preserve validated CSC storage`() {
+        val matrix = SparseMatrix.ofColumns(4, 3, listOf(listOf(2 to 2.0), emptyList(), listOf(0 to -1.0)))
+        val mutable: Matrix = matrix
+
+        mutable[3, 1] = 0.0
+        mutable[1, 0] = 4.0
+        val pointers = matrix.colPointers
+        val indices = matrix.rowIndices
+        val values = matrix.values
+        mutable[0, 2] = 0.0
+
+        assertContentEquals(intArrayOf(0, 2, 3, 4), matrix.colPointers)
+        assertContentEquals(intArrayOf(1, 2, 3, 0), matrix.rowIndices)
+        assertContentEquals(doubleArrayOf(4.0, 2.0, 0.0, 0.0), matrix.values)
+        assertSame(pointers, matrix.colPointers)
+        assertSame(indices, matrix.rowIndices)
+        assertSame(values, matrix.values)
+        val encoded = Json.encodeToString(SparseMatrix.serializer(), matrix)
+        assertEquals(matrix, Json.decodeFromString(SparseMatrix.serializer(), encoded))
+        assertFailsWith<IndexOutOfBoundsException> { mutable[-1, 0] = 1.0 }
+        assertFailsWith<IndexOutOfBoundsException> { mutable[0, 3] = 1.0 }
+    }
+
+    @Test
     fun `triplet construction agrees with the scalar coordinate reference`() {
         for (rows in intArrayOf(1, 3, 8, 17, 18, 64, 65)) {
             for (columns in intArrayOf(1, 3, 6)) {

@@ -5,6 +5,7 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.internal.operations.*
+import com.eignex.koblas.internal.storage.copyVectorStorage
 
 /**
  * Visit each stored entry as (index, value), in ascending index order for any storage. A [SparseVector]
@@ -36,17 +37,17 @@ public inline fun Vector.forEachStored(block: (i: Int, v: Double) -> Unit) {
 public infix fun Vector.dot(other: Vector): Double = koblas.dotVector(this, other)
 
 /**
- * Vector norm of [order]: `1` sums absolute values, `2` is the Euclidean norm, and [Int.MAX_VALUE]
- * selects the infinity norm, the maximum absolute value. An empty vector has norm zero.
+ * Vector norm of [type]: [Norm.One] sums absolute values, [Norm.Two] is the Euclidean norm, and
+ * [Norm.Infinity] and [Norm.MaxAbs] select the maximum absolute value. An empty vector has norm zero.
  *
  * Uses the default [koblas] engine for dense and packed sparse storage, preserving dense offsets and
- * strides. Sparse vectors visit only stored values; custom vectors use portable fallbacks. Order two
+ * strides. Sparse vectors visit only stored values; custom vectors use portable fallbacks. [Norm.Two]
  * rescales to avoid unnecessary overflow and underflow. Rounding and non-finite behavior follow the
  * selected implementation, including [KoblasEngine.iamax] for the infinity norm over built-in storage.
  *
- * @throws IllegalArgumentException if [order] is neither `1`, `2` nor [Int.MAX_VALUE].
+ * @throws IllegalArgumentException if [type] is [Norm.Frobenius], which is a matrix norm.
  */
-public fun Vector.norm(order: Int = 2): Double = koblas.normVector(this, order)
+public fun Vector.norm(type: Norm = Norm.Two): Double = koblas.normVector(this, type)
 
 /**
  * Plain sum of the entries. Distinct from [asum], which sums their absolute values.
@@ -60,33 +61,16 @@ public fun Vector.sum(): Double = koblas.sumVector(this)
 public fun Vector.asum(): Double = koblas.absoluteSumVector(this)
 
 /**
- * `this = src` (BLAS `dcopy`). A sparse source zero-fills this vector first, so nothing survives.
- * Identical dense mappings are a no-op. Portable contiguous copies use an overlap-safe block move;
- * other overlapping sources are snapshotted before writing.
- * Custom [Vector] implementations are also snapshotted, since their backing storage is opaque.
- *
- * One entry point for both dense spacings: this vector is written through its own origin and step, so a
- * contiguous destination and a borrowed slice of a longer buffer are the same call.
+ * An independent copy of the logical entries. Sparse storage keeps its pattern, including stored zeros;
+ * dense views and custom vectors produce owning dense storage. No backing arrays are shared.
  */
-public fun DenseVector.copyFrom(src: Vector): Unit = koblas.copyVector(src, this)
+public fun Vector.copy(): Vector = copyVectorStorage(this)
 
 /**
- * `y = y + alpha * x`. A sparse `x` touches only the positions it stores. A dense [x] with an identical
- * mapping is read directly; other dense overlaps, or sparse values sharing the destination buffer, are
- * snapshotted before writing.
- * Custom [Vector] implementations are also snapshotted, since their backing storage is opaque.
- */
-public fun DenseVector.axpy(alpha: Double, x: Vector): Unit = koblas.axpyVector(alpha, x, this)
-
-/**
- * `v = alpha * v`.
+ * Copies [source] into this vector, requiring equal sizes before writing. Inputs may share storage;
+ * overlapping or opaque sources are snapshotted first. Dense views retain their offsets and strides.
  *
- * A zero multiplier zeroes the vector rather than necessarily multiplying through it. BLAS does not require
- * the operand to be read at all in that case, and a library that writes zeros directly turns an entry holding
- * a NaN, an infinity, or a negative zero into a positive zero instead of into the product. Which of the two a
- * caller sees is the selected implementation's, as it is for [KoblasEngine.iamax].
+ * Sparse destinations retain a sparse source's pattern and stored zeros. Other sources store nonzero
+ * entries and negative zeros. Structural changes replace sparse buffers; equal patterns reuse them.
  */
-public fun DenseVector.scale(alpha: Double) {
-    if (alpha == 1.0) return
-    koblas.scale(values, offset, alpha, size, stride)
-}
+public fun Vector.copyFrom(source: Vector): Unit = koblas.copyIntoVector(source, this)
