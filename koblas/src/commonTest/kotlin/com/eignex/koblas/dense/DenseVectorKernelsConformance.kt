@@ -11,6 +11,25 @@ import kotlin.test.assertTrue
 
 // Shared conformance assertions cover owned kernels and Native host bindings.
 
+/** Copy windows at unrolled boundaries, checking both padding and the untouched source buffer. */
+internal fun assertCopyAgreesWithReference(engine: KoblasEngine) {
+    val lengths = intArrayOf(0, 1, 2, 3, 7, 8, 15, 16, 17, 31, 32, 33, 63, 64, 65, 127, 128, 129, 4095, 4096, 4097)
+    for ((index, len) in lengths.withIndex()) {
+        val aOffset = index % 8
+        val bOffset = (index * 3) % 8
+        val a = DoubleArray(aOffset + len + 5) { if (it % 3 == 0) -0.0 else it * 0.125 - 4.0 }
+        val original = a.copyOf()
+        val expected = DoubleArray(bOffset + len + 5) { -77.0 }
+        val actual = expected.copyOf()
+        ScalarEngine.copy(a, aOffset, expected, bOffset, len)
+
+        engine.kernels.copy(a, aOffset, actual, bOffset, len)
+
+        assertContentEquals(expected, actual, "${engine.name} copy len=$len source=$aOffset destination=$bOffset")
+        assertContentEquals(original, a, "${engine.name} copy changed its source len=$len")
+    }
+}
+
 /**
  * The level-1 kernels against the explicit scalar oracle, at a non-zero offset so an implementation that ignores
  * the offset fails.

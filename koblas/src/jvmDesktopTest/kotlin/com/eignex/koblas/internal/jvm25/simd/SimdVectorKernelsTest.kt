@@ -60,6 +60,14 @@ class SimdVectorKernelsTest {
     }
 
     @Test
+    fun `contiguous copy agrees with the scalar reference across windows`() {
+        if (!simdAvailable) return skipped()
+
+        assertEquals(simdKernels.vectors.name, reached(EngineImplementation.Copy, WIDE))
+        assertCopyAgreesWithReference(kernels)
+    }
+
+    @Test
     fun `the standard index search observes its configured crossover`() {
         if (!simdAvailable) return skipped()
         val tuning = EngineTuning(EngineRuntime.Jvm, hostPlatform(), null)

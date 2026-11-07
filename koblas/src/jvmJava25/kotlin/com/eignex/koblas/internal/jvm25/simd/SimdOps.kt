@@ -28,18 +28,25 @@ internal object SimdOps {
             a.copyInto(b, bOff, aOff, aOff + len)
             return
         }
-        val unrolled = len - len % (4 * LANE)
-        var i = 0
-        while (i < unrolled) {
-            DoubleVector.fromArray(SPECIES, a, aOff + i).intoArray(b, bOff + i)
-            DoubleVector.fromArray(SPECIES, a, aOff + i + LANE).intoArray(b, bOff + i + LANE)
-            DoubleVector.fromArray(SPECIES, a, aOff + i + 2 * LANE).intoArray(b, bOff + i + 2 * LANE)
-            DoubleVector.fromArray(SPECIES, a, aOff + i + 3 * LANE).intoArray(b, bOff + i + 3 * LANE)
-            i += 4 * LANE
+        val unrolled = len - len % (8 * LANE)
+        val aEnd = aOff + unrolled
+        val end = aOff + len
+        var aIndex = aOff
+        var bIndex = bOff
+        while (aIndex < aEnd) {
+            DoubleVector.fromArray(SPECIES, a, aIndex).intoArray(b, bIndex)
+            DoubleVector.fromArray(SPECIES, a, aIndex + 1 * LANE).intoArray(b, bIndex + 1 * LANE)
+            DoubleVector.fromArray(SPECIES, a, aIndex + 2 * LANE).intoArray(b, bIndex + 2 * LANE)
+            DoubleVector.fromArray(SPECIES, a, aIndex + 3 * LANE).intoArray(b, bIndex + 3 * LANE)
+            DoubleVector.fromArray(SPECIES, a, aIndex + 4 * LANE).intoArray(b, bIndex + 4 * LANE)
+            DoubleVector.fromArray(SPECIES, a, aIndex + 5 * LANE).intoArray(b, bIndex + 5 * LANE)
+            DoubleVector.fromArray(SPECIES, a, aIndex + 6 * LANE).intoArray(b, bIndex + 6 * LANE)
+            DoubleVector.fromArray(SPECIES, a, aIndex + 7 * LANE).intoArray(b, bIndex + 7 * LANE)
+            aIndex += 8 * LANE
+            bIndex += 8 * LANE
         }
-        while (i < len) {
-            b[bOff + i] = a[aOff + i]
-            i++
+        while (aIndex < end) {
+            b[bIndex++] = a[aIndex++]
         }
     }
 
