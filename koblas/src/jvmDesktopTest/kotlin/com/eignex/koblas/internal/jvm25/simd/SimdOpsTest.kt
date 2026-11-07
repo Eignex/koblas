@@ -237,9 +237,9 @@ class SimdOpsTest {
     }
 
     /** The exact Vector API engine, which hands each window to [SimdOps] once it fills a lane block. */
-    private fun simdEngine(): KoblasEngine {
+    private fun simdEngine(): EngineKernels {
         assumeSimd()
-        return checkNotNull(KoblasEngine.simd)
+        return checkNotNull(KoblasEngine.simd).kernels
     }
 
     private fun assertIamaxAgreesWithReference(expected: Int, actual: Int, context: String) {
