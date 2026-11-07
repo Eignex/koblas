@@ -3,14 +3,11 @@
 package com.eignex.koblas.internal.operations
 
 import com.eignex.koblas.*
-import com.eignex.koblas.EngineImplementation
-import com.eignex.koblas.internal.engine.vectorProviderFor
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.*
 import com.eignex.koblas.internal.kernels.scalar.sparse.*
 import com.eignex.koblas.internal.storage.copyVectorStorage
 import com.eignex.koblas.internal.storage.isWholeArray
-import com.eignex.koblas.internal.storage.sameVectorMapping
 import kotlin.math.abs
 
 /** Storage adapters use selected array kernels where possible and portable readers for opaque storage. */
@@ -75,36 +72,6 @@ internal fun KoblasEngine.absoluteSumVector(x: Vector): Double = when (x) {
     is DenseVector -> kernels.asum(x.values, x.offset, x.size, x.stride)
     is SparseVector -> kernels.asum(x.values, x.offset, x.nnz)
     else -> scalarVectorAbsoluteSum(x)
-}
-
-internal fun KoblasEngine.copyVector(x: Vector, y: DenseVector) {
-    requireSameSize(x.size, y.size, "copy")
-    if (x is DenseVector) return copyDense(x, y)
-    when (val source = x.stableFor(y)) {
-        is SparseVector -> {
-            zeroVector(y.values, y.offset, y.size, y.stride)
-            if (y.isWholeArray) {
-                kernels.scatter(source.indices, source.offset, source.values, source.offset, source.nnz, y.values)
-            } else {
-                indexedScatter(
-                    source.indices, source.offset, source.values, source.offset, source.nnz,
-                    y.values, y.offset, y.stride,
-                )
-            }
-        }
-
-        is DenseVector -> copyDense(source, y)
-    }
-}
-
-private fun KoblasEngine.copyDense(x: DenseVector, y: DenseVector) {
-    requireSameSize(x.size, y.size, "copy")
-    if (sameVectorMapping(x, y)) return
-    val contiguous = x.stride == 1 && y.stride == 1
-    val provider = vectorProviderFor(EngineImplementation.Copy, x.size, contiguous)
-    // Portable contiguous copy is a memmove, so it needs no alias snapshot.
-    val source = if (provider === ScalarEngine && contiguous) x else x.stableFor(y)
-    provider.kernels.copy(source.values, source.offset, y.values, y.offset, x.size, source.stride, y.stride)
 }
 
 internal fun KoblasEngine.scaleVector(alpha: Double, x: Vector) {

@@ -20,18 +20,33 @@ internal fun copyMatrixStorage(source: Matrix): Matrix = when (source) {
         source.values.copyOf(),
     )
 
+    is DenseMatrix -> copyDenseMatrix(source)
+
     else -> {
         val result = DenseMatrix.zero(source.rows, source.cols)
         if (source.rows > 0 && source.cols > 0) {
-            if (source is DenseMatrix) {
-                for (j in 0 until source.cols) {
-                    val start = source.offset + j * source.leadingDimension
-                    source.values.copyInto(result.values, j * source.rows, start, start + source.rows)
-                }
-            } else {
-                for (j in 0 until source.cols) for (i in 0 until source.rows) result[i, j] = source[i, j]
-            }
+            for (j in 0 until source.cols) for (i in 0 until source.rows) result[i, j] = source[i, j]
         }
         result
+    }
+}
+
+internal fun copyDenseMatrix(source: DenseMatrix): DenseMatrix {
+    val result = DenseMatrix.zero(source.rows, source.cols)
+    copyDenseColumns(source, result)
+    return result
+}
+
+/** The caller supplies equal shapes and stages destructive aliases before copying column windows. */
+internal fun copyDenseColumns(source: DenseMatrix, destination: DenseMatrix) {
+    if (source.rows == 0 || source.cols == 0) return
+    for (j in 0 until source.cols) {
+        val start = source.offset + j * source.leadingDimension
+        source.values.copyInto(
+            destination.values,
+            destination.offset + j * destination.leadingDimension,
+            start,
+            start + source.rows,
+        )
     }
 }

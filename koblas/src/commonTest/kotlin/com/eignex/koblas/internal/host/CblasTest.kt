@@ -174,7 +174,7 @@ class CblasTest {
             val expectedY = y.values.copyOf()
             for (i in 0 until x.size) expectedY[y.offset + i * y.stride] = x[i]
 
-            vendor.copyVector(x, y)
+            vendor.copyIntoVector(x, y)
 
             assertContentEquals(originalX, x.values, context(vendor, "copy source", x, y))
             assertContentEquals(expectedY, y.values, context(vendor, "copy destination", x, y))

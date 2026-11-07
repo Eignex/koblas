@@ -150,6 +150,27 @@ class MatrixOpsTest {
     }
 
     @Test
+    fun `copy from dense and custom matrices builds sparse columns in row order`() {
+        val source = paddedRegion(3, 4)
+        val columns = arrayOf(
+            doubleArrayOf(0.0, 0.0, 0.0),
+            doubleArrayOf(-0.0, Double.NaN, 2.0),
+            doubleArrayOf(4.0, 0.0, -3.0),
+            doubleArrayOf(0.0, 0.0, 0.0),
+        )
+        for (j in columns.indices) for (i in columns[j].indices) source[i, j] = columns[j][i]
+        for (input in listOf<Matrix>(source, ForeignMatrix(source))) {
+            val destination = SparseMatrix.ofColumns(3, 4, List(4) { emptyList() })
+
+            destination.copyFrom(input)
+
+            assertContentEquals(intArrayOf(0, 0, 3, 5, 5), destination.colPointers)
+            assertContentEquals(intArrayOf(0, 1, 2, 0, 2), destination.rowIndices)
+            assertContentEquals(doubleArrayOf(-0.0, Double.NaN, 2.0, 4.0, -3.0), destination.values)
+        }
+    }
+
+    @Test
     fun `copy from snapshots overlapping matrix views and custom storage`() {
         for (customSource in booleanArrayOf(false, true)) {
             for (customDestination in booleanArrayOf(false, true)) {

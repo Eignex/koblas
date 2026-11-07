@@ -215,7 +215,7 @@ class VectorOperationsTest {
                 for (i in packed.indices) expected[destination.offset + i * stride] = packed[i]
 
                 if (copy) {
-                    koblas.copyVector(source, destination)
+                    koblas.copyIntoVector(source, destination)
                 } else {
                     koblas.axpyVector(-1.5, source, destination)
                 }

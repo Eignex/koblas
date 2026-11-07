@@ -17,7 +17,7 @@ internal object DenseMatrixSerializer : KSerializer<DenseMatrix> {
     override val descriptor = delegate.descriptor
 
     override fun serialize(encoder: Encoder, value: DenseMatrix) {
-        val values = if (value.isWholeBuffer) value.values else (copyMatrixStorage(value) as DenseMatrix).values
+        val values = if (value.isWholeBuffer) value.values else copyDenseMatrix(value).values
         delegate.serialize(encoder, DenseMatrixPayload(value.rows, value.cols, values))
     }
 
