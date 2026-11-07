@@ -5,7 +5,6 @@ import com.eignex.koblas.internal.engine.vectorProviderFor
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import com.eignex.koblas.internal.kernels.scalar.zeroVector
-import com.eignex.koblas.internal.kernels.scalar.sparse.indexedScatter
 import com.eignex.koblas.internal.storage.*
 import com.eignex.koblas.internal.storage.sparse.pointerLength
 
@@ -49,16 +48,7 @@ private fun KoblasEngine.copyIntoDenseVector(source: Vector, destination: DenseV
     when (val stable = source.stableFor(destination)) {
         is SparseVector -> {
             zeroVector(destination.values, destination.offset, destination.size, destination.stride)
-            if (destination.isWholeArray) {
-                kernels.scatter(
-                    stable.indices, stable.offset, stable.values, stable.offset, stable.nnz, destination.values,
-                )
-            } else {
-                indexedScatter(
-                    stable.indices, stable.offset, stable.values, stable.offset, stable.nnz,
-                    destination.values, destination.offset, destination.stride,
-                )
-            }
+            scatterStored(stable, destination)
         }
 
         is DenseVector -> kernels.copy(

@@ -9,6 +9,7 @@ import com.eignex.koblas.internal.kernels.scalar.sparse.*
 import com.eignex.koblas.internal.operations.staged
 import com.eignex.koblas.internal.scheduling.dense.forEachPanel
 import com.eignex.koblas.internal.storage.borrowOptional
+import kotlin.jvm.JvmInline
 import kotlin.math.min
 
 /**
@@ -44,7 +45,7 @@ private const val STAGED_RHS_CROSSOVER: Int = 4
  * backend prefers adjacent panels and the accelerated arithmetic outweighs the copy. Already-adjacent
  * inputs need no copy, and the portable backend never stages.
  *
- * The width is negated for staging to avoid allocating a plan object; [rhsWidth] and [rhsStaged] decode it.
+ * [RhsPlan] encodes staging in the width's sign without allocating a plan object.
  *
  * @param kernels backend sparse panel kernels.
  * @param rows destination rows used to choose grouping.
@@ -64,8 +65,8 @@ internal fun planRightHandSides(
     copiedPerSide: Long,
     nativelyContiguous: Boolean,
     reduction: Boolean = false,
-): Int {
-    if (sides <= 0) return 0
+): RhsPlan {
+    if (sides <= 0) return RhsPlan(0)
     val adjacent = min(
         sides,
         min(
@@ -73,16 +74,14 @@ internal fun planRightHandSides(
             CONTIGUOUS_RHS_PANEL,
         ),
     )
-    if (nativelyContiguous) return adjacent
+    if (nativelyContiguous) return RhsPlan(adjacent)
     val strided = kernels.sparseRightHandSideGroup(rows, sides, contiguous = false, reduction = reduction)
-    if (entries <= 0) return strided
-    // A backend that does no better over an adjacent panel gains nothing from the copy.
-    if (!kernels.sparsePrefersAdjacentSides(adjacent, entries, reduction)) return strided
-    // Pack only when the accelerated arithmetic outweighs the copy.
-    if (entries.toLong() < STAGED_RHS_CROSSOVER.toLong() * copiedPerSide) return strided
-    // A staged panel is one array, and the copied extent bounds its length from above.
-    if (adjacent * copiedPerSide > Int.MAX_VALUE) return strided
-    return -adjacent
+    // Packing must beat the strided traversal and fit the staged panel in one array.
+    val staged = entries > 0 &&
+        kernels.sparsePrefersAdjacentSides(adjacent, entries, reduction) &&
+        entries.toLong() >= STAGED_RHS_CROSSOVER.toLong() * copiedPerSide &&
+        adjacent * copiedPerSide <= Int.MAX_VALUE
+    return RhsPlan(if (staged) -adjacent else strided)
 }
 
 /**
@@ -100,19 +99,15 @@ internal fun productRhsPlan(
     entries: Int,
     transposeSparse: Boolean,
     transposeDense: Boolean,
-): Int = if (transposeSparse) {
-    planRightHandSides(
-        kernels,
-        rows,
-        sides,
-        entries,
-        copiedPerSide = depth.toLong(),
-        nativelyContiguous = transposeDense,
-        reduction = true,
-    )
-} else {
-    planRightHandSides(kernels, rows, sides, entries, copiedPerSide = 2L * rows, nativelyContiguous = false)
-}
+): RhsPlan = planRightHandSides(
+    kernels,
+    rows,
+    sides,
+    entries,
+    copiedPerSide = if (transposeSparse) depth.toLong() else 2L * rows,
+    nativelyContiguous = transposeSparse && transposeDense,
+    reduction = transposeSparse,
+)
 
 /**
  * The plan a symmetric sparse product takes, whose staging copies both dense blocks and writes one back.
@@ -120,14 +115,15 @@ internal fun productRhsPlan(
  * Three passes over a right-hand side against the two a general product's destination costs, which is why
  * the two weigh the copy differently.
  */
-internal fun symmetricRhsPlan(kernels: KoblasEngine, order: Int, sides: Int, entries: Int): Int =
+internal fun symmetricRhsPlan(kernels: KoblasEngine, order: Int, sides: Int, entries: Int): RhsPlan =
     planRightHandSides(kernels, order, sides, entries, copiedPerSide = 3L * order, nativelyContiguous = false)
 
-/** The width in a plan from [planRightHandSides]. */
-internal fun rhsWidth(plan: Int): Int = if (plan < 0) -plan else plan
-
-/** Whether a plan from [planRightHandSides] stages the dense block. */
-internal fun rhsStaged(plan: Int): Boolean = plan < 0
+/** Right-hand-side grouping, with a negative encoding when the dense block needs staging. */
+@JvmInline
+internal value class RhsPlan(private val encoded: Int) {
+    val width: Int get() = if (encoded < 0) -encoded else encoded
+    val staged: Boolean get() = encoded < 0
+}
 
 /**
  * Copies [actual] right-hand sides of a dense block into [panel], or back out of it when not [toPanel].
@@ -224,20 +220,19 @@ internal fun multiplyFromTheLeft(
     val bRhsStride = if (transposeB) 1 else ldb
     val bIndexStride = if (transposeB) ldb else 1
     val plan = productRhsPlan(kernels, m, n, k, a.nnz, transposeA, transposeB)
-    val width = rhsWidth(plan)
-    val staged = rhsStaged(plan)
+    val width = plan.width
     // Single-right-hand-side groups reach no panel; avoid retaining unused scratch in the arrays.
     arrays.borrowOptional(if (width > 1 && n > 1) width else 0) { work ->
-        arrays.borrowOptional(if (staged) width * (if (transposeA) k else m) else 0) { panel ->
+        arrays.borrowOptional(if (plan.staged) width * (if (transposeA) k else m) else 0) { panel ->
             forEachPanel(n, width) { columnStart, actual ->
                 if (transposeA) {
                     gatherPanel(
-                        kernels, alpha, a, b, c, k, columnStart, actual, width, staged,
+                        kernels, alpha, a, b, c, k, columnStart, actual, width, plan.staged,
                         bRhsStride, bIndexStride, panel, work,
                     )
                 } else {
                     scatterPanel(
-                        kernels, alpha, a, b, c, m, columnStart, actual, width, staged,
+                        kernels, alpha, a, b, c, m, columnStart, actual, width, plan.staged,
                         bRhsStride, bIndexStride, panel, work,
                     )
                 }
@@ -356,19 +351,18 @@ internal fun multiplySymmetricFromTheLeft(
     val ldc = c.leadingDimension
     if (n == 0 || sides == 0) return
     val plan = symmetricRhsPlan(kernels, n, sides, a.nnz)
-    val width = rhsWidth(plan)
-    val staged = rhsStaged(plan)
-    val panelSize = if (staged) width * n else 0
+    val width = plan.width
+    val panelSize = if (plan.staged) width * n else 0
     arrays.borrowOptional(panelSize) { source ->
         arrays.borrowOptional(panelSize) { destination ->
             forEachPanel(sides, width) { columnStart, actual ->
                 val bOrigin = b.offset + columnStart * ld
                 val cOrigin = c.offset + columnStart * ldc
                 withRhsPanel(
-                    b.values, bOrigin, ld, 1, n, actual, staged, source, width, writeBack = false,
+                    b.values, bOrigin, ld, 1, n, actual, plan.staged, source, width, writeBack = false,
                 ) { sourceValues, offset, rhsStride, indexStride ->
                     withRhsPanel(
-                        c.values, cOrigin, ldc, 1, n, actual, staged, destination, width, writeBack = true,
+                        c.values, cOrigin, ldc, 1, n, actual, plan.staged, destination, width, writeBack = true,
                     ) { into, destinationOffset, destinationStride, _ ->
                         forEachSparseColumn(a) { column, from, to ->
                             if (actual == 1) {

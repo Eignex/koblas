@@ -198,7 +198,9 @@ public interface KoblasEngine {
         scratch: Scratch? = null,
     ) {
         requireGemvOperands(a, transpose, x.size, y.size)
-        sparseMatrixVector(alpha, a, x, beta, y, transpose, scratch, symmetric = false)
+        withSparseMatrixVectors(alpha, a, x, beta, y) { input, output ->
+            kernels.gemv(alpha, a, input, beta, output, transpose, scratch)
+        }
     }
 
     /**
@@ -234,7 +236,9 @@ public interface KoblasEngine {
         scratch: Scratch? = null,
     ) {
         requireSymvOperands(a, x.size, y.size)
-        sparseMatrixVector(alpha, a, x, beta, y, lower, scratch, symmetric = true)
+        withSparseMatrixVectors(alpha, a, x, beta, y) { input, output ->
+            kernels.symv(alpha, a, input, beta, output, lower, scratch)
+        }
     }
 
     /** Adds `alpha * x * yᵀ` to [a], requiring matching logical dimensions and staging aliased inputs. */
@@ -291,7 +295,7 @@ public interface KoblasEngine {
         scratch: Scratch? = null,
     ) {
         requireTriangularVectorOperands(a, x.size, "trsv")
-        sparseTriangularVector(a, x, lower, transpose, unitDiag, scratch, solve = true)
+        withContiguousVector(x) { kernels.trsv(a, it, lower, transpose, unitDiag, scratch) }
     }
 
     /**
@@ -323,7 +327,7 @@ public interface KoblasEngine {
         scratch: Scratch? = null,
     ) {
         requireTriangularVectorOperands(a, x.size, "trmv")
-        sparseTriangularVector(a, x, lower, transpose, unitDiag, scratch, solve = false)
+        withContiguousVector(x) { kernels.trmv(a, it, lower, transpose, unitDiag, scratch) }
     }
 
     /** Dot product of [column] with equally sized [dense]. Only stored matrix entries participate, including stored zeros. */
