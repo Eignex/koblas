@@ -13,7 +13,10 @@ import kotlin.test.assertTrue
 
 /** Copy windows at unrolled boundaries, checking both padding and the untouched source buffer. */
 internal fun assertCopyAgreesWithReference(engine: KoblasEngine) {
-    val lengths = intArrayOf(0, 1, 2, 3, 7, 8, 15, 16, 17, 31, 32, 33, 63, 64, 65, 127, 128, 129, 4095, 4096, 4097)
+    val lengths = intArrayOf(
+        0, 1, 2, 3, 7, 8, 15, 16, 17, 31, 32, 33, 63, 64, 65, 127, 128, 129,
+        4095, 4096, 4097, 8191, 8192, 8193,
+    )
     for ((index, len) in lengths.withIndex()) {
         val aOffset = index % 8
         val bOffset = (index * 3) % 8

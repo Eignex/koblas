@@ -24,7 +24,11 @@ class EngineTuningTest {
                     )
                     val expected = if (runtime == EngineRuntime.Jvm &&
                         system == OperatingSystem.MacOs && architecture == Architecture.Arm64
-                    ) vectors else KoblasEngine.scalar
+                    ) {
+                        vectors
+                    } else {
+                        KoblasEngine.scalar
+                    }
 
                     assertSame(expected, engine.vectorProvider(Copy, 4096, contiguous = true))
                     assertSame(KoblasEngine.scalar, engine.vectorProvider(Copy, 64, contiguous = true))

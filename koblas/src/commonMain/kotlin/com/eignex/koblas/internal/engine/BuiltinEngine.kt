@@ -62,7 +62,11 @@ internal class BuiltinEngine(
         val leaf = owned[i]
         return if (length >= minimums[i] && length <= leaf.maximumLength(operation) &&
             (contiguous || !leaf.requiresUnitStride(operation))
-        ) leaf else ScalarEngine
+        ) {
+            leaf
+        } else {
+            ScalarEngine
+        }
     }
 
     internal fun hostFor(

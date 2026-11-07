@@ -63,7 +63,7 @@ class SimdVectorKernelsTest {
     fun `contiguous copy agrees with the scalar reference across windows`() {
         if (!simdAvailable) return skipped()
 
-        assertCopyAgreesWithReference(simdKernels.vectors)
+        for (engine in listOf(simdKernels.vectors, kernels)) assertCopyAgreesWithReference(engine)
     }
 
     @Test

@@ -21,14 +21,25 @@ internal class EngineTuning(
 
     fun simdMinimum(operation: EngineImplementation): Int = when (operation) {
         Dot, Asum -> if (wide) 8 else 32
+
         Sum -> if (!x86 && !arm) 16 else 32
+
         Nrm2 -> if (arm) 32 else 16
+
         Iamax -> if (x86) 1024 else 256
+
         Axpy -> if (arm) 32 else 1048576
+
         Copy -> if (runtime == EngineRuntime.Jvm &&
             platform.operatingSystem == OperatingSystem.MacOs && platform.architecture == Architecture.Arm64
-        ) 4096 else Int.MAX_VALUE
+        ) {
+            4096
+        } else {
+            Int.MAX_VALUE
+        }
+
         IndexedDot -> 16
+
         else -> 0
     }
 

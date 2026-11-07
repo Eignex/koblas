@@ -22,6 +22,7 @@ internal val simdAvailable: Boolean = try {
 /** Only supplied operations are capabilities; the composer supplies other providers. */
 private object SimdVectorLeaves : EngineKernels {
     override val id: String = "jvm-simd"
+
     // Bulk array copy remains faster on the measured x86 host.
     override val implementations = setOf(Dot, Sum, Nrm2, Iamax, Asum, Axpy) +
         if (hostPlatform().architecture == Architecture.Arm64) setOf(Copy) else emptySet()
