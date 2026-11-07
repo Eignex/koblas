@@ -80,17 +80,11 @@ public class SparseVector internal constructor(
             values[position] = v
             return
         }
-        requireShape(nnz < Int.MAX_VALUE) { "stored entry count exceeds Int capacity" }
-        val slot = position
-        val newIndices = IntArray(nnz + 1)
-        val newValues = DoubleArray(nnz + 1)
-        indices.copyInto(newIndices, 0, 0, slot)
-        values.copyInto(newValues, 0, 0, slot)
-        newIndices[slot] = i
-        newValues[slot] = v
-        indices.copyInto(newIndices, slot + 1, slot)
-        values.copyInto(newValues, slot + 1, slot)
-        replaceStorage(newIndices, newValues)
+        spliceSparseEntries(indices, values, position, position, 1) { newIndices, newValues ->
+            newIndices[position] = i
+            newValues[position] = v
+            replaceStorage(newIndices, newValues)
+        }
     }
 
     internal fun replaceStorage(indices: IntArray, values: DoubleArray) {

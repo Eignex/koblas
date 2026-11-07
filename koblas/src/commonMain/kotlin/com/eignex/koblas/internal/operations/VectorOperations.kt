@@ -17,14 +17,16 @@ import kotlin.math.abs
 internal fun KoblasEngine.dotVector(x: Vector, y: Vector): Double {
     requireSameSize(x.size, y.size, "dot")
     return when {
-        x is DenseVector && y is DenseVector -> dot(x.values, x.offset, y.values, y.offset, x.size, x.stride, y.stride)
+        x is DenseVector && y is DenseVector -> kernels.dot(
+            x.values, x.offset, y.values, y.offset, x.size, x.stride, y.stride,
+        )
 
-        x is SparseVector && y is SparseVector -> dot(
+        x is SparseVector && y is SparseVector -> kernels.dot(
             x.indices, x.offset, x.values, x.offset, x.nnz, y.indices, y.offset, y.values, y.offset, y.nnz,
         )
 
         x is SparseVector && y is DenseVector -> if (y.isWholeArray) {
-            dot(x.indices, x.offset, x.values, x.offset, x.nnz, y.values)
+            kernels.dot(x.indices, x.offset, x.values, x.offset, x.nnz, y.values)
         } else {
             indexedDotDense(x.indices, x.offset, x.values, x.offset, x.nnz, y.values, y.offset, y.stride)
         }
@@ -43,9 +45,9 @@ internal fun KoblasEngine.normVector(x: Vector, type: Norm = Norm.Two): Double =
 }
 
 private fun KoblasEngine.euclideanNormVector(x: Vector): Double = when (x) {
-    is DenseVector -> nrm2(x.values, x.offset, x.size, x.stride)
+    is DenseVector -> kernels.nrm2(x.values, x.offset, x.size, x.stride)
 
-    is SparseVector -> nrm2(x.values, x.offset, x.nnz)
+    is SparseVector -> kernels.nrm2(x.values, x.offset, x.nnz)
 
     // Opaque storage needs the portable rescaling path and an owned snapshot.
     else -> ScalarEngine.nrm2(x.toDoubleArray(), 0, x.size)
@@ -59,7 +61,7 @@ private fun KoblasEngine.maximumMagnitudeVector(x: Vector): Double = when (x) {
 
 internal fun KoblasEngine.maximumMagnitude(values: DoubleArray, offset: Int, size: Int, stride: Int): Double {
     if (size == 0) return 0.0
-    val index = iamax(values, offset, size, stride)
+    val index = kernels.iamax(values, offset, size, stride)
     return abs(values[offset + index * stride])
 }
 
@@ -70,8 +72,8 @@ internal fun KoblasEngine.sumVector(x: Vector): Double = when (x) {
 }
 
 internal fun KoblasEngine.absoluteSumVector(x: Vector): Double = when (x) {
-    is DenseVector -> asum(x.values, x.offset, x.size, x.stride)
-    is SparseVector -> asum(x.values, x.offset, x.nnz)
+    is DenseVector -> kernels.asum(x.values, x.offset, x.size, x.stride)
+    is SparseVector -> kernels.asum(x.values, x.offset, x.nnz)
     else -> scalarVectorAbsoluteSum(x)
 }
 
@@ -82,7 +84,7 @@ internal fun KoblasEngine.copyVector(x: Vector, y: DenseVector) {
         is SparseVector -> {
             zeroVector(y.values, y.offset, y.size, y.stride)
             if (y.isWholeArray) {
-                scatter(source.indices, source.offset, source.values, source.offset, source.nnz, y.values)
+                kernels.scatter(source.indices, source.offset, source.values, source.offset, source.nnz, y.values)
             } else {
                 indexedScatter(
                     source.indices, source.offset, source.values, source.offset, source.nnz,
@@ -102,14 +104,14 @@ private fun KoblasEngine.copyDense(x: DenseVector, y: DenseVector) {
     val provider = vectorProviderFor(EngineImplementation.Copy, x.size, contiguous)
     // Portable contiguous copy is a memmove, so it needs no alias snapshot.
     val source = if (provider === ScalarEngine && contiguous) x else x.stableFor(y)
-    provider.copy(source.values, source.offset, y.values, y.offset, x.size, source.stride, y.stride)
+    provider.kernels.copy(source.values, source.offset, y.values, y.offset, x.size, source.stride, y.stride)
 }
 
 internal fun KoblasEngine.scaleVector(alpha: Double, x: Vector) {
     if (alpha == 1.0) return
     when (x) {
-        is DenseVector -> scale(x.values, x.offset, alpha, x.size, x.stride)
-        is SparseVector -> scale(x.values, x.offset, alpha, x.nnz)
+        is DenseVector -> kernels.scale(x.values, x.offset, alpha, x.size, x.stride)
+        is SparseVector -> kernels.scale(x.values, x.offset, alpha, x.nnz)
         else -> scalarVectorScale(alpha, x)
     }
 }
@@ -133,7 +135,7 @@ internal fun KoblasEngine.axpyVector(alpha: Double, x: Vector, y: Vector) {
 private fun KoblasEngine.axpyDenseVector(alpha: Double, x: Vector, y: DenseVector) {
     when (val source = x.stableFor(y)) {
         is SparseVector -> if (y.isWholeArray) {
-            axpy(source.indices, source.offset, source.values, source.offset, source.nnz, alpha, y.values)
+            kernels.axpy(source.indices, source.offset, source.values, source.offset, source.nnz, alpha, y.values)
         } else {
             indexedAxpy(
                 source.indices, source.offset, source.values, source.offset, source.nnz,
@@ -143,7 +145,7 @@ private fun KoblasEngine.axpyDenseVector(alpha: Double, x: Vector, y: DenseVecto
 
         is DenseVector -> {
             requireSameSize(source.size, y.size, "axpy")
-            axpy(
+            kernels.axpy(
                 y.values, y.offset, alpha, source.values, source.offset, source.size, y.stride, source.stride,
             )
         }

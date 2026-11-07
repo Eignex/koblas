@@ -35,7 +35,7 @@ class Level2SchedulingTest {
                         val x = DoubleArray(n)
                         ReferenceBlas.gemv(1.0, explicit, xTrue, 0.0, x, transpose)
 
-                        blas.trsv(t, x, 0, 1, lower, transpose, unitDiag)
+                        blas.kernels.trsv(t, x, 0, 1, lower, transpose, unitDiag)
 
                         assertClose(
                             xTrue,
@@ -62,7 +62,7 @@ class Level2SchedulingTest {
                         ReferenceBlas.gemv(1.0, explicit, x, 0.0, expected, transpose)
                         val actual = x.copyOf()
 
-                        blas.trmv(t, actual, 0, 1, lower, transpose, unitDiag)
+                        blas.kernels.trmv(t, actual, 0, 1, lower, transpose, unitDiag)
 
                         assertClose(expected, actual, "trmv n=$n lower=$lower t=$transpose unit=$unitDiag")
                     }
@@ -86,7 +86,7 @@ class Level2SchedulingTest {
                         ReferenceBlas.gemv(alpha, full, x, beta, expected)
                         val actual = y0.copyOf()
 
-                        blas.symv(alpha, poisoned, x, 0, 1, beta, actual, 0, 1, lower)
+                        blas.kernels.symv(alpha, poisoned, x, 0, 1, beta, actual, 0, 1, lower)
 
                         assertClose(expected, actual, "symv n=$n a=$alpha b=$beta lower=$lower")
                     }
@@ -111,7 +111,7 @@ class Level2SchedulingTest {
                         ReferenceBlas.gemv(0.875, a, x, beta, expected, transpose)
                         val actual = y0.copyOf()
 
-                        blas.gemv(0.875, a, x, 0, 1, beta, actual, 0, 1, transpose)
+                        blas.kernels.gemv(0.875, a, x, 0, 1, beta, actual, 0, 1, transpose)
 
                         assertClose(expected, actual, "gemv group=$group rows=$rows t=$transpose beta=$beta")
                     }
@@ -134,7 +134,7 @@ class Level2SchedulingTest {
                     ReferenceBlas.symv(0.875, a, x, -0.25, expected, lower)
                     val actual = y0.copyOf()
 
-                    blas.symv(0.875, a, x, 0, 1, -0.25, actual, 0, 1, lower)
+                    blas.kernels.symv(0.875, a, x, 0, 1, -0.25, actual, 0, 1, lower)
 
                     assertClose(expected, actual, "symv group=$group n=$n lower=$lower")
                 }
@@ -155,7 +155,7 @@ class Level2SchedulingTest {
                     val expected = start.copyOf()
                     ReferenceBlas.syr(0.875, DenseVector.wrap(x), expected, lower)
                     val actual = start.copyOf()
-                    blas.syr(
+                    blas.kernels.syr(
                         0.875,
                         x,
                         0,
@@ -168,7 +168,7 @@ class Level2SchedulingTest {
                     val expectedTwo = start.copyOf()
                     ReferenceBlas.syr2(0.875, DenseVector.wrap(x), DenseVector.wrap(y), expectedTwo, lower)
                     val actualTwo = start.copyOf()
-                    blas.syr2(
+                    blas.kernels.syr2(
                         0.875,
                         x,
                         0,
@@ -184,7 +184,7 @@ class Level2SchedulingTest {
                 val expectedGer = start.copyOf()
                 ReferenceBlas.ger(0.875, x, y, expectedGer)
                 val actualGer = start.copyOf()
-                blas.ger(0.875, x, 0, 1, y, 0, 1, actualGer)
+                blas.kernels.ger(0.875, x, 0, 1, y, 0, 1, actualGer)
                 assertClose(expectedGer, actualGer, "ger group=$group n=$n")
             }
         }
@@ -207,7 +207,7 @@ class Level2SchedulingTest {
                 ReferenceBlas.syr(0.875, dense, expected, lower)
                 val actual = start.copyOf()
 
-                blas.syr(0.875, view.values, view.offset, view.stride, actual, lower)
+                blas.kernels.syr(0.875, view.values, view.offset, view.stride, actual, lower)
 
                 assertClose(expected, actual, "strided syr stride=$stride lower=$lower")
             }

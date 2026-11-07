@@ -518,7 +518,7 @@ private fun KoblasEngine.sparseEvaluatedAxpy(
     length: Int,
 ) {
     if (alpha != 0.0) {
-        this.axpy(y, yOffset, alpha, x, xOffset, length)
+        kernels.axpy(y, yOffset, alpha, x, xOffset, length)
         return
     }
     scalarEvaluatedAxpy(y, yOffset, alpha, x, xOffset, length)

@@ -151,8 +151,8 @@ class VectorOpsTest {
         val a = dense(1.0, 2.0, 3.0, 4.0)
         val b = dense(0.5, 0.0, -1.0, 2.0)
         val bSparse = sparse(4, 0 to 0.5, 2 to -1.0, 3 to 2.0)
-        val expected = KoblasEngine.scalar.dot(a.values, 0, b.values, 0, 4)
-        val sparseByDense = KoblasEngine.scalar.dot(b.values, 0, b.values, 0, 4)
+        val expected = KoblasEngine.scalar.kernels.dot(a.values, 0, b.values, 0, 4)
+        val sparseByDense = KoblasEngine.scalar.kernels.dot(b.values, 0, b.values, 0, 4)
 
         for ((actual, context) in listOf(
             (a dot b) to "dense by dense",
@@ -169,12 +169,12 @@ class VectorOpsTest {
     fun `norm two agrees with the scalar oracle on dense and sparse`() {
         val values = doubleArrayOf(3.0, 0.0, -4.0)
         assertReductionAgreesWithReference(
-            KoblasEngine.scalar.nrm2(values, 0, values.size),
+            KoblasEngine.scalar.kernels.nrm2(values, 0, values.size),
             DenseVector.of(values).norm(),
             "dense",
         )
         assertReductionAgreesWithReference(
-            KoblasEngine.scalar.nrm2(denseOfSparse.values, 0, denseOfSparse.size),
+            KoblasEngine.scalar.kernels.nrm2(denseOfSparse.values, 0, denseOfSparse.size),
             sparse.norm(),
             "sparse",
         )
@@ -248,12 +248,12 @@ class VectorOpsTest {
     }
 
     private fun referenceNorm(values: DoubleArray, type: Norm): Double = when (type) {
-        Norm.One -> KoblasEngine.scalar.asum(values, 0, values.size)
+        Norm.One -> KoblasEngine.scalar.kernels.asum(values, 0, values.size)
 
-        Norm.Two -> KoblasEngine.scalar.nrm2(values, 0, values.size)
+        Norm.Two -> KoblasEngine.scalar.kernels.nrm2(values, 0, values.size)
 
         Norm.Infinity, Norm.MaxAbs -> {
-            val index = KoblasEngine.scalar.iamax(values, 0, values.size)
+            val index = KoblasEngine.scalar.kernels.iamax(values, 0, values.size)
             if (index < 0) 0.0 else abs(values[index])
         }
 
@@ -272,12 +272,12 @@ class VectorOpsTest {
     @Test
     fun `sum adds the entries for any storage`() {
         val values = doubleArrayOf(2.0, -3.5, 0.0, 4.25, -1.0, 0.5)
-        val expected = KoblasEngine.scalar.sum(values, 0, values.size)
+        val expected = KoblasEngine.scalar.kernels.sum(values, 0, values.size)
         val strided = DenseVector.wrap(DoubleArray(12) { values[it / 2] }, 0, 6, 2)
         assertReductionAgreesWithReference(expected, DenseVector.of(values).sum(), "dense")
         assertReductionAgreesWithReference(expected, strided.sum(), "strided")
         assertReductionAgreesWithReference(
-            KoblasEngine.scalar.sum(denseOfSparse.values, 0, denseOfSparse.size),
+            KoblasEngine.scalar.kernels.sum(denseOfSparse.values, 0, denseOfSparse.size),
             sparse.sum(),
             "sparse",
         )
@@ -288,12 +288,12 @@ class VectorOpsTest {
     fun `asum agrees with the scalar oracle on dense and sparse`() {
         val values = doubleArrayOf(3.0, 0.0, -4.0)
         assertReductionAgreesWithReference(
-            KoblasEngine.scalar.asum(values, 0, values.size),
+            KoblasEngine.scalar.kernels.asum(values, 0, values.size),
             DenseVector.of(values).asum(),
             "dense",
         )
         assertReductionAgreesWithReference(
-            KoblasEngine.scalar.asum(denseOfSparse.values, 0, denseOfSparse.size),
+            KoblasEngine.scalar.kernels.asum(denseOfSparse.values, 0, denseOfSparse.size),
             sparse.asum(),
             "sparse",
         )

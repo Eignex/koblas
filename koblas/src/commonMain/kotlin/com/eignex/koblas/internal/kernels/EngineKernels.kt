@@ -941,3 +941,6 @@ internal interface EngineKernels : KoblasEngine {
 
 internal fun KoblasEngine.unsupported(): Nothing =
     throw UnsupportedOperationException("This operation is not supplied by $name")
+
+/** Access to the primitive seam is confined to storage adapters and shared schedules. */
+internal val KoblasEngine.kernels: EngineKernels get() = this as? EngineKernels ?: unsupported()

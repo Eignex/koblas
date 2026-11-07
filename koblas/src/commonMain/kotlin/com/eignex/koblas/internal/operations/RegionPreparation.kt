@@ -74,6 +74,6 @@ internal fun applyBeta(k: KoblasEngine, v: DoubleArray, off: Int, len: Int, beta
             for (i in 0 until len) v[off + i * stride] = 0.0
         }
 
-        beta != 1.0 -> k.scale(v, off, beta, len, stride)
+        beta != 1.0 -> k.kernels.scale(v, off, beta, len, stride)
     }
 }

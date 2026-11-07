@@ -20,23 +20,23 @@ internal class KernelSet(
 /** Owned arithmetic roles and one optional host library with measured crossovers. */
 internal class BuiltinEngine(
     override val name: String,
-    val kernels: KernelSet = KernelSet(),
+    val roles: KernelSet = KernelSet(),
     val host: EngineKernels? = null,
     private val tuning: EngineTuning? = null,
 ) : EngineKernels {
     override val implementations = ScalarEngine.implementations.filterTo(mutableSetOf()) { it.vector }
     override val providers: List<KoblasEngine> = listOfNotNull(
         host,
-        kernels.vectors,
-        kernels.indexed,
-        kernels.panels,
-        kernels.products,
-        kernels.triangular,
+        roles.vectors,
+        roles.indexed,
+        roles.panels,
+        roles.products,
+        roles.triangular,
         ScalarEngine,
     ).distinct()
 
     private val owned = EngineImplementation.entries.map { operation ->
-        val leaf = if (operation.name.startsWith("Indexed")) kernels.indexed else kernels.vectors
+        val leaf = if (operation.name.startsWith("Indexed")) roles.indexed else roles.vectors
         if (operation in leaf.implementations) leaf else ScalarEngine
     }
     private val minimums = IntArray(owned.size) { i ->
@@ -86,11 +86,11 @@ internal class BuiltinEngine(
     }
 
     override fun implementationFor(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean): String =
-        kernels.panels.implementationFor(work, rows, columns, contiguous)
+        roles.panels.implementationFor(work, rows, columns, contiguous)
     override fun implementationsFor(rows: Int, columns: Int, depth: Int): List<String> =
-        kernels.products.implementationsFor(rows, columns, depth)
+        roles.products.implementationsFor(rows, columns, depth)
     override fun implementationsFor(order: Int, sides: Int, contiguous: Boolean): List<String> =
-        kernels.triangular.implementationsFor(order, sides, contiguous)
+        roles.triangular.implementationsFor(order, sides, contiguous)
 
     override fun dot(
         a: DoubleArray,

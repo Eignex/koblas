@@ -29,7 +29,7 @@ class DenseTest {
         val work = assertNotNull(denseWork(case, KoblasEngine.scalar))
         val initial = assertNotNull(work.result).copyOf()
         val expected = initial.copyOf()
-        KoblasEngine.scalar.scale(expected, 0, -1.0, 17)
+        KoblasEngine.scalar.kernels.scale(expected, 0, -1.0, 17)
 
         repeat(101) { work.run() }
 

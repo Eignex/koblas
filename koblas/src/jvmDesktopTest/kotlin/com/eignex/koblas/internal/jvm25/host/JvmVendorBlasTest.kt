@@ -50,7 +50,7 @@ class JvmVendorBlasTest {
             val expected = y.values.copyOf()
             ReferenceBlas.gemv(0.5, a, x.values, 2.0, expected, transpose)
 
-            blas.gemv(0.5, a, x.values, x.offset, x.stride, 2.0, y.values, y.offset, y.stride, transpose)
+            blas.kernels.gemv(0.5, a, x.values, x.offset, x.stride, 2.0, y.values, y.offset, y.stride, transpose)
 
             assertAgreesWithReference(expected, y.values, "gemv transA=$transpose")
         }
@@ -69,7 +69,7 @@ class JvmVendorBlasTest {
         val expected = DoubleArray(order)
         ReferenceBlas.symv(1.0, a, x.values, 0.0, expected)
 
-        blas.symv(1.0, a, x.values, x.offset, x.stride, 0.0, y.values, y.offset, y.stride, true)
+        blas.kernels.symv(1.0, a, x.values, x.offset, x.stride, 0.0, y.values, y.offset, y.stride, true)
 
         assertAgreesWithReference(expected, y.values, "symv")
     }
@@ -131,7 +131,7 @@ class JvmVendorBlasTest {
         assertEquals(0.0, blas.dotVector(empty, empty))
         assertEquals(0.0, blas.normVector(empty))
         assertEquals(0.0, blas.absoluteSumVector(empty))
-        assertEquals(-1, blas.iamax(empty.values, empty.offset, empty.size, empty.stride))
+        assertEquals(-1, blas.kernels.iamax(empty.values, empty.offset, empty.size, empty.stride))
     }
 
     @Test
@@ -160,7 +160,9 @@ class JvmVendorBlasTest {
         val second = DenseVector.wrap(storage, 1, size, lda)
         ScalarEngine.swap(expected, 0, expected, 1, size, lda, lda)
 
-        blas.swap(first.values, first.offset, second.values, second.offset, first.size, first.stride, second.stride)
+        blas.kernels.swap(
+            first.values, first.offset, second.values, second.offset, first.size, first.stride, second.stride,
+        )
 
         assertContentEquals(expected, storage, "swap backing buffer")
     }

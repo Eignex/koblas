@@ -16,7 +16,7 @@ internal fun sparseSlicesArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
     val initial = Fixtures.vector(size, 2)
     val destination = initial.copyOf()
     val scalar = KoblasEngine.scalar
-    val kernels = engine
+    val kernels = engine.kernels
     val operation = case.operation
     val mutation = operation == "spaxpy-slice" || operation == "spscatter-slice"
     val run = {
@@ -36,9 +36,9 @@ internal fun sparseSlicesArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
     if (mutation) {
         val expected = initial.copyOf()
         if (operation == "spaxpy-slice") {
-            scalar.axpy(indices, INDEX_OFFSET, values, VALUE_OFFSET, count, 0.875, expected)
+            scalar.kernels.axpy(indices, INDEX_OFFSET, values, VALUE_OFFSET, count, 0.875, expected)
         } else {
-            scalar.scatter(indices, INDEX_OFFSET, values, VALUE_OFFSET, count, expected)
+            scalar.kernels.scatter(indices, INDEX_OFFSET, values, VALUE_OFFSET, count, expected)
         }
         run()
         DenseReference.check(expected, destination, case.id)

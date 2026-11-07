@@ -120,9 +120,9 @@ internal fun triangularMatrix(
         val rows = if (right) sides else order
         val cols = if (right) order else sides
         if (ldb == rows) {
-            engine.scale(b, bOffset, alpha, rows * cols)
+            engine.kernels.scale(b, bOffset, alpha, rows * cols)
         } else {
-            for (j in 0 until cols) engine.scale(b, bOffset + j * ldb, alpha, rows)
+            for (j in 0 until cols) engine.kernels.scale(b, bOffset + j * ldb, alpha, rows)
         }
     }
     val flip = transpose != right

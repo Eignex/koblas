@@ -103,13 +103,13 @@ class BuiltinEngineTest {
         )
         val (recorder, blas) = forced()
 
-        blas.gemv(1.0, a, x, 0, 1, 0.0, y, 0, 1)
-        blas.symv(1.0, a, x, 0, 1, 0.0, y, 0, 1)
-        blas.ger(1.0, x, 0, 1, x, 0, 1, matrix(ORDER))
-        blas.syr(1.0, v.values, v.offset, v.stride, matrix(ORDER))
-        blas.syr2(1.0, v.values, v.offset, v.stride, v.values, v.offset, v.stride, matrix(ORDER))
-        blas.trsv(a, x.copyOf(), 0, 1, lower = true)
-        blas.trmv(a, x.copyOf(), 0, 1, lower = true)
+        blas.kernels.gemv(1.0, a, x, 0, 1, 0.0, y, 0, 1)
+        blas.kernels.symv(1.0, a, x, 0, 1, 0.0, y, 0, 1)
+        blas.kernels.ger(1.0, x, 0, 1, x, 0, 1, matrix(ORDER))
+        blas.kernels.syr(1.0, v.values, v.offset, v.stride, matrix(ORDER))
+        blas.kernels.syr2(1.0, v.values, v.offset, v.stride, v.values, v.offset, v.stride, matrix(ORDER))
+        blas.kernels.trsv(a, x.copyOf(), 0, 1, lower = true)
+        blas.kernels.trmv(a, x.copyOf(), 0, 1, lower = true)
         blas.gemm(1.0, a, false, b, false, 0.0, c)
         blas.gemmt(1.0, a, false, b, false, 0.0, matrix(ORDER))
         blas.syrk(1.0, a, false, 0.0, matrix(ORDER))
@@ -129,7 +129,7 @@ class BuiltinEngineTest {
         val x = DoubleArray(6) { if (it == 0) 0.0 else it.toDouble() }
         ReferenceBlas.ger(-1.0, x, x, expected)
 
-        blas.ger(-1.0, x, x, a, 1, 1, 5, 5, 1, 1)
+        blas.kernels.ger(-1.0, x, x, a, 1, 1, 5, 5, 1, 1)
 
         assertContentEquals(expected.values, a.values)
         assertEquals(emptyList(), recorder.calls)
@@ -315,10 +315,10 @@ class BuiltinEngineTest {
         val beside = parent.view(0, 4, 3, 5)
         val workspace = Scratch()
 
-        blas.gemv(1.0, panel, DoubleArray(3), 0, 1, 0.0, DoubleArray(5), 0, 1, scratch = workspace)
+        blas.kernels.gemv(1.0, panel, DoubleArray(3), 0, 1, 0.0, DoubleArray(5), 0, 1, scratch = workspace)
         blas.gemm(1.0, panel, false, beside, false, 1.0, trailing, scratch = workspace)
         blas.syrk(-1.0, panel, false, 1.0, trailing, scratch = workspace)
-        blas.trsv(triangle, DoubleArray(3), 0, 1, lower = true, scratch = workspace)
+        blas.kernels.trsv(triangle, DoubleArray(3), 0, 1, lower = true, scratch = workspace)
         blas.trsm(triangle, beside, lower = true, scratch = workspace)
 
         val expected = listOf(

@@ -103,34 +103,34 @@ internal object SimdDenseAllocationCheck {
             a[0]
         }
         assertAllocationFree("unrolled absolute sum with a tail") {
-            engine.asum(x, 3, ORDER - 3)
+            engine.kernels.asum(x, 3, ORDER - 3)
         }
         assertAllocationFree("unrolled dot with offsets and a tail") {
-            engine.dot(x, 3, y, 5, ORDER - 5)
+            engine.kernels.dot(x, 3, y, 5, ORDER - 5)
         }
         assertAllocationFree("contiguous axpy with offsets and a tail") {
-            engine.axpy(y, 3, 1e-12, x, 1, ORDER - 3)
+            engine.kernels.axpy(y, 3, 1e-12, x, 1, ORDER - 3)
             y[3]
         }
         assertAllocationFree("unit axpy at simplex width with offsets and a tail") {
-            engine.axpy(y, 3, 1.0, x, 1, 70)
+            engine.kernels.axpy(y, 3, 1.0, x, 1, 70)
             y[3]
         }
         val streamingSource = DoubleArray(65_552) { 0.125 }
         val streamingDestination = DoubleArray(streamingSource.size)
         assertAllocationFree("streaming axpy with offsets and a tail", warmup = 20_000, iterations = 2_000) {
-            engine.axpy(streamingDestination, 3, 1e-12, streamingSource, 1, 65_537)
+            engine.kernels.axpy(streamingDestination, 3, 1e-12, streamingSource, 1, 65_537)
             streamingDestination[3]
         }
         assertAllocationFree("filtered iamax with an offset and a tail") {
-            engine.iamax(x, 3, ORDER - 3).toDouble()
+            engine.kernels.iamax(x, 3, ORDER - 3).toDouble()
         }
         val peaked = DoubleArray(ORDER) { if (it == 3) 2.0 else -1.0 }
         assertAllocationFree("iamax filtering non improving blocks") {
-            engine.iamax(peaked, 3, ORDER - 3).toDouble()
+            engine.kernels.iamax(peaked, 3, ORDER - 3).toDouble()
         }
         assertAllocationFree("norm with an offset and a tail") {
-            engine.nrm2(x, 3, ORDER - 3)
+            engine.kernels.nrm2(x, 3, ORDER - 3)
         }
         checkWholeOperations(engine)
         checkDefaultDispatch()
@@ -169,7 +169,7 @@ internal object SimdDenseAllocationCheck {
 
         assertAllocationFree("dot through the default engine") { x dot y }
         assertAllocationFree("gemv through the default engine") {
-            koblas.gemv(
+            koblas.kernels.gemv(
                 0.875,
                 matrix,
                 x.values,
@@ -211,7 +211,7 @@ internal object SimdDenseAllocationCheck {
         val product = DenseMatrix.wrap(PRODUCT_ORDER, PRODUCT_ORDER, DoubleArray(PRODUCT_ORDER * PRODUCT_ORDER))
 
         assertAllocationFree("gemv behind a host composition") {
-            composed.gemv(0.875, matrix, x, 0, 1, -0.25, y, 0, 1)
+            composed.kernels.gemv(0.875, matrix, x, 0, 1, -0.25, y, 0, 1)
             y[0]
         }
         assertAllocationFree("gemm behind a host composition", PRODUCT_WARMUP, PRODUCT_ITERATIONS) {
@@ -529,11 +529,11 @@ internal object SimdDenseAllocationCheck {
         val second = DenseVector.wrap(y)
 
         assertAllocationFree("gemv") {
-            engine.gemv(0.875, matrix, x, 0, 1, -0.25, y, 0, 1)
+            engine.kernels.gemv(0.875, matrix, x, 0, 1, -0.25, y, 0, 1)
             y[0]
         }
         assertAllocationFree("gemv transposed") {
-            engine.gemv(
+            engine.kernels.gemv(
                 0.875,
                 matrix,
                 x,
@@ -548,11 +548,11 @@ internal object SimdDenseAllocationCheck {
             y[0]
         }
         assertAllocationFree("symv") {
-            engine.symv(0.875, matrix, x, 0, 1, -0.25, y, 0, 1)
+            engine.kernels.symv(0.875, matrix, x, 0, 1, -0.25, y, 0, 1)
             y[0]
         }
         assertAllocationFree("ger") {
-            engine.ger(1e-12, x, 0, 1, y, 0, 1, matrix)
+            engine.kernels.ger(1e-12, x, 0, 1, y, 0, 1, matrix)
             matrix.values[0]
         }
         val tiny = DenseMatrix.zero(6)
@@ -560,16 +560,16 @@ internal object SimdDenseAllocationCheck {
         val tinyY = DoubleArray(6) { (6 - it) / 16.0 }
         assertAllocationFree("windowed ger shrinking batch") {
             for (start in 1..5) {
-                engine.ger(-1.0, tinyX, tinyY, tiny, start, start, 6 - start, 6 - start, start, start)
+                engine.kernels.ger(-1.0, tinyX, tinyY, tiny, start, start, 6 - start, 6 - start, start, start)
             }
             tiny.values.last()
         }
         assertAllocationFree("syr") {
-            engine.syr(1e-12, vector.values, vector.offset, vector.stride, matrix)
+            engine.kernels.syr(1e-12, vector.values, vector.offset, vector.stride, matrix)
             matrix.values[0]
         }
         assertAllocationFree("syr2") {
-            engine.syr2(
+            engine.kernels.syr2(
                 1e-12,
                 vector.values,
                 vector.offset,
@@ -583,12 +583,12 @@ internal object SimdDenseAllocationCheck {
         }
         assertAllocationFree("trmv") {
             target.fill(1.0)
-            engine.trmv(triangle, target, 0, 1, lower = true)
+            engine.kernels.trmv(triangle, target, 0, 1, lower = true)
             target[0]
         }
         assertAllocationFree("trsv") {
             target.fill(1.0)
-            engine.trsv(triangle, target, 0, 1, lower = true)
+            engine.kernels.trsv(triangle, target, 0, 1, lower = true)
             target[0]
         }
     }

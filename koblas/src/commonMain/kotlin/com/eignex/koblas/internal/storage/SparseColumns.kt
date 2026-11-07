@@ -6,18 +6,25 @@ import com.eignex.koblas.SparseMatrix
 internal fun SparseMatrix.replaceColumn(column: Int, indices: IntArray, coefficients: DoubleArray) {
     val start = colPointers[column]
     val end = colPointers[column + 1]
-    val count = nnz.toLong() - (end - start) + indices.size
-    requireShape(count <= Int.MAX_VALUE) { "stored entry count exceeds Int capacity" }
-    val pointers = colPointers.copyOf()
-    val rows = IntArray(count.toInt())
-    val values = DoubleArray(count.toInt())
-    rowIndices.copyInto(rows, 0, 0, start)
-    this.values.copyInto(values, 0, 0, start)
-    indices.copyInto(rows, start)
-    coefficients.copyInto(values, start)
-    rowIndices.copyInto(rows, start + indices.size, end)
-    this.values.copyInto(values, start + indices.size, end)
-    val delta = indices.size - (end - start)
-    for (j in column + 1..cols) pointers[j] += delta
-    replaceStorage(pointers, rows, values)
+    spliceColumn(column, start, end, indices.size) { rows, values ->
+        indices.copyInto(rows, start)
+        coefficients.copyInto(values, start)
+    }
+}
+
+/** Structural writes replace buffers together so retained column views follow the new CSC boundaries. */
+internal inline fun SparseMatrix.spliceColumn(
+    column: Int,
+    start: Int,
+    end: Int,
+    count: Int,
+    write: (IntArray, DoubleArray) -> Unit,
+) {
+    spliceSparseEntries(rowIndices, values, start, end, count) { rows, values ->
+        write(rows, values)
+        val pointers = colPointers.copyOf()
+        val delta = count - (end - start)
+        for (j in column + 1..cols) pointers[j] += delta
+        replaceStorage(pointers, rows, values)
+    }
 }

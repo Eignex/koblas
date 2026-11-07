@@ -18,7 +18,7 @@ internal fun KoblasEngine.normMatrix(a: Matrix, type: Norm = Norm.Frobenius): Do
 
 private fun KoblasEngine.denseMatrixNorm(a: DenseMatrix, type: Norm): Double {
     if (type == Norm.Frobenius && a.leadingDimension == a.rows) {
-        return nrm2(a.values, a.offset, a.rows * a.cols)
+        return kernels.nrm2(a.values, a.offset, a.rows * a.cols)
     }
     val rows = type == Norm.Infinity
     val count = if (rows) a.rows else a.cols
@@ -28,9 +28,9 @@ private fun KoblasEngine.denseMatrixNorm(a: DenseMatrix, type: Norm): Double {
     for (i in 0 until count) {
         val offset = a.offset + if (rows) i else i * a.leadingDimension
         result = when (type) {
-            Norm.Frobenius -> hypot(result, nrm2(a.values, offset, length, stride))
+            Norm.Frobenius -> hypot(result, kernels.nrm2(a.values, offset, length, stride))
             Norm.MaxAbs -> maxOf(result, maximumMagnitude(a.values, offset, length, stride))
-            Norm.One, Norm.Infinity -> maxOf(result, asum(a.values, offset, length, stride))
+            Norm.One, Norm.Infinity -> maxOf(result, kernels.asum(a.values, offset, length, stride))
             Norm.Two -> error("Spectral matrix norm is not supported")
         }
     }
@@ -38,7 +38,7 @@ private fun KoblasEngine.denseMatrixNorm(a: DenseMatrix, type: Norm): Double {
 }
 
 private fun KoblasEngine.sparseMatrixNorm(a: SparseMatrix, type: Norm): Double = when (type) {
-    Norm.Frobenius -> nrm2(a.values, 0, a.values.size)
+    Norm.Frobenius -> kernels.nrm2(a.values, 0, a.values.size)
 
     Norm.MaxAbs -> maximumMagnitude(a.values, 0, a.values.size, 1)
 
@@ -48,7 +48,7 @@ private fun KoblasEngine.sparseMatrixNorm(a: SparseMatrix, type: Norm): Double =
         var result = 0.0
         for (j in 0 until a.cols) {
             val start = a.colPointers[j]
-            result = maxOf(result, asum(a.values, start, a.colPointers[j + 1] - start))
+            result = maxOf(result, kernels.asum(a.values, start, a.colPointers[j + 1] - start))
         }
         result
     }

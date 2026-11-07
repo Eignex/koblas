@@ -42,22 +42,22 @@ class KoblasEngineTest {
                 val scalar = KoblasEngine.scalar
 
                 assertReductionAgreesWithReference(
-                    scalar.dot(source.values, source.offset, other.values, other.offset, 3, stride, -stride),
+                    scalar.kernels.dot(source.values, source.offset, other.values, other.offset, 3, stride, -stride),
                     engine.dot(source, other),
                 )
                 assertReductionAgreesWithReference(
-                    scalar.nrm2(source.values, source.offset, 3, stride),
+                    scalar.kernels.nrm2(source.values, source.offset, 3, stride),
                     engine.nrm2(source),
                 )
                 assertReductionAgreesWithReference(
-                    scalar.asum(source.values, source.offset, 3, stride),
+                    scalar.kernels.asum(source.values, source.offset, 3, stride),
                     engine.asum(source),
                 )
                 assertReductionAgreesWithReference(
-                    scalar.sum(source.values, source.offset, 3, stride),
+                    scalar.kernels.sum(source.values, source.offset, 3, stride),
                     engine.sum(source),
                 )
-                assertEquals(scalar.iamax(source.values, source.offset, 3, stride), engine.iamax(source))
+                assertEquals(scalar.kernels.iamax(source.values, source.offset, 3, stride), engine.iamax(source))
             }
         }
     }
@@ -72,11 +72,11 @@ class KoblasEngineTest {
                 val expectedY = y.values.copyOf()
                 val scalar = KoblasEngine.scalar
                 when (operation) {
-                    "scale" -> scalar.scale(expectedX, x.offset, -2.0, 3, stride)
-                    "axpy" -> scalar.axpy(expectedY, y.offset, 0.75, expectedX, x.offset, 3, -stride, stride)
-                    "copy" -> scalar.copy(expectedX, x.offset, expectedY, y.offset, 3, stride, -stride)
-                    "rot" -> scalar.rot(expectedX, x.offset, expectedY, y.offset, 3, 0.6, 0.8, stride, -stride)
-                    "swap" -> scalar.swap(expectedX, x.offset, expectedY, y.offset, 3, stride, -stride)
+                    "scale" -> scalar.kernels.scale(expectedX, x.offset, -2.0, 3, stride)
+                    "axpy" -> scalar.kernels.axpy(expectedY, y.offset, 0.75, expectedX, x.offset, 3, -stride, stride)
+                    "copy" -> scalar.kernels.copy(expectedX, x.offset, expectedY, y.offset, 3, stride, -stride)
+                    "rot" -> scalar.kernels.rot(expectedX, x.offset, expectedY, y.offset, 3, 0.6, 0.8, stride, -stride)
+                    "swap" -> scalar.kernels.swap(expectedX, x.offset, expectedY, y.offset, 3, stride, -stride)
                 }
 
                 when (operation) {
@@ -119,17 +119,17 @@ class KoblasEngineTest {
                         val expectedY = y.values.copyOf()
                         val scalar = KoblasEngine.scalar
                         when (operation) {
-                            "gemv" -> scalar.gemv(
+                            "gemv" -> scalar.kernels.gemv(
                                 0.75, dense, expectedX, x.offset, stride, -0.5, expectedY, y.offset, -stride, transpose,
                             )
 
-                            "symv" -> scalar.symv(
+                            "symv" -> scalar.kernels.symv(
                                 0.75, dense, expectedX, x.offset, stride, -0.5, expectedY, y.offset, -stride, true,
                             )
 
-                            "trsv" -> scalar.trsv(dense, expectedX, x.offset, stride, true, transpose)
+                            "trsv" -> scalar.kernels.trsv(dense, expectedX, x.offset, stride, true, transpose)
 
-                            "trmv" -> scalar.trmv(dense, expectedX, x.offset, stride, true, transpose)
+                            "trmv" -> scalar.kernels.trmv(dense, expectedX, x.offset, stride, true, transpose)
                         }
 
                         if (sparseStorage) {
@@ -166,7 +166,7 @@ class KoblasEngineTest {
             val x = vectorView(-2)
             val y = vectorView(2)
             when (operation) {
-                "ger" -> KoblasEngine.scalar.ger(
+                "ger" -> KoblasEngine.scalar.kernels.ger(
                     0.75,
                     x.values,
                     x.offset,
@@ -177,9 +177,9 @@ class KoblasEngineTest {
                     expectedRegion,
                 )
 
-                "syr" -> KoblasEngine.scalar.syr(0.75, x.values, x.offset, x.stride, expectedRegion, false)
+                "syr" -> KoblasEngine.scalar.kernels.syr(0.75, x.values, x.offset, x.stride, expectedRegion, false)
 
-                "syr2" -> KoblasEngine.scalar.syr2(
+                "syr2" -> KoblasEngine.scalar.kernels.syr2(
                     0.75, x.values, x.offset, x.stride, y.values, y.offset, y.stride, expectedRegion, false,
                 )
             }
@@ -232,7 +232,7 @@ class KoblasEngineTest {
             val x = DenseVector.wrap(backing, 1, 3)
             val y = DenseVector.wrap(backing, 3, 3, -1)
             val expected = backing.copyOf()
-            KoblasEngine.scalar.gemv(0.75, a, x.toDoubleArray(), 0, 1, -0.5, expected, 3, -1)
+            KoblasEngine.scalar.kernels.gemv(0.75, a, x.toDoubleArray(), 0, 1, -0.5, expected, 3, -1)
 
             if (sparseStorage) {
                 koblas.gemv(0.75, sparse, x, -0.5, y)
@@ -331,9 +331,9 @@ class KoblasEngineTest {
 
     @Test
     fun `a partial provider never inherits portable arithmetic`() {
-        assertFailsWith<UnsupportedOperationException> { partial.sum(doubleArrayOf(1.0), 0, 1) }
+        assertFailsWith<UnsupportedOperationException> { partial.kernels.sum(doubleArrayOf(1.0), 0, 1) }
         assertFailsWith<UnsupportedOperationException> {
-            partial.dot(
+            partial.kernels.dot(
                 intArrayOf(0),
                 0,
                 doubleArrayOf(1.0),
@@ -401,7 +401,7 @@ class KoblasEngineTest {
 
         assertEquals(setOf(engine.id), engine.providers.map { it.id }.toSet())
         assertTrue(EngineImplementation.Sum !in engine.implementations)
-        assertFailsWith<UnsupportedOperationException> { engine.sum(doubleArrayOf(1.0), 0, 1) }
+        assertFailsWith<UnsupportedOperationException> { engine.kernels.sum(doubleArrayOf(1.0), 0, 1) }
         assertEquals(null, engine.implementationFor(EngineImplementation.Sum, 1))
     }
 
@@ -420,7 +420,10 @@ class KoblasEngineTest {
 
         // Using one must not disturb the other: both compute the same answer from the same operands.
         val x = DenseVector.wrap(doubleArrayOf(1.0, 2.0, 3.0, 4.0))
-        assertEquals(first.dot(x.values, 0, x.values, 0, x.size), second.dot(x.values, 0, x.values, 0, x.size))
+        assertEquals(
+            first.kernels.dot(x.values, 0, x.values, 0, x.size),
+            second.kernels.dot(x.values, 0, x.values, 0, x.size),
+        )
     }
 
     private fun installed(): KoblasEngine? = Vendor.entries.firstNotNullOfOrNull { KoblasEngine.vendor(it) }
@@ -467,7 +470,7 @@ class KoblasEngineTest {
         val x = DoubleArray(64) { Double.POSITIVE_INFINITY }
         val y = DoubleArray(64)
 
-        koblas.axpy(y, 0, 0.0, x, 0, 64)
+        koblas.kernels.axpy(y, 0, 0.0, x, 0, 64)
 
         assertContentEquals(DoubleArray(64), y, "zero axpy evaluated infinity times zero")
     }
@@ -480,14 +483,14 @@ class KoblasEngineTest {
     fun `every default kernel accepts a zero length run`() {
         val v = doubleArrayOf(1.0, 2.0, 3.0)
 
-        val dot = koblas.dot(v, 3, v, 3, 0)
-        val nrm2 = koblas.nrm2(v, 3, 0)
-        val asum = koblas.asum(v, 3, 0)
-        val sum = koblas.sum(v, 3, 0)
-        val iamax = koblas.iamax(v, 3, 0)
-        koblas.axpy(v, 3, 2.0, v, 3, 0)
-        koblas.scale(v, 3, 2.0, 0)
-        koblas.swap(v, 3, v, 3, 0)
+        val dot = koblas.kernels.dot(v, 3, v, 3, 0)
+        val nrm2 = koblas.kernels.nrm2(v, 3, 0)
+        val asum = koblas.kernels.asum(v, 3, 0)
+        val sum = koblas.kernels.sum(v, 3, 0)
+        val iamax = koblas.kernels.iamax(v, 3, 0)
+        koblas.kernels.axpy(v, 3, 2.0, v, 3, 0)
+        koblas.kernels.scale(v, 3, 2.0, 0)
+        koblas.kernels.swap(v, 3, v, 3, 0)
 
         assertEquals(0.0, dot, "dot over nothing")
         assertEquals(0.0, nrm2, "nrm2 over nothing")
@@ -507,9 +510,9 @@ class KoblasEngineTest {
         }
         val values = DoubleArray(LONG_COLUMN) { (it - 17) / 13.0 }
         val expected = values.copyOf()
-        KoblasEngine.scalar.rot(expected, 0, expected, 0, LONG_COLUMN, 0.75, -0.25)
+        KoblasEngine.scalar.kernels.rot(expected, 0, expected, 0, LONG_COLUMN, 0.75, -0.25)
 
-        koblas.rot(values, 0, values, 0, LONG_COLUMN, 0.75, -0.25)
+        koblas.kernels.rot(values, 0, values, 0, LONG_COLUMN, 0.75, -0.25)
 
         assertEquals(arm, koblas.implementationFor(EngineImplementation.Rot, LONG_COLUMN))
         assertClose(expected, values, "aliased vendor rotation")

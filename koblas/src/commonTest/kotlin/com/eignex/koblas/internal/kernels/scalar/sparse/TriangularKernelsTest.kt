@@ -43,7 +43,7 @@ class TriangularKernelsTest {
                     val expected = b.copyOf()
                     ReferenceBlas.trsv(dense, expected, lower, transpose)
                     val actual = b.copyOf()
-                    koblas.trsv(sparse, actual, lower, transpose)
+                    koblas.kernels.trsv(sparse, actual, lower, transpose)
 
                     assertClose(expected, actual, "n=$n lower=$lower transpose=$transpose", tolerance = 1e-9)
                 }
@@ -64,7 +64,7 @@ class TriangularKernelsTest {
                         val expected = input.copyOf()
                         ReferenceBlas.trmv(dense, expected, lower, transpose, unitDiag)
                         val actual = input.copyOf()
-                        koblas.trmv(sparse, actual, lower, transpose, unitDiag)
+                        koblas.kernels.trmv(sparse, actual, lower, transpose, unitDiag)
 
                         assertClose(expected, actual, "n=$n lower=$lower transpose=$transpose unit=$unitDiag")
                     }
@@ -78,7 +78,7 @@ class TriangularKernelsTest {
         val triangle = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0, 1 to 3.0), listOf()))
         val vector = doubleArrayOf(2.0, 4.0)
 
-        koblas.trmv(triangle, vector, lower = true)
+        koblas.kernels.trmv(triangle, vector, lower = true)
 
         assertContentEquals(doubleArrayOf(4.0, 6.0), vector)
     }
@@ -103,8 +103,10 @@ class TriangularKernelsTest {
         }
         val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
 
-        val fromClean = b.copyOf().also { koblas.trsv(clean, it, lower = true) }
-        val fromPoisoned = b.copyOf().also { koblas.trsv(SparseMatrix.ofColumns(n, n, poisoned), it, lower = true) }
+        val fromClean = b.copyOf().also { koblas.kernels.trsv(clean, it, lower = true) }
+        val fromPoisoned = b.copyOf().also {
+            koblas.kernels.trsv(SparseMatrix.ofColumns(n, n, poisoned), it, lower = true)
+        }
 
         assertClose(fromClean, fromPoisoned, "a NaN in the unread triangle changed the answer", tolerance = 0.0)
     }
@@ -114,12 +116,12 @@ class TriangularKernelsTest {
         // A diagonal of 5.0 that must be ignored, and a NaN one that must not even be looked at.
         val lower = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 5.0, 1 to 3.0), listOf(1 to Double.NaN)))
         val x = doubleArrayOf(1.0, 2.0)
-        koblas.trsv(lower, x, lower = true, unitDiag = true)
+        koblas.kernels.trsv(lower, x, lower = true, unitDiag = true)
         assertEquals(1.0, x[0])
         assertEquals(-1.0, x[1], "row 1 is 3*x0 + 1*x1 = 2")
 
         val t = doubleArrayOf(1.0, 2.0)
-        koblas.trsv(lower, t, lower = true, transpose = true, unitDiag = true)
+        koblas.kernels.trsv(lower, t, lower = true, transpose = true, unitDiag = true)
         assertEquals(2.0, t[1])
         assertEquals(-5.0, t[0], "column 0 transposed is 1*x0 + 3*x1 = 1")
     }

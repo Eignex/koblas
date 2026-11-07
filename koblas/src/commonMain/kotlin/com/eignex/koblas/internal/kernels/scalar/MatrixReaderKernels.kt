@@ -2,7 +2,7 @@ package com.eignex.koblas.internal.kernels.scalar
 
 import com.eignex.koblas.Matrix
 import com.eignex.koblas.Norm
-import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.forEachStored
 import kotlin.math.abs
 import kotlin.math.hypot
 
@@ -20,9 +20,9 @@ internal fun scalarMatrixNorm(a: Matrix, type: Norm): Double {
             }
         }
 
-        Norm.Frobenius -> for (j in 0 until a.cols) for (i in 0 until a.rows) result = hypot(result, a[i, j])
+        Norm.Frobenius -> a.forEachStored { _, _, value -> result = hypot(result, value) }
 
-        Norm.MaxAbs -> for (j in 0 until a.cols) for (i in 0 until a.rows) result = maxOf(result, abs(a[i, j]))
+        Norm.MaxAbs -> a.forEachStored { _, _, value -> result = maxOf(result, abs(value)) }
 
         Norm.Two -> error("Spectral matrix norm is not supported")
     }
@@ -31,19 +31,13 @@ internal fun scalarMatrixNorm(a: Matrix, type: Norm): Double {
 
 internal fun scalarMatrixSum(a: Matrix): Double {
     var total = 0.0
-    for (j in 0 until a.cols) for (i in 0 until a.rows) total += a[i, j]
+    a.forEachStored { _, _, value -> total += value }
     return total
 }
 
 /** Sparse row accumulation walks CSC support; opaque matrices supply entry readers. */
 internal fun scalarMatrixSums(a: Matrix, axis: Int): DoubleArray {
     val result = DoubleArray(if (axis == 0) a.cols else a.rows)
-    for (j in 0 until a.cols) {
-        if (a is SparseMatrix) {
-            a.forEachInColumn(j) { i, value -> result[if (axis == 0) j else i] += value }
-        } else {
-            for (i in 0 until a.rows) result[if (axis == 0) j else i] += a[i, j]
-        }
-    }
+    a.forEachStored { i, j, value -> result[if (axis == 0) j else i] += value }
     return result
 }

@@ -293,9 +293,9 @@ internal fun KoblasEngine.sparseTriangularRightColumn(
             val alpha = if (solve) -value else value
             val rowOffset = origin + row * leadingDimension
             if (solve == gather) {
-                this.axpy(dense, rowOffset, alpha, dense, columnOffset, rows)
+                kernels.axpy(dense, rowOffset, alpha, dense, columnOffset, rows)
             } else {
-                this.axpy(dense, columnOffset, alpha, dense, rowOffset, rows)
+                kernels.axpy(dense, columnOffset, alpha, dense, rowOffset, rows)
             }
         }
     }
@@ -312,6 +312,6 @@ private fun KoblasEngine.sparseApplyDiagonal(
     if (solve) {
         scalarDivide(dense, offset, rows, diagonal)
     } else {
-        this.scale(dense, offset, diagonal, rows)
+        kernels.scale(dense, offset, diagonal, rows)
     }
 }

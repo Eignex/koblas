@@ -22,7 +22,7 @@ internal fun KoblasEngine.scheduleSparseGemv(
             val start = a.colPointers[j]
             val end = a.colPointers[j + 1]
             if (start == end) continue
-            val sum = this.dot(
+            val sum = kernels.dot(
                 a.rowIndices,
                 start,
                 a.values,
@@ -36,7 +36,7 @@ internal fun KoblasEngine.scheduleSparseGemv(
         for (j in 0 until a.cols) {
             val xj = alpha * x[j]
             val start = a.colPointers[j]
-            this.axpy(
+            kernels.axpy(
                 a.rowIndices,
                 start,
                 a.values,

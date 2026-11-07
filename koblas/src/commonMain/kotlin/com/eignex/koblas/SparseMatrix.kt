@@ -99,19 +99,10 @@ public class SparseMatrix internal constructor(
             values[position] = v
             return
         }
-        requireShape(nnz < Int.MAX_VALUE) { "stored entry count exceeds Int capacity" }
-        val slot = position
-        val pointers = colPointers.copyOf()
-        val indices = IntArray(nnz + 1)
-        val coefficients = DoubleArray(nnz + 1)
-        rowIndices.copyInto(indices, 0, 0, slot)
-        values.copyInto(coefficients, 0, 0, slot)
-        indices[slot] = i
-        coefficients[slot] = v
-        rowIndices.copyInto(indices, slot + 1, slot)
-        values.copyInto(coefficients, slot + 1, slot)
-        for (column in j + 1..cols) pointers[column]++
-        replaceStorage(pointers, indices, coefficients)
+        spliceColumn(j, position, position, 1) { indices, coefficients ->
+            indices[position] = i
+            coefficients[position] = v
+        }
     }
 
     internal fun replaceStorage(pointers: IntArray, indices: IntArray, coefficients: DoubleArray) {

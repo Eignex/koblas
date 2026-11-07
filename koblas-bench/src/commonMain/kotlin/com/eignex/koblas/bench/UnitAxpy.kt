@@ -14,7 +14,7 @@ internal class UnitAxpy(size: Int) {
     fun verify(what: String, run: () -> Double) {
         val expected = initial.copyOf()
         repeat(2) {
-            KoblasEngine.scalar.axpy(expected, 0, 1.0, x, 0, x.size)
+            KoblasEngine.scalar.kernels.axpy(expected, 0, 1.0, x, 0, x.size)
             run()
         }
         DenseReference.check(expected, y, what)

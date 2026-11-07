@@ -24,7 +24,7 @@ internal fun standardEngine(
     if (selected == null && owned == null) return ScalarEngine
     return BuiltinEngine(
         "auto-${selected?.id ?: "owned"}",
-        owned?.kernels ?: KernelSet(),
+        owned?.roles ?: KernelSet(),
         selected,
         EngineTuning(runtime, host, selected?.vendor),
     )
