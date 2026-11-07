@@ -220,7 +220,7 @@ internal interface EngineKernels : KoblasEngine {
         if (routed !=
             null
         ) {
-            return routed.gemv(alpha, a, x, xOffset, xStride, beta, y, yOffset, yStride, transpose, scratch)
+            return routed.kernels.gemv(alpha, a, x, xOffset, xStride, beta, y, yOffset, yStride, transpose, scratch)
         }
         prepareMatrixVector(this, alpha, a, transpose, x, xOffset, xStride, beta, y, yOffset, yStride, null, scratch) {
                 sa,
@@ -250,7 +250,7 @@ internal interface EngineKernels : KoblasEngine {
         scratch: Scratch? = null,
     ) {
         val routed = routedWholeCall(EngineImplementation.Symv, a.rows, a.cols, 1, !a.isWholeBuffer)
-        if (routed != null) return routed.symv(alpha, a, x, xOffset, xStride, beta, y, yOffset, yStride, lower, scratch)
+        if (routed != null) return routed.kernels.symv(alpha, a, x, xOffset, xStride, beta, y, yOffset, yStride, lower, scratch)
         requireSquare(a, "symv")
         prepareMatrixVector(this, alpha, a, false, x, xOffset, xStride, beta, y, yOffset, yStride, lower, scratch) {
                 sa,
@@ -275,7 +275,7 @@ internal interface EngineKernels : KoblasEngine {
         scratch: Scratch? = null,
     ) {
         val routed = routedWholeCall(EngineImplementation.Ger, a.rows, a.cols, 1, !a.isWholeBuffer)
-        if (routed != null) return routed.ger(alpha, x, xOffset, xStride, y, yOffset, yStride, a, scratch)
+        if (routed != null) return routed.kernels.ger(alpha, x, xOffset, xStride, y, yOffset, yStride, a, scratch)
         updateRank(alpha, x, xOffset, xStride, y, yOffset, yStride, a, 0, 0, a.rows, a.cols, scratch)
     }
 
@@ -319,7 +319,7 @@ internal interface EngineKernels : KoblasEngine {
         scratch: Scratch? = null,
     ) {
         val routed = routedWholeCall(EngineImplementation.Syr, a.rows, a.rows, 1, !a.isWholeBuffer)
-        if (routed != null) return routed.syr(alpha, x, xOffset, xStride, a, lower, scratch)
+        if (routed != null) return routed.kernels.syr(alpha, x, xOffset, xStride, a, lower, scratch)
         requireSquare(a, "syr")
         prepareRankUpdate(alpha, x, xOffset, xStride, x, xOffset, xStride, a, scratch) { sx, xo, xs, _, _, _ ->
             scheduleSyr(alpha, sx, xo, xs, a, lower)
@@ -340,7 +340,7 @@ internal interface EngineKernels : KoblasEngine {
         scratch: Scratch? = null,
     ) {
         val routed = routedWholeCall(EngineImplementation.Syr2, a.rows, a.rows, 1, !a.isWholeBuffer)
-        if (routed != null) return routed.syr2(alpha, x, xOffset, xStride, y, yOffset, yStride, a, lower, scratch)
+        if (routed != null) return routed.kernels.syr2(alpha, x, xOffset, xStride, y, yOffset, yStride, a, lower, scratch)
         requireSquare(a, "syr2")
         prepareRankUpdate(alpha, x, xOffset, xStride, y, yOffset, yStride, a, scratch) {
                 sx,
@@ -375,7 +375,7 @@ internal interface EngineKernels : KoblasEngine {
     ) {
         val operation = if (transpose) EngineImplementation.TrsvTransposed else EngineImplementation.Trsv
         val routed = routedWholeCall(operation, a.rows, a.rows, 1, !a.isWholeBuffer)
-        if (routed != null) return routed.trsv(a, x, xOffset, xStride, lower, transpose, unitDiag, scratch)
+        if (routed != null) return routed.kernels.trsv(a, x, xOffset, xStride, lower, transpose, unitDiag, scratch)
         prepareTriangularVector(a, x, xOffset, xStride, lower, unitDiag, "trsv", scratch) { sa ->
             scheduleTrsv(sa, x, xOffset, xStride, lower, transpose, unitDiag)
         }
@@ -394,7 +394,7 @@ internal interface EngineKernels : KoblasEngine {
     ) {
         val operation = if (transpose) EngineImplementation.TrmvTransposed else EngineImplementation.Trmv
         val routed = routedWholeCall(operation, a.rows, a.rows, 1, !a.isWholeBuffer)
-        if (routed != null) return routed.trmv(a, x, xOffset, xStride, lower, transpose, unitDiag, scratch)
+        if (routed != null) return routed.kernels.trmv(a, x, xOffset, xStride, lower, transpose, unitDiag, scratch)
         prepareTriangularVector(a, x, xOffset, xStride, lower, unitDiag, "trmv", scratch) { sa ->
             scheduleTrmv(sa, x, xOffset, xStride, lower, transpose, unitDiag)
         }
