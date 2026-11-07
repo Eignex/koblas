@@ -126,9 +126,9 @@ class DenseOpsTest {
         for (stride in intArrayOf(2, -2)) {
             for (transpose in booleanArrayOf(false, true)) {
                 val backing = DoubleArray(17) { (it - 8) / 7.0 }
-                val x = DenseVector.wrap(backing, if (stride > 0) 2 else 10, 5, stride)
+                val x = StridedVector(backing, if (stride > 0) 2 else 10, 5, stride)
                 val output = DoubleArray(19) { -77.0 }
-                val y = DenseVector.wrap(output, if (stride > 0) 3 else 11, 5, stride)
+                val y = StridedVector(output, if (stride > 0) 3 else 11, 5, stride)
                 for (operation in listOf("gemv", "symv", "trsv", "trmv")) {
                     val before = output.copyOf()
                     val expected = if (operation.startsWith("tr")) x.toDoubleArray() else y.toDoubleArray()
@@ -241,8 +241,8 @@ class DenseOpsTest {
     fun `addressed rank updates preserve padding and unselected entries`() = withRegionEngines { blas ->
         for (stride in intArrayOf(2, -2)) {
             for (lower in booleanArrayOf(false, true)) {
-                val x = DenseVector.wrap(DoubleArray(15) { it / 7.0 }, if (stride > 0) 2 else 10, 5, stride)
-                val y = DenseVector.wrap(DoubleArray(17) { (it - 3) / 9.0 }, if (stride > 0) 3 else 11, 5, stride)
+                val x = StridedVector(DoubleArray(15) { it / 7.0 }, if (stride > 0) 2 else 10, 5, stride)
+                val y = StridedVector(DoubleArray(17) { (it - 3) / 9.0 }, if (stride > 0) 3 else 11, 5, stride)
                 for (operation in listOf("ger", "syr", "syr2")) {
                     val a = paddedRegion(5, 5)
                     val before = a.values.copyOf()
@@ -768,8 +768,8 @@ class DenseOpsTest {
                 Triple(0, 1, 1),
             )) {
                 val backing = DoubleArray(10) { it + 0.25 }
-                val source = DenseVector.wrap(backing, sourceOffset, 5, stride)
-                val destination = DenseVector.wrap(backing, destinationOffset, 5, stride)
+                val source = StridedVector(backing, sourceOffset, 5, stride)
+                val destination = StridedVector(backing, destinationOffset, 5, stride)
                 val expected = backing.copyOf()
                 KoblasEngine.scalar.axpy(
                     expected,
@@ -801,8 +801,8 @@ class DenseOpsTest {
                 Triple(9, 8, -1),
             )) {
                 val backing = DoubleArray(14) { it + 0.25 }
-                val source = DenseVector.wrap(backing, sourceOffset, 5, stride)
-                val destination = DenseVector.wrap(backing, destinationOffset, 5, stride)
+                val source = StridedVector(backing, sourceOffset, 5, stride)
+                val destination = StridedVector(backing, destinationOffset, 5, stride)
                 val expected = backing.copyOf()
                 val snapshot = source.toDoubleArray()
                 for (i in snapshot.indices) expected[destinationOffset + i * stride] = snapshot[i]
@@ -823,7 +823,7 @@ class DenseOpsTest {
                 val original = destination.copyOf()
                 // A call that scaled the destination before reading its input would see the scaled values.
                 val source =
-                    if (reversed) DenseVector.wrap(destination, 2, 3, -1) else DenseVector.wrap(destination, 0, 3, 1)
+                    if (reversed) StridedVector(destination, 2, 3, -1) else StridedVector(destination, 0, 3, 1)
                 val expected = DoubleArray(3) { source[it] + 0.5 * original[it] }
 
                 if (symmetric) {
@@ -922,7 +922,7 @@ class DenseOpsTest {
     fun `a strided matvec operand needs no gather buffer`() {
         val n = 6
         val backing = DoubleArray(2 * n) { 1.0 + it }
-        val x = DenseVector.wrap(backing, 0, n, 2)
+        val x = StridedVector(backing, 0, n, 2)
         val a = DenseMatrix.wrap(n, n, DoubleArray(n * n) { 1.0 + (it % 5) * 0.25 })
         val expected = DoubleArray(n).also {
             koblas.gemv(

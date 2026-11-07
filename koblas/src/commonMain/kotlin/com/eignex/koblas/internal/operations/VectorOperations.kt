@@ -9,7 +9,6 @@ import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.*
 import com.eignex.koblas.internal.kernels.scalar.sparse.*
 import com.eignex.koblas.internal.storage.copyVectorStorage
-import com.eignex.koblas.internal.storage.isWholeArray
 import com.eignex.koblas.internal.storage.sameVectorMapping
 import kotlin.math.abs
 

@@ -147,9 +147,9 @@ internal abstract class HostBlas : EngineKernels {
                 alpha,
                 sa,
                 transpose,
-                DenseVector.wrap(sx, so, depth, ss),
+                StridedVector(sx, so, depth, ss),
                 beta,
-                DenseVector.wrap(y, yOffset, rows, yStride),
+                StridedVector(y, yOffset, rows, yStride),
             )
         }
     }
@@ -180,9 +180,9 @@ internal abstract class HostBlas : EngineKernels {
                 alpha,
                 sa,
                 symmetricStructure(lower),
-                DenseVector.wrap(sx, so, n, ss),
+                StridedVector(sx, so, n, ss),
                 beta,
-                DenseVector.wrap(y, yOffset, n, yStride),
+                StridedVector(y, yOffset, n, yStride),
             )
         }
     }
@@ -207,7 +207,7 @@ internal abstract class HostBlas : EngineKernels {
                 yo,
                 ys,
             ->
-            cblasGer(alpha, DenseVector.wrap(sx, xo, a.rows, xs), DenseVector.wrap(sy, yo, a.cols, ys), a)
+            cblasGer(alpha, StridedVector(sx, xo, a.rows, xs), StridedVector(sy, yo, a.cols, ys), a)
         }
     }
 
@@ -223,7 +223,7 @@ internal abstract class HostBlas : EngineKernels {
         requireExport(EngineImplementation.Syr)
         requireSquare(a, "syr")
         prepareRankUpdate(alpha, x, xOffset, xStride, x, xOffset, xStride, a, scratch) { sx, xo, xs, _, _, _ ->
-            cblasSyr(alpha, DenseVector.wrap(sx, xo, a.rows, xs), a, symmetricStructure(lower))
+            cblasSyr(alpha, StridedVector(sx, xo, a.rows, xs), a, symmetricStructure(lower))
         }
     }
 
@@ -250,13 +250,7 @@ internal abstract class HostBlas : EngineKernels {
                 ys,
             ->
             val n = a.rows
-            cblasSyr2(
-                alpha,
-                DenseVector.wrap(sx, xo, n, xs),
-                DenseVector.wrap(sy, yo, n, ys),
-                a,
-                symmetricStructure(lower),
-            )
+            cblasSyr2(alpha, StridedVector(sx, xo, n, xs), StridedVector(sy, yo, n, ys), a, symmetricStructure(lower))
         }
     }
 
@@ -272,7 +266,7 @@ internal abstract class HostBlas : EngineKernels {
     ) {
         requireExport(EngineImplementation.Trsv)
         prepareTriangularVector(a, x, xOffset, xStride, lower, unitDiag, "trsv", scratch) { sa ->
-            val vector = DenseVector.wrap(x, xOffset, a.rows, xStride)
+            val vector = StridedVector(x, xOffset, a.rows, xStride)
             cblasTriangularVector(EngineImplementation.Trsv, sa, triangle(lower, unitDiag), transpose, vector)
         }
     }
@@ -289,7 +283,7 @@ internal abstract class HostBlas : EngineKernels {
     ) {
         requireExport(EngineImplementation.Trmv)
         prepareTriangularVector(a, x, xOffset, xStride, lower, unitDiag, "trmv", scratch) { sa ->
-            val vector = DenseVector.wrap(x, xOffset, a.rows, xStride)
+            val vector = StridedVector(x, xOffset, a.rows, xStride)
             cblasTriangularVector(EngineImplementation.Trmv, sa, triangle(lower, unitDiag), transpose, vector)
         }
     }

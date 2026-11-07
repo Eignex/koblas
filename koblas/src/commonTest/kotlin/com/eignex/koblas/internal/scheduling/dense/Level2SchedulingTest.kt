@@ -199,7 +199,7 @@ class Level2SchedulingTest {
         val buffer = randomVector(2 * n + 1, rng)
         for (stride in intArrayOf(2, -2)) {
             val origin = if (stride > 0) 1 else 2 * n - 1
-            val view = DenseVector.wrap(buffer, origin, n, stride)
+            val view = StridedVector(buffer, origin, n, stride)
             val dense = DenseVector.of(DoubleArray(n) { view[it] })
             for (lower in booleanArrayOf(true, false)) {
                 val start = randomMatrix(n, n, rng)

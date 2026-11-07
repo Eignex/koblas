@@ -180,7 +180,7 @@ private fun vectorWork(case: BenchCase, engine: KoblasEngine): CaseWork {
     fun operand(seed: Int): DenseVector {
         val values = Fixtures.vector(size, seed)
         if (!borrowed) return DenseVector.wrap(values)
-        val result = DenseVector.wrap(DoubleArray(span) { -77.0 }, origin, size, stride)
+        val result = StridedVector(DoubleArray(span) { -77.0 }, origin, size, stride)
         values.forEachIndexed { i, value -> result[i] = value }
         return result
     }

@@ -8,10 +8,6 @@ import com.eignex.koblas.*
 internal val DenseMatrix.isWholeBuffer: Boolean
     get() = offset == 0 && leadingDimension == rows && values.size.toLong() == rows.toLong() * cols
 
-/** Whether this vector spans its entire backing array in order. */
-internal val DenseVector.isWholeArray: Boolean
-    get() = offset == 0 && stride == 1 && values.size == size
-
 /** Exact overlap of a vector window and the logical columns of [a], ignoring column padding. */
 internal fun regionWindowOverlap(a: DenseMatrix, values: DoubleArray, offset: Int, count: Int, stride: Int): Boolean {
     if (a.values !== values || count == 0 || a.rows == 0 || a.cols == 0) return false

@@ -28,7 +28,7 @@ class KoblasEngineTest {
                 return 42.0
             }
         }
-        val view = DenseVector.wrap(DoubleArray(7), 5, 3, -2)
+        val view = StridedVector(DoubleArray(7), 5, 3, -2)
 
         assertEquals(42.0, engine.sum(view))
     }
@@ -197,7 +197,7 @@ class KoblasEngineTest {
     @Test
     fun `typed matrix vector calls validate logical sizes before writing`() {
         val a = DenseMatrix.diagonal(3)
-        val short = DenseVector.wrap(DoubleArray(10) { 7.0 }, 0, 2)
+        val short = StridedVector(DoubleArray(10) { 7.0 }, 0, 2)
         val full = DenseVector.zero(3)
         val expected = short.values.copyOf()
 
@@ -229,8 +229,8 @@ class KoblasEngineTest {
         )
         for (sparseStorage in booleanArrayOf(false, true)) {
             val backing = doubleArrayOf(7.0, 1.0, 2.0, 3.0, 7.0)
-            val x = DenseVector.wrap(backing, 1, 3)
-            val y = DenseVector.wrap(backing, 3, 3, -1)
+            val x = StridedVector(backing, 1, 3)
+            val y = StridedVector(backing, 3, 3, -1)
             val expected = backing.copyOf()
             KoblasEngine.scalar.gemv(0.75, a, x.toDoubleArray(), 0, 1, -0.5, expected, 3, -1)
 
@@ -248,9 +248,9 @@ class KoblasEngineTest {
     fun `typed matrix vector zero multipliers skip poisoned inputs`() {
         val dense = DenseMatrix.wrap(2, 2, DoubleArray(4) { Double.NaN })
         val sparse = SparseMatrix.wrap(2, 2, intArrayOf(0, 1, 2), intArrayOf(0, 1), DoubleArray(2) { Double.NaN })
-        val x = DenseVector.wrap(DoubleArray(5) { Double.NaN }, 3, 2, -2)
+        val x = StridedVector(DoubleArray(5) { Double.NaN }, 3, 2, -2)
         for (sparseStorage in booleanArrayOf(false, true)) {
-            val y = DenseVector.wrap(DoubleArray(5) { Double.NaN }, 1, 2, 2)
+            val y = StridedVector(DoubleArray(5) { Double.NaN }, 1, 2, 2)
 
             if (sparseStorage) {
                 koblas.gemv(0.0, sparse, x, 0.0, y)
@@ -298,7 +298,7 @@ class KoblasEngineTest {
 
     private fun vectorView(stride: Int): DenseVector {
         val offset = if (stride > 0) 1 else 1 - 2 * stride
-        return DenseVector.wrap(DoubleArray(8) { -7.0 }, offset, 3, stride).also { vector ->
+        return StridedVector(DoubleArray(8) { -7.0 }, offset, 3, stride).also { vector ->
             for (i in 0 until 3) vector[i] = i * 0.75 - 1.0
         }
     }

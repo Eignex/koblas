@@ -147,7 +147,7 @@ internal object SimdDenseAllocationCheck {
         val sparse = SparseVector.wrap(ORDER, intArrayOf(0, 7, ORDER - 1), doubleArrayOf(1.5, 0.0, -2.0))
 
         for (stride in intArrayOf(-2, -1, 1, 2)) {
-            val view = DenseVector.wrap(backing, if (stride < 0) 2 * ORDER - 2 else 1, ORDER, stride)
+            val view = StridedVector(backing, if (stride < 0) 2 * ORDER - 2 else 1, ORDER, stride)
             assertAllocationFree("sparse dot dense view stride=$stride") { sparse dot view }
             assertAllocationFree("dense view dot sparse stride=$stride") { view dot sparse }
         }

@@ -12,7 +12,7 @@ class JvmOperandsTest {
     @Test
     fun `overwrite staging omits old vector entries`() {
         for (stride in listOf(1, -1, 3, -3)) {
-            val vector = DenseVector.wrap(DoubleArray(12) { Double.NaN }, if (stride > 0) 1 else 7, 3, stride)
+            val vector = StridedVector(DoubleArray(12) { Double.NaN }, if (stride > 0) 1 else 7, 3, stride)
 
             Arena.ofConfined().use { arena ->
                 val native = arena.stage(vector, read = false)
@@ -26,7 +26,7 @@ class JvmOperandsTest {
     fun `native allocation counts entries instead of the physical span`() {
         val storage = DoubleArray(2_005)
         for (stride in listOf(1_000, -1_000)) {
-            val vector = DenseVector.wrap(storage, if (stride > 0) 2 else 2_002, 3, stride)
+            val vector = StridedVector(storage, if (stride > 0) 2 else 2_002, 3, stride)
 
             Arena.ofConfined().use { arena ->
                 val native = arena.stage(vector)
@@ -43,7 +43,7 @@ class JvmOperandsTest {
             val storage = DoubleArray(2 * step + 5) { Double.NaN }
             val entries = doubleArrayOf(2.0, -5.0, 7.0)
             entries.forEachIndexed { index, value -> storage[2 + index * step] = value }
-            val vector = DenseVector.wrap(storage, if (stride > 0) 2 else 2 + 2 * step, entries.size, stride)
+            val vector = StridedVector(storage, if (stride > 0) 2 else 2 + 2 * step, entries.size, stride)
 
             Arena.ofConfined().use { arena ->
                 val native = arena.stage(vector)
@@ -62,7 +62,7 @@ class JvmOperandsTest {
             val expected = storage.copyOf()
             val entries = doubleArrayOf(20.0, -50.0, 70.0)
             entries.forEachIndexed { index, value -> expected[2 + index * step] = value }
-            val vector = DenseVector.wrap(storage, if (stride > 0) 2 else 2 + 2 * step, entries.size, stride)
+            val vector = StridedVector(storage, if (stride > 0) 2 else 2 + 2 * step, entries.size, stride)
 
             Arena.ofConfined().use { arena ->
                 val native = arena.stage(vector)
@@ -78,8 +78,8 @@ class JvmOperandsTest {
     fun `interleaved writebacks preserve both staged results`() {
         val storage = DoubleArray(12) { it.toDouble() }
         val expected = storage.copyOf()
-        val first = DenseVector.wrap(storage, 1, 3, 3)
-        val second = DenseVector.wrap(storage, 8, 3, -3)
+        val first = StridedVector(storage, 1, 3, 3)
+        val second = StridedVector(storage, 8, 3, -3)
         val firstEntries = doubleArrayOf(20.0, 30.0, 40.0)
         val secondEntries = doubleArrayOf(50.0, 60.0, 70.0)
         for (index in firstEntries.indices) {
@@ -105,7 +105,7 @@ class JvmOperandsTest {
     fun `singletons normalize untraversed strides and write only their entry`() {
         for (stride in listOf(1, -1, Int.MAX_VALUE, Int.MIN_VALUE)) {
             val storage = doubleArrayOf(2.0, 3.0, 4.0)
-            val vector = DenseVector.wrap(storage, 1, 1, stride)
+            val vector = StridedVector(storage, 1, 1, stride)
 
             Arena.ofConfined().use { arena ->
                 val native = arena.stage(vector)
@@ -125,7 +125,7 @@ class JvmOperandsTest {
         for (stride in listOf(1, -1, Int.MAX_VALUE, Int.MIN_VALUE)) {
             val storage = doubleArrayOf(2.0, 3.0, 4.0)
             val expected = storage.copyOf()
-            val vector = DenseVector.wrap(storage, storage.size, 0, stride)
+            val vector = StridedVector(storage, storage.size, 0, stride)
 
             Arena.ofConfined().use { arena ->
                 val native = arena.stage(vector)

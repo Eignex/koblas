@@ -75,28 +75,28 @@ class VectorOpsAllocationTest internal constructor(private val case: AllocationC
         val n = 512
         val backing = DoubleArray(3 * n + 4) { it * 0.01 }
         val offset = if (stride > 0) 2 else 2 + (n - 1) * -stride
-        val source = DenseVector.wrap(backing, offset, n, stride)
+        val source = StridedVector(backing, offset, n, stride)
         val destination = source.view(0, source.size)
     }
 
     private class SharedBufferFixture {
         val n = 512
         val backing = DoubleArray(2 * n) { it * 0.01 }
-        val source = DenseVector.wrap(backing, 0, n, 2)
-        val destination = DenseVector.wrap(backing, 1, n, 2)
+        val source = StridedVector(backing, 0, n, 2)
+        val destination = StridedVector(backing, 1, n, 2)
     }
 
     private class OverlappingFixture {
         val n = 512
         val backing = DoubleArray(n + 1) { it * 0.01 }
-        val source = DenseVector.wrap(backing, 0, n)
-        val destination = DenseVector.wrap(backing, 1, n)
+        val source = StridedVector(backing, 0, n)
+        val destination = StridedVector(backing, 1, n)
     }
 
     private class SparseViewFixture(stride: Int) {
         val n = 512
         val backing = DoubleArray(2 * n) { it * 0.01 }
         val sparse = SparseVector.wrap(n, intArrayOf(0, 7, n - 1), doubleArrayOf(1.5, 0.0, -2.0))
-        val view = DenseVector.wrap(backing, if (stride < 0) 2 * n - 2 else 1, n, stride)
+        val view = StridedVector(backing, if (stride < 0) 2 * n - 2 else 1, n, stride)
     }
 }
