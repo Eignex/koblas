@@ -815,7 +815,7 @@ class DenseOpsTest {
                 val snapshot = source.toDoubleArray()
                 for (i in snapshot.indices) expected[destinationOffset + i * stride] = snapshot[i]
 
-                engine.copyIntoVector(source, destination)
+                engine.copy(source, destination)
 
                 assertContentEquals(expected, backing)
             }

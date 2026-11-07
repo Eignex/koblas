@@ -3,7 +3,9 @@ package com.eignex.koblas.internal.jvm25.simd
 import com.eignex.koblas.*
 import com.eignex.koblas.EngineImplementation
 import com.eignex.koblas.EngineImplementation.*
+import com.eignex.koblas.internal.engine.Architecture
 import com.eignex.koblas.internal.engine.KernelSet
+import com.eignex.koblas.internal.engine.hostPlatform
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.EngineKernels
 import com.eignex.koblas.internal.kernels.scalar.dense.*
@@ -20,12 +22,19 @@ internal val simdAvailable: Boolean = try {
 /** Only supplied operations are capabilities; the composer supplies other providers. */
 private object SimdVectorLeaves : EngineKernels {
     override val id: String = "jvm-simd"
-    override val implementations = setOf(Dot, Sum, Nrm2, Iamax, Asum, Axpy)
+    // Bulk array copy remains faster on the measured x86 host.
+    override val implementations = setOf(Dot, Sum, Nrm2, Iamax, Asum, Axpy) +
+        if (hostPlatform().architecture == Architecture.Arm64) setOf(Copy) else emptySet()
     override fun dynamicAttribution(implementation: EngineImplementation): Boolean = implementation == Nrm2
     override fun requiresUnitStride(implementation: EngineImplementation): Boolean = true
-    override fun minimumLength(implementation: EngineImplementation): Int = SimdOps.lanes()
+    override fun minimumLength(implementation: EngineImplementation): Int =
+        if (implementation == Copy) 4096 else SimdOps.lanes()
 
     override val name: String = "simd(${SimdOps.lanes()} lanes)"
+    override fun copy(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) {
+        require(aStride == 1 && bStride == 1)
+        SimdOps.copy(a, aOff, b, bOff, len)
+    }
     override fun dot(
         a: DoubleArray,
         aOff: Int,
