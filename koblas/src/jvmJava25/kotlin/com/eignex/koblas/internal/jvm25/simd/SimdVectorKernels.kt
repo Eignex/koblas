@@ -29,6 +29,8 @@ private object SimdVectorLeaves : EngineKernels {
     override fun requiresUnitStride(implementation: EngineImplementation): Boolean = true
     override fun minimumLength(implementation: EngineImplementation): Int =
         if (implementation == Copy) 4096 else SimdOps.lanes()
+    override fun maximumLength(implementation: EngineImplementation): Int =
+        if (implementation == Copy) 8192 else Int.MAX_VALUE
 
     override val name: String = "simd(${SimdOps.lanes()} lanes)"
     override fun copy(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) {

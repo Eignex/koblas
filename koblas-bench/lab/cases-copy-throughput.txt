@@ -6,6 +6,8 @@ copy+512+uniform
 copy+1024+uniform
 copy+4096+uniform
 copy+4097+uniform
+copy+6144+uniform
+copy+8192+uniform
 copy+16384+uniform
 copy+65536+uniform
 copy+1048576+uniform

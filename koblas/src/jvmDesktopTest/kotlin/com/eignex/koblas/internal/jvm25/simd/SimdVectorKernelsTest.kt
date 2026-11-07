@@ -77,6 +77,7 @@ class SimdVectorKernelsTest {
         }
         assertEquals(expected, reached(EngineImplementation.Copy, 4096))
         assertEquals(ScalarEngine.name, reached(EngineImplementation.Copy, 64))
+        assertEquals(ScalarEngine.name, reached(EngineImplementation.Copy, 8193))
         assertEquals(ScalarEngine.name, kernels.implementationFor(EngineImplementation.Copy, 4096, contiguous = false))
     }
 

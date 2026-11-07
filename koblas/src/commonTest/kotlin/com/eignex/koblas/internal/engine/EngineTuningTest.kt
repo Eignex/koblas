@@ -12,6 +12,7 @@ class EngineTuningTest {
             override val name = "copy vectors"
             override val implementations = setOf(Copy)
             override fun requiresUnitStride(implementation: EngineImplementation): Boolean = true
+            override fun maximumLength(implementation: EngineImplementation): Int = 8192
         }
         for (runtime in EngineRuntime.entries) {
             for (system in OperatingSystem.entries) {
@@ -28,6 +29,7 @@ class EngineTuningTest {
                     assertSame(expected, engine.vectorProvider(Copy, 4096, contiguous = true))
                     assertSame(KoblasEngine.scalar, engine.vectorProvider(Copy, 64, contiguous = true))
                     assertSame(KoblasEngine.scalar, engine.vectorProvider(Copy, 4096, contiguous = false))
+                    assertSame(KoblasEngine.scalar, engine.vectorProvider(Copy, 8193, contiguous = true))
                 }
             }
         }

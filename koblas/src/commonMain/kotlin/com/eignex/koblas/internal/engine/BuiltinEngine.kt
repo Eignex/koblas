@@ -60,7 +60,9 @@ internal class BuiltinEngine(
         val limit = (if (contiguous) hostAdjacent else hostStrided)[i]
         if (limit >= 0 && length >= limit) return requireNotNull(host)
         val leaf = owned[i]
-        return if (length >= minimums[i] && (contiguous || !leaf.requiresUnitStride(operation))) leaf else ScalarEngine
+        return if (length >= minimums[i] && length <= leaf.maximumLength(operation) &&
+            (contiguous || !leaf.requiresUnitStride(operation))
+        ) leaf else ScalarEngine
     }
 
     internal fun hostFor(
