@@ -124,7 +124,7 @@ class SparseDenseProductTest {
                 // adjacent, so that one pair takes the adjacent body with no copy at all.
                 assertEquals(
                     !(transposeA && transposeB),
-                    rhsStaged(productRhsPlan(staging, m, n, k, a.nnz, transposeA, transposeB)),
+                    productRhsPlan(staging, m, n, k, a.nnz, transposeA, transposeB).staged,
                     "$context staged the wrong way round",
                 )
                 assertClose(expected.values, stagedResult.values, "staged product $context")
@@ -146,7 +146,7 @@ class SparseDenseProductTest {
             ReferenceSparseBlas.symm(ALPHA, a, b, BETA, expected, lower)
 
             assertTrue(
-                rhsStaged(symmetricRhsPlan(staging, order, SIDES, a.nnz)),
+                symmetricRhsPlan(staging, order, SIDES, a.nnz).staged,
                 "the symmetric fixture did not stage at lower=$lower",
             )
             val staged = c0.copyOf()
@@ -308,7 +308,7 @@ class SparseDenseProductTest {
             transposeDense = false,
         )
 
-        assertFalse(rhsStaged(plan))
+        assertFalse(plan.staged)
     }
 
     // A stored infinity against a dense zero and a stored zero against a dense infinity are both NaN.

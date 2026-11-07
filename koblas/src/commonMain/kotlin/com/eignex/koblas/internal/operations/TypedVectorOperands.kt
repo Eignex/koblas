@@ -6,16 +6,13 @@ import com.eignex.koblas.internal.kernels.scalar.sparse.indexedScatter
 import com.eignex.koblas.internal.storage.isWholeArray
 
 /** Sparse schedules consume contiguous vectors; view packing preserves their no-read and alias rules. */
-@Suppress("LongParameterList") // BLAS operands, flags and scratch
-internal fun KoblasEngine.sparseMatrixVector(
+internal inline fun KoblasEngine.withSparseMatrixVectors(
     alpha: Double,
     a: SparseMatrix,
     x: DenseVector,
     beta: Double,
     y: DenseVector,
-    flag: Boolean,
-    scratch: Scratch?,
-    symmetric: Boolean,
+    body: (DoubleArray, DoubleArray) -> Unit,
 ) {
     if (alpha == 0.0 || a.rows == 0 || a.cols == 0) {
         applyBeta(this, y.values, y.offset, y.size, beta, y.stride)
@@ -27,30 +24,14 @@ internal fun KoblasEngine.sparseMatrixVector(
         beta == 0.0 -> DoubleArray(y.size)
         else -> y.toDoubleArray()
     }
-    if (symmetric) {
-        kernels.symv(alpha, a, input, beta, output, flag, scratch)
-    } else {
-        kernels.gemv(alpha, a, input, beta, output, flag, scratch)
-    }
+    body(input, output)
     if (!y.isWholeArray) for (i in 0 until y.size) y[i] = output[i]
 }
 
-@Suppress("LongParameterList") // triangle flags and scratch
-internal fun KoblasEngine.sparseTriangularVector(
-    a: SparseMatrix,
-    x: DenseVector,
-    lower: Boolean,
-    transpose: Boolean,
-    unitDiag: Boolean,
-    scratch: Scratch?,
-    solve: Boolean,
-) {
+/** Packs a vector view for an in-place sparse routine and writes its logical entries back. */
+internal inline fun withContiguousVector(x: DenseVector, body: (DoubleArray) -> Unit) {
     val values = if (x.isWholeArray) x.values else x.toDoubleArray()
-    if (solve) {
-        kernels.trsv(a, values, lower, transpose, unitDiag, scratch)
-    } else {
-        kernels.trmv(a, values, lower, transpose, unitDiag, scratch)
-    }
+    body(values)
     if (!x.isWholeArray) for (i in 0 until x.size) x[i] = values[i]
 }
 
@@ -58,7 +39,16 @@ internal fun KoblasEngine.scatterVector(source: SparseVector, destination: Dense
     requireSameSize(source.size, destination.size, "scatter")
     val aliased = source.values === destination.values
     val values = if (aliased) source.values.copyOfRange(source.offset, source.offset + source.nnz) else source.values
-    val valueOffset = if (aliased) 0 else source.offset
+    scatterStored(source, destination, values, if (aliased) 0 else source.offset)
+}
+
+/** Writes coefficients already staged against [destination], preserving absent positions. */
+internal fun KoblasEngine.scatterStored(
+    source: SparseVector,
+    destination: DenseVector,
+    values: DoubleArray = source.values,
+    valueOffset: Int = source.offset,
+) {
     if (destination.isWholeArray) {
         kernels.scatter(source.indices, source.offset, values, valueOffset, source.nnz, destination.values)
     } else {

@@ -159,7 +159,7 @@ class SparseTriangularTest {
                         val source = randomMatrix(ORDER, SIDES, rng)
                         val context = "solve=$solve transpose=$transpose unit=$unit lower=$lower"
                         assertTrue(
-                            rhsStaged(triangularRhsPlan(staging, ORDER, SIDES, t.nnz, transpose)),
+                            triangularRhsPlan(staging, ORDER, SIDES, t.nnz, transpose).staged,
                             "the triangular fixture did not stage at $context",
                         )
 
@@ -206,7 +206,7 @@ class SparseTriangularTest {
         val sharedTriangle = SparseMatrix.wrap(order, order, pointers, rows, block.copyOf())
         val aliased = DenseMatrix.wrap(order, sides, sharedTriangle.values)
         assertTrue(
-            rhsStaged(triangularRhsPlan(staging, order, sides, sharedTriangle.nnz, transpose = false)),
+            triangularRhsPlan(staging, order, sides, sharedTriangle.nnz, transpose = false).staged,
             "the aliased triangular fixture did not stage",
         )
         staging.trsm(sharedTriangle, aliased, true, false, false, false, ALPHA, scratch = Scratch())
@@ -265,7 +265,7 @@ class SparseTriangularTest {
         for (side in intArrayOf(0, 2, 3)) for (row in 0 until order) source[row + side * order] = 1.0
         val b = DenseMatrix.wrap(order, sides, source.copyOf())
         assertTrue(
-            rhsStaged(triangularRhsPlan(staging, order, sides, triangle.nnz, transpose = false)),
+            triangularRhsPlan(staging, order, sides, triangle.nnz, transpose = false).staged,
             "the fixture did not stage",
         )
 

@@ -31,16 +31,21 @@ internal fun triangularForward(lower: Boolean, transpose: Boolean, solve: Boolea
  * The block is both the source and the destination, so a staged copy is read in and written back, and the
  * direction that gathers finished rows into a pivot is the shape the backend is asked about.
  */
-internal fun triangularRhsPlan(kernels: KoblasEngine, order: Int, sides: Int, entries: Int, transpose: Boolean): Int =
-    planRightHandSides(
-        kernels,
-        order,
-        sides,
-        entries,
-        copiedPerSide = 2L * order,
-        nativelyContiguous = false,
-        reduction = transpose,
-    )
+internal fun triangularRhsPlan(
+    kernels: KoblasEngine,
+    order: Int,
+    sides: Int,
+    entries: Int,
+    transpose: Boolean,
+): RhsPlan = planRightHandSides(
+    kernels,
+    order,
+    sides,
+    entries,
+    copiedPerSide = 2L * order,
+    nativelyContiguous = false,
+    reduction = transpose,
+)
 
 /** Runs [block] with the diagonal of [a] borrowed from reusable scratch, or null when [unitDiag] takes it as 1. */
 internal inline fun withExplicitDiagonal(
@@ -90,15 +95,15 @@ internal fun triangularLeftCore(
     val forward = triangularForward(lower, transpose, solve)
     // Gathering reduces finished rows into a pivot; scattering spreads a pivot. Backends tune them separately.
     val plan = triangularRhsPlan(kernels, n, sides, a.nnz, transpose)
-    val width = rhsWidth(plan)
-    val staged = rhsStaged(plan)
+    val width = plan.width
     val ld = b.leadingDimension
     // Scatter scratch holds values and live flags. Single-right-hand-side groups need no panel loan.
     arrays.borrowOptional(if (width > 1 && sides > 1) 2 * width else 0) { work ->
-        arrays.borrowOptional(if (staged) width * n else 0) { panel ->
+        arrays.borrowOptional(if (plan.staged) width * n else 0) { panel ->
             forEachPanel(sides, width) { columnStart, actual ->
                 withRhsPanel(
-                    b.values, b.offset + columnStart * ld, ld, 1, n, actual, staged, panel, width, writeBack = true,
+                    b.values, b.offset + columnStart * ld, ld, 1, n, actual, plan.staged, panel, width,
+                    writeBack = true,
                 ) { dense, offset, rhsStride, indexStride ->
                     forEachSparseColumn(a, forward) { j, from, to ->
                         val dj = diagonal?.get(j) ?: 1.0

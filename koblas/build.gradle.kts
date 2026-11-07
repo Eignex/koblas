@@ -40,30 +40,7 @@ kotlin {
         freeCompilerArgs.add("-Xexpect-actual-classes")
         optIn.add("com.eignex.koblas.UnsafeKoblasApi")
     }
-    jvm {
-        val main = compilations.getByName("main")
-        val baselineTest = compilations.getByName("test")
-        val desktopTest = compilations.create("desktopTest") {
-            associateWith(main)
-            associateWith(baselineTest)
-            compileTaskProvider.configure {
-                compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_25)
-                compilerOptions.freeCompilerArgs.add("-Xadd-modules=jdk.incubator.vector")
-            }
-            compileJavaTaskProvider?.configure { options.release.set(25) }
-        }
-        // Kbuild creates the MR compilation during its lifecycle hook.
-        compilations.matching { it.name == "java25" }.all {
-            compileTaskProvider.configure {
-                compilerOptions.freeCompilerArgs.add("-Xadd-modules=jdk.incubator.vector")
-            }
-            desktopTest.associateWith(this)
-            val versionedOutput = output.classesDirs
-            tasks.named<KotlinJvmCompile>(desktopTest.compileKotlinTaskName) {
-                friendPaths.setFrom(main.output.classesDirs, baselineTest.output.classesDirs, versionedOutput)
-            }
-        }
-    }
+    jvm()
     linuxX64()
     if (fullTargets) {
         iosArm64()
@@ -110,31 +87,53 @@ dokka {
     }
 }
 
-val jvmTarget = kotlin.targets.getByName("jvm") as KotlinJvmTarget
-val baselineTest = jvmTarget.compilations.getByName("test")
-val desktopTest = jvmTarget.compilations.getByName("desktopTest")
-val mainOutput = jvmTarget.compilations.getByName("main").output.allOutputs
-val productionOutputs = files(mainOutput)
-jvmTarget.compilations.matching { it.name == "java25" }.all { productionOutputs.from(output.allOutputs) }
-val jvmJar = tasks.named<Jar>("jvmJar")
-val packagedBaselineClasspath = files(jvmJar, baselineTest.output.allOutputs, baselineTest.runtimeDependencyFiles) - productionOutputs
-val packagedDesktopClasspath = files(
-    packagedBaselineClasspath, desktopTest.output.allOutputs, desktopTest.runtimeDependencyFiles,
-) - productionOutputs
 val desktopJavaLauncher = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(25)) }
 val desktopJvmArguments = listOf("--enable-native-access=ALL-UNNAMED") +
     if (providers.gradleProperty("koblas.noSimd").orNull == "true") emptyList()
     else listOf("--add-modules=jdk.incubator.vector")
 
-tasks.named<Test>("jvmTest") {
-    testClassesDirs = files(baselineTest.output.classesDirs, desktopTest.output.classesDirs)
-    classpath = packagedDesktopClasspath
-    javaLauncher.set(desktopJavaLauncher)
-    jvmArgs(desktopJvmArguments)
-}
-tasks.withType<Test>().matching { it.name == "jvmTestJarOnJava17" }.configureEach {
-    testClassesDirs = baselineTest.output.classesDirs
-    classpath = packagedBaselineClasspath
+val packagedDesktopClasspath = with(kotlin.targets.getByName("jvm") as KotlinJvmTarget) {
+    val main = compilations.getByName("main")
+    val baselineTest = compilations.getByName("test")
+    val productionOutputs = files(main.output.allOutputs)
+    val desktopTest = compilations.create("desktopTest") {
+        associateWith(main)
+        associateWith(baselineTest)
+        compileTaskProvider.configure {
+            compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_25)
+            compilerOptions.freeCompilerArgs.add("-Xadd-modules=jdk.incubator.vector")
+        }
+        compileJavaTaskProvider?.configure { options.release.set(25) }
+    }
+    // Kbuild creates the MR compilation during its lifecycle hook.
+    compilations.matching { it.name == "java25" }.all {
+        productionOutputs.from(output.allOutputs)
+        compileTaskProvider.configure {
+            compilerOptions.freeCompilerArgs.add("-Xadd-modules=jdk.incubator.vector")
+        }
+        desktopTest.associateWith(this)
+        val versionedOutput = output.classesDirs
+        tasks.named<KotlinJvmCompile>(desktopTest.compileKotlinTaskName) {
+            friendPaths.setFrom(main.output.classesDirs, baselineTest.output.classesDirs, versionedOutput)
+        }
+    }
+    val jvmJar = tasks.named<Jar>("jvmJar")
+    val packagedBaselineClasspath = files(jvmJar, baselineTest.output.allOutputs, baselineTest.runtimeDependencyFiles) - productionOutputs
+    val desktopClasspath = files(
+        packagedBaselineClasspath, desktopTest.output.allOutputs, desktopTest.runtimeDependencyFiles,
+    ) - productionOutputs
+
+    tasks.named<Test>("jvmTest") {
+        testClassesDirs = files(baselineTest.output.classesDirs, desktopTest.output.classesDirs)
+        classpath = desktopClasspath
+        javaLauncher.set(desktopJavaLauncher)
+        jvmArgs(desktopJvmArguments)
+    }
+    tasks.withType<Test>().matching { it.name == "jvmTestJarOnJava17" }.configureEach {
+        testClassesDirs = baselineTest.output.classesDirs
+        classpath = packagedBaselineClasspath
+    }
+    desktopClasspath
 }
 
 /** Each profile is a separate uninstrumented process with its own fixed runtime policy. */
