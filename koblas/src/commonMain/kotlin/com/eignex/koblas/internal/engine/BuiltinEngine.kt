@@ -216,8 +216,13 @@ internal class BuiltinEngine(
         it.gatherZero(indices, indexOffset, values, valueOffset, count, source)
     }
 
-    override fun copy(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) =
-        withVector(Copy, len, aStride == 1 && bStride == 1) {
-            it.copy(a, aOff, b, bOff, len, aStride, bStride)
+    override fun copy(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) {
+        val contiguous = aStride == 1 && bStride == 1
+        val provider = vectorProvider(Copy, len, contiguous)
+        if (provider === ScalarEngine && contiguous) {
+            a.copyInto(b, bOff, aOff, aOff + len)
+        } else {
+            provider.copy(a, aOff, b, bOff, len, aStride, bStride)
         }
+    }
 }
