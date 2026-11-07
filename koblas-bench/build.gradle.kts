@@ -10,8 +10,7 @@ import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
 
 plugins { id("com.eignex.kmp") }
 
-val fullTargets = providers.gradleProperty("targets.full").isPresent ||
-    gradle.startParameter.taskNames.any { it.endsWith("LinuxArm64") }
+val fullTargets = providers.gradleProperty("targets.full").isPresent
 
 eignexPublish { publish.set(false) }
 eignexBuild {
@@ -44,7 +43,7 @@ kotlin {
     }
     jvm()
     linuxX64 { binaries.executable { entryPoint = "com.eignex.koblas.bench.main"; baseName = "koblas-bench" } }
-    if (fullTargets) {
+    if (fullTargets || gradle.startParameter.taskNames.any { it.endsWith("LinuxArm64") }) {
         linuxArm64 { binaries.executable { entryPoint = "com.eignex.koblas.bench.main"; baseName = "koblas-bench" } }
     }
     if (fullTargets || System.getProperty("os.name").startsWith("Windows"))
@@ -66,7 +65,7 @@ kotlin {
         jvmMain.dependencies {
             implementation(project(":koblas-bench:jmh"))
             implementation("com.eignex:lab-bench:$labBenchVersion")
-            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.12.0")
+            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json")
         }
     }
 }
