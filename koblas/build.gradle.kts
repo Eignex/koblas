@@ -11,8 +11,7 @@ plugins {
     kotlin("plugin.serialization")
 }
 
-val fullTargets = providers.gradleProperty("targets.full").isPresent ||
-    gradle.startParameter.taskNames.any { it.endsWith("LinuxArm64") }
+val fullTargets = providers.gradleProperty("targets.full").isPresent
 
 eignexBuild {
     abiValidationEnabled.set(fullTargets)
@@ -67,10 +66,10 @@ kotlin {
     }
     linuxX64()
     if (fullTargets) {
-        linuxArm64()
         iosArm64()
         iosSimulatorArm64()
     }
+    if (fullTargets || gradle.startParameter.taskNames.any { it.endsWith("LinuxArm64") }) linuxArm64()
     if (fullTargets || System.getProperty("os.name").startsWith("Windows")) mingwX64()
     if (fullTargets || System.getProperty("os.name").startsWith("Mac")) macosArm64()
 
