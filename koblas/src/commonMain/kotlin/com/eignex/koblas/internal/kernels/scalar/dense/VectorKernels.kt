@@ -132,7 +132,11 @@ internal fun scalarRot(
 @Suppress("LongParameterList")
 internal fun scalarCopy(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) {
     if (aStride == 1 && bStride == 1) {
-        a.copyInto(b, bOff, aOff, aOff + len)
+        if (a === b) {
+            a.copyInto(b, bOff, aOff, aOff + len)
+        } else {
+            for (i in 0 until len) b[bOff + i] = a[aOff + i]
+        }
     } else {
         for (i in 0 until len) b[bOff + i * bStride] = a[aOff + i * aStride]
     }
