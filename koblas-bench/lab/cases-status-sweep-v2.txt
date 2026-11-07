@@ -1,4 +1,4 @@
-# Fixed status sweep v2: 41 arithmetic workloads spanning KoblasEngine routine families at two sizes.
+# Fixed status sweep v2: every KoblasEngine routine/overload at two sizes.
 # Dense vectors: 64/4096; dense L2 and sparse matrices: 32/128; dense L3: 16/64.
 # Indexed vectors: 64/4096 with density 1/8. One default JVM engine, seed 1 fixtures.
 dot+64+uniform
