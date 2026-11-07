@@ -192,6 +192,10 @@ private fun vectorWork(case: BenchCase, engine: KoblasEngine): CaseWork {
     val timing = if (reset) "reset-and-arithmetic" else "arithmetic"
     fun arithmetic(provider: KoblasEngine, a: DenseVector, b: DenseVector): () -> Double {
         val kernels = provider.kernels
+        val aValues = a.values
+        val bValues = b.values
+        val contiguous = a.offset == 0 && b.offset == 0 && a.stride == 1 && b.stride == 1 &&
+            a.size == aValues.size && b.size == bValues.size
         var alpha = 0.875
         val apply: () -> Double = when (case.operation) {
             "dot" -> { { kernels.dot(a.values, a.offset, b.values, b.offset, size, a.stride, b.stride) } }
@@ -199,11 +203,19 @@ private fun vectorWork(case: BenchCase, engine: KoblasEngine): CaseWork {
             "asum" -> { { kernels.asum(a.values, a.offset, size, a.stride) } }
             "sum" -> { { kernels.sum(a.values, a.offset, size, stride) } }
             "iamax" -> { { kernels.iamax(a.values, a.offset, a.size, a.stride).toDouble() } }
-            "copy" -> { { kernels.copy(a.values, a.offset, b.values, b.offset, size, a.stride, b.stride); b[0] } }
+            "copy" -> if (contiguous) {
+                { kernels.copy(aValues, 0, bValues, 0, size, 1, 1); b[0] }
+            } else { { kernels.copy(a.values, a.offset, b.values, b.offset, size, a.stride, b.stride); b[0] } }
             "axpy" -> { { if (!reset) alpha = -alpha; kernels.axpy(b.values, b.offset, alpha, a.values, a.offset, size, b.stride, a.stride); b[0] } }
-            "scal" -> { { kernels.scale(a.values, a.offset, if (reset) 0.875 else -1.0, a.size, a.stride); a[0] + a[size - 1] } }
-            "swap" -> { { kernels.swap(a.values, a.offset, b.values, b.offset, a.size, a.stride, b.stride); a[0] + b[0] } }
-            else -> { { kernels.rot(a.values, a.offset, b.values, b.offset, a.size, 0.8, 0.6, a.stride, b.stride); a[0] + b[0] } }
+            "scal" -> if (contiguous) {
+                { kernels.scale(aValues, 0, if (reset) 0.875 else -1.0, aValues.size, 1); a[0] + a[size - 1] }
+            } else { { kernels.scale(a.values, a.offset, if (reset) 0.875 else -1.0, a.size, a.stride); a[0] + a[size - 1] } }
+            "swap" -> if (contiguous) {
+                { kernels.swap(aValues, 0, bValues, 0, aValues.size, 1, 1); a[0] + b[0] }
+            } else { { kernels.swap(a.values, a.offset, b.values, b.offset, a.size, a.stride, b.stride); a[0] + b[0] } }
+            else -> if (contiguous) {
+                { kernels.rot(aValues, 0, bValues, 0, aValues.size, 0.8, 0.6, 1, 1); a[0] + b[0] }
+            } else { { kernels.rot(a.values, a.offset, b.values, b.offset, a.size, 0.8, 0.6, a.stride, b.stride); a[0] + b[0] } }
         }
         return { if (reset) { initialX.copyInto(a.values); initialY.copyInto(b.values) }; apply() }
     }
