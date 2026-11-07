@@ -1,5 +1,6 @@
 package com.eignex.koblas.bench
 
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.*
 
 /** Reused, disjoint inputs for a sequence of rank updates with successively shorter trailing supports. */
@@ -43,7 +44,7 @@ internal fun shrinkingRankUpdateWork(case: BenchCase, engine: KoblasEngine): Cas
             for (step in fixture.x.indices) {
                 val start = step + 1
                 val extent = n - start
-                engine.ger(
+                engine.kernels.ger(
                     -1.0, fixture.x[step], fixture.y[step], fixture.matrix,
                     start, start, extent, extent, start, start,
                 )
@@ -52,7 +53,7 @@ internal fun shrinkingRankUpdateWork(case: BenchCase, engine: KoblasEngine): Cas
         }
     } else {
         {
-            for (step in fixture.x.indices) engine.ger(
+            for (step in fixture.x.indices) engine.kernels.ger(
                 -1.0,
                 fixture.x[step],
                 0,

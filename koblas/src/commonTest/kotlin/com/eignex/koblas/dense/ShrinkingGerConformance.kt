@@ -1,6 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
+import com.eignex.koblas.internal.kernels.*
 import kotlin.math.abs
 import kotlin.math.ulp
 import kotlin.test.assertTrue

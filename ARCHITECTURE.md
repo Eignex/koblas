@@ -6,11 +6,23 @@ multiplatform module; platform source sets supply their own runtime and arithmet
 
 ## Public entry points
 
-- Containers, factories, views, serialization and materialized transpose describe or transform storage.
-- `KoblasEngine` owns explicit BLAS calls, including windowed `ger` and sparse `dotColumn`. Its default
-  matrix methods prepare their operands and invoke shared schedules. Primitive Level 1 methods are implemented
-  by engines.
-- `VectorOps.kt` is the small container facade over the shared `koblas` variable in `KoblasEngine.kt`.
+- `Matrix` and `Vector` own fixed-shape mutable entry contracts and default materialization. `DenseMatrix`
+  represents compact buffers and borrowed views with offsets and leading dimensions. `DenseVector`
+  represents contiguous buffers and stepped or reversed slices with offsets and strides. Sparse setters
+  maintain sorted structure and retain written zeros. Dense equality and serialization visit logical entries only. Engine eligibility checks layout rather than concrete types.
+- `KoblasEngine` owns typed BLAS calls over dense and sparse containers. Logical dimensions are validated
+  before views are unpacked. Its matrix methods prepare their operands and invoke shared schedules.
+  Primitive array windows, including windowed `ger`, belong to the internal `EngineKernels` interface.
+- Column views provide mutable vector access without copying matrix entries. Concrete containers retain
+  typed dense/sparse callbacks; base `Matrix` helpers also adapt custom storage. Sparse vectors identify
+  their packed window by offset and count. A sparse column view holds its owner and column index, so
+  structural replacements update the matrix and every retained view resolves the current CSC window.
+- `VectorOps.kt` and `MatrixOps.kt` are small container facades over the shared `koblas` variable in
+  `KoblasEngine.kt`. Both facades share the `Norm` enum, with norm dispatch and validation under
+  `internal/operations`. Every facade extension targets `Matrix` or `Vector`; copies and matrix
+  transposes are storage transformations, and copy-into operations validate shapes and stage aliases.
+  Sparse reductions traverse stored entries; custom storage uses scalar readers. Explicit BLAS calls,
+  including vector scaling and scaled addition, stay on the engine.
 - Applications may assign `koblas` during startup; launch settings initialize its first value. Callers own
   startup order and safe publication. Reads and writes have no lazy delegate or synchronization.
 - `KoblasEngine.scalar`, `KoblasEngine.simd` and `KoblasEngine.vendor` expose exact engines;

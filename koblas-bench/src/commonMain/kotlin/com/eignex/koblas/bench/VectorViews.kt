@@ -1,12 +1,14 @@
 package com.eignex.koblas.bench
 
+import com.eignex.koblas.internal.kernels.*
+import com.eignex.koblas.internal.operations.axpyVector
 import com.eignex.koblas.*
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.internal.operations.dotVector
 
 /**
- * Vector entry points include their alias checks and view adaptation. They select the platform engine
- * themselves, so the row names the whole portable wrapper and is measured only on the default-policy arm.
+ * Vector storage adapters include their alias checks and view adaptation. The row measures the default
+ * engine's complete adaptation path and is measured only on the default-policy arm.
  */
 internal fun vectorViewsArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
     if (engine !== koblas) {
@@ -17,7 +19,7 @@ internal fun vectorViewsArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
         val sparse = Fixtures.sparseVector(size, case.option("density", "0.01").toDouble(), 1)
         val dense = Fixtures.vector(size, 2)
         val backing = DoubleArray(2 * size) { if (it % 2 == 0) dense[it / 2] else Double.NaN }
-        val view = StridedVector(backing, 0, size, 2)
+        val view = DenseVector.wrap(backing, 0, size, 2)
         val expected = KoblasEngine.scalar.dotVector(sparse, DenseVector.wrap(dense))
         DenseReference.check(doubleArrayOf(expected), doubleArrayOf(sparse dot view), case.id)
         return ArmChoice(CaseWork("default-policy", "arithmetic", { sparse dot view },
@@ -27,11 +29,11 @@ internal fun vectorViewsArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
     val initial = Fixtures.vector(if (overlap) size + 1 else size * 2, 1)
     val backing = initial.copyOf()
     val stride = if (overlap) 1 else 2
-    val source = StridedVector(backing, 0, size, stride)
-    val destination = StridedVector(backing, 1, size, stride)
+    val source = DenseVector.wrap(backing, 0, size, stride)
+    val destination = DenseVector.wrap(backing, 1, size, stride)
     val x = DoubleArray(size) { initial[it * stride] }
     val y = DoubleArray(size) { initial[1 + it * stride] }
-    val kernels = KoblasEngine.scalar
+    val kernels = KoblasEngine.scalar.kernels
     when (case.operation) {
         "copy-overlap" -> x.copyInto(y)
         "axpy-views" -> kernels.axpy(y, 0, 0.875, x, 0, size)
@@ -45,7 +47,7 @@ internal fun vectorViewsArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
         initial.copyInto(backing)
         when (case.operation) {
             "copy-overlap" -> destination.copyFrom(source)
-            "axpy-views" -> destination.axpy(0.875, source)
+            "axpy-views" -> koblas.axpyVector(0.875, source, destination)
         }
         backing[0] + backing.last()
     }

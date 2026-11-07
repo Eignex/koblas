@@ -4,6 +4,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.jvm25.host.*
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import com.eignex.koblas.internal.operations.dotVector
 import java.lang.foreign.Arena

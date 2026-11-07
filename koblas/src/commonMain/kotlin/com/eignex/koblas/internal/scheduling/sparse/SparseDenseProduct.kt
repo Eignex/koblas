@@ -3,6 +3,7 @@
 package com.eignex.koblas.internal.scheduling.sparse
 
 import com.eignex.koblas.*
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.dense.scalarEvaluatedAxpy
 import com.eignex.koblas.internal.kernels.scalar.sparse.*
 import com.eignex.koblas.internal.operations.staged
@@ -209,9 +210,9 @@ internal fun multiplyFromTheLeft(
     alpha: Double,
     a: SparseMatrix,
     transposeA: Boolean,
-    b: DenseMatrixRegion,
+    b: DenseMatrix,
     transposeB: Boolean,
-    c: DenseMatrixRegion,
+    c: DenseMatrix,
     m: Int,
     n: Int,
     k: Int,
@@ -252,8 +253,8 @@ private fun gatherPanel(
     kernels: KoblasEngine,
     alpha: Double,
     a: SparseMatrix,
-    b: DenseMatrixRegion,
-    c: DenseMatrixRegion,
+    b: DenseMatrix,
+    c: DenseMatrix,
     k: Int,
     columnStart: Int,
     actual: Int,
@@ -294,8 +295,8 @@ private fun scatterPanel(
     kernels: KoblasEngine,
     alpha: Double,
     a: SparseMatrix,
-    b: DenseMatrixRegion,
-    c: DenseMatrixRegion,
+    b: DenseMatrix,
+    c: DenseMatrix,
     m: Int,
     columnStart: Int,
     actual: Int,
@@ -344,8 +345,8 @@ internal fun multiplySymmetricFromTheLeft(
     kernels: KoblasEngine,
     alpha: Double,
     a: SparseMatrix,
-    b: DenseMatrixRegion,
-    c: DenseMatrixRegion,
+    b: DenseMatrix,
+    c: DenseMatrix,
     lower: Boolean,
     arrays: Scratch?,
 ) {
@@ -402,9 +403,9 @@ internal fun multiplyFromTheRight(
     alpha: Double,
     a: SparseMatrix,
     transposeA: Boolean,
-    b: DenseMatrixRegion,
+    b: DenseMatrix,
     transposeB: Boolean,
-    c: DenseMatrixRegion,
+    c: DenseMatrix,
     m: Int,
     arrays: Scratch?,
 ) {
@@ -431,7 +432,7 @@ private fun multiplyFromTheRightColumns(
     b: DoubleArray,
     bOffset: Int,
     ldb: Int,
-    c: DenseMatrixRegion,
+    c: DenseMatrix,
     rows: Int,
 ) {
     val rowIndices = a.rowIndices
@@ -463,8 +464,8 @@ internal fun multiplySymmetricFromTheRight(
     engine: KoblasEngine,
     alpha: Double,
     a: SparseMatrix,
-    b: DenseMatrixRegion,
-    c: DenseMatrixRegion,
+    b: DenseMatrix,
+    c: DenseMatrix,
     lower: Boolean,
 ) {
     val rows = b.rows
@@ -517,7 +518,7 @@ private fun KoblasEngine.sparseEvaluatedAxpy(
     length: Int,
 ) {
     if (alpha != 0.0) {
-        this.axpy(y, yOffset, alpha, x, xOffset, length)
+        kernels.axpy(y, yOffset, alpha, x, xOffset, length)
         return
     }
     scalarEvaluatedAxpy(y, yOffset, alpha, x, xOffset, length)

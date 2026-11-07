@@ -53,8 +53,8 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
         aStride: Int,
         bStride: Int,
     ): Double {
-        val x = StridedVector(a, aOff, len, aStride)
-        val y = StridedVector(b, bOff, len, bStride)
+        val x = DenseVector.wrap(a, aOff, len, aStride)
+        val y = DenseVector.wrap(b, bOff, len, bStride)
         if (len == 0) return 0.0
         return Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
@@ -71,7 +71,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
         reduce(EngineImplementation.Asum, v, vOff, len, vStride)
 
     private fun reduce(operation: EngineImplementation, v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
-        val x = StridedVector(v, vOff, len, vStride)
+        val x = DenseVector.wrap(v, vOff, len, vStride)
         if (len == 0) return 0.0
         return Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
@@ -80,7 +80,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
     }
 
     override fun iamax(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Int {
-        val x = StridedVector(v, vOff, len, vStride)
+        val x = DenseVector.wrap(v, vOff, len, vStride)
         if (len == 0) return -1
         return Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
@@ -100,8 +100,8 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
         yStride: Int,
         xStride: Int,
     ) {
-        val source = StridedVector(x, xOff, len, xStride)
-        val destination = StridedVector(y, yOff, len, yStride)
+        val source = DenseVector.wrap(x, xOff, len, xStride)
+        val destination = DenseVector.wrap(y, yOff, len, yStride)
         if (len == 0) return
         Arena.ofConfined().use { arena ->
             val nx = arena.stage(source)
@@ -113,7 +113,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
     }
 
     override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int, vStride: Int) {
-        val x = StridedVector(v, vOff, len, vStride)
+        val x = DenseVector.wrap(v, vOff, len, vStride)
         if (len == 0) return
         Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
@@ -141,8 +141,8 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
         bStride: Int,
         exchange: Boolean,
     ) {
-        val x = StridedVector(a, aOff, len, aStride)
-        val y = StridedVector(b, bOff, len, bStride)
+        val x = DenseVector.wrap(a, aOff, len, aStride)
+        val y = DenseVector.wrap(b, bOff, len, bStride)
         if (len == 0) return
         Arena.ofConfined().use { arena ->
             val nx = arena.stage(x)
@@ -164,8 +164,8 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
         xStride: Int,
         yStride: Int,
     ) {
-        val source = StridedVector(x, xOff, len, xStride)
-        val destination = StridedVector(y, yOff, len, yStride)
+        val source = DenseVector.wrap(x, xOff, len, xStride)
+        val destination = DenseVector.wrap(y, yOff, len, yStride)
         if (len == 0) return
         Arena.ofConfined().use { arena ->
             val nx = arena.stage(source)
@@ -181,7 +181,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
 
     override fun cblasGemv(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         transposeA: Boolean,
         x: DenseVector,
         beta: Double,
@@ -201,7 +201,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
 
     override fun cblasSymv(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         structure: MatrixStructure,
         x: DenseVector,
         beta: Double,
@@ -219,7 +219,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
         }
     }
 
-    override fun cblasGer(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrixRegion) {
+    override fun cblasGer(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix) {
         Arena.ofConfined().use { arena ->
             val na = arena.stage(a)
             val nx = arena.stage(x)
@@ -232,7 +232,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
         }
     }
 
-    override fun cblasSyr(alpha: Double, x: DenseVector, a: DenseMatrixRegion, structure: MatrixStructure) {
+    override fun cblasSyr(alpha: Double, x: DenseVector, a: DenseMatrix, structure: MatrixStructure) {
         Arena.ofConfined().use { arena ->
             val na = arena.stage(a, structure)
             val nx = arena.stage(x)
@@ -250,13 +250,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
         }
     }
 
-    override fun cblasSyr2(
-        alpha: Double,
-        x: DenseVector,
-        y: DenseVector,
-        a: DenseMatrixRegion,
-        structure: MatrixStructure,
-    ) {
+    override fun cblasSyr2(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix, structure: MatrixStructure) {
         Arena.ofConfined().use { arena ->
             val na = arena.stage(a, structure)
             val nx = arena.stage(x)
@@ -271,7 +265,7 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
 
     override fun cblasTriangularVector(
         operation: EngineImplementation,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         structure: MatrixStructure,
         transposeA: Boolean,
         x: DenseVector,
@@ -291,12 +285,12 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
 
     override fun cblasGemm(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         transposeA: Boolean,
-        b: DenseMatrixRegion,
+        b: DenseMatrix,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
     ) {
         val depth = if (transposeA) a.rows else a.cols
         Arena.ofConfined().use { arena ->
@@ -315,11 +309,11 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
 
     override fun cblasSymm(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         structure: MatrixStructure,
-        b: DenseMatrixRegion,
+        b: DenseMatrix,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         rightSide: Boolean,
     ) {
         Arena.ofConfined().use { arena ->
@@ -337,10 +331,10 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
 
     override fun cblasSyrk(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         transposeA: Boolean,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         structure: MatrixStructure,
     ) {
         val depth = if (transposeA) a.rows else a.cols
@@ -358,11 +352,11 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
 
     override fun cblasSyr2k(
         alpha: Double,
-        a: DenseMatrixRegion,
-        b: DenseMatrixRegion,
+        a: DenseMatrix,
+        b: DenseMatrix,
         transposeA: Boolean,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         structure: MatrixStructure,
     ) {
         val depth = if (transposeA) a.rows else a.cols
@@ -382,10 +376,10 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
     override fun cblasTriangularMatrix(
         operation: EngineImplementation,
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         structure: MatrixStructure,
         transposeA: Boolean,
-        b: DenseMatrixRegion,
+        b: DenseMatrix,
         rightSide: Boolean,
     ) {
         Arena.ofConfined().use { arena ->
@@ -403,12 +397,12 @@ internal class JvmVendorBlas(private val library: JvmVendorLibrary) : HostBlas()
     /** Calls only this library's exported `cblas_dgemmt`. */
     override fun cblasGemmt(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         transposeA: Boolean,
-        b: DenseMatrixRegion,
+        b: DenseMatrix,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         structure: MatrixStructure,
     ) {
         val depth = if (transposeA) a.rows else a.cols

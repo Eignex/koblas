@@ -67,7 +67,7 @@ internal class PinnedMatrix(
  * Pins [matrix] for the call. An empty region may sit at the end of its buffer, where no entry has an address,
  * so it passes the buffer's start instead; BLAS reads nothing through an operand with no entries.
  */
-internal fun Pins.stage(matrix: DenseMatrixRegion): PinnedMatrix {
+internal fun Pins.stage(matrix: DenseMatrix): PinnedMatrix {
     val empty = matrix.rows == 0 || matrix.cols == 0
     return PinnedMatrix(pointer(matrix.values, if (empty) 0 else matrix.offset), maxOf(1, matrix.leadingDimension))
 }

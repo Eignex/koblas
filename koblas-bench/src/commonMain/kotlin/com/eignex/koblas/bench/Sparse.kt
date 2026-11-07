@@ -2,6 +2,7 @@
 
 package com.eignex.koblas.bench
 
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.*
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.internal.operations.*
@@ -19,7 +20,6 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
     if (!case.operation.startsWith("sp")) return null
     val density = case.option("density", "0.01").toDouble()
     val d = case.dimensions
-    val kernels = engine
 
     fun arm(count: Int, timing: String, result: DoubleArray? = null, run: () -> Double): ArmChoice =
         if (count == 0) {
@@ -41,23 +41,23 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
         "spdot-slice", "spaxpy-slice", "spscatter-slice" -> sparseSlicesArm(case, engine)
         "spdot" -> {
             val x = Fixtures.sparseVector(d[0], density, 1); val y = Fixtures.vector(d[0], 2)
-            arm(x.values.size, "arithmetic") { kernels.dot(x.indices, 0, x.values, 0, x.values.size, y) }
+            arm(x.values.size, "arithmetic") { engine.kernels.dot(x.indices, 0, x.values, 0, x.values.size, y) }
         }
         "spdot-raw" -> {
             val x = Fixtures.sparseVector(d[0], density, 1); val y = Fixtures.vector(d[0], 2)
             val indices = x.copyIndices()
             arm(x.values.size, "arithmetic") {
-                kernels.dot(indices, 0, x.values, 0, x.values.size, y)
+                engine.kernels.dot(indices, 0, x.values, 0, x.values.size, y)
             }
         }
         "spdot-sparse" -> {
             val x = Fixtures.sparseVector(d[0], density, 1); val y = Fixtures.sparseVector(d[0], density, 2)
-            arm(x.values.size, "arithmetic") { kernels.dot(x.indices, 0, x.values, 0, x.values.size, y.indices, 0, y.values, 0, y.values.size) }
+            arm(x.values.size, "arithmetic") { engine.kernels.dot(x.indices, 0, x.values, 0, x.values.size, y.indices, 0, y.values, 0, y.values.size) }
         }
         "spaxpy" -> {
             val x = Fixtures.sparseVector(d[0], density, 1); val y0 = Fixtures.vector(d[0], 2); val y = y0.copyOf()
             arm(x.values.size, "reset-and-arithmetic") {
-                y0.copyInto(y); kernels.axpy(x.indices, 0, x.values, 0, x.values.size, 0.875, y); y[0]
+                y0.copyInto(y); engine.kernels.axpy(x.indices, 0, x.values, 0, x.values.size, 0.875, y); y[0]
             }
         }
         "spaxpy-raw" -> {
@@ -65,7 +65,7 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
             val y0 = Fixtures.vector(d[0], 2); val y = y0.copyOf()
             arm(x.values.size, "reset-and-arithmetic") {
                 y0.copyInto(y)
-                kernels.axpy(indices, 0, x.values, 0, x.values.size, 0.875, y)
+                engine.kernels.axpy(indices, 0, x.values, 0, x.values.size, 0.875, y)
                 y[0]
             }
         }
@@ -73,7 +73,7 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
             val x = Fixtures.sparseVector(d[0], density, 1)
             val norm = case.operation == "spnrm2"
             arm(x.values.size, "arithmetic") {
-                if (norm) kernels.normVector(x) else kernels.absoluteSumVector(x)
+                if (norm) engine.kernels.normVector(x) else engine.kernels.absoluteSumVector(x)
             }
         }
         "spscatter-raw" -> {
@@ -81,7 +81,7 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
             val dense0 = Fixtures.vector(d[0], 2); val dense = dense0.copyOf()
             arm(x.values.size, "reset-and-arithmetic") {
                 dense0.copyInto(dense)
-                kernels.scatter(indices, 0, x.values, 0, x.values.size, dense)
+                engine.kernels.scatter(indices, 0, x.values, 0, x.values.size, dense)
                 dense[0]
             }
         }
@@ -91,7 +91,7 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
             val timing = case.option("timing", "reset-and-arithmetic")
             arm(x.values.size, timing, result = x.values) {
                 if (timing == "reset-and-arithmetic") dense0.copyInto(dense)
-                kernels.gather(indices, 0, x.values, 0, x.values.size, dense)
+                engine.kernels.gather(indices, 0, x.values, 0, x.values.size, dense)
                 if (x.values.isEmpty()) 0.0 else x.values[0] + x.values[x.values.lastIndex]
             }
         }
@@ -102,7 +102,7 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
             val scatter = case.operation == "spscatter"
             arm(x.values.size, "reset-and-arithmetic") {
                 values0.copyInto(x.values); dense0.copyInto(dense)
-                if (scatter) kernels.scatter(x.indices, 0, x.values, 0, x.values.size, dense) else kernels.gatherZero(indices, 0, x.values, 0, x.values.size, dense)
+                if (scatter) engine.kernels.scatter(x.indices, 0, x.values, 0, x.values.size, dense) else engine.kernels.gatherZero(indices, 0, x.values, 0, x.values.size, dense)
                 x.values.firstOrNull() ?: dense[0]
             }
         }
@@ -146,10 +146,10 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             arm(
                 verify = {
                     y0.copyInto(y)
-                    engine.gemv(alpha, a, x, beta, y, transpose)
+                    engine.kernels.gemv(alpha, a, x, beta, y, transpose)
                     DenseReference.check(expected, y, "${case.id} gemv")
                 },
-            ) { y0.copyInto(y); engine.gemv(alpha, a, x, beta, y, transpose); y[0] }
+            ) { y0.copyInto(y); engine.kernels.gemv(alpha, a, x, beta, y, transpose); y[0] }
         }
 
         "spmm" -> {
@@ -218,10 +218,10 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             arm(
                 verify = {
                     y0.copyInto(y)
-                    engine.symv(alpha, a, x, beta, y, lower)
+                    engine.kernels.symv(alpha, a, x, beta, y, lower)
                     DenseReference.check(expected, y, "${case.id} symmetric product")
                 },
-            ) { y0.copyInto(y); engine.symv(alpha, a, x, beta, y, lower); y[0] }
+            ) { y0.copyInto(y); engine.kernels.symv(alpha, a, x, beta, y, lower); y[0] }
         }
 
         "spsymm" -> {
@@ -258,12 +258,12 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             arm(
                 verify = {
                     x0.copyInto(x)
-                    if (solve) engine.trsv(a, x, lower, transpose, unit) else engine.trmv(a, x, lower, transpose, unit)
+                    if (solve) engine.kernels.trsv(a, x, lower, transpose, unit) else engine.kernels.trmv(a, x, lower, transpose, unit)
                     DenseReference.check(expected, x, "${case.id} triangular")
                 },
             ) {
                 x0.copyInto(x)
-                if (solve) engine.trsv(a, x, lower, transpose, unit) else engine.trmv(a, x, lower, transpose, unit)
+                if (solve) engine.kernels.trsv(a, x, lower, transpose, unit) else engine.kernels.trmv(a, x, lower, transpose, unit)
                 x[0]
             }
         }

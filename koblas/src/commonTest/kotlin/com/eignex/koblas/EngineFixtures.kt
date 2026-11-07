@@ -13,8 +13,8 @@ internal fun engineWithKernels(
 ): BuiltinEngine = BuiltinEngine(
     "test",
     KernelSet(
-        (vectors as? BuiltinEngine)?.kernels?.vectors ?: vectors as EngineKernels,
-        (indexed as? BuiltinEngine)?.kernels?.indexed ?: indexed as EngineKernels,
+        (vectors as? BuiltinEngine)?.roles?.vectors ?: vectors as EngineKernels,
+        (indexed as? BuiltinEngine)?.roles?.indexed ?: indexed as EngineKernels,
         panels.panelProvider,
         products.productProvider,
         triangles.triangularProvider,
@@ -24,6 +24,6 @@ internal fun engineWithKernels(
 internal fun engineWithHost(portable: KoblasEngine, host: KoblasEngine, eligible: Boolean = true): BuiltinEngine =
     BuiltinEngine(
         "host-test",
-        (portable as? BuiltinEngine)?.kernels ?: KernelSet(),
+        (portable as? BuiltinEngine)?.roles ?: KernelSet(),
         (host as EngineKernels).takeIf { eligible },
     )

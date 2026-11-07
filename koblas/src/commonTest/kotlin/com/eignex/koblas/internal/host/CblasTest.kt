@@ -2,6 +2,7 @@ package com.eignex.koblas.internal.host
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import com.eignex.koblas.internal.operations.*
 import kotlin.math.abs
@@ -27,8 +28,8 @@ class CblasTest {
         val vendor = vendor ?: return skipped()
         for (stride in STRIDES) {
             val values = doubleArrayOf(Double.NaN, -3.25, Double.NaN)
-            val vector = StridedVector(values, 1, 1, stride)
-            val expected = scalar.nrm2(values, 1, 1, stride)
+            val vector = DenseVector.wrap(values, 1, 1, stride)
+            val expected = scalar.kernels.nrm2(values, 1, 1, stride)
 
             val actual = vendor.normVector(vector)
 
@@ -41,8 +42,8 @@ class CblasTest {
         val vendor = vendor ?: return skipped()
         for (stride in STRIDES) {
             val values = doubleArrayOf(Double.NaN, -3.25, Double.NaN)
-            val vector = StridedVector(values, 1, 1, stride)
-            val expected = scalar.asum(values, 1, 1, stride)
+            val vector = DenseVector.wrap(values, 1, 1, stride)
+            val expected = scalar.kernels.asum(values, 1, 1, stride)
 
             val actual = vendor.absoluteSumVector(vector)
 
@@ -56,10 +57,10 @@ class CblasTest {
         for (stride in STRIDES) {
             val values = doubleArrayOf(Double.NaN, -3.25, Double.NaN)
             val expected = values.copyOf()
-            val vector = StridedVector(values, 1, 1, stride)
-            scalar.scale(expected, 1, -0.75, 1, stride)
+            val vector = DenseVector.wrap(values, 1, 1, stride)
+            scalar.kernels.scale(expected, 1, -0.75, 1, stride)
 
-            vendor.scale(vector.values, vector.offset, -0.75, vector.size, vector.stride)
+            vendor.kernels.scale(vector.values, vector.offset, -0.75, vector.size, vector.stride)
 
             assertScalAgreesWithReference(expected, values, "${vendor.vendor}, stride=$stride")
         }
@@ -69,7 +70,7 @@ class CblasTest {
     fun `dot agrees with the scalar oracle under independent strides`() {
         val vendor = vendor ?: return skipped()
         forEachStridePair { x, y ->
-            val expected = scalar.dot(x.values, x.offset, y.values, y.offset, x.size, x.stride, y.stride)
+            val expected = scalar.kernels.dot(x.values, x.offset, y.values, y.offset, x.size, x.stride, y.stride)
 
             val actual = vendor.dotVector(x, y)
 
@@ -81,7 +82,7 @@ class CblasTest {
     fun `norm agrees with the scalar oracle under positive and negative strides`() {
         val vendor = vendor ?: return skipped()
         forEachStride { x ->
-            val expected = scalar.nrm2(x.values, x.offset, x.size, x.stride)
+            val expected = scalar.kernels.nrm2(x.values, x.offset, x.size, x.stride)
 
             val actual = vendor.normVector(x)
 
@@ -93,7 +94,7 @@ class CblasTest {
     fun `absolute sum agrees with the scalar oracle under positive and negative strides`() {
         val vendor = vendor ?: return skipped()
         forEachStride { x ->
-            val expected = scalar.asum(x.values, x.offset, x.size, x.stride)
+            val expected = scalar.kernels.asum(x.values, x.offset, x.size, x.stride)
 
             val actual = vendor.absoluteSumVector(x)
 
@@ -105,9 +106,9 @@ class CblasTest {
     fun `maximum index selects a largest magnitude under positive and negative strides`() {
         val vendor = vendor ?: return skipped()
         forEachStride { x ->
-            val expected = scalar.iamax(x.values, x.offset, x.size, x.stride)
+            val expected = scalar.kernels.iamax(x.values, x.offset, x.size, x.stride)
 
-            val actual = vendor.iamax(x.values, x.offset, x.size, x.stride)
+            val actual = vendor.kernels.iamax(x.values, x.offset, x.size, x.stride)
 
             assertIamaxHonoursItsContract(expected, actual, x, context(vendor, "iamax", x))
         }
@@ -120,16 +121,16 @@ class CblasTest {
             val forward = strideVector(stride, 3, 24)
             val entries = doubleArrayOf(1.0, 5.0, 2.0, -5.0, 3.0, 0.5)
             for (i in entries.indices) forward.values[forward.offset + i * stride] = entries[i]
-            val backward = StridedVector(
+            val backward = DenseVector.wrap(
                 forward.values,
                 forward.offset + (forward.size - 1) * stride,
                 forward.size,
                 -stride,
             )
-            val expected = scalar.iamax(forward.values, forward.offset, forward.size, stride)
+            val expected = scalar.kernels.iamax(forward.values, forward.offset, forward.size, stride)
 
-            val actualForward = vendor.iamax(forward.values, forward.offset, forward.size, forward.stride)
-            val actualBackward = vendor.iamax(backward.values, backward.offset, backward.size, backward.stride)
+            val actualForward = vendor.kernels.iamax(forward.values, forward.offset, forward.size, forward.stride)
+            val actualBackward = vendor.kernels.iamax(backward.values, backward.offset, backward.size, backward.stride)
 
             assertEquals(expected, actualForward, context(vendor, "iamax forward tie", forward))
             // The binding walks backward vectors in physical ascending order, then remaps the index.
@@ -142,9 +143,9 @@ class CblasTest {
         val vendor = vendor ?: return skipped()
         forEachStride { x ->
             val expected = x.values.copyOf()
-            scalar.scale(expected, x.offset, -0.75, x.size, x.stride)
+            scalar.kernels.scale(expected, x.offset, -0.75, x.size, x.stride)
 
-            vendor.scale(x.values, x.offset, -0.75, x.size, x.stride)
+            vendor.kernels.scale(x.values, x.offset, -0.75, x.size, x.stride)
 
             assertAgreesWithReference(expected, x.values, context(vendor, "scal", x))
         }
@@ -156,7 +157,7 @@ class CblasTest {
         forEachStridePair { x, y ->
             val originalX = x.values.copyOf()
             val expectedY = y.values.copyOf()
-            scalar.axpy(expectedY, y.offset, 0.5, x.values, x.offset, x.size, y.stride, x.stride)
+            scalar.kernels.axpy(expectedY, y.offset, 0.5, x.values, x.offset, x.size, y.stride, x.stride)
 
             vendor.axpyVector(0.5, x, y)
 
@@ -173,7 +174,7 @@ class CblasTest {
             val expectedY = y.values.copyOf()
             for (i in 0 until x.size) expectedY[y.offset + i * y.stride] = x[i]
 
-            vendor.copyVector(x, y)
+            vendor.copyIntoVector(x, y)
 
             assertContentEquals(originalX, x.values, context(vendor, "copy source", x, y))
             assertContentEquals(expectedY, y.values, context(vendor, "copy destination", x, y))
@@ -186,9 +187,9 @@ class CblasTest {
         forEachStridePair { x, y ->
             val expectedX = x.values.copyOf()
             val expectedY = y.values.copyOf()
-            scalar.swap(expectedX, x.offset, expectedY, y.offset, x.size, x.stride, y.stride)
+            scalar.kernels.swap(expectedX, x.offset, expectedY, y.offset, x.size, x.stride, y.stride)
 
-            vendor.swap(x.values, x.offset, y.values, y.offset, x.size, x.stride, y.stride)
+            vendor.kernels.swap(x.values, x.offset, y.values, y.offset, x.size, x.stride, y.stride)
 
             assertAgreesWithReference(expectedX, x.values, context(vendor, "swap first", x, y))
             assertAgreesWithReference(expectedY, y.values, context(vendor, "swap second", x, y))
@@ -203,13 +204,13 @@ class CblasTest {
             val expectedY = y.values.copyOf()
             val packedX = x.toDoubleArray()
             val packedY = y.toDoubleArray()
-            scalar.rot(packedX, 0, packedY, 0, x.size, 0.6, 0.8)
+            scalar.kernels.rot(packedX, 0, packedY, 0, x.size, 0.6, 0.8)
             for (i in 0 until x.size) {
                 expectedX[x.offset + i * x.stride] = packedX[i]
                 expectedY[y.offset + i * y.stride] = packedY[i]
             }
 
-            vendor.rot(x.values, x.offset, y.values, y.offset, x.size, 0.6, 0.8, x.stride, y.stride)
+            vendor.kernels.rot(x.values, x.offset, y.values, y.offset, x.size, 0.6, 0.8, x.stride, y.stride)
 
             assertAgreesWithReference(expectedX, x.values, context(vendor, "rot first", x, y))
             assertAgreesWithReference(expectedY, y.values, context(vendor, "rot second", x, y))
@@ -222,7 +223,7 @@ class CblasTest {
     fun `host GER agrees with the reference on shrinking supports and extreme finite inputs`() =
         withHost("GER shrinking supports") { blas ->
             assertShrinkingGerAgreesWithReference { x, y, a ->
-                blas.ger(
+                blas.kernels.ger(
                     -1.0,
                     x,
                     0,
@@ -264,8 +265,8 @@ class CblasTest {
 
             val actualSyr = DenseMatrix.wrap(ORDER, ORDER, base.values.copyOf())
             val actualSyr2 = DenseMatrix.wrap(ORDER, ORDER, base.values.copyOf())
-            blas.syr(ALPHA, x.values, x.offset, x.stride, actualSyr, lower)
-            blas.syr2(ALPHA, x.values, x.offset, x.stride, y.values, y.offset, y.stride, actualSyr2, lower)
+            blas.kernels.syr(ALPHA, x.values, x.offset, x.stride, actualSyr, lower)
+            blas.kernels.syr2(ALPHA, x.values, x.offset, x.stride, y.values, y.offset, y.stride, actualSyr2, lower)
 
             assertClose(expectedSyr, actualSyr, "syr lower=$lower", TOLERANCE)
             assertClose(expectedSyr2, actualSyr2, "syr2 lower=$lower", TOLERANCE)
@@ -282,7 +283,7 @@ class CblasTest {
         ReferenceBlas.ger(ALPHA, x, y, expected)
 
         val actual = DenseMatrix.wrap(ROWS, COLUMNS, base.values.copyOf())
-        blas.ger(ALPHA, x, 0, 1, y, 0, 1, actual)
+        blas.kernels.ger(ALPHA, x, 0, 1, y, 0, 1, actual)
 
         assertClose(expected, actual, "ger", TOLERANCE)
     }
@@ -303,12 +304,12 @@ class CblasTest {
                         val expectedSolve = b.copyOf()
                         ReferenceBlas.trsv(explicit, expectedSolve, lower, transpose, unitDiag)
                         val actualSolve = b.copyOf()
-                        blas.trsv(poisoned, actualSolve, 0, 1, lower, transpose, unitDiag)
+                        blas.kernels.trsv(poisoned, actualSolve, 0, 1, lower, transpose, unitDiag)
 
                         val expectedMultiply = b.copyOf()
                         ReferenceBlas.trmv(explicit, expectedMultiply, lower, transpose, unitDiag)
                         val actualMultiply = b.copyOf()
-                        blas.trmv(poisoned, actualMultiply, 0, 1, lower, transpose, unitDiag)
+                        blas.kernels.trmv(poisoned, actualMultiply, 0, 1, lower, transpose, unitDiag)
 
                         assertClose(expectedSolve, actualSolve, "trsv $where", TOLERANCE)
                         assertClose(expectedMultiply, actualMultiply, "trmv $where", TOLERANCE)
@@ -422,8 +423,8 @@ class CblasTest {
             val expectedGemv = DoubleArray(ORDER)
             ReferenceBlas.gemv(ALPHA, separate, square.values.copyOf(ORDER), 0.0, expectedGemv)
             val matrix = DenseMatrix.wrap(ORDER, ORDER, square.values.copyOf())
-            val column = StridedVector(matrix.values, 0, ORDER)
-            blas.gemv(
+            val column = DenseVector.wrap(matrix.values, 0, ORDER)
+            blas.kernels.gemv(
                 ALPHA,
                 matrix,
                 column.values,
@@ -451,11 +452,11 @@ class CblasTest {
         for (host in hosts) block(engineWithHost(engineWithKernels(ScalarEngine, ScalarEngine), host))
     }
 
-    private fun forEachStride(body: (StridedVector) -> Unit) {
+    private fun forEachStride(body: (DenseVector) -> Unit) {
         for (stride in MULTI_ENTRY_STRIDES) body(strideVector(stride, 3, 24))
     }
 
-    private fun forEachStridePair(body: (StridedVector, StridedVector) -> Unit) {
+    private fun forEachStridePair(body: (DenseVector, DenseVector) -> Unit) {
         for (xStride in MULTI_ENTRY_STRIDES) {
             for (yStride in MULTI_ENTRY_STRIDES) {
                 body(strideVector(xStride, 3, 24), strideVector(yStride, 7, 25))
@@ -463,14 +464,14 @@ class CblasTest {
         }
     }
 
-    private fun strideVector(stride: Int, padding: Int, seed: Int): StridedVector {
+    private fun strideVector(stride: Int, padding: Int, seed: Int): DenseVector {
         val size = 6
         val offset = padding + if (stride < 0) (size - 1) * -stride else 0
         val length = maxOf(32, 2 * padding + (size - 1) * abs(stride) + 1)
-        return StridedVector(vendorValues(length, seed), offset, size, stride)
+        return DenseVector.wrap(vendorValues(length, seed), offset, size, stride)
     }
 
-    private fun context(vendor: KoblasEngine, operation: String, x: StridedVector, y: StridedVector? = null): String =
+    private fun context(vendor: KoblasEngine, operation: String, x: DenseVector, y: DenseVector? = null): String =
         "${vendor.vendor} $operation x offset=${x.offset} stride=${x.stride}" +
             y?.let { " y offset=${it.offset} stride=${it.stride}" }.orEmpty()
 
@@ -480,7 +481,7 @@ class CblasTest {
     private fun assertAgreesWithReference(expected: DoubleArray, actual: DoubleArray, context: String) =
         assertClose(expected, actual, context)
 
-    private fun assertIamaxHonoursItsContract(expected: Int, actual: Int, x: StridedVector, context: String) {
+    private fun assertIamaxHonoursItsContract(expected: Int, actual: Int, x: DenseVector, context: String) {
         assertTrue(actual in 0 until x.size, "$context returned index $actual")
         assertEquals(abs(x[expected]), abs(x[actual]), context)
     }

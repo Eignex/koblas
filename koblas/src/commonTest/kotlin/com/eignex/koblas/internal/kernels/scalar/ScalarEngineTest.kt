@@ -3,6 +3,7 @@ package com.eignex.koblas.internal.kernels.scalar
 import com.eignex.koblas.*
 import com.eignex.koblas.EngineImplementation.*
 import com.eignex.koblas.dense.ReferenceBlas
+import com.eignex.koblas.internal.kernels.*
 import kotlin.random.Random
 import kotlin.test.Test
 

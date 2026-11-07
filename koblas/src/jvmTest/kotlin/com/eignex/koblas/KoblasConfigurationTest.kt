@@ -27,7 +27,7 @@ class KoblasConfigurationTest {
 
         val result = facade.getMethod("sum", vectorType).invoke(null, vector)
 
-        assertEquals(KoblasEngine.scalar.sum(doubleArrayOf(1.0, -2.0, 3.0), 0, 3), result)
+        assertEquals(KoblasEngine.scalar.sum(DenseVector.of(doubleArrayOf(1.0, -2.0, 3.0))), result)
         assertEquals(1, calls)
         assertSame(supplied, facade.getMethod("getDefault").invoke(null))
     }

@@ -7,56 +7,116 @@ import kotlin.jvm.JvmOverloads
 import kotlin.jvm.JvmStatic
 
 /**
+ * Mutable column-major matrix, including borrowed rectangles of another matrix or buffer.
+ * Entry `A(i, j)` is at `offset + i + j * leadingDimension` in [values]. Factories allocate or borrow
+ * storage; [view] shares it. Equality and hashing use logical entries, including signed zeros and NaNs.
+ * Serialization writes only the logical rectangle and decodes it into independent compact storage.
+ * Do not use the matrix as a hash-map key while mutating its entries.
+ *
  * @property rows the number of rows.
  * @property cols the number of columns.
- * @property values the flat column-major backing of length `rows * cols`, entry `(i, j)` at `i + j * rows`.
- *   The matrix is mutable through this buffer and [set]; do not use it as a hash-map key while mutating it.
+ * @property values the shared backing buffer, which may include entries outside this matrix.
+ * @property offset the first logical entry's buffer index, or an in-bounds boundary for an empty matrix.
+ * @property leadingDimension the distance between consecutive column starts, at least [rows].
  */
-@Serializable
+@Serializable(with = DenseMatrixSerializer::class)
 @SerialName("DenseMatrix")
 public class DenseMatrix internal constructor(
     override val rows: Int,
     override val cols: Int,
-    override val values: DoubleArray,
-) : MatrixStorage,
-    DenseMatrixRegion {
+    public val values: DoubleArray,
+    public val offset: Int = 0,
+    public val leadingDimension: Int = rows,
+) : MatrixStorage {
     internal constructor(rows: Int, cols: Int = rows) : this(rows, cols, DoubleArray(entryCount(rows, cols)))
 
     init {
         requireNonNegativeShape(rows, cols)
-        requireShape(values.size.toLong() == rows.toLong() * cols) {
-            "values length ${values.size} does not match shape ${rows}x$cols (= ${rows.toLong() * cols})"
+        requireShape(offset >= 0 && offset <= values.size) { "matrix offset outside buffer" }
+        requireShape(leadingDimension >= rows) { "leading dimension must be at least the row count" }
+        if (rows > 0 && cols > 0) {
+            val end = offset.toLong() + (cols - 1).toLong() * leadingDimension + rows
+            requireShape(end <= values.size) { "matrix rectangle exceeds buffer" }
         }
     }
 
-    override val offset: Int get() = 0
-
-    override val leadingDimension: Int get() = rows
-
     override fun get(i: Int, j: Int): Double {
         requireInBounds(i, j, rows, cols)
-        return values[i + j * rows]
+        return values[offset + i + j * leadingDimension]
     }
 
     override fun toArray(): Array<DoubleArray> = Array(rows) { i ->
-        DoubleArray(cols) { j -> values[i + j * rows] }
+        DoubleArray(cols) { j -> values[offset + i + j * leadingDimension] }
     }
 
     /** Writes (v) at row (i), column (j). */
     override operator fun set(i: Int, j: Int, v: Double) {
         requireInBounds(i, j, rows, cols)
-        values[i + j * rows] = v
+        values[offset + i + j * leadingDimension] = v
+    }
+
+    /**
+     * Borrows a rectangle without copying. Mutations through either reference are shared.
+     * Offsets and extents are relative to this matrix; nested views retain its leading dimension.
+     * Empty rectangles at either boundary are valid and access no entries.
+     */
+    @JvmOverloads
+    public fun view(
+        rowOffset: Int = 0,
+        columnOffset: Int = 0,
+        rows: Int = this.rows - rowOffset,
+        cols: Int = this.cols - columnOffset,
+    ): DenseMatrix {
+        requireShape(rowOffset in 0..this.rows && columnOffset in 0..this.cols) { "view origin outside matrix" }
+        requireShape(rows >= 0 && rows <= this.rows - rowOffset && cols >= 0 && cols <= this.cols - columnOffset) {
+            "view rectangle outside matrix"
+        }
+        val origin = if (rows == 0 || cols == 0) offset else offset + rowOffset + columnOffset * leadingDimension
+        return DenseMatrix(rows, cols, values, origin, leadingDimension)
+    }
+
+    /**
+     * A writable view of [column], indexed from zero within this matrix. Changes through the vector
+     * update the matrix. The view borrows storage; use [Vector.copy] for an independent result.
+     */
+    public fun columnView(column: Int): DenseVector {
+        requireInBounds(column, cols)
+        val origin = if (rows == 0) offset else offset + column * leadingDimension
+        return DenseVector.wrap(values, origin, rows)
+    }
+
+    /** Visits writable column views in column order, including empty columns. Returns no new matrix. */
+    @kotlin.jvm.JvmSynthetic
+    public inline fun forEachColumns(block: (column: DenseVector) -> Unit) {
+        for (j in 0 until cols) block(columnView(j))
     }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is DenseMatrix) return false
-        return rows == other.rows && cols == other.cols && values.contentEquals(other.values)
+        if (rows != other.rows || cols != other.cols) return false
+        if (rows == 0 || cols == 0) return true
+        for (j in 0 until cols) {
+            for (i in 0 until rows) {
+                if (values[offset + i + j * leadingDimension].toBits() !=
+                    other.values[other.offset + i + j * other.leadingDimension].toBits()
+                ) {
+                    return false
+                }
+            }
+        }
+        return true
     }
     override fun hashCode(): Int {
-        var h = rows * 31 + cols
-        h = 31 * h + values.contentHashCode()
-        return h
+        var entriesHash = 1
+        if (rows > 0 && cols > 0) {
+            for (j in 0 until cols) {
+                for (i in 0 until rows) {
+                    entriesHash = 31 * entriesHash + values[offset + i + j * leadingDimension].hashCode()
+                }
+            }
+        }
+        return (rows * 31 + cols) * 31 + entriesHash
     }
     override fun toString(): String = "DenseMatrix(${rows}x$cols)"
 
@@ -90,9 +150,20 @@ public class DenseMatrix internal constructor(
             return m
         }
 
-        /** Wrap an existing flat `DoubleArray` without copying; mutations remain visible through both references. */
+        /**
+         * Borrows [values] without copying, with unit row stride and optional column padding.
+         * All logical entries must fit and [leadingDimension] must be at least [rows]. For an empty shape,
+         * [offset] can be any boundary in `0..values.size`. Bounds use overflow-safe arithmetic.
+         */
         @JvmStatic
-        public fun wrap(rows: Int, cols: Int, values: DoubleArray): DenseMatrix = DenseMatrix(rows, cols, values)
+        @JvmOverloads
+        public fun wrap(
+            rows: Int,
+            cols: Int,
+            values: DoubleArray,
+            offset: Int = 0,
+            leadingDimension: Int = rows,
+        ): DenseMatrix = DenseMatrix(rows, cols, values, offset, leadingDimension)
 
         /** Entry count for a shape, validated first so a negative dimension reports a shape error. */
         internal fun entryCount(rows: Int, cols: Int): Int {

@@ -1,6 +1,7 @@
 package com.eignex.koblas.internal.scheduling.dense
 
 import com.eignex.koblas.*
+import com.eignex.koblas.internal.kernels.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

@@ -2,6 +2,7 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
 import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.testutil.allocation.*
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -30,7 +31,7 @@ class SparseOpsAllocationTest internal constructor(private val case: AllocationC
         private fun indexedCases(): List<AllocationCase> = listOf(
             with(SparseVectorFixture()) {
                 AllocationCase("sparse dot against a dense array allocates nothing", 1_000) {
-                    engine.dot(
+                    engine.kernels.dot(
                         vector.indices,
                         0,
                         vector.values,
@@ -42,19 +43,19 @@ class SparseOpsAllocationTest internal constructor(private val case: AllocationC
             },
             with(IndexedSliceFixture()) {
                 AllocationCase("indexed gather allocates nothing", 1_000) {
-                    engine.gather(gathered.indices, 0, gathered.values, 0, gathered.values.size, dense)
+                    engine.kernels.gather(gathered.indices, 0, gathered.values, 0, gathered.values.size, dense)
                     gathered
                 }
             },
             with(IndexedSliceFixture()) {
                 AllocationCase("indexed axpy with independent offsets allocates nothing", 1_000) {
-                    engine.axpy(indices, INDEX_OFFSET, values, VALUE_OFFSET, ENTRIES, 1e-12, dense)
+                    engine.kernels.axpy(indices, INDEX_OFFSET, values, VALUE_OFFSET, ENTRIES, 1e-12, dense)
                     dense
                 }
             },
             with(IndexedSliceFixture()) {
                 AllocationCase("indexed scatter with independent offsets allocates nothing", 1_000) {
-                    engine.scatter(indices, INDEX_OFFSET, values, VALUE_OFFSET, ENTRIES, dense)
+                    engine.kernels.scatter(indices, INDEX_OFFSET, values, VALUE_OFFSET, ENTRIES, dense)
                     dense
                 }
             },
@@ -63,25 +64,25 @@ class SparseOpsAllocationTest internal constructor(private val case: AllocationC
         private fun levelTwoCases(): List<AllocationCase> = listOf(
             with(AliasedGemvFixture()) {
                 AllocationCase("aliased sparse gemv reuses a workspace", 400) {
-                    koblas.gemv(1e-12, sparse, coefficients, 1.0, coefficients, scratch = workspace)
+                    koblas.kernels.gemv(1e-12, sparse, coefficients, 1.0, coefficients, scratch = workspace)
                     coefficients
                 }
             },
             with(SparseLevelTwoFixture()) {
                 AllocationCase("sparse gemv allocates nothing", 1_000) {
-                    engine.gemv(1e-12, sparse, x, 1.0, y, transpose = true)
+                    engine.kernels.gemv(1e-12, sparse, x, 1.0, y, transpose = true)
                     y
                 }
             },
             with(SparseLevelTwoFixture()) {
                 AllocationCase("sparse symv allocates nothing", 1_000) {
-                    engine.symv(1e-12, sparse, x, 1.0, y, lower = true)
+                    engine.kernels.symv(1e-12, sparse, x, 1.0, y, lower = true)
                     y
                 }
             },
             with(SparseLevelTwoFixture()) {
                 AllocationCase("sparse trsv allocates nothing", 1_000) {
-                    engine.trsv(sparse, y, lower = true)
+                    engine.kernels.trsv(sparse, y, lower = true)
                     y
                 }
             },
@@ -176,7 +177,7 @@ class SparseOpsAllocationTest internal constructor(private val case: AllocationC
         val coefficients = sparse.values
         val workspace = Scratch()
         init {
-            koblas.gemv(1e-12, sparse, coefficients, 1.0, coefficients, scratch = workspace)
+            koblas.kernels.gemv(1e-12, sparse, coefficients, 1.0, coefficients, scratch = workspace)
         }
     }
 

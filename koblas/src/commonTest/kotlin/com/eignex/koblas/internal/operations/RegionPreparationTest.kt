@@ -3,6 +3,7 @@ package com.eignex.koblas.internal.operations
 import com.eignex.koblas.*
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.dense.*
+import com.eignex.koblas.internal.kernels.*
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -138,11 +139,11 @@ class RegionPreparationTest {
     @Test
     fun `matrix vector products snapshot a shared destination buffer`() = withRegionEngines { blas ->
         val actual = doubleArrayOf(2.0, -0.5, 4.0)
-        val a = DenseMatrixView.wrap(3, 1, actual, leadingDimension = 5)
+        val a = DenseMatrix.wrap(3, 1, actual, leadingDimension = 5)
         val expected = actual.copyOf()
         ReferenceBlas.gemv(0.875, contiguousCopy(a), doubleArrayOf(2.0), -0.25, expected)
 
-        blas.gemv(0.875, a, doubleArrayOf(2.0), 0, 1, -0.25, actual, 0, 1, scratch = Scratch())
+        blas.kernels.gemv(0.875, a, doubleArrayOf(2.0), 0, 1, -0.25, actual, 0, 1, scratch = Scratch())
 
         assertClose(expected, actual, "aliased region gemv")
     }

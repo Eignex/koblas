@@ -4,6 +4,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.operations.*
 import kotlin.random.Random
 import kotlin.test.Test
@@ -57,7 +58,7 @@ class DenseOpsTest {
         }
     }
 
-    private fun operand(rows: Int, cols: Int, seed: Int, view: Boolean): DenseMatrixRegion {
+    private fun operand(rows: Int, cols: Int, seed: Int, view: Boolean): DenseMatrix {
         val region = paddedRegion(rows, cols, seed)
         return if (view) region else contiguousCopy(region)
     }
@@ -95,7 +96,7 @@ class DenseOpsTest {
                         ReferenceBlas.gemv(alpha, a, x, beta, expected, transpose)
                         val actual = start.copyOf()
 
-                        blas.gemv(alpha, a, x, 0, 1, beta, actual, 0, 1, transpose)
+                        blas.kernels.gemv(alpha, a, x, 0, 1, beta, actual, 0, 1, transpose)
 
                         assertClose(expected, actual, "gemv n=$n t=$transpose a=$alpha b=$beta")
                     }
@@ -113,7 +114,7 @@ class DenseOpsTest {
             val expected = actual.copyOf()
             ReferenceBlas.gemv(0.875, contiguousCopy(a), x, -0.25, expected, transpose)
 
-            blas.gemv(0.875, a, x, 0, 1, -0.25, actual, 0, 1, transpose)
+            blas.kernels.gemv(0.875, a, x, 0, 1, -0.25, actual, 0, 1, transpose)
 
             assertClose(expected, actual, "view vector")
         }
@@ -125,16 +126,16 @@ class DenseOpsTest {
         for (stride in intArrayOf(2, -2)) {
             for (transpose in booleanArrayOf(false, true)) {
                 val backing = DoubleArray(17) { (it - 8) / 7.0 }
-                val x = StridedVector(backing, if (stride > 0) 2 else 10, 5, stride)
+                val x = DenseVector.wrap(backing, if (stride > 0) 2 else 10, 5, stride)
                 val output = DoubleArray(19) { -77.0 }
-                val y = StridedVector(output, if (stride > 0) 3 else 11, 5, stride)
+                val y = DenseVector.wrap(output, if (stride > 0) 3 else 11, 5, stride)
                 for (operation in listOf("gemv", "symv", "trsv", "trmv")) {
                     val before = output.copyOf()
                     val expected = if (operation.startsWith("tr")) x.toDoubleArray() else y.toDoubleArray()
                     when (operation) {
                         "gemv" -> {
                             ReferenceBlas.gemv(0.875, a, x.toDoubleArray(), -0.25, expected, transpose)
-                            blas.gemv(
+                            blas.kernels.gemv(
                                 0.875,
                                 a,
                                 x.values,
@@ -150,7 +151,7 @@ class DenseOpsTest {
 
                         "symv" -> {
                             ReferenceBlas.symv(0.875, a, x.toDoubleArray(), -0.25, expected, transpose)
-                            blas.symv(
+                            blas.kernels.symv(
                                 0.875,
                                 a,
                                 x.values,
@@ -167,13 +168,13 @@ class DenseOpsTest {
                         "trsv" -> {
                             for (i in 0 until 5) y[i] = x[i]
                             ReferenceBlas.trsv(a, expected, true, transpose, true)
-                            blas.trsv(a, y.values, y.offset, y.stride, true, transpose, true)
+                            blas.kernels.trsv(a, y.values, y.offset, y.stride, true, transpose, true)
                         }
 
                         else -> {
                             for (i in 0 until 5) y[i] = x[i]
                             ReferenceBlas.trmv(a, expected, true, transpose, true)
-                            blas.trmv(a, y.values, y.offset, y.stride, true, transpose, true)
+                            blas.kernels.trmv(a, y.values, y.offset, y.stride, true, transpose, true)
                         }
                     }
                     for (i in 0 until 5) before[y.offset + i * y.stride] = expected[i]
@@ -187,7 +188,7 @@ class DenseOpsTest {
     fun `iamax over an empty vector reports no index`() = withRegionEngines { blas ->
         val empty = DenseVector.zero(0)
 
-        val index = blas.iamax(empty.values, empty.offset, empty.size, empty.stride)
+        val index = blas.kernels.iamax(empty.values, empty.offset, empty.size, empty.stride)
 
         assertEquals(-1, index)
     }
@@ -199,7 +200,7 @@ class DenseOpsTest {
         val expected = actual.copyOf()
         ReferenceBlas.gemv(1.0, contiguousCopy(a), doubleArrayOf(), 0.5, expected)
 
-        blas.gemv(1.0, a, doubleArrayOf(), 0, 1, 0.5, actual, 0, 1)
+        blas.kernels.gemv(1.0, a, doubleArrayOf(), 0, 1, 0.5, actual, 0, 1)
 
         assertClose(expected, actual, "empty inner dimension gemv")
     }
@@ -240,8 +241,8 @@ class DenseOpsTest {
     fun `addressed rank updates preserve padding and unselected entries`() = withRegionEngines { blas ->
         for (stride in intArrayOf(2, -2)) {
             for (lower in booleanArrayOf(false, true)) {
-                val x = StridedVector(DoubleArray(15) { it / 7.0 }, if (stride > 0) 2 else 10, 5, stride)
-                val y = StridedVector(DoubleArray(17) { (it - 3) / 9.0 }, if (stride > 0) 3 else 11, 5, stride)
+                val x = DenseVector.wrap(DoubleArray(15) { it / 7.0 }, if (stride > 0) 2 else 10, 5, stride)
+                val y = DenseVector.wrap(DoubleArray(17) { (it - 3) / 9.0 }, if (stride > 0) 3 else 11, 5, stride)
                 for (operation in listOf("ger", "syr", "syr2")) {
                     val a = paddedRegion(5, 5)
                     val before = a.values.copyOf()
@@ -249,17 +250,19 @@ class DenseOpsTest {
                     when (operation) {
                         "ger" -> {
                             ReferenceBlas.ger(0.875, x.toDoubleArray(), y.toDoubleArray(), expected)
-                            blas.ger(0.875, x.values, x.offset, x.stride, y.values, y.offset, y.stride, a)
+                            blas.kernels.ger(0.875, x.values, x.offset, x.stride, y.values, y.offset, y.stride, a)
                         }
 
                         "syr" -> {
                             ReferenceBlas.syr(0.875, x, expected, lower)
-                            blas.syr(0.875, x.values, x.offset, x.stride, a, lower)
+                            blas.kernels.syr(0.875, x.values, x.offset, x.stride, a, lower)
                         }
 
                         else -> {
                             ReferenceBlas.syr2(0.875, x, y, expected, lower)
-                            blas.syr2(0.875, x.values, x.offset, x.stride, y.values, y.offset, y.stride, a, lower)
+                            blas.kernels.syr2(
+                                0.875, x.values, x.offset, x.stride, y.values, y.offset, y.stride, a, lower,
+                            )
                         }
                     }
                     assertRegionAgreesWithReference(expected, a, before, "$operation stride=$stride lower=$lower")
@@ -299,7 +302,7 @@ class DenseOpsTest {
                     val expected = actual.copyOf()
                     ReferenceBlas.trsv(contiguousCopy(a), expected, lower, transpose, unit)
 
-                    blas.trsv(a, actual, 0, 1, lower, transpose, unit, scratch = Scratch())
+                    blas.kernels.trsv(a, actual, 0, 1, lower, transpose, unit, scratch = Scratch())
 
                     assertClose(expected, actual, "view vector")
                 }
@@ -327,7 +330,7 @@ class DenseOpsTest {
             ReferenceBlas.syrk(-1.0, contiguousCopy(panel), false, 1.0, expectedC, lower)
 
             blas.trsm(a, b, lower, unitDiag = true, scratch = Scratch())
-            blas.trsv(a, x, 0, 1, lower, unitDiag = true, scratch = Scratch())
+            blas.kernels.trsv(a, x, 0, 1, lower, unitDiag = true, scratch = Scratch())
             blas.syrk(-1.0, panel, false, 1.0, c, lower, scratch = Scratch())
 
             assertRegionAgreesWithReference(expectedB, b, beforeB, "unit diagonal trsm")
@@ -365,7 +368,7 @@ class DenseOpsTest {
     private fun assertStructuredProduct(
         context: String,
         reference: (DenseMatrix) -> Unit,
-        call: (DenseMatrixView) -> Unit,
+        call: (DenseMatrix) -> Unit,
     ) {
         val c = paddedRegion(5, 5, 3)
         val before = c.values.copyOf()
@@ -404,7 +407,7 @@ class DenseOpsTest {
         val y = DoubleArray(4) { Double.NaN }
 
         blas.syrk(0.0, a, false, 0.0, c)
-        blas.gemv(0.0, a, DoubleArray(4) { Double.NaN }, 0, 1, 0.0, y, 0, 1)
+        blas.kernels.gemv(0.0, a, DoubleArray(4) { Double.NaN }, 0, 1, 0.0, y, 0, 1)
 
         assertRegionAgreesWithReference(expected, c, before)
         assertContentEquals(DoubleArray(4), y)
@@ -434,7 +437,7 @@ class DenseOpsTest {
         val c = randomMatrix(n, n, rng)
 
         KoblasEngine.scalar.gemm(0.0, a, false, a, false, -0.25, c, scratch = workspace)
-        KoblasEngine.scalar.gemv(
+        KoblasEngine.scalar.kernels.gemv(
             0.0,
             a,
             DoubleArray(n),
@@ -501,7 +504,7 @@ class DenseOpsTest {
             koblas.gemm(1.0, DenseMatrix(2, 3), false, DenseMatrix(2, 2), false, 0.0, DenseMatrix.zero(2, 2))
         }
         assertFailsWith<DimensionMismatch> {
-            koblas.gemv(
+            koblas.kernels.gemv(
                 1.0,
                 DenseMatrix(2, 3),
                 DoubleArray(2),
@@ -548,10 +551,12 @@ class DenseOpsTest {
     fun `symv refuses a non square matrix`() {
         val n = 17
         assertFailsWith<DimensionMismatch>("symv ${n}x${n + 1}") {
-            koblas.symv(1.0, DenseMatrix.zero(n, n + 1), DoubleArray(n), 0, 1, 0.0, DoubleArray(n), 0, 1)
+            koblas.kernels.symv(1.0, DenseMatrix.zero(n, n + 1), DoubleArray(n), 0, 1, 0.0, DoubleArray(n), 0, 1)
         }
         assertFailsWith<DimensionMismatch>("symv ${n + 1}x$n") {
-            koblas.symv(1.0, DenseMatrix.zero(n + 1, n), DoubleArray(n + 1), 0, 1, 0.0, DoubleArray(n + 1), 0, 1)
+            koblas.kernels.symv(
+                1.0, DenseMatrix.zero(n + 1, n), DoubleArray(n + 1), 0, 1, 0.0, DoubleArray(n + 1), 0, 1,
+            )
         }
     }
 
@@ -580,15 +585,19 @@ class DenseOpsTest {
 
     @Test
     fun `trsv and trsm validate shapes`() {
-        assertFailsWith<DimensionMismatch> { koblas.trsv(DenseMatrix(2, 3), DoubleArray(2), 0, 1, lower = true) }
-        assertFailsWith<DimensionMismatch> { koblas.trsv(DenseMatrix(3, 3), DoubleArray(2), 0, 1, lower = true) }
+        assertFailsWith<DimensionMismatch> {
+            koblas.kernels.trsv(DenseMatrix(2, 3), DoubleArray(2), 0, 1, lower = true)
+        }
+        assertFailsWith<DimensionMismatch> {
+            koblas.kernels.trsv(DenseMatrix(3, 3), DoubleArray(2), 0, 1, lower = true)
+        }
         assertFailsWith<DimensionMismatch> { koblas.trsm(DenseMatrix(3, 3), DenseMatrix(2, 4), lower = true) }
     }
 
     @Test
     fun `GER agrees with the reference on shrinking supports and extreme finite inputs`() = withKoblasEngine { engine ->
         assertShrinkingGerAgreesWithReference { x, y, a ->
-            engine.ger(
+            engine.kernels.ger(
                 -1.0,
                 x,
                 0,
@@ -602,7 +611,7 @@ class DenseOpsTest {
         assertShrinkingGerAgreesWithReference { x, y, a ->
             val start = x.indexOfFirst { it != 0.0 }
             val extent = a.rows - start
-            engine.ger(-1.0, x, y, a, start, start, extent, extent, start, start)
+            engine.kernels.ger(-1.0, x, y, a, start, start, extent, extent, start, start)
         }
     }
 
@@ -617,7 +626,7 @@ class DenseOpsTest {
                 val originalY = y.copyOf()
                 val expected = referenceWindow(a, x, y, rows, columns)
 
-                engine.ger(-0.875, x, y, a, 2, 3, rows, columns, 1, 4)
+                engine.kernels.ger(-0.875, x, y, a, 2, 3, rows, columns, 1, 4)
 
                 assertWindowAgreesWithReference(expected, a, rows, columns)
                 assertContentEquals(originalX, x)
@@ -637,7 +646,7 @@ class DenseOpsTest {
                 val yOffset = if (alias != 1) 30 else 4
                 val expected = referenceWindow(a, x, y, 3, 2, xOffset, yOffset)
 
-                engine.ger(-0.875, x, y, a, 2, 3, 3, 2, xOffset, yOffset, scratch = workspace)
+                engine.kernels.ger(-0.875, x, y, a, 2, 3, 3, 2, xOffset, yOffset, scratch = workspace)
 
                 assertWindowAgreesWithReference(expected, a, 3, 2)
                 assertEquals(if (alias != 2) 1 else 0, workspace.available(3))
@@ -658,7 +667,7 @@ class DenseOpsTest {
                     val before = a.values.copyOf()
 
                     assertFailsWith<DimensionMismatch> {
-                        engine.ger(
+                        engine.kernels.ger(
                             alpha, DoubleArray(10), DoubleArray(11), a,
                             args[0], args[1], args[2], args[3], args[4], args[5],
                         )
@@ -677,7 +686,7 @@ class DenseOpsTest {
             val workspace = Scratch()
             val alpha = if (shape.first > 0 && shape.second > 0) 0.0 else Double.NaN
 
-            engine.ger(
+            engine.kernels.ger(
                 alpha, a.values, a.values, a,
                 9 - shape.first, 8 - shape.second, shape.first, shape.second,
                 72 - shape.first, 72 - shape.second,
@@ -767,10 +776,10 @@ class DenseOpsTest {
                 Triple(0, 1, 1),
             )) {
                 val backing = DoubleArray(10) { it + 0.25 }
-                val source = StridedVector(backing, sourceOffset, 5, stride)
-                val destination = StridedVector(backing, destinationOffset, 5, stride)
+                val source = DenseVector.wrap(backing, sourceOffset, 5, stride)
+                val destination = DenseVector.wrap(backing, destinationOffset, 5, stride)
                 val expected = backing.copyOf()
-                KoblasEngine.scalar.axpy(
+                KoblasEngine.scalar.kernels.axpy(
                     expected,
                     destinationOffset,
                     0.75,
@@ -800,13 +809,13 @@ class DenseOpsTest {
                 Triple(9, 8, -1),
             )) {
                 val backing = DoubleArray(14) { it + 0.25 }
-                val source = StridedVector(backing, sourceOffset, 5, stride)
-                val destination = StridedVector(backing, destinationOffset, 5, stride)
+                val source = DenseVector.wrap(backing, sourceOffset, 5, stride)
+                val destination = DenseVector.wrap(backing, destinationOffset, 5, stride)
                 val expected = backing.copyOf()
                 val snapshot = source.toDoubleArray()
                 for (i in snapshot.indices) expected[destinationOffset + i * stride] = snapshot[i]
 
-                engine.copyVector(source, destination)
+                engine.copyIntoVector(source, destination)
 
                 assertContentEquals(expected, backing)
             }
@@ -822,11 +831,11 @@ class DenseOpsTest {
                 val original = destination.copyOf()
                 // A call that scaled the destination before reading its input would see the scaled values.
                 val source =
-                    if (reversed) StridedVector(destination, 2, 3, -1) else StridedVector(destination, 0, 3, 1)
+                    if (reversed) DenseVector.wrap(destination, 2, 3, -1) else DenseVector.wrap(destination, 0, 3, 1)
                 val expected = DoubleArray(3) { source[it] + 0.5 * original[it] }
 
                 if (symmetric) {
-                    koblas.symv(
+                    koblas.kernels.symv(
                         1.0,
                         matrix,
                         source.values,
@@ -838,7 +847,7 @@ class DenseOpsTest {
                         (DenseVector.wrap(destination)).stride,
                     )
                 } else {
-                    koblas.gemv(
+                    koblas.kernels.gemv(
                         1.0,
                         matrix,
                         source.values,
@@ -861,7 +870,7 @@ class DenseOpsTest {
         val destination = doubleArrayOf(1.0, 2.0, 3.0)
         val matrix = DenseMatrix.wrap(3, 1, destination)
 
-        koblas.gemv(
+        koblas.kernels.gemv(
             1.0,
             matrix,
             (dense(2.0)).values,
@@ -881,7 +890,7 @@ class DenseOpsTest {
         val destination = doubleArrayOf(2.0)
         val matrix = DenseMatrix.wrap(1, 1, destination)
 
-        koblas.symv(
+        koblas.kernels.symv(
             1.0,
             matrix,
             (dense(3.0)).values,
@@ -901,7 +910,7 @@ class DenseOpsTest {
         val matrix = DenseMatrix.zero(3, 0)
         val destination = doubleArrayOf(Double.NaN, Double.NaN, Double.NaN)
 
-        koblas.gemv(
+        koblas.kernels.gemv(
             1.0,
             matrix,
             (DenseVector.zero(0)).values,
@@ -921,10 +930,10 @@ class DenseOpsTest {
     fun `a strided matvec operand needs no gather buffer`() {
         val n = 6
         val backing = DoubleArray(2 * n) { 1.0 + it }
-        val x = StridedVector(backing, 0, n, 2)
+        val x = DenseVector.wrap(backing, 0, n, 2)
         val a = DenseMatrix.wrap(n, n, DoubleArray(n * n) { 1.0 + (it % 5) * 0.25 })
         val expected = DoubleArray(n).also {
-            koblas.gemv(
+            koblas.kernels.gemv(
                 1.0,
                 a,
                 x.values,
@@ -939,7 +948,7 @@ class DenseOpsTest {
         val workspace = Scratch()
         val destination = DoubleArray(n)
 
-        koblas.gemv(
+        koblas.kernels.gemv(
             1.0,
             a,
             x.values,

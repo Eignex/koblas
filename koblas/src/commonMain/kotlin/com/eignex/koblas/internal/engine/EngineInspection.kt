@@ -7,19 +7,19 @@ import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 
 /** The kernels a shared schedule run on this engine calls, which a built-in engine binds once. */
 internal val KoblasEngine.panelProvider: EngineKernels get() = when (this) {
-    is BuiltinEngine -> kernels.panels
+    is BuiltinEngine -> roles.panels
     is EngineKernels -> this
     else -> unsupported()
 }
 
 internal val KoblasEngine.productProvider: EngineKernels get() = when (this) {
-    is BuiltinEngine -> kernels.products
+    is BuiltinEngine -> roles.products
     is EngineKernels -> this
     else -> unsupported()
 }
 
 internal val KoblasEngine.triangularProvider: EngineKernels get() = when (this) {
-    is BuiltinEngine -> kernels.triangular
+    is BuiltinEngine -> roles.triangular
     is EngineKernels -> this
     else -> unsupported()
 }

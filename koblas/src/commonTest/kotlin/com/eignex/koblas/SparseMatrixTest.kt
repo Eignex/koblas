@@ -5,6 +5,116 @@ import kotlin.test.*
 
 class SparseMatrixTest {
     @Test
+    fun `column traversal scales stored values through the typed vector engine`() {
+        val matrix = columnFixture()
+        val expected = DenseVector.of(matrix.values)
+        KoblasEngine.scalar.scale(expected, -2.0)
+        val sizes = mutableListOf<Int>()
+
+        matrix.forEachColumns { column ->
+            sizes += column.size
+            koblas.scale(column, -2.0)
+        }
+
+        assertEquals(listOf(4, 4, 4), sizes)
+        assertColumnsAgreeWithReference(expected.values, matrix.values)
+        assertContentEquals(intArrayOf(0, 2, 4, 5), matrix.copyColumnPointers())
+    }
+
+    @Test
+    fun `column views follow insertions and replacements anywhere in their owner`() {
+        val matrix = columnFixture()
+        val first = matrix.columnView(0)
+        val middle = matrix.columnView(1)
+        val last = matrix.columnView(2)
+
+        first[1] = 7.0
+        middle[0] = 0.0
+        last.copyFrom(SparseVector.wrap(4, intArrayOf(1, 3), doubleArrayOf(9.0, 0.0)))
+        first.copyFrom(SparseVector.wrap(4, IntArray(0), DoubleArray(0)))
+
+        assertContentEquals(intArrayOf(0, 0, 3, 5), matrix.copyColumnPointers())
+        assertContentEquals(intArrayOf(0, 1, 2, 1, 3), matrix.copyRowIndices())
+        assertContentEquals(doubleArrayOf(0.0, 3.0, 4.0, 9.0, 0.0), matrix.values)
+        assertEquals(0, first.nnz)
+        assertEquals(0, middle.offset)
+        assertEquals(3, last.offset)
+        assertSame(matrix.values, last.values)
+        last[1] = -6.0
+        assertEquals(-6.0, matrix[1, 2])
+        matrix[2, 2] = 11.0
+        assertEquals(11.0, last[2])
+    }
+
+    @Test
+    fun `column axpy stages shared storage before changing the destination pattern`() {
+        val matrix = columnFixture()
+        val source = matrix.columnView(0)
+        val destination = matrix.columnView(1)
+        val last = matrix.columnView(2)
+        val expected = DenseVector.wrap(destination.toDoubleArray())
+        KoblasEngine.scalar.axpy(2.0, DenseVector.wrap(source.toDoubleArray()), expected)
+        val firstBefore = source.toDoubleArray()
+        val lastBefore = last.toDoubleArray()
+
+        koblas.axpy(2.0, source, destination)
+
+        assertColumnsAgreeWithReference(expected.values, destination.toDoubleArray())
+        assertContentEquals(firstBefore, source.toDoubleArray())
+        assertContentEquals(lastBefore, last.toDoubleArray())
+        assertContentEquals(intArrayOf(0, 1, 2, 3), destination.copyIndices())
+    }
+
+    @Test
+    fun `column traversal visits empty columns without scanning the row domain`() {
+        val matrix = SparseMatrix.ofColumns(Int.MAX_VALUE, 3, listOf(emptyList(), listOf(5 to 2.0), emptyList()))
+        val counts = mutableListOf<Int>()
+
+        matrix.forEachColumns { column ->
+            counts += column.nnz
+            koblas.scale(column, 3.0)
+        }
+
+        assertEquals(listOf(0, 1, 0), counts)
+        assertEquals(6.0, matrix[5, 1])
+        SparseMatrix.ofColumns(3, 0, emptyList()).forEachColumns { error("Unexpected column") }
+        assertFailsWith<IndexOutOfBoundsException> { matrix.columnView(-1) }
+        assertFailsWith<IndexOutOfBoundsException> { matrix.columnView(3) }
+    }
+
+    private fun columnFixture(): SparseMatrix = SparseMatrix.wrap(
+        4, 3, intArrayOf(0, 2, 4, 5), intArrayOf(0, 3, 1, 2, 0), doubleArrayOf(2.0, -0.0, 3.0, 4.0, -5.0),
+    )
+
+    private fun assertColumnsAgreeWithReference(expected: DoubleArray, actual: DoubleArray) {
+        assertClose(expected, actual, "sparse column writes")
+    }
+
+    @Test
+    fun `writes through the matrix contract preserve validated CSC storage`() {
+        val matrix = SparseMatrix.ofColumns(4, 3, listOf(listOf(2 to 2.0), emptyList(), listOf(0 to -1.0)))
+        val mutable: Matrix = matrix
+
+        mutable[3, 1] = 0.0
+        mutable[1, 0] = 4.0
+        val pointers = matrix.colPointers
+        val indices = matrix.rowIndices
+        val values = matrix.values
+        mutable[0, 2] = 0.0
+
+        assertContentEquals(intArrayOf(0, 2, 3, 4), matrix.colPointers)
+        assertContentEquals(intArrayOf(1, 2, 3, 0), matrix.rowIndices)
+        assertContentEquals(doubleArrayOf(4.0, 2.0, 0.0, 0.0), matrix.values)
+        assertSame(pointers, matrix.colPointers)
+        assertSame(indices, matrix.rowIndices)
+        assertSame(values, matrix.values)
+        val encoded = Json.encodeToString(SparseMatrix.serializer(), matrix)
+        assertEquals(matrix, Json.decodeFromString(SparseMatrix.serializer(), encoded))
+        assertFailsWith<IndexOutOfBoundsException> { mutable[-1, 0] = 1.0 }
+        assertFailsWith<IndexOutOfBoundsException> { mutable[0, 3] = 1.0 }
+    }
+
+    @Test
     fun `triplet construction agrees with the scalar coordinate reference`() {
         for (rows in intArrayOf(1, 3, 8, 17, 18, 64, 65)) {
             for (columns in intArrayOf(1, 3, 6)) {

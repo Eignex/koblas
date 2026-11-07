@@ -4,6 +4,7 @@ package com.eignex.koblas.internal.scheduling.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.internal.engine.triangularProvider
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.EngineKernels
 import com.eignex.koblas.internal.operations.triangle
 import com.eignex.koblas.internal.storage.borrowOptional
@@ -119,9 +120,9 @@ internal fun triangularMatrix(
         val rows = if (right) sides else order
         val cols = if (right) order else sides
         if (ldb == rows) {
-            engine.scale(b, bOffset, alpha, rows * cols)
+            engine.kernels.scale(b, bOffset, alpha, rows * cols)
         } else {
-            for (j in 0 until cols) engine.scale(b, bOffset + j * ldb, alpha, rows)
+            for (j in 0 until cols) engine.kernels.scale(b, bOffset + j * ldb, alpha, rows)
         }
     }
     val flip = transpose != right

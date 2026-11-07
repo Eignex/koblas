@@ -4,6 +4,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.EngineImplementation
 import com.eignex.koblas.EngineImplementation.*
 import com.eignex.koblas.internal.engine.KernelSet
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.EngineKernels
 import com.eignex.koblas.internal.kernels.scalar.dense.*
 import kotlin.math.sqrt

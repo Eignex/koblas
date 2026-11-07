@@ -3,6 +3,7 @@
 package com.eignex.koblas.internal.scheduling.sparse
 
 import com.eignex.koblas.*
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.sparse.sparseSymmetricVectorColumn
 import com.eignex.koblas.internal.operations.applyBeta
 
@@ -21,7 +22,7 @@ internal fun KoblasEngine.scheduleSparseGemv(
             val start = a.colPointers[j]
             val end = a.colPointers[j + 1]
             if (start == end) continue
-            val sum = this.dot(
+            val sum = kernels.dot(
                 a.rowIndices,
                 start,
                 a.values,
@@ -35,7 +36,7 @@ internal fun KoblasEngine.scheduleSparseGemv(
         for (j in 0 until a.cols) {
             val xj = alpha * x[j]
             val start = a.colPointers[j]
-            this.axpy(
+            kernels.axpy(
                 a.rowIndices,
                 start,
                 a.values,

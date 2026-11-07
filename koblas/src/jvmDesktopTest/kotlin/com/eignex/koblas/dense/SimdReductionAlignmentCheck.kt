@@ -3,6 +3,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.*
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.internal.jvm25.simd.*
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.testutil.allocation.*
 
 /** Heap layout is fixed at startup, so alignment conformance needs a separate process per collector. */
@@ -41,7 +42,7 @@ internal object SimdReductionAlignmentCheck {
         SimdOpsTest().`reductions agree with the scalar oracle for windows in large backing arrays`()
         SimdOpsTest().assertFiniteReductionsAgreeWithReference(65_536)
         SimdOpsTest().assertFiniteReductionsAgreeWithReference(65_537)
-        val kernels = requireNotNull(KoblasEngine.simd)
+        val kernels = requireNotNull(KoblasEngine.simd).kernels
         for (i in values.indices) values[i] = (i % 17 - 8) / 16.0
         val other = DoubleArray(values.size) { (it % 11 - 5) / 8.0 }
         assertAllocationFree("asum") { kernels.asum(values, 0, 65_536) }

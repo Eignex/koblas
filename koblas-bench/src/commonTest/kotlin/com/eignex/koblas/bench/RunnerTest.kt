@@ -20,7 +20,7 @@ class RunnerTest {
             override val implementations = setOf(EngineImplementation.Dot)
             override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int): Double {
                 calls++
-                return KoblasEngine.scalar.dot(a, aOff, b, bOff, len, aStride, bStride)
+                return KoblasEngine.scalar.kernels.dot(a, aOff, b, bOff, len, aStride, bStride)
             }
         }
         val engine = BuiltinEngine("threshold", KernelSet(vectors = leaf))

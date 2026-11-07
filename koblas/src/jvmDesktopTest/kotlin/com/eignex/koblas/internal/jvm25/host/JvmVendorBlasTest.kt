@@ -3,6 +3,7 @@ package com.eignex.koblas.internal.jvm25.host
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.internal.host.vendorValues
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import com.eignex.koblas.internal.operations.*
 import java.nio.file.Path
@@ -49,7 +50,7 @@ class JvmVendorBlasTest {
             val expected = y.values.copyOf()
             ReferenceBlas.gemv(0.5, a, x.values, 2.0, expected, transpose)
 
-            blas.gemv(0.5, a, x.values, x.offset, x.stride, 2.0, y.values, y.offset, y.stride, transpose)
+            blas.kernels.gemv(0.5, a, x.values, x.offset, x.stride, 2.0, y.values, y.offset, y.stride, transpose)
 
             assertAgreesWithReference(expected, y.values, "gemv transA=$transpose")
         }
@@ -68,7 +69,7 @@ class JvmVendorBlasTest {
         val expected = DoubleArray(order)
         ReferenceBlas.symv(1.0, a, x.values, 0.0, expected)
 
-        blas.symv(1.0, a, x.values, x.offset, x.stride, 0.0, y.values, y.offset, y.stride, true)
+        blas.kernels.symv(1.0, a, x.values, x.offset, x.stride, 0.0, y.values, y.offset, y.stride, true)
 
         assertAgreesWithReference(expected, y.values, "symv")
     }
@@ -82,8 +83,8 @@ class JvmVendorBlasTest {
                 val yStorage = vendorValues(3 * abs(yStride) + 7, 38)
                 val xOffset = if (xStride > 0) 2 else 2 + 3 * -xStride
                 val yOffset = if (yStride > 0) 3 else 3 + 3 * -yStride
-                val x = StridedVector(xStorage, xOffset, size, xStride)
-                val y = StridedVector(yStorage, yOffset, size, yStride)
+                val x = DenseVector.wrap(xStorage, xOffset, size, xStride)
+                val y = DenseVector.wrap(yStorage, yOffset, size, yStride)
                 val expected = ScalarEngine.dot(xStorage, xOffset, yStorage, yOffset, size, xStride, yStride)
 
                 val actual = blas.dotVector(x, y)
@@ -103,8 +104,8 @@ class JvmVendorBlasTest {
                 val expected = yStorage.copyOf()
                 val xOffset = if (xStride > 0) 2 else 2 + 3 * -xStride
                 val yOffset = if (yStride > 0) 3 else 3 + 3 * -yStride
-                val x = StridedVector(xStorage, xOffset, size, xStride)
-                val y = StridedVector(yStorage, yOffset, size, yStride)
+                val x = DenseVector.wrap(xStorage, xOffset, size, xStride)
+                val y = DenseVector.wrap(yStorage, yOffset, size, yStride)
                 ScalarEngine.axpy(
                     expected,
                     yOffset,
@@ -130,7 +131,7 @@ class JvmVendorBlasTest {
         assertEquals(0.0, blas.dotVector(empty, empty))
         assertEquals(0.0, blas.normVector(empty))
         assertEquals(0.0, blas.absoluteSumVector(empty))
-        assertEquals(-1, blas.iamax(empty.values, empty.offset, empty.size, empty.stride))
+        assertEquals(-1, blas.kernels.iamax(empty.values, empty.offset, empty.size, empty.stride))
     }
 
     @Test
@@ -155,11 +156,13 @@ class JvmVendorBlasTest {
         val lda = 3
         val storage = vendorValues(lda * size, 31)
         val expected = storage.copyOf()
-        val first = StridedVector(storage, 0, size, lda)
-        val second = StridedVector(storage, 1, size, lda)
+        val first = DenseVector.wrap(storage, 0, size, lda)
+        val second = DenseVector.wrap(storage, 1, size, lda)
         ScalarEngine.swap(expected, 0, expected, 1, size, lda, lda)
 
-        blas.swap(first.values, first.offset, second.values, second.offset, first.size, first.stride, second.stride)
+        blas.kernels.swap(
+            first.values, first.offset, second.values, second.offset, first.size, first.stride, second.stride,
+        )
 
         assertContentEquals(expected, storage, "swap backing buffer")
     }

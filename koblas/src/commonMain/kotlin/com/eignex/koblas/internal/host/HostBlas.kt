@@ -17,7 +17,7 @@ import com.eignex.koblas.internal.storage.sameRegion
 internal abstract class HostBlas : EngineKernels {
     protected abstract fun cblasGemv(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         transposeA: Boolean,
         x: DenseVector,
         beta: Double,
@@ -26,29 +26,29 @@ internal abstract class HostBlas : EngineKernels {
 
     protected abstract fun cblasSymv(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         structure: MatrixStructure,
         x: DenseVector,
         beta: Double,
         y: DenseVector,
     )
 
-    protected abstract fun cblasGer(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrixRegion)
+    protected abstract fun cblasGer(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix)
 
-    protected abstract fun cblasSyr(alpha: Double, x: DenseVector, a: DenseMatrixRegion, structure: MatrixStructure)
+    protected abstract fun cblasSyr(alpha: Double, x: DenseVector, a: DenseMatrix, structure: MatrixStructure)
 
     protected abstract fun cblasSyr2(
         alpha: Double,
         x: DenseVector,
         y: DenseVector,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         structure: MatrixStructure,
     )
 
     /** `cblas_dtrsv` or `cblas_dtrmv`, as [operation] names, which share one signature. */
     protected abstract fun cblasTriangularVector(
         operation: EngineImplementation,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         structure: MatrixStructure,
         transposeA: Boolean,
         x: DenseVector,
@@ -56,51 +56,51 @@ internal abstract class HostBlas : EngineKernels {
 
     protected abstract fun cblasGemm(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         transposeA: Boolean,
-        b: DenseMatrixRegion,
+        b: DenseMatrix,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
     )
 
     protected abstract fun cblasGemmt(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         transposeA: Boolean,
-        b: DenseMatrixRegion,
+        b: DenseMatrix,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         structure: MatrixStructure,
     )
 
     protected abstract fun cblasSymm(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         structure: MatrixStructure,
-        b: DenseMatrixRegion,
+        b: DenseMatrix,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         rightSide: Boolean,
     )
 
     protected abstract fun cblasSyrk(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         transposeA: Boolean,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         structure: MatrixStructure,
     )
 
     protected abstract fun cblasSyr2k(
         alpha: Double,
-        a: DenseMatrixRegion,
-        b: DenseMatrixRegion,
+        a: DenseMatrix,
+        b: DenseMatrix,
         transposeA: Boolean,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         structure: MatrixStructure,
     )
 
@@ -108,10 +108,10 @@ internal abstract class HostBlas : EngineKernels {
     protected abstract fun cblasTriangularMatrix(
         operation: EngineImplementation,
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         structure: MatrixStructure,
         transposeA: Boolean,
-        b: DenseMatrixRegion,
+        b: DenseMatrix,
         rightSide: Boolean,
     )
 
@@ -123,7 +123,7 @@ internal abstract class HostBlas : EngineKernels {
 
     override fun gemv(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         x: DoubleArray,
         xOffset: Int,
         xStride: Int,
@@ -147,16 +147,16 @@ internal abstract class HostBlas : EngineKernels {
                 alpha,
                 sa,
                 transpose,
-                StridedVector(sx, so, depth, ss),
+                DenseVector.wrap(sx, so, depth, ss),
                 beta,
-                StridedVector(y, yOffset, rows, yStride),
+                DenseVector.wrap(y, yOffset, rows, yStride),
             )
         }
     }
 
     override fun symv(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         x: DoubleArray,
         xOffset: Int,
         xStride: Int,
@@ -180,9 +180,9 @@ internal abstract class HostBlas : EngineKernels {
                 alpha,
                 sa,
                 symmetricStructure(lower),
-                StridedVector(sx, so, n, ss),
+                DenseVector.wrap(sx, so, n, ss),
                 beta,
-                StridedVector(y, yOffset, n, yStride),
+                DenseVector.wrap(y, yOffset, n, yStride),
             )
         }
     }
@@ -195,7 +195,7 @@ internal abstract class HostBlas : EngineKernels {
         y: DoubleArray,
         yOffset: Int,
         yStride: Int,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         scratch: Scratch?,
     ) {
         requireExport(EngineImplementation.Ger)
@@ -207,7 +207,7 @@ internal abstract class HostBlas : EngineKernels {
                 yo,
                 ys,
             ->
-            cblasGer(alpha, StridedVector(sx, xo, a.rows, xs), StridedVector(sy, yo, a.cols, ys), a)
+            cblasGer(alpha, DenseVector.wrap(sx, xo, a.rows, xs), DenseVector.wrap(sy, yo, a.cols, ys), a)
         }
     }
 
@@ -216,14 +216,14 @@ internal abstract class HostBlas : EngineKernels {
         x: DoubleArray,
         xOffset: Int,
         xStride: Int,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         lower: Boolean,
         scratch: Scratch?,
     ) {
         requireExport(EngineImplementation.Syr)
         requireSquare(a, "syr")
         prepareRankUpdate(alpha, x, xOffset, xStride, x, xOffset, xStride, a, scratch) { sx, xo, xs, _, _, _ ->
-            cblasSyr(alpha, StridedVector(sx, xo, a.rows, xs), a, symmetricStructure(lower))
+            cblasSyr(alpha, DenseVector.wrap(sx, xo, a.rows, xs), a, symmetricStructure(lower))
         }
     }
 
@@ -235,7 +235,7 @@ internal abstract class HostBlas : EngineKernels {
         y: DoubleArray,
         yOffset: Int,
         yStride: Int,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         lower: Boolean,
         scratch: Scratch?,
     ) {
@@ -250,12 +250,18 @@ internal abstract class HostBlas : EngineKernels {
                 ys,
             ->
             val n = a.rows
-            cblasSyr2(alpha, StridedVector(sx, xo, n, xs), StridedVector(sy, yo, n, ys), a, symmetricStructure(lower))
+            cblasSyr2(
+                alpha,
+                DenseVector.wrap(sx, xo, n, xs),
+                DenseVector.wrap(sy, yo, n, ys),
+                a,
+                symmetricStructure(lower),
+            )
         }
     }
 
     override fun trsv(
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         x: DoubleArray,
         xOffset: Int,
         xStride: Int,
@@ -266,13 +272,13 @@ internal abstract class HostBlas : EngineKernels {
     ) {
         requireExport(EngineImplementation.Trsv)
         prepareTriangularVector(a, x, xOffset, xStride, lower, unitDiag, "trsv", scratch) { sa ->
-            val vector = StridedVector(x, xOffset, a.rows, xStride)
+            val vector = DenseVector.wrap(x, xOffset, a.rows, xStride)
             cblasTriangularVector(EngineImplementation.Trsv, sa, triangle(lower, unitDiag), transpose, vector)
         }
     }
 
     override fun trmv(
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         x: DoubleArray,
         xOffset: Int,
         xStride: Int,
@@ -283,19 +289,19 @@ internal abstract class HostBlas : EngineKernels {
     ) {
         requireExport(EngineImplementation.Trmv)
         prepareTriangularVector(a, x, xOffset, xStride, lower, unitDiag, "trmv", scratch) { sa ->
-            val vector = StridedVector(x, xOffset, a.rows, xStride)
+            val vector = DenseVector.wrap(x, xOffset, a.rows, xStride)
             cblasTriangularVector(EngineImplementation.Trmv, sa, triangle(lower, unitDiag), transpose, vector)
         }
     }
 
     override fun gemm(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         transposeA: Boolean,
-        b: DenseMatrixRegion,
+        b: DenseMatrix,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         scratch: Scratch?,
     ) {
         requireExport(EngineImplementation.Gemm)
@@ -308,12 +314,12 @@ internal abstract class HostBlas : EngineKernels {
 
     override fun gemmt(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         transposeA: Boolean,
-        b: DenseMatrixRegion,
+        b: DenseMatrix,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         lower: Boolean,
         scratch: Scratch?,
     ) {
@@ -327,10 +333,10 @@ internal abstract class HostBlas : EngineKernels {
 
     override fun symm(
         alpha: Double,
-        a: DenseMatrixRegion,
-        b: DenseMatrixRegion,
+        a: DenseMatrix,
+        b: DenseMatrix,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         lower: Boolean,
         right: Boolean,
         scratch: Scratch?,
@@ -346,10 +352,10 @@ internal abstract class HostBlas : EngineKernels {
 
     override fun syrk(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         transpose: Boolean,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         lower: Boolean,
         scratch: Scratch?,
     ) {
@@ -363,11 +369,11 @@ internal abstract class HostBlas : EngineKernels {
 
     override fun syr2k(
         alpha: Double,
-        a: DenseMatrixRegion,
-        b: DenseMatrixRegion,
+        a: DenseMatrix,
+        b: DenseMatrix,
         transpose: Boolean,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         lower: Boolean,
         scratch: Scratch?,
     ) {
@@ -380,8 +386,8 @@ internal abstract class HostBlas : EngineKernels {
     }
 
     override fun trsm(
-        a: DenseMatrixRegion,
-        b: DenseMatrixRegion,
+        a: DenseMatrix,
+        b: DenseMatrix,
         lower: Boolean,
         transpose: Boolean,
         unitDiag: Boolean,
@@ -396,8 +402,8 @@ internal abstract class HostBlas : EngineKernels {
     }
 
     override fun trmm(
-        a: DenseMatrixRegion,
-        b: DenseMatrixRegion,
+        a: DenseMatrix,
+        b: DenseMatrix,
         lower: Boolean,
         transpose: Boolean,
         unitDiag: Boolean,

@@ -2,6 +2,7 @@ package com.eignex.koblas.internal.jvm25.simd
 
 import com.eignex.koblas.*
 import com.eignex.koblas.internal.engine.implementationFor
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import org.junit.Assume
 import kotlin.random.Random

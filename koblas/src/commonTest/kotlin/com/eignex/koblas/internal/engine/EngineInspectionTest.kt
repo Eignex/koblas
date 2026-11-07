@@ -18,8 +18,10 @@ class EngineInspectionTest {
                     host.vendor,
                 )
                 val engine = BuiltinEngine("test", host = host, tuning = tuning)
-                val a = DenseMatrix.zero(order, order).let {
-                    if (borrowed) it.view(0, 0, order, order) else it
+                val a = if (borrowed) {
+                    DenseMatrix.zero(order + 2, order + 2).view(1, 1, order, order)
+                } else {
+                    DenseMatrix.zero(order, order)
                 }
                 val b = DenseMatrix.zero(order, order)
                 val c = DenseMatrix.zero(order, order)

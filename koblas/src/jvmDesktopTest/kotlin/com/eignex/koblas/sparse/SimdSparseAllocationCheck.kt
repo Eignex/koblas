@@ -3,6 +3,7 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.*
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.internal.engine.*
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.PanelWork
 import com.eignex.koblas.testutil.allocation.*
 
@@ -58,7 +59,7 @@ internal object SimdSparseAllocationCheck {
         val dense = DoubleArray(DIMENSION) { 1.0 + (it % 17) * 0.03125 }
 
         assertAllocationFree("dispatched indexed dot") {
-            engine.dot(indices, 0, values, 0, values.size, dense)
+            engine.kernels.dot(indices, 0, values, 0, values.size, dense)
         }
         checkPublicSlices(engine)
         checkPanels(engine)
@@ -84,7 +85,7 @@ internal object SimdSparseAllocationCheck {
             }
         }
         val dense = DoubleArray(DIMENSION) { 1.0 + (it % 17) * 0.03125 }
-        val kernels = engine
+        val kernels = engine.kernels
         val matrix = SparseMatrix.wrap(
             DIMENSION,
             2,
@@ -207,12 +208,12 @@ internal object SimdSparseAllocationCheck {
         }
         for (transpose in booleanArrayOf(false, true)) {
             assertAllocationFree("sparse gemv transpose=$transpose", OPERATION_WARMUP, OPERATION_ITERATIONS) {
-                engine.gemv(0.875, a, x, -0.25, y, transpose)
+                engine.kernels.gemv(0.875, a, x, -0.25, y, transpose)
                 y[0]
             }
         }
         assertAllocationFree("sparse symv", OPERATION_WARMUP, OPERATION_ITERATIONS) {
-            engine.symv(0.875, triangle, x, -0.25, y, true)
+            engine.kernels.symv(0.875, triangle, x, -0.25, y, true)
             y[0]
         }
         assertAllocationFree("sparse rank update into a dense triangle", OPERATION_WARMUP, OPERATION_ITERATIONS) {

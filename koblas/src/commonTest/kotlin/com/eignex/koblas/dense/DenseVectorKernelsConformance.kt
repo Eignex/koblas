@@ -1,6 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import kotlin.math.abs
 import kotlin.random.Random
@@ -18,7 +19,8 @@ import kotlin.test.assertTrue
  * does, and the width at which the vendor arm crosses to the library. 600 clears an unrolled body on a
  * wide-lane host, whose own threshold scales with the lane count and so sits above the shorter lengths here.
  */
-internal fun assertLevel1KernelsAgreeWithReference(kernels: KoblasEngine) {
+internal fun assertLevel1KernelsAgreeWithReference(engine: KoblasEngine) {
+    val kernels = engine.kernels
     val rng = Random(20260731)
     for (len in intArrayOf(1, 7, 31, 32, 63, 64, 65, 200, 600)) {
         val pad = 3
@@ -47,7 +49,8 @@ internal fun assertLevel1KernelsAgreeWithReference(kernels: KoblasEngine) {
  * Plane rotation agreement with the portable kernel for every implementation, with the two operands at
  * different offsets so a kernel that addresses both through one offset fails.
  */
-internal fun assertRotKernelAgreesWithReference(kernels: KoblasEngine) {
+internal fun assertRotKernelAgreesWithReference(engine: KoblasEngine) {
+    val kernels = engine.kernels
     // The rotation BLAS drotg(3, 4) produces, written out because koblas exposes no generator.
     val c = 0.6
     val s = 0.8
@@ -71,7 +74,8 @@ internal fun assertRotKernelAgreesWithReference(kernels: KoblasEngine) {
  * Exchange, at a non-zero offset in both operands and at lengths that straddle a lane boundary, so a kernel
  * that swaps whole vectors is checked for leaving the padding either side untouched.
  */
-internal fun assertSwapAgreesWithReference(kernels: KoblasEngine) {
+internal fun assertSwapAgreesWithReference(engine: KoblasEngine) {
+    val kernels = engine.kernels
     val rng = Random(20260826)
     for (len in intArrayOf(1, 7, 63, 64, 65, 200, 600)) {
         val pad = 3
@@ -92,7 +96,8 @@ internal fun assertSwapAgreesWithReference(kernels: KoblasEngine) {
  * The reductions at scales whose squares leave the exponent range, which is what forces `nrm2` to rescale
  * rather than sum squares directly, plus the zero run both must report as zero exactly.
  */
-internal fun assertReductionsAgreeWithReference(kernels: KoblasEngine) {
+internal fun assertReductionsAgreeWithReference(engine: KoblasEngine) {
+    val kernels = engine.kernels
     val rng = Random(20260951)
     for (scale in doubleArrayOf(1.0, 1e200, 1e-200)) {
         for (len in intArrayOf(1, 31, 32, 63, 64, 200, 600)) {
@@ -129,7 +134,8 @@ internal fun assertReductionsAgreeWithReference(kernels: KoblasEngine) {
  * The lengths straddle a lane block, the unrolled body at every lane count and the host crossovers up to
  * 512 entries.
  */
-internal fun assertIamaxHonoursItsContract(kernels: KoblasEngine) {
+internal fun assertIamaxHonoursItsContract(engine: KoblasEngine) {
+    val kernels = engine.kernels
     val rng = Random(20260912)
     for (len in intArrayOf(0, 1, 2, 7, 16, 17, 64, 255, 256, 257, 1024)) {
         for (off in intArrayOf(0, 1, 3)) {
@@ -162,7 +168,8 @@ internal fun assertIamaxHonoursItsContract(kernels: KoblasEngine) {
 }
 
 /** Finite scaling accuracy and untouched padding, without fixing exceptional results or signed zeros. */
-internal fun assertScaleAgreesWithReference(kernels: KoblasEngine) {
+internal fun assertScaleAgreesWithReference(engine: KoblasEngine) {
+    val kernels = engine.kernels
     forEachScaleFixture { off, len, alpha, expected, actual ->
         kernels.scale(actual, off, alpha, len)
         val context = "${kernels.name} len=$len off=$off alpha=$alpha"
@@ -203,7 +210,8 @@ private inline fun forEachScaleFixture(body: (Int, Int, Double, DoubleArray, Dou
 }
 
 /** Norms whose components square outside the exponent range, compared with the scalar oracle. */
-internal fun assertNormExtremesAgreeWithReference(kernels: KoblasEngine) {
+internal fun assertNormExtremesAgreeWithReference(engine: KoblasEngine) {
+    val kernels = engine.kernels
     val pair = doubleArrayOf(3e200, 4e200)
     assertEquals(ScalarEngine.nrm2(pair, 0, 2), kernels.nrm2(pair, 0, 2), absoluteTolerance = 1e188)
     val tinyPair = doubleArrayOf(3e-200, 4e-200)
@@ -228,7 +236,8 @@ internal fun assertNormExtremesAgreeWithReference(kernels: KoblasEngine) {
 }
 
 /** Offset windows and empty tails compared with the scalar oracle. */
-internal fun assertNormWindowsAgreeWithReference(kernels: KoblasEngine) {
+internal fun assertNormWindowsAgreeWithReference(engine: KoblasEngine) {
+    val kernels = engine.kernels
     val rng = Random(20260815)
     val v = DoubleArray(300) { rng.nextDouble(-1.0, 1.0) }
     for (off in intArrayOf(0, 1, 7)) {

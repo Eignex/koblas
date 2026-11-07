@@ -78,7 +78,7 @@ internal fun triangularLeftCore(
     kernels: KoblasEngine,
     solve: Boolean,
     a: SparseMatrix,
-    b: DenseMatrixRegion,
+    b: DenseMatrix,
     lower: Boolean,
     transpose: Boolean,
     diagonal: DoubleArray?,
@@ -143,7 +143,7 @@ internal fun triangularRightCore(
     kernels: KoblasEngine,
     solve: Boolean,
     a: SparseMatrix,
-    b: DenseMatrixRegion,
+    b: DenseMatrix,
     lower: Boolean,
     gather: Boolean,
     diagonal: DoubleArray?,
@@ -162,7 +162,7 @@ internal fun triangularRightCore(
 /** Sparse `trsm` when [solve] and `trmm` otherwise, from either side. */
 internal fun KoblasEngine.sparseTriangularMatrix(
     a: SparseMatrix,
-    b: DenseMatrixRegion,
+    b: DenseMatrix,
     lower: Boolean,
     transpose: Boolean,
     unitDiag: Boolean,

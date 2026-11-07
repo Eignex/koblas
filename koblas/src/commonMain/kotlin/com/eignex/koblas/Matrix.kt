@@ -2,7 +2,7 @@ package com.eignex.koblas
 
 import kotlinx.serialization.Serializable
 
-/** Read-only matrix contract. Anything that only reads a matrix should take this. */
+/** Mutable matrix contract with a fixed logical shape. */
 public interface Matrix {
     /** Number of rows. */
     public val rows: Int
@@ -13,8 +13,11 @@ public interface Matrix {
     /** The entry at row (i), column (j). Throws `IndexOutOfBoundsException` outside the shape, whatever the storage. */
     public operator fun get(i: Int, j: Int): Double
 
+    /** Writes [v] to `A(i, j)`. Throws [IndexOutOfBoundsException] outside the shape. */
+    public operator fun set(i: Int, j: Int, v: Double)
+
     /** Materialise into a fresh `Array<DoubleArray>` of rows, independent of the internal storage. */
-    public fun toArray(): Array<DoubleArray>
+    public fun toArray(): Array<DoubleArray> = Array(rows) { i -> DoubleArray(cols) { j -> get(i, j) } }
 }
 
 /**

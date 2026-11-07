@@ -2,6 +2,7 @@ package com.eignex.koblas.internal.engine
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.operations.MatrixStructure
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -45,11 +46,11 @@ class BuiltinEngineTest {
             assertSame(recorder, blas.wholeCallFor(EngineImplementation.Gemm, order, order, order))
             val parent = matrix(order + 2)
             val view = parent.view(1, 1, order, order)
-            val a: DenseMatrixRegion = if (borrowedOperand == "left") view else matrix(order)
-            val b: DenseMatrixRegion = if (borrowedOperand == "right") view else matrix(order)
-            val c: DenseMatrixRegion = if (borrowedOperand == "destination") view else matrix(order)
+            val a: DenseMatrix = if (borrowedOperand == "left") view else matrix(order)
+            val b: DenseMatrix = if (borrowedOperand == "right") view else matrix(order)
+            val c: DenseMatrix = if (borrowedOperand == "destination") view else matrix(order)
             val before = c.values.copyOf()
-            fun copy(region: DenseMatrixRegion) = DenseMatrix.wrap(
+            fun copy(region: DenseMatrix) = DenseMatrix.wrap(
                 order,
                 order,
                 DoubleArray(order * order) { region[it % order, it / order] },
@@ -102,13 +103,13 @@ class BuiltinEngineTest {
         )
         val (recorder, blas) = forced()
 
-        blas.gemv(1.0, a, x, 0, 1, 0.0, y, 0, 1)
-        blas.symv(1.0, a, x, 0, 1, 0.0, y, 0, 1)
-        blas.ger(1.0, x, 0, 1, x, 0, 1, matrix(ORDER))
-        blas.syr(1.0, v.values, v.offset, v.stride, matrix(ORDER))
-        blas.syr2(1.0, v.values, v.offset, v.stride, v.values, v.offset, v.stride, matrix(ORDER))
-        blas.trsv(a, x.copyOf(), 0, 1, lower = true)
-        blas.trmv(a, x.copyOf(), 0, 1, lower = true)
+        blas.kernels.gemv(1.0, a, x, 0, 1, 0.0, y, 0, 1)
+        blas.kernels.symv(1.0, a, x, 0, 1, 0.0, y, 0, 1)
+        blas.kernels.ger(1.0, x, 0, 1, x, 0, 1, matrix(ORDER))
+        blas.kernels.syr(1.0, v.values, v.offset, v.stride, matrix(ORDER))
+        blas.kernels.syr2(1.0, v.values, v.offset, v.stride, v.values, v.offset, v.stride, matrix(ORDER))
+        blas.kernels.trsv(a, x.copyOf(), 0, 1, lower = true)
+        blas.kernels.trmv(a, x.copyOf(), 0, 1, lower = true)
         blas.gemm(1.0, a, false, b, false, 0.0, c)
         blas.gemmt(1.0, a, false, b, false, 0.0, matrix(ORDER))
         blas.syrk(1.0, a, false, 0.0, matrix(ORDER))
@@ -128,7 +129,7 @@ class BuiltinEngineTest {
         val x = DoubleArray(6) { if (it == 0) 0.0 else it.toDouble() }
         ReferenceBlas.ger(-1.0, x, x, expected)
 
-        blas.ger(-1.0, x, x, a, 1, 1, 5, 5, 1, 1)
+        blas.kernels.ger(-1.0, x, x, a, 1, 1, 5, 5, 1, 1)
 
         assertContentEquals(expected.values, a.values)
         assertEquals(emptyList(), recorder.calls)
@@ -314,10 +315,10 @@ class BuiltinEngineTest {
         val beside = parent.view(0, 4, 3, 5)
         val workspace = Scratch()
 
-        blas.gemv(1.0, panel, DoubleArray(3), 0, 1, 0.0, DoubleArray(5), 0, 1, scratch = workspace)
+        blas.kernels.gemv(1.0, panel, DoubleArray(3), 0, 1, 0.0, DoubleArray(5), 0, 1, scratch = workspace)
         blas.gemm(1.0, panel, false, beside, false, 1.0, trailing, scratch = workspace)
         blas.syrk(-1.0, panel, false, 1.0, trailing, scratch = workspace)
-        blas.trsv(triangle, DoubleArray(3), 0, 1, lower = true, scratch = workspace)
+        blas.kernels.trsv(triangle, DoubleArray(3), 0, 1, lower = true, scratch = workspace)
         blas.trsm(triangle, beside, lower = true, scratch = workspace)
 
         val expected = listOf(
@@ -367,42 +368,42 @@ class BuiltinEngineTest {
 private class ReferenceProductBlas : RecordingBlas() {
     override fun cblasGemm(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         transposeA: Boolean,
-        b: DenseMatrixRegion,
+        b: DenseMatrix,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
     ) = ReferenceBlas.gemm(alpha, a, transposeA, b, transposeB, beta, c)
 
     override fun cblasGemmt(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         transposeA: Boolean,
-        b: DenseMatrixRegion,
+        b: DenseMatrix,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         structure: MatrixStructure,
     ) = ReferenceBlas.gemmt(alpha, a, transposeA, b, transposeB, beta, c, structure == MatrixStructure.SymmetricLower)
 
     override fun cblasSymm(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         structure: MatrixStructure,
-        b: DenseMatrixRegion,
+        b: DenseMatrix,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         rightSide: Boolean,
     ) = ReferenceBlas.symm(alpha, a, b, beta, c, structure == MatrixStructure.SymmetricLower, rightSide)
 
     override fun cblasSyr2k(
         alpha: Double,
-        a: DenseMatrixRegion,
-        b: DenseMatrixRegion,
+        a: DenseMatrix,
+        b: DenseMatrix,
         transposeA: Boolean,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         structure: MatrixStructure,
     ) = ReferenceBlas.syr2k(alpha, a, b, transposeA, beta, c, structure == MatrixStructure.SymmetricLower)
 }

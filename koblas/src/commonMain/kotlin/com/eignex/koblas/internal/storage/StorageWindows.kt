@@ -4,14 +4,16 @@ package com.eignex.koblas.internal.storage
 
 import com.eignex.koblas.*
 
+/** Whether the logical matrix occupies the whole buffer in compact column-major order. */
+internal val DenseMatrix.isWholeBuffer: Boolean
+    get() = offset == 0 && leadingDimension == rows && values.size.toLong() == rows.toLong() * cols
+
+/** Whether this vector spans its entire backing array in order. */
+internal val DenseVector.isWholeArray: Boolean
+    get() = offset == 0 && stride == 1 && values.size == size
+
 /** Exact overlap of a vector window and the logical columns of [a], ignoring column padding. */
-internal fun regionWindowOverlap(
-    a: DenseMatrixRegion,
-    values: DoubleArray,
-    offset: Int,
-    count: Int,
-    stride: Int,
-): Boolean {
+internal fun regionWindowOverlap(a: DenseMatrix, values: DoubleArray, offset: Int, count: Int, stride: Int): Boolean {
     if (a.values !== values || count == 0 || a.rows == 0 || a.cols == 0) return false
     val step = if (count <= 1) 1L else kotlin.math.abs(stride.toLong())
     val first = minOf(offset.toLong(), offset.toLong() + (count - 1L) * stride)
@@ -61,7 +63,7 @@ internal fun windowsOverlap(
 }
 
 /** Whether two logical rectangles touch, excluding the gaps between their columns. */
-internal fun regionsOverlap(a: DenseMatrixRegion, b: DenseMatrixRegion): Boolean {
+internal fun regionsOverlap(a: DenseMatrix, b: DenseMatrix): Boolean {
     if (a.values !== b.values || a.rows == 0 || a.cols == 0 || b.rows == 0 || b.cols == 0) return false
     var left = 0
     var right = 0
@@ -75,7 +77,7 @@ internal fun regionsOverlap(a: DenseMatrixRegion, b: DenseMatrixRegion): Boolean
 }
 
 /** Whether two regions have identical logical-to-physical addressing. */
-internal fun sameRegion(a: DenseMatrixRegion, b: DenseMatrixRegion): Boolean =
+internal fun sameRegion(a: DenseMatrix, b: DenseMatrix): Boolean =
     a.values === b.values && a.offset == b.offset && a.rows == b.rows && a.cols == b.cols &&
         a.leadingDimension == b.leadingDimension
 

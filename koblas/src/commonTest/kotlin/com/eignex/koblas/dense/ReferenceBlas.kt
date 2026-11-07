@@ -12,8 +12,7 @@ import com.eignex.koblas.*
  * early exit beyond what the operation's contract states.
  */
 internal object ReferenceBlas {
-    private fun at(a: DenseMatrixRegion, i: Int, j: Int, transpose: Boolean): Double =
-        if (transpose) a[j, i] else a[i, j]
+    private fun at(a: DenseMatrix, i: Int, j: Int, transpose: Boolean): Double = if (transpose) a[j, i] else a[i, j]
 
     /**
      * The `beta * C` term, which a zero beta contributes without reading what is there. That is not the same
@@ -21,14 +20,7 @@ internal object ReferenceBlas {
      */
     private fun scaled(beta: Double, previous: Double): Double = if (beta == 0.0) 0.0 else beta * previous
 
-    fun gemv(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        x: DoubleArray,
-        beta: Double,
-        y: DoubleArray,
-        transpose: Boolean = false,
-    ) {
+    fun gemv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, transpose: Boolean = false) {
         val m = if (transpose) a.cols else a.rows
         val k = if (transpose) a.rows else a.cols
         for (i in 0 until m) {
@@ -41,12 +33,12 @@ internal object ReferenceBlas {
     @Suppress("LongParameterList") // the BLAS dgemm signature
     fun gemm(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         transposeA: Boolean,
-        b: DenseMatrixRegion,
+        b: DenseMatrix,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
     ) {
         val m = if (transposeA) a.cols else a.rows
         val depth = if (transposeA) a.rows else a.cols
@@ -63,12 +55,12 @@ internal object ReferenceBlas {
     @Suppress("LongParameterList") // the BLAS gemmt signature
     fun gemmt(
         alpha: Double,
-        a: DenseMatrixRegion,
+        a: DenseMatrix,
         transposeA: Boolean,
-        b: DenseMatrixRegion,
+        b: DenseMatrix,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         lower: Boolean = true,
     ) {
         val n = c.rows
@@ -85,11 +77,11 @@ internal object ReferenceBlas {
     }
 
     /** The symmetric operand is read from the selected triangle and mirrored, never from the other half. */
-    private fun symmetric(a: DenseMatrixRegion, i: Int, j: Int, lower: Boolean): Double =
+    private fun symmetric(a: DenseMatrix, i: Int, j: Int, lower: Boolean): Double =
         if (lower == (i >= j)) a[i, j] else a[j, i]
 
     @Suppress("LongParameterList") // the BLAS dsymv signature
-    fun symv(alpha: Double, a: DenseMatrixRegion, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean = true) {
+    fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean = true) {
         val n = a.rows
         for (i in 0 until n) {
             var sum = 0.0
@@ -101,10 +93,10 @@ internal object ReferenceBlas {
     @Suppress("LongParameterList") // the BLAS dsymm signature
     fun symm(
         alpha: Double,
-        a: DenseMatrixRegion,
-        b: DenseMatrixRegion,
+        a: DenseMatrix,
+        b: DenseMatrix,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         lower: Boolean = true,
         right: Boolean = false,
     ) {
@@ -124,14 +116,7 @@ internal object ReferenceBlas {
     }
 
     @Suppress("LongParameterList") // the BLAS dsyrk signature
-    fun syrk(
-        alpha: Double,
-        a: DenseMatrixRegion,
-        transpose: Boolean,
-        beta: Double,
-        c: DenseMatrixRegion,
-        lower: Boolean = true,
-    ) {
+    fun syrk(alpha: Double, a: DenseMatrix, transpose: Boolean, beta: Double, c: DenseMatrix, lower: Boolean = true) {
         val n = if (transpose) a.cols else a.rows
         val depth = if (transpose) a.rows else a.cols
         for (j in 0 until n) {
@@ -148,11 +133,11 @@ internal object ReferenceBlas {
     @Suppress("LongParameterList") // the BLAS dsyr2k signature
     fun syr2k(
         alpha: Double,
-        a: DenseMatrixRegion,
-        b: DenseMatrixRegion,
+        a: DenseMatrix,
+        b: DenseMatrix,
         transpose: Boolean,
         beta: Double,
-        c: DenseMatrixRegion,
+        c: DenseMatrix,
         lower: Boolean = true,
     ) {
         val n = if (transpose) a.cols else a.rows
@@ -171,13 +156,13 @@ internal object ReferenceBlas {
         }
     }
 
-    fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrixRegion) {
+    fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix) {
         for (j in 0 until a.cols) {
             for (i in 0 until a.rows) a[i, j] += alpha * x[i] * y[j]
         }
     }
 
-    fun syr(alpha: Double, x: Vector, a: DenseMatrixRegion, lower: Boolean = true) {
+    fun syr(alpha: Double, x: Vector, a: DenseMatrix, lower: Boolean = true) {
         for (j in 0 until a.rows) {
             for (i in 0 until a.rows) {
                 if (lower && i < j) continue
@@ -187,7 +172,7 @@ internal object ReferenceBlas {
         }
     }
 
-    fun syr2(alpha: Double, x: Vector, y: Vector, a: DenseMatrixRegion, lower: Boolean = true) {
+    fun syr2(alpha: Double, x: Vector, y: Vector, a: DenseMatrix, lower: Boolean = true) {
         for (j in 0 until a.rows) {
             for (i in 0 until a.rows) {
                 if (lower && i < j) continue
@@ -198,16 +183,10 @@ internal object ReferenceBlas {
     }
 
     /** The triangle entry, with an implicit unit diagonal supplied rather than read. */
-    private fun triangular(a: DenseMatrixRegion, i: Int, j: Int, unitDiag: Boolean): Double =
+    private fun triangular(a: DenseMatrix, i: Int, j: Int, unitDiag: Boolean): Double =
         if (unitDiag && i == j) 1.0 else a[i, j]
 
-    fun trsv(
-        a: DenseMatrixRegion,
-        x: DoubleArray,
-        lower: Boolean,
-        transpose: Boolean = false,
-        unitDiag: Boolean = false,
-    ) {
+    fun trsv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean = false, unitDiag: Boolean = false) {
         val n = a.rows
         // Transposing a lower triangle gives an upper one, so the substitution order flips with it.
         val forward = lower != transpose
@@ -220,13 +199,7 @@ internal object ReferenceBlas {
         }
     }
 
-    fun trmv(
-        a: DenseMatrixRegion,
-        x: DoubleArray,
-        lower: Boolean,
-        transpose: Boolean = false,
-        unitDiag: Boolean = false,
-    ) {
+    fun trmv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean = false, unitDiag: Boolean = false) {
         val n = a.rows
         val result = DoubleArray(n)
         for (i in 0 until n) {
@@ -240,13 +213,13 @@ internal object ReferenceBlas {
         result.copyInto(x)
     }
 
-    private fun entry(a: DenseMatrixRegion, i: Int, j: Int, transpose: Boolean, unitDiag: Boolean): Double =
+    private fun entry(a: DenseMatrix, i: Int, j: Int, transpose: Boolean, unitDiag: Boolean): Double =
         if (transpose) triangular(a, j, i, unitDiag) else triangular(a, i, j, unitDiag)
 
     @Suppress("LongParameterList") // the BLAS dtrsm signature
     fun trsm(
-        a: DenseMatrixRegion,
-        b: DenseMatrixRegion,
+        a: DenseMatrix,
+        b: DenseMatrix,
         lower: Boolean,
         transpose: Boolean = false,
         unitDiag: Boolean = false,
@@ -256,8 +229,8 @@ internal object ReferenceBlas {
 
     @Suppress("LongParameterList") // the BLAS dtrmm signature
     fun trmm(
-        a: DenseMatrixRegion,
-        b: DenseMatrixRegion,
+        a: DenseMatrix,
+        b: DenseMatrix,
         lower: Boolean,
         transpose: Boolean = false,
         unitDiag: Boolean = false,
@@ -273,8 +246,8 @@ internal object ReferenceBlas {
      */
     @Suppress("LongParameterList") // the shared triangular signature plus the solve flag
     private fun triangularMatrix(
-        a: DenseMatrixRegion,
-        b: DenseMatrixRegion,
+        a: DenseMatrix,
+        b: DenseMatrix,
         lower: Boolean,
         transpose: Boolean,
         unitDiag: Boolean,

@@ -2,8 +2,10 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.ReferenceBlas
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.EngineKernels
 import com.eignex.koblas.internal.operations.*
+import com.eignex.koblas.internal.operations.axpyVector
 import com.eignex.koblas.internal.scheduling.sparse.AdjacentPreferringPanels
 import kotlin.math.abs
 import kotlin.random.Random
@@ -32,9 +34,9 @@ class SparseOpsTest {
             val size = nnz * 8
             val x = randomSparseVector(size, nnz, rng)
             val y = randomVector(size, rng)
-            val expected = KoblasEngine.scalar.dot(x.indices, 0, x.values, 0, x.values.size, y)
+            val expected = KoblasEngine.scalar.kernels.dot(x.indices, 0, x.values, 0, x.values.size, y)
 
-            val actual = koblas.dot(x.indices, 0, x.values, 0, x.values.size, y)
+            val actual = koblas.kernels.dot(x.indices, 0, x.values, 0, x.values.size, y)
 
             // A vectorized reduction sums lanes in a different order, so the bound scales with the count.
             assertTrue(
@@ -69,7 +71,7 @@ class SparseOpsTest {
                     return 0.0
                 }
             }
-            val kernels = engineWithKernels(vectors = selected)
+            val kernels = engineWithKernels(vectors = selected).kernels
 
             kernels.normVector(x)
             kernels.absoluteSumVector(x)
@@ -86,9 +88,9 @@ class SparseOpsTest {
         val updated = dense.copyOf()
         val scattered = DoubleArray(dense.size) { 8.0 }
 
-        val dot = koblas.dot(indices, 1, values, 2, 3, dense)
-        koblas.axpy(indices, 1, values, 2, 3, 0.5, updated)
-        koblas.scatter(indices, 1, values, 2, 3, scattered)
+        val dot = koblas.kernels.dot(indices, 1, values, 2, 3, dense)
+        koblas.kernels.axpy(indices, 1, values, 2, 3, 0.5, updated)
+        koblas.kernels.scatter(indices, 1, values, 2, 3, scattered)
 
         assertEquals(-19.0, dot)
         assertContentEquals(doubleArrayOf(10.0, 6.0, 20.0, 30.0, 5.5, 50.0, 0.0), updated)
@@ -102,7 +104,7 @@ class SparseOpsTest {
         val dense = doubleArrayOf(2.0, 7.0, -1.0)
 
         for (engine in vectorEngines) {
-            assertEquals(0.0, engine.dot(indices, 0, values, 0, 3, dense), engine.name)
+            assertEquals(0.0, engine.kernels.dot(indices, 0, values, 0, 3, dense), engine.name)
         }
     }
 
@@ -110,9 +112,9 @@ class SparseOpsTest {
     fun `raw empty slices at array ends are legal`() {
         val destination = doubleArrayOf(3.0)
 
-        val dot = koblas.dot(intArrayOf(9), 1, doubleArrayOf(9.0), 1, 0, DoubleArray(0))
-        koblas.axpy(intArrayOf(9), 1, doubleArrayOf(9.0), 1, 0, 2.0, destination)
-        koblas.scatter(intArrayOf(9), 1, doubleArrayOf(9.0), 1, 0, destination)
+        val dot = koblas.kernels.dot(intArrayOf(9), 1, doubleArrayOf(9.0), 1, 0, DoubleArray(0))
+        koblas.kernels.axpy(intArrayOf(9), 1, doubleArrayOf(9.0), 1, 0, 2.0, destination)
+        koblas.kernels.scatter(intArrayOf(9), 1, doubleArrayOf(9.0), 1, 0, destination)
 
         assertEquals(0.0, dot)
         assertContentEquals(doubleArrayOf(3.0), destination)
@@ -123,7 +125,7 @@ class SparseOpsTest {
         val destination = doubleArrayOf(Double.NaN, -0.0)
         val poisoned = SparseVector.of(2, intArrayOf(0, 1), doubleArrayOf(Double.POSITIVE_INFINITY, Double.NaN))
 
-        DenseVector.wrap(destination).axpy(-0.0, poisoned)
+        koblas.axpyVector(-0.0, poisoned, DenseVector.wrap(destination))
 
         assertTrue(destination[0].isNaN())
         assertEquals((-0.0).toBits(), destination[1].toBits())
@@ -134,7 +136,7 @@ class SparseOpsTest {
         val source = doubleArrayOf(-0.0, Double.NaN, Double.NEGATIVE_INFINITY)
         val destination = DoubleArray(3)
 
-        koblas.scatter(intArrayOf(0, 1, 2), 0, source, 0, 3, destination)
+        koblas.kernels.scatter(intArrayOf(0, 1, 2), 0, source, 0, 3, destination)
 
         assertEquals((-0.0).toBits(), destination[0].toBits())
         assertTrue(destination[1].isNaN())
@@ -160,10 +162,10 @@ class SparseOpsTest {
             for (column in 0 until matrix.cols) {
                 val start = matrix.colPointers[column]
                 val length = matrix.colPointers[column + 1] - start
-                val expected = KoblasEngine.scalar.dot(indices, start, values, start, length, dense)
+                val expected = KoblasEngine.scalar.kernels.dot(indices, start, values, start, length, dense)
 
                 for (selected in vectorEngines) {
-                    val actual = selected.dotColumn(matrix, column, dense)
+                    val actual = selected.kernels.dotColumn(matrix, column, dense)
 
                     assertDotAgreesWithReference(expected, actual, "${selected.name} count=$count column=$column")
                 }
@@ -202,7 +204,7 @@ class SparseOpsTest {
                 return 0.0
             }
         }
-        val kernels = engineWithKernels(indexed = selected)
+        val kernels = engineWithKernels(indexed = selected).kernels
 
         for (column in 0 until matrix.cols) kernels.dotColumn(matrix, column, denseOperand)
 
@@ -221,9 +223,9 @@ class SparseOpsTest {
             )
             for (rhs in listOf(3.0, Double.POSITIVE_INFINITY, Double.NaN)) {
                 val dense = doubleArrayOf(Double.NaN, Double.NEGATIVE_INFINITY, rhs, Double.NaN)
-                val expected = KoblasEngine.scalar.dot(matrix.rowIndices, 1, matrix.values, 1, 1, dense)
+                val expected = KoblasEngine.scalar.kernels.dot(matrix.rowIndices, 1, matrix.values, 1, 1, dense)
 
-                val actual = koblas.dotColumn(matrix, 1, dense)
+                val actual = koblas.kernels.dotColumn(matrix, 1, dense)
 
                 assertDotAgreesWithReference(expected, actual, "stored=$stored rhs=$rhs")
             }
@@ -242,9 +244,9 @@ class SparseOpsTest {
         val dense = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
         for (coefficient in listOf(2.0, 5.0, -0.0)) {
             matrix.values[1] = coefficient
-            val expected = KoblasEngine.scalar.dot(matrix.rowIndices, 1, matrix.values, 1, 2, dense)
+            val expected = KoblasEngine.scalar.kernels.dot(matrix.rowIndices, 1, matrix.values, 1, 2, dense)
 
-            val actual = koblas.dotColumn(matrix, 1, dense)
+            val actual = koblas.kernels.dotColumn(matrix, 1, dense)
 
             assertDotAgreesWithReference(expected, actual, "coefficient=$coefficient")
         }
@@ -260,10 +262,10 @@ class SparseOpsTest {
             doubleArrayOf(8.0, 2.0, -3.0, 9.0),
         )
         val before = matrix.values.copyOf()
-        val expected = KoblasEngine.scalar.dot(matrix.rowIndices, 1, before, 1, 2, before)
+        val expected = KoblasEngine.scalar.kernels.dot(matrix.rowIndices, 1, before, 1, 2, before)
 
         for (engine in vectorEngines) {
-            val actual = engine.dotColumn(matrix, 1, matrix.values)
+            val actual = engine.kernels.dotColumn(matrix, 1, matrix.values)
 
             assertDotAgreesWithReference(expected, actual, engine.name)
             assertContentEquals(before, matrix.values, engine.name)
@@ -274,10 +276,10 @@ class SparseOpsTest {
     fun `column dots accept empty columns with no rows`() {
         val matrix = SparseMatrix.wrap(0, 2, intArrayOf(0, 0, 0), IntArray(0), DoubleArray(0))
         val dense = DoubleArray(0)
-        val expected = KoblasEngine.scalar.dot(IntArray(0), 0, DoubleArray(0), 0, 0, dense)
+        val expected = KoblasEngine.scalar.kernels.dot(IntArray(0), 0, DoubleArray(0), 0, 0, dense)
 
         for (column in 0 until matrix.cols) {
-            assertDotAgreesWithReference(expected, koblas.dotColumn(matrix, column, dense), "column=$column")
+            assertDotAgreesWithReference(expected, koblas.kernels.dotColumn(matrix, column, dense), "column=$column")
         }
     }
 
@@ -287,7 +289,7 @@ class SparseOpsTest {
             val matrix = SparseMatrix.wrap(3, columns, IntArray(columns + 1), IntArray(0), DoubleArray(0))
             for (column in listOf(Int.MIN_VALUE, -1, columns, Int.MAX_VALUE)) {
                 assertFailsWith<IndexOutOfBoundsException>("columns=$columns column=$column") {
-                    koblas.dotColumn(matrix, column, DoubleArray(matrix.rows))
+                    koblas.kernels.dotColumn(matrix, column, DoubleArray(matrix.rows))
                 }
             }
         }
@@ -298,7 +300,7 @@ class SparseOpsTest {
         val matrix = SparseMatrix.wrap(3, 1, intArrayOf(0, 0), IntArray(0), DoubleArray(0))
         for (length in listOf(0, 2, 4)) {
             assertFailsWith<IllegalArgumentException>("length=$length") {
-                koblas.dotColumn(matrix, 0, DoubleArray(length))
+                koblas.kernels.dotColumn(matrix, 0, DoubleArray(length))
             }
         }
     }
@@ -312,10 +314,10 @@ class SparseOpsTest {
         for (transpose in booleanArrayOf(false, true)) {
             val a = SparseMatrix.wrap(2, 2, intArrayOf(0, 2, 4), intArrayOf(0, 1, 0, 1), values.copyOf())
             val expected = doubleArrayOf(1.0, 2.0)
-            koblas.gemv(1.0, a, doubleArrayOf(1.0, 2.0), 0.0, expected, transpose)
+            koblas.kernels.gemv(1.0, a, doubleArrayOf(1.0, 2.0), 0.0, expected, transpose)
 
             val shared = doubleArrayOf(1.0, 2.0)
-            koblas.gemv(1.0, a, shared, 0.0, shared, transpose)
+            koblas.kernels.gemv(1.0, a, shared, 0.0, shared, transpose)
 
             assertContentEquals(expected, shared, "transpose=$transpose")
         }
@@ -327,10 +329,10 @@ class SparseOpsTest {
             val x = doubleArrayOf(1.0, -2.0, 0.5, 3.0)
             val independent = permutation()
             val expected = independent.values.copyOf()
-            koblas.gemv(0.5, independent, x, -1.5, expected, transpose)
+            koblas.kernels.gemv(0.5, independent, x, -1.5, expected, transpose)
 
             val shared = permutation()
-            koblas.gemv(0.5, shared, x, -1.5, shared.values, transpose)
+            koblas.kernels.gemv(0.5, shared, x, -1.5, shared.values, transpose)
 
             assertContentEquals(expected, shared.values, "transpose=$transpose")
         }
@@ -341,7 +343,7 @@ class SparseOpsTest {
         val a = SparseMatrix.wrap(2, 2, intArrayOf(0, 1, 2), intArrayOf(0, 1), doubleArrayOf(2.0, 5.0))
         val shared = a.values
 
-        koblas.symv(1.0, a, shared, 0.0, shared, lower = true)
+        koblas.kernels.symv(1.0, a, shared, 0.0, shared, lower = true)
 
         assertContentEquals(doubleArrayOf(4.0, 25.0), shared)
     }
@@ -364,10 +366,10 @@ class SparseOpsTest {
         // a coefficient the substitution would already have overwritten.
         val independent = aliasTriangle()
         val expected = independent.values.copyOf()
-        koblas.trsv(independent, expected, lower = true)
+        koblas.kernels.trsv(independent, expected, lower = true)
 
         val shared = aliasTriangle()
-        koblas.trsv(shared, shared.values, lower = true)
+        koblas.kernels.trsv(shared, shared.values, lower = true)
 
         assertContentEquals(expected, shared.values)
     }
@@ -414,23 +416,23 @@ class SparseOpsTest {
 
         assertStaged(n, "gemv over the vector it writes") { w ->
             val y = doubleArrayOf(1.0, -2.0, 0.5, 3.0)
-            koblas.gemv(0.5, permutation(), y, -1.5, y, false, scratch = w)
+            koblas.kernels.gemv(0.5, permutation(), y, -1.5, y, false, scratch = w)
         }
         assertStaged(n, "gemv over the coefficients it writes") { w ->
             val a = permutation()
-            koblas.gemv(0.5, a, doubleArrayOf(1.0, -2.0, 0.5, 3.0), -1.5, a.values, false, scratch = w)
+            koblas.kernels.gemv(0.5, a, doubleArrayOf(1.0, -2.0, 0.5, 3.0), -1.5, a.values, false, scratch = w)
         }
         assertStaged(n, "symv over the vector it writes") { w ->
             val y = doubleArrayOf(1.0, -2.0, 0.5, 3.0)
-            koblas.symv(0.5, permutation(), y, -1.5, y, true, scratch = w)
+            koblas.kernels.symv(0.5, permutation(), y, -1.5, y, true, scratch = w)
         }
         assertStaged(3, "trsv over the coefficients that are its right-hand side") { w ->
             val a = aliasTriangle()
-            koblas.trsv(a, a.values, lower = true, scratch = w)
+            koblas.kernels.trsv(a, a.values, lower = true, scratch = w)
         }
         assertStaged(3, "trmv over the coefficients that are its right-hand side") { w ->
             val a = aliasTriangle()
-            koblas.trmv(a, a.values, lower = true, scratch = w)
+            koblas.kernels.trmv(a, a.values, lower = true, scratch = w)
         }
     }
 
@@ -440,7 +442,7 @@ class SparseOpsTest {
         val workspace = Scratch()
         val a = permutation()
 
-        koblas.gemv(0.5, a, doubleArrayOf(1.0, -2.0, 0.5, 3.0), -1.5, a.values, false, scratch = workspace)
+        koblas.kernels.gemv(0.5, a, doubleArrayOf(1.0, -2.0, 0.5, 3.0), -1.5, a.values, false, scratch = workspace)
 
         assertEquals(1, workspace.available(a.nnz), "the coefficients were not staged from the workspace")
         assertEquals(0, workspace.availableI32(a.cols + 1), "the column pointers were copied")
@@ -454,7 +456,7 @@ class SparseOpsTest {
         val poisoned = SparseMatrix.wrap(1, 1, intArrayOf(0, 1), intArrayOf(0), doubleArrayOf(Double.NaN))
         val y = doubleArrayOf(Double.NaN)
 
-        koblas.symv(0.0, poisoned, doubleArrayOf(Double.NaN), 0.0, y)
+        koblas.kernels.symv(0.0, poisoned, doubleArrayOf(Double.NaN), 0.0, y)
 
         assertEquals(0.0, y[0])
     }
@@ -691,7 +693,7 @@ class SparseOpsTest {
         assertEquals(1, workspace.idleLengths(), "$what borrowed scratch besides its snapshot")
     }
 
-    private fun region(seed: Int): DenseMatrixView {
+    private fun region(seed: Int): DenseMatrix {
         val parent = DenseMatrix.wrap(9, 8, DoubleArray(72) { -77.0 })
         val result = parent.view(1, 1, 7, 6).view(1, 1, 5, 5)
         for (j in 0 until 5) for (i in 0 until 5) result[i, j] = (i + j + seed) / 17.0
@@ -712,7 +714,7 @@ class SparseOpsTest {
      * Runs [call] on a fresh region and [reference] on a dense copy of it, then checks the region's whole
      * backing array: the view's entries against the reference and every other entry of the parent unchanged.
      */
-    private fun assertRegionCall(context: String, reference: (DenseMatrix) -> Unit, call: (DenseMatrixView) -> Unit) {
+    private fun assertRegionCall(context: String, reference: (DenseMatrix) -> Unit, call: (DenseMatrix) -> Unit) {
         val c = region(3)
         val before = c.values.copyOf()
         val expected = copy(c)
