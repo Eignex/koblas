@@ -20,12 +20,16 @@ internal val simdAvailable: Boolean = try {
 /** Only supplied operations are capabilities; the composer supplies other providers. */
 private object SimdVectorLeaves : EngineKernels {
     override val id: String = "jvm-simd"
-    override val implementations = setOf(Dot, Sum, Nrm2, Iamax, Asum, Axpy)
+    override val implementations = setOf(Dot, Sum, Nrm2, Iamax, Asum, Axpy, Copy)
     override fun dynamicAttribution(implementation: EngineImplementation): Boolean = implementation == Nrm2
     override fun requiresUnitStride(implementation: EngineImplementation): Boolean = true
     override fun minimumLength(implementation: EngineImplementation): Int = SimdOps.lanes()
 
     override val name: String = "simd(${SimdOps.lanes()} lanes)"
+    override fun copy(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) {
+        require(aStride == 1 && bStride == 1)
+        SimdOps.copy(a, aOff, b, bOff, len)
+    }
     override fun dot(
         a: DoubleArray,
         aOff: Int,
