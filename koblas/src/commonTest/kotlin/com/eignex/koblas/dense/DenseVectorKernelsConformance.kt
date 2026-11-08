@@ -11,7 +11,7 @@ import kotlin.test.assertTrue
 
 // Shared conformance assertions cover owned kernels and Native host bindings.
 
-/** Copy windows at unrolled boundaries, checking both padding and the untouched source buffer. */
+/** Copy windows with varied lengths and offsets, checking padding and the untouched source buffer. */
 internal fun assertCopyAgreesWithReference(engine: KoblasEngine) {
     val lengths = intArrayOf(
         0, 1, 2, 3, 7, 8, 15, 16, 17, 31, 32, 33, 63, 64, 65, 127, 128, 129,

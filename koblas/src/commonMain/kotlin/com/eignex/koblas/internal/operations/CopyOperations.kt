@@ -36,13 +36,6 @@ private fun KoblasEngine.copyIntoDenseVector(source: Vector, destination: DenseV
     if (source is DenseVector) {
         if (sameVectorMapping(source, destination)) return
         val contiguous = source.stride == 1 && destination.stride == 1
-        if (contiguous && source.values === destination.values) {
-            // Memmove preserves overlapping windows without staging an operand for an arithmetic provider.
-            source.values.copyInto(
-                destination.values, destination.offset, source.offset, source.offset + source.size,
-            )
-            return
-        }
         val provider = vectorProviderFor(EngineImplementation.Copy, source.size, contiguous)
         // Portable contiguous copy is a memmove, so it needs no alias snapshot.
         val stable = if (provider === ScalarEngine && contiguous) source else source.stableFor(destination)

@@ -7,39 +7,6 @@ import kotlin.test.*
 
 class EngineTuningTest {
     @Test
-    fun `automatic copy uses vector kernels only on the measured JVM platform`() {
-        val vectors = object : EngineKernels {
-            override val name = "copy vectors"
-            override val implementations = setOf(Copy)
-            override fun requiresUnitStride(implementation: EngineImplementation): Boolean = true
-            override fun maximumLength(implementation: EngineImplementation): Int = 8192
-        }
-        for (runtime in EngineRuntime.entries) {
-            for (system in OperatingSystem.entries) {
-                for (architecture in Architecture.entries) {
-                    val engine = BuiltinEngine(
-                        "test",
-                        KernelSet(vectors = vectors),
-                        tuning = EngineTuning(runtime, HostPlatform(system, architecture), null),
-                    )
-                    val expected = if (runtime == EngineRuntime.Jvm &&
-                        system == OperatingSystem.MacOs && architecture == Architecture.Arm64
-                    ) {
-                        vectors
-                    } else {
-                        KoblasEngine.scalar
-                    }
-
-                    assertSame(expected, engine.vectorProvider(Copy, 4096, contiguous = true))
-                    assertSame(KoblasEngine.scalar, engine.vectorProvider(Copy, 64, contiguous = true))
-                    assertSame(KoblasEngine.scalar, engine.vectorProvider(Copy, 4096, contiguous = false))
-                    assertSame(KoblasEngine.scalar, engine.vectorProvider(Copy, 8193, contiguous = true))
-                }
-            }
-        }
-    }
-
-    @Test
     fun `automatic selection stops at the first available library`() {
         for (runtime in EngineRuntime.entries) {
             for (system in OperatingSystem.entries) {

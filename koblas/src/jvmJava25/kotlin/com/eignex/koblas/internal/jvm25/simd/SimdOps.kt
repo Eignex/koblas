@@ -22,27 +22,6 @@ internal object SimdOps {
 
     fun lanes(): Int = LANE
 
-    /** Independent contiguous windows, with memmove semantics when the backing array is shared. */
-    fun copy(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) {
-        if (a === b) {
-            a.copyInto(b, bOff, aOff, aOff + len)
-            return
-        }
-        val unrolled = len - len % (4 * LANE)
-        var i = 0
-        while (i < unrolled) {
-            DoubleVector.fromArray(SPECIES, a, aOff + i).intoArray(b, bOff + i)
-            DoubleVector.fromArray(SPECIES, a, aOff + i + LANE).intoArray(b, bOff + i + LANE)
-            DoubleVector.fromArray(SPECIES, a, aOff + i + 2 * LANE).intoArray(b, bOff + i + 2 * LANE)
-            DoubleVector.fromArray(SPECIES, a, aOff + i + 3 * LANE).intoArray(b, bOff + i + 3 * LANE)
-            i += 4 * LANE
-        }
-        while (i < len) {
-            b[bOff + i] = a[aOff + i]
-            i++
-        }
-    }
-
     /** Contiguous AXPY with compact and streaming bodies. */
     @Suppress("LongParameterList") // two independently addressed vector windows and their multiplier
     fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {

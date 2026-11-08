@@ -519,9 +519,6 @@ internal interface EngineKernels : KoblasEngine {
     /** Smallest run the contribution can execute. The built-in engine checks it before calling the provider. */
     fun minimumLength(implementation: EngineImplementation): Int = 0
 
-    /** Largest vector window for which this body is recommended. */
-    fun maximumLength(implementation: EngineImplementation): Int = Int.MAX_VALUE
-
     /** The body a panel of these extents reaches, which is this engine's own unless it hands some shapes on. */
     fun implementationFor(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean = true): String = name
 
