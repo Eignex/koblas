@@ -20,6 +20,9 @@ Use `--suite sweep --operation dot` for the larger dot size sweep, or `--cases P
 [case file](cases.txt). `capture-report.sh --help` lists the available options.
 On Linux, `--cpu spread` chooses and pins a lightly loaded allowed core; it does not reserve it.
 
+For copy tuning, `--cases koblas-bench/lab/cases-copy-throughput.txt` covers short and streaming
+lengths, strided fallbacks, overlapping views and an unchanged dot-product control.
+
 | Target | Measures |
 |---|---|
 | `jvm-scalar` | Portable Kotlin |

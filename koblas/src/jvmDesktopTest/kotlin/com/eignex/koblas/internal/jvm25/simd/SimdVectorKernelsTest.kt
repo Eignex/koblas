@@ -60,6 +60,23 @@ class SimdVectorKernelsTest {
     }
 
     @Test
+    fun `contiguous copy agrees with the scalar reference across windows`() {
+        if (!simdAvailable) return skipped()
+
+        for (engine in listOf(ScalarEngine, kernels)) assertCopyAgreesWithReference(engine)
+    }
+
+    @Test
+    fun `copy retains bulk array copy across window lengths`() {
+        if (!simdAvailable) return skipped()
+
+        for (length in listOf(64, 4095, 4096, 4097, 8192, 8193, 1048576)) {
+            assertEquals(ScalarEngine.name, reached(EngineImplementation.Copy, length))
+        }
+        assertEquals(ScalarEngine.name, kernels.implementationFor(EngineImplementation.Copy, 4096, contiguous = false))
+    }
+
+    @Test
     fun `the standard index search observes its configured crossover`() {
         if (!simdAvailable) return skipped()
         val tuning = EngineTuning(EngineRuntime.Jvm, hostPlatform(), null)
