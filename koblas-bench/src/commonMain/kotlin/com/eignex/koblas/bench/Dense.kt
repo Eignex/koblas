@@ -78,28 +78,30 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
             val m = d[0]; val n = d[1]; val trans = case.flag("transA")
             val a = Fixtures.matrix(if (trans) n else m, if (trans) m else n, 1)
             val x = Fixtures.vector(n, 2); val y0 = Fixtures.vector(m, 3); val y = y0.copyOf()
+            val xVector = DenseVector.wrap(x); val yVector = DenseVector.wrap(y)
             val resets = resets(case)
             level23(
                 engine, case, timing(case),
                 verify = {
                     val expected = DenseReference.gemv(alpha, a, trans, x, beta, y0)
-                    y0.copyInto(y); engine.kernels.gemv(alpha, a, x, 0, 1, beta, y, 0, 1, trans)
+                    y0.copyInto(y); engine.gemv(alpha, a, xVector, beta, yVector, trans)
                     DenseReference.check(expected, y, "${case.id} gemv")
                 },
-            ) { if (resets) y0.copyInto(y); engine.kernels.gemv(alpha, a, x, 0, 1, beta, y, 0, 1, trans); y[0] }
+            ) { if (resets) y0.copyInto(y); engine.gemv(alpha, a, xVector, beta, yVector, trans); y[0] }
         }
         "symv" -> {
             val n = d[0]; val lower = case.option("uplo", "L") == "L"; val a = Fixtures.matrix(n, n, 1)
             val x = Fixtures.vector(n, 2); val y0 = Fixtures.vector(n, 3); val y = y0.copyOf()
+            val xVector = DenseVector.wrap(x); val yVector = DenseVector.wrap(y)
             val resets = resets(case)
             level23(
                 engine, case, timing(case),
                 verify = {
                     val expected = DenseReference.symv(alpha, a, lower, x, beta, y0)
-                    y0.copyInto(y); engine.kernels.symv(alpha, a, x, 0, 1, beta, y, 0, 1, lower)
+                    y0.copyInto(y); engine.symv(alpha, a, xVector, beta, yVector, lower)
                     DenseReference.check(expected, y, "${case.id} symv")
                 },
-            ) { if (resets) y0.copyInto(y); engine.kernels.symv(alpha, a, x, 0, 1, beta, y, 0, 1, lower); y[0] }
+            ) { if (resets) y0.copyInto(y); engine.symv(alpha, a, xVector, beta, yVector, lower); y[0] }
         }
         "ger", "syr", "syr2" -> rankUpdateWork(case, engine)
         "ger-shrinking", "ger-window-shrinking" -> shrinkingRankUpdateWork(case, engine)
@@ -245,28 +247,12 @@ private fun rankUpdateWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
     val cols = if (case.operation == "ger") case.dimension(1) else rows
     val original = Fixtures.matrix(rows, cols, 1); val target = Fixtures.matrix(rows, cols, 1)
     val x = Fixtures.vector(rows, 2); val y = Fixtures.vector(cols, 3)
+    val xVector = DenseVector.wrap(x); val yVector = DenseVector.wrap(y)
     val operation = case.operation
     fun apply(scale: Double) = when (operation) {
-        "ger" -> engine.kernels.ger(scale, x, 0, 1, y, 0, 1, target)
-        "syr" -> engine.kernels.syr(
-            scale,
-            x,
-            0,
-            1,
-            target,
-            lower,
-        )
-        else -> engine.kernels.syr2(
-            scale,
-            x,
-            0,
-            1,
-            y,
-            0,
-            1,
-            target,
-            lower,
-        )
+        "ger" -> engine.ger(scale, xVector, yVector, target)
+        "syr" -> engine.syr(scale, xVector, target, lower)
+        else -> engine.syr2(scale, xVector, yVector, target, lower)
     }
     val resets = resets(case)
     // Without the reset, alternating the sign returns the matrix close to where it started.
@@ -295,8 +281,9 @@ private fun triangularVectorWork(case: BenchCase, engine: KoblasEngine): CaseWor
     val trans = case.flag("transA")
     val unit = case.option("diag", "N") == "U"
     val a = Fixtures.triangular(n, 1, lower); val x0 = Fixtures.vector(n, 2); val x = x0.copyOf()
+    val vector = DenseVector.wrap(x)
     val solve = case.operation == "trsv"
-    fun apply() = if (solve) engine.kernels.trsv(a, x, 0, 1, lower, trans, unit) else engine.kernels.trmv(a, x, 0, 1, lower, trans, unit)
+    fun apply() = if (solve) engine.trsv(a, vector, lower, trans, unit) else engine.trmv(a, vector, lower, trans, unit)
     return level23(
                 engine, case, "reset-and-arithmetic",
         verify = {

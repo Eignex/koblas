@@ -10,20 +10,20 @@ import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 
 /** Fixed arithmetic roles, with scalar coverage for every omitted role. */
 internal class KernelSet(
-    val vectors: EngineKernels = ScalarEngine,
-    val indexed: EngineKernels = ScalarEngine,
-    val panels: EngineKernels = ScalarEngine,
-    val products: EngineKernels = ScalarEngine,
-    val triangular: EngineKernels = ScalarEngine,
+    val vectors: KernelProvider = ScalarEngine,
+    val indexed: KernelProvider = ScalarEngine,
+    val panels: KernelProvider = ScalarEngine,
+    val products: KernelProvider = ScalarEngine,
+    val triangular: KernelProvider = ScalarEngine,
 )
 
 /** Owned arithmetic roles and one optional host library with measured crossovers. */
 internal class BuiltinEngine(
     override val name: String,
     val roles: KernelSet = KernelSet(),
-    val host: EngineKernels? = null,
+    val host: KernelProvider? = null,
     private val tuning: EngineTuning? = null,
-) : EngineKernels {
+) : KernelProvider {
     override val implementations = ScalarEngine.implementations.filterTo(mutableSetOf()) { it.vector }
     override val providers: List<KoblasEngine> = listOfNotNull(
         host,
@@ -55,7 +55,7 @@ internal class BuiltinEngine(
             tuning?.hostMinimum(operation, contiguous) ?: 0
         }
 
-    internal fun vectorProvider(operation: EngineImplementation, length: Int, contiguous: Boolean): EngineKernels {
+    internal fun vectorProvider(operation: EngineImplementation, length: Int, contiguous: Boolean): KernelProvider {
         val i = operation.ordinal
         val limit = (if (contiguous) hostAdjacent else hostStrided)[i]
         if (limit >= 0 && length >= limit) return requireNotNull(host)
@@ -69,7 +69,7 @@ internal class BuiltinEngine(
         columns: Int,
         depth: Int,
         borrowed: Boolean,
-    ): EngineKernels? = host?.takeIf {
+    ): KernelProvider? = host?.takeIf {
         operation in it.implementations &&
             (tuning?.hostEligible(operation, rows, columns, depth, borrowed) != false)
     }
@@ -79,7 +79,7 @@ internal class BuiltinEngine(
         operation: EngineImplementation,
         length: Int,
         contiguous: Boolean = true,
-        action: (EngineKernels) -> R,
+        action: (KernelProvider) -> R,
     ): R {
         val provider = vectorProvider(operation, length, contiguous)
         return if (provider === ScalarEngine) action(ScalarEngine) else action(provider)

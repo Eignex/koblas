@@ -23,7 +23,7 @@ class SparseIndexedTest {
 
     @Test
     fun `indexed preflight rejects a finite incorrect reduction`() {
-        val broken = object : EngineKernels by KoblasEngine.scalar.kernels {
+        val broken = object : KernelProvider by KoblasEngine.scalar.kernels {
             override fun dot(indices: IntArray, indexOffset: Int, values: DoubleArray, valueOffset: Int,
                 count: Int, dense: DoubleArray): Double = 0.0
         }
@@ -35,7 +35,7 @@ class SparseIndexedTest {
     @Test
     fun `indexed preflight checks mutations beyond the returned sink`() {
         val scalar = KoblasEngine.scalar.kernels
-        val broken = object : EngineKernels by scalar {
+        val broken = object : KernelProvider by scalar {
             override fun gather(indices: IntArray, indexOffset: Int, values: DoubleArray, valueOffset: Int,
                 count: Int, source: DoubleArray) {
                 scalar.gather(indices, indexOffset, values, valueOffset, count, source)
@@ -50,7 +50,7 @@ class SparseIndexedTest {
     @Test
     fun `indexed preflight checks zeroed dense positions beyond the returned sink`() {
         val scalar = KoblasEngine.scalar.kernels
-        val broken = object : EngineKernels by scalar {
+        val broken = object : KernelProvider by scalar {
             override fun gatherZero(indices: IntArray, indexOffset: Int, values: DoubleArray, valueOffset: Int,
                 count: Int, source: DoubleArray) {
                 scalar.gatherZero(indices, indexOffset, values, valueOffset, count, source)

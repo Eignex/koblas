@@ -2,7 +2,7 @@ package com.eignex.koblas.internal.engine
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.internal.kernels.KernelProvider
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -76,7 +76,7 @@ class EngineSelectionTest {
     @Test
     fun `vendor settings retain portable coverage for missing operations`() {
         for (vendor in Vendor.entries) {
-            val provider = object : EngineKernels {
+            val provider = object : KernelProvider {
                 override val name = "test ${vendor.vendorName}"
                 override val vendor = vendor
                 override val implementations = setOf(EngineImplementation.Copy)

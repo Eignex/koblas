@@ -4,7 +4,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.EngineImplementation
-import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.internal.kernels.KernelProvider
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import com.eignex.koblas.internal.scheduling.dense.*
 import kotlin.random.Random
@@ -28,7 +28,7 @@ internal class ProductBlockCall(
 )
 
 /** A product backend that records every block it is handed and delegates the arithmetic. */
-internal class RecordingProducts(private val delegate: EngineKernels) : EngineKernels {
+internal class RecordingProducts(private val delegate: KernelProvider) : KernelProvider {
     override val implementations = setOf(EngineImplementation.Products)
 
     override fun packsProduct(rows: Int, columns: Int, depth: Int): Boolean = delegate.packsProduct(
@@ -78,8 +78,8 @@ internal class RecordingProducts(private val delegate: EngineKernels) : EngineKe
  * and one wholly outside, which is never scheduled. Only running the product shows which each block was.
  */
 internal fun assertTriangleProductStaysInTriangle(
-    products: EngineKernels,
-    panels: EngineKernels,
+    products: KernelProvider,
+    panels: KernelProvider,
     n: Int,
     k: Int,
     lower: Boolean,

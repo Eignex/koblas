@@ -4,7 +4,7 @@ package com.eignex.koblas.internal.kernels.scalar.dense
 
 import com.eignex.koblas.EngineImplementation
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.internal.kernels.KernelProvider
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import com.eignex.koblas.koblas
 import kotlin.test.Test
@@ -66,7 +66,7 @@ class PanelKernelsTest {
     }
 
     /** A valid dense zero shortcut; indexed leaves retain their separate stored-position behavior. */
-    private class ZeroSkippingPanels : EngineKernels by ScalarEngine {
+    private class ZeroSkippingPanels : KernelProvider by ScalarEngine {
         override val name = "zero-skipping"
         override val implementations = setOf(EngineImplementation.Panels)
         var skippedCoefficients: Int = 0

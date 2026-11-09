@@ -6,21 +6,21 @@ import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 
 /** The kernels a shared schedule run on this engine calls, which a built-in engine binds once. */
-internal val KoblasEngine.panelProvider: EngineKernels get() = when (this) {
+internal val KoblasEngine.panelProvider: KernelProvider get() = when (this) {
     is BuiltinEngine -> roles.panels
-    is EngineKernels -> this
+    is KernelProvider -> this
     else -> unsupported()
 }
 
-internal val KoblasEngine.productProvider: EngineKernels get() = when (this) {
+internal val KoblasEngine.productProvider: KernelProvider get() = when (this) {
     is BuiltinEngine -> roles.products
-    is EngineKernels -> this
+    is KernelProvider -> this
     else -> unsupported()
 }
 
-internal val KoblasEngine.triangularProvider: EngineKernels get() = when (this) {
+internal val KoblasEngine.triangularProvider: KernelProvider get() = when (this) {
     is BuiltinEngine -> roles.triangular
-    is EngineKernels -> this
+    is KernelProvider -> this
     else -> unsupported()
 }
 
@@ -78,6 +78,6 @@ internal fun KoblasEngine.implementationFor(
 ): String? {
     val provider = vectorProviderFor(operation, length, contiguous)
     return provider.takeIf {
-        operation in it.implementations && !(it is EngineKernels && it.dynamicAttribution(operation))
+        operation in it.implementations && !(it is KernelProvider && it.dynamicAttribution(operation))
     }?.name
 }

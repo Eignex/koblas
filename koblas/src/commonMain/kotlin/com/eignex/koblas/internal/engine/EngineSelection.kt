@@ -1,16 +1,16 @@
 package com.eignex.koblas.internal.engine
 
 import com.eignex.koblas.*
-import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.internal.kernels.KernelProvider
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 
 /** Explicit names select only the requested source, with portable coverage for missing vendor operations. */
 internal fun engineFromSetting(
     setting: String?,
-    automatic: () -> EngineKernels = ::platformEngine,
+    automatic: () -> KernelProvider = ::platformEngine,
     simd: () -> BuiltinEngine? = { simdEngine },
-    openVendor: (Vendor) -> EngineKernels? = ::vendorEngine,
-): EngineKernels {
+    openVendor: (Vendor) -> KernelProvider? = ::vendorEngine,
+): KernelProvider {
     val name = setting?.trim()?.lowercase() ?: "auto"
     return when (name) {
         "auto" -> automatic()

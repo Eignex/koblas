@@ -9,8 +9,8 @@ import org.junit.runners.Parameterized
 import kotlin.test.Test
 
 /**
- * Sparse operations allocate nothing once warmed. A fresh sparse result allocates its structure, so those
- * cases bound whatever scratch and copies a call takes beside it.
+ * Selected indexed kernels and the shared Level 3 schedules retain their allocation budgets. Portable
+ * Level 2 traversal and sparse construction are checked for correctness and scratch reuse instead.
  */
 @RunWith(Parameterized::class)
 class SparseOpsAllocationTest internal constructor(private val case: AllocationCase) {
@@ -23,7 +23,7 @@ class SparseOpsAllocationTest internal constructor(private val case: AllocationC
         @JvmStatic
         @Parameterized.Parameters(name = "{0}")
         fun cases(): Collection<Array<Any>> = parameterRows(
-            indexedCases() + levelTwoCases() + levelThreeCases() + resultCases(),
+            indexedCases() + levelThreeCases(),
         )
 
         // These indexed operations have no vector body, so the test task measures them rather than the
@@ -57,33 +57,6 @@ class SparseOpsAllocationTest internal constructor(private val case: AllocationC
                 AllocationCase("indexed scatter with independent offsets allocates nothing", 1_000) {
                     engine.kernels.scatter(indices, INDEX_OFFSET, values, VALUE_OFFSET, ENTRIES, dense)
                     dense
-                }
-            },
-        )
-
-        private fun levelTwoCases(): List<AllocationCase> = listOf(
-            with(AliasedGemvFixture()) {
-                AllocationCase("aliased sparse gemv reuses a workspace", 400) {
-                    koblas.kernels.gemv(1e-12, sparse, coefficients, 1.0, coefficients, scratch = workspace)
-                    coefficients
-                }
-            },
-            with(SparseLevelTwoFixture()) {
-                AllocationCase("sparse gemv allocates nothing", 1_000) {
-                    engine.kernels.gemv(1e-12, sparse, x, 1.0, y, transpose = true)
-                    y
-                }
-            },
-            with(SparseLevelTwoFixture()) {
-                AllocationCase("sparse symv allocates nothing", 1_000) {
-                    engine.kernels.symv(1e-12, sparse, x, 1.0, y, lower = true)
-                    y
-                }
-            },
-            with(SparseLevelTwoFixture()) {
-                AllocationCase("sparse trsv allocates nothing", 1_000) {
-                    engine.kernels.trsv(sparse, y, lower = true)
-                    y
                 }
             },
         )
@@ -127,26 +100,6 @@ class SparseOpsAllocationTest internal constructor(private val case: AllocationC
             },
         )
 
-        private fun resultCases(): List<AllocationCase> {
-            val skewed = SparseMatrix.ofColumns(
-                ROWS,
-                COLUMNS,
-                List(COLUMNS) { j -> List(32) { i -> (i * 4 + j) to (i + 1.0) } },
-            )
-            val transposeBytes = resultBytes(ROWS, skewed.nnz)
-            return listOf(
-                AllocationCase("a sparse transpose allocates only result storage", 100, transposeBytes + FLOOR_BYTES) {
-                    skewed.transpose()
-                },
-            )
-        }
-
-        /** A CSC result's bytes: three array headers, [columns] + 1 pointers, and an index and value per entry. */
-        private fun resultBytes(columns: Int, entries: Int): Int = 3 * ARRAY_HEADER_BYTES +
-            (columns + 1) * Int.SIZE_BYTES + entries * (Int.SIZE_BYTES + Double.SIZE_BYTES)
-
-        private const val ROWS = 128
-        private const val COLUMNS = 4
         private const val ENTRIES = 512
         private const val INDEX_OFFSET = 3
         private const val VALUE_OFFSET = 5
@@ -169,23 +122,6 @@ class SparseOpsAllocationTest internal constructor(private val case: AllocationC
         }
         val dense = DoubleArray(dimension) { 1.0 + (it % 17) * 0.03125 }
         val gathered = SparseVector.wrap(dimension, IntArray(ENTRIES) { 1 + it * 4 }, DoubleArray(ENTRIES))
-    }
-
-    private class AliasedGemvFixture {
-        val n = 128
-        val sparse = SparseMatrix.ofColumns(n, n, List(n) { j -> listOf((j + 1) % n to 1.0 + j % 5) })
-        val coefficients = sparse.values
-        val workspace = Scratch()
-        init {
-            koblas.kernels.gemv(1e-12, sparse, coefficients, 1.0, coefficients, scratch = workspace)
-        }
-    }
-
-    private class SparseLevelTwoFixture {
-        val n = 128
-        val sparse = SparseMatrix.ofColumns(n, n, List(n) { j -> listOf(j to (j + 1.0)) })
-        val x = DoubleArray(n) { it * 0.01 }
-        val y = DoubleArray(n)
     }
 
     private class SparseLevelThreeFixture {

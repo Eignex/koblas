@@ -1,72 +1,50 @@
-@file:Suppress("LongParameterList") // two addressed windows, each an array, an origin, a length and a stride
-
 package com.eignex.koblas.internal.operations
 
 import com.eignex.koblas.*
-import com.eignex.koblas.internal.storage.regionWindowOverlap
+import com.eignex.koblas.internal.storage.*
 
-/*
- * Overlap tests and snapshots over vector windows given as an array, an origin, a length and a stride, so a
- * routine that receives its vectors that way never builds a vector object to stage them.
- */
-
-/** [block] over the window, or over a contiguous copy of its entries when [aliased]. */
+/** [block] over [vector], or over a contiguous snapshot of its logical entries when [aliased]. */
 internal inline fun <T> stagedWindow(
     arrays: Scratch?,
-    values: DoubleArray,
-    offset: Int,
-    count: Int,
-    stride: Int,
+    vector: DenseVector,
     aliased: Boolean,
-    block: (DoubleArray, Int, Int) -> T,
+    block: (DenseVector) -> T,
 ): T {
-    if (!aliased) return block(values, offset, stride)
-    return arrays.borrow(count) { copy ->
-        for (i in 0 until count) copy[i] = values[offset + i * stride]
-        block(copy, 0, 1)
+    if (!aliased) return block(vector)
+    return arrays.borrow(vector.size) { copy ->
+        for (i in 0 until vector.size) copy[i] = vector[i]
+        block(DenseVector.wrap(copy))
     }
 }
 
-/** [block] over [a], or over a snapshot of it when its logical entries overlap the destination window. */
+/** Snapshots [a] only when its logical entries overlap [vector]. */
 internal inline fun <T> stagedRegionAgainst(
     arrays: Scratch?,
     a: DenseMatrix,
-    values: DoubleArray,
-    offset: Int,
-    count: Int,
-    stride: Int,
+    vector: DenseVector,
     lower: Boolean? = null,
     unitDiag: Boolean = false,
     block: (DenseMatrix) -> T,
 ): T {
-    if (!regionWindowOverlap(a, values, offset, count, stride)) return block(a)
-    return stagedRegion(arrays, a, values, lower = lower, unitDiag = unitDiag, block = block)
+    if (!regionWindowOverlap(a, vector.values, vector.offset, vector.size, vector.stride)) return block(a)
+    return stagedRegion(arrays, a, vector.values, lower = lower, unitDiag = unitDiag, block = block)
 }
 
-/** Stages two vector windows against a matrix destination, sharing the snapshot of identical windows. */
+/** Stages both vectors against [destination], sharing a snapshot when they address the same entries. */
 internal inline fun <T> stagedWindows(
     arrays: Scratch?,
-    x: DoubleArray,
-    xOffset: Int,
-    xCount: Int,
-    xStride: Int,
-    y: DoubleArray,
-    yOffset: Int,
-    yCount: Int,
-    yStride: Int,
+    x: DenseVector,
+    y: DenseVector,
     destination: DenseMatrix,
-    block: (DoubleArray, Int, Int, DoubleArray, Int, Int) -> T,
+    block: (DenseVector, DenseVector) -> T,
 ): T {
-    val xAliased = regionWindowOverlap(destination, x, xOffset, xCount, xStride)
-    return stagedWindow(arrays, x, xOffset, xCount, xStride, xAliased) { sx, sxo, sxs ->
-        val same = x === y && xOffset == yOffset && xCount == yCount && (xCount <= 1 || xStride == yStride)
-        if (same) {
-            block(sx, sxo, sxs, sx, sxo, sxs)
+    val xAliased = regionWindowOverlap(destination, x.values, x.offset, x.size, x.stride)
+    return stagedWindow(arrays, x, xAliased) { sx ->
+        if (sameVectorMapping(x, y)) {
+            block(sx, sx)
         } else {
-            val yAliased = regionWindowOverlap(destination, y, yOffset, yCount, yStride)
-            stagedWindow(arrays, y, yOffset, yCount, yStride, yAliased) { sy, syo, sys ->
-                block(sx, sxo, sxs, sy, syo, sys)
-            }
+            val yAliased = regionWindowOverlap(destination, y.values, y.offset, y.size, y.stride)
+            stagedWindow(arrays, y, yAliased) { sy -> block(sx, sy) }
         }
     }
 }

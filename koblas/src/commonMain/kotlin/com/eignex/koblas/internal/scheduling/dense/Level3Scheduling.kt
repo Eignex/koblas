@@ -27,7 +27,6 @@ internal fun KoblasEngine.scheduleGemm(
     transposeB: Boolean,
     beta: Double,
     c: DenseMatrix,
-    depth: Int,
     arrays: Scratch?,
 ) {
     if (c.cols == 1 && c.rows > 1) {
@@ -47,9 +46,7 @@ internal fun KoblasEngine.scheduleGemm(
         return
     }
     productWindow(
-        this, alpha, a.values, a.offset, a.leadingDimension, transposeA, b.values, b.offset,
-        b.leadingDimension, transposeB, beta, c.values, c.offset, c.leadingDimension, c.rows, c.cols, depth,
-        OutputTriangle.Full, arrays,
+        this, alpha, a, transposeA, b, transposeB, beta, c, OutputTriangle.Full, arrays,
     )
 }
 
@@ -64,11 +61,8 @@ internal fun KoblasEngine.scheduleGemmt(
     lower: Boolean,
     arrays: Scratch?,
 ) {
-    val depth = if (transposeA) a.rows else a.cols
     productWindow(
-        this, alpha, a.values, a.offset, a.leadingDimension, transposeA, b.values, b.offset,
-        b.leadingDimension, transposeB, beta, c.values, c.offset, c.leadingDimension, c.rows, c.cols, depth,
-        selectedTriangle(lower), arrays,
+        this, alpha, a, transposeA, b, transposeB, beta, c, selectedTriangle(lower), arrays,
     )
 }
 
@@ -98,11 +92,8 @@ internal fun KoblasEngine.scheduleSyrk(
     lower: Boolean,
     arrays: Scratch?,
 ) {
-    val depth = if (transpose) a.rows else a.cols
     productWindow(
-        this, alpha, a.values, a.offset, a.leadingDimension, transpose, a.values, a.offset,
-        a.leadingDimension, !transpose, beta, c.values, c.offset, c.leadingDimension, c.rows, c.cols, depth,
-        selectedTriangle(lower), arrays,
+        this, alpha, a, transpose, a, !transpose, beta, c, selectedTriangle(lower), arrays,
     )
 }
 
@@ -116,17 +107,12 @@ internal fun KoblasEngine.scheduleSyr2k(
     lower: Boolean,
     arrays: Scratch?,
 ) {
-    val depth = if (transpose) a.rows else a.cols
     val selected = selectedTriangle(lower)
     productWindow(
-        this, alpha, a.values, a.offset, a.leadingDimension, transpose, b.values, b.offset,
-        b.leadingDimension, !transpose, beta, c.values, c.offset, c.leadingDimension, c.rows, c.cols, depth,
-        selected, arrays,
+        this, alpha, a, transpose, b, !transpose, beta, c, selected, arrays,
     )
     productWindow(
-        this, alpha, b.values, b.offset, b.leadingDimension, transpose, a.values, a.offset,
-        a.leadingDimension, !transpose, 1.0, c.values, c.offset, c.leadingDimension, c.rows, c.cols, depth,
-        selected, arrays,
+        this, alpha, b, transpose, a, !transpose, 1.0, c, selected, arrays,
     )
 }
 

@@ -2,7 +2,7 @@ package com.eignex.koblas.internal.engine
 
 import com.eignex.koblas.*
 import com.eignex.koblas.EngineImplementation.*
-import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.internal.kernels.KernelProvider
 import kotlin.test.*
 
 class EngineTuningTest {
@@ -98,8 +98,8 @@ class EngineTuningTest {
         assertFalse(tuning.hostEligible(Gemm, 8, 8, 0, false))
     }
 
-    private fun provider(vendor: Vendor, operations: Set<EngineImplementation>): EngineKernels =
-        object : EngineKernels {
+    private fun provider(vendor: Vendor, operations: Set<EngineImplementation>): KernelProvider =
+        object : KernelProvider {
             override val name = vendor.vendorName
             override val vendor = vendor
             override val implementations = operations

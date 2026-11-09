@@ -3,7 +3,7 @@
 package com.eignex.koblas.internal.jvm25.simd
 
 import com.eignex.koblas.*
-import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.internal.kernels.KernelProvider
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import com.eignex.koblas.internal.kernels.scalar.dense.triangleEntry
 import jdk.incubator.vector.DoubleVector
@@ -23,7 +23,7 @@ import jdk.incubator.vector.VectorOperators
  * amortize vector loads. Species initialization requires the Vector API module, checked by
  * [KoblasEngine] before using this backend.
  */
-internal object SimdTriangularKernels : EngineKernels {
+internal object SimdTriangularKernels : KernelProvider {
     override val id: String = "jvm-simd"
     override val implementations = setOf(EngineImplementation.Triangular)
 

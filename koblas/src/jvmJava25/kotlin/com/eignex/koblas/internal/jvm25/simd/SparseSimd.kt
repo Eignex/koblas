@@ -2,7 +2,7 @@ package com.eignex.koblas.internal.jvm25.simd
 
 import com.eignex.koblas.*
 import com.eignex.koblas.EngineImplementation
-import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.internal.kernels.KernelProvider
 import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
 
@@ -17,7 +17,7 @@ import jdk.incubator.vector.VectorOperators
  *
  * Its own object so the initializer, which touches DoubleVector, runs only once the module is present.
  */
-internal object SparseSimd : EngineKernels {
+internal object SparseSimd : KernelProvider {
     override val id: String = "jvm-simd"
     override fun minimumLength(implementation: EngineImplementation): Int = 2
 

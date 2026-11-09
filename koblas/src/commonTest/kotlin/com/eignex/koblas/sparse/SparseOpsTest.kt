@@ -3,7 +3,7 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.internal.kernels.*
-import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.internal.kernels.KernelProvider
 import com.eignex.koblas.internal.operations.*
 import com.eignex.koblas.internal.operations.axpyVector
 import com.eignex.koblas.internal.scheduling.sparse.AdjacentPreferringPanels
@@ -58,7 +58,7 @@ class SparseOpsTest {
                 assertEquals(1, stride)
                 calls += operation
             }
-            val selected = object : EngineKernels {
+            val selected = object : KernelProvider {
                 override val name = "stored-reductions"
                 override val implementations = setOf(EngineImplementation.Nrm2, EngineImplementation.Asum)
                 override fun nrm2(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
@@ -184,7 +184,7 @@ class SparseOpsTest {
         )
         val denseOperand = DoubleArray(matrix.rows)
         val calls = mutableListOf<Pair<Int, Int>>()
-        val selected = object : EngineKernels {
+        val selected = object : KernelProvider {
             override val implementations = setOf(EngineImplementation.IndexedDot)
             override val name: String = "test-SparseOpsTest"
 

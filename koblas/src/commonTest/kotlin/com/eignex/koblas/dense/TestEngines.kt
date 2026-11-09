@@ -3,7 +3,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.*
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.internal.engine.*
-import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.internal.kernels.KernelProvider
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import com.eignex.koblas.internal.scheduling.dense.TRIANGULAR_DIAGONAL_BLOCK
 
@@ -22,7 +22,7 @@ internal fun withEngines(body: (KoblasEngine) -> Unit) {
 }
 
 /** Runs [body] against every composition of panel, product and substitution backends this platform has. */
-internal fun withBackends(body: (EngineKernels, EngineKernels, EngineKernels) -> Unit) {
+internal fun withBackends(body: (KernelProvider, KernelProvider, KernelProvider) -> Unit) {
     body(ScalarEngine, ScalarEngine, ScalarEngine)
     KoblasEngine.simd?.let { body(it.panelProvider, it.productProvider, it.triangularProvider) }
 }

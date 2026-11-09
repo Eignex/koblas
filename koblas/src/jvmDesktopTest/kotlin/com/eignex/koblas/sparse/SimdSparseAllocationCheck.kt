@@ -94,8 +94,9 @@ internal object SimdSparseAllocationCheck {
             doubleArrayOf(7.0) + DoubleArray(ENTRY_COUNT) { 0.5 + it * 0.125 },
         )
 
+        val vector = DenseVector.wrap(dense)
         assertAllocationFree("public column dot with an offset") {
-            kernels.dotColumn(matrix, 1, dense)
+            engine.dotColumn(matrix, 1, vector)
         }
         assertAllocationFree("public indexed dot with independent offsets") {
             kernels.dot(indices, indexOffset, values, valueOffset, ENTRY_COUNT, dense)
@@ -206,14 +207,16 @@ internal object SimdSparseAllocationCheck {
                 }
             }
         }
+        val xVector = DenseVector.wrap(x)
+        val yVector = DenseVector.wrap(y)
         for (transpose in booleanArrayOf(false, true)) {
             assertAllocationFree("sparse gemv transpose=$transpose", OPERATION_WARMUP, OPERATION_ITERATIONS) {
-                engine.kernels.gemv(0.875, a, x, -0.25, y, transpose)
+                engine.gemv(0.875, a, xVector, -0.25, yVector, transpose)
                 y[0]
             }
         }
         assertAllocationFree("sparse symv", OPERATION_WARMUP, OPERATION_ITERATIONS) {
-            engine.kernels.symv(0.875, triangle, x, -0.25, y, true)
+            engine.symv(0.875, triangle, xVector, -0.25, yVector, true)
             y[0]
         }
         assertAllocationFree("sparse rank update into a dense triangle", OPERATION_WARMUP, OPERATION_ITERATIONS) {

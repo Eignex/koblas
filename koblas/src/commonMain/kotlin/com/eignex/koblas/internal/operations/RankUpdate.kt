@@ -36,14 +36,12 @@ internal fun KoblasEngine.updateRank(
     } else {
         a.view(rowOffset, columnOffset, rows, columns)
     }
-    stagedWindows(scratch, x, xOffset, rows, xStride, y, yOffset, columns, yStride, window) {
-            sx,
-            sxo,
-            sxs,
-            sy,
-            syo,
-            sys,
-        ->
-        scheduleGer(alpha, sx, sxo, sxs, sy, syo, sys, window, window.offset, rows, columns)
+    val xView = DenseVector.wrap(x, xOffset, rows, xStride)
+    val yView = DenseVector.wrap(y, yOffset, columns, yStride)
+    stagedWindows(scratch, xView, yView, window) { sx, sy ->
+        scheduleGer(
+            alpha, sx.values, sx.offset, sx.stride, sy.values, sy.offset, sy.stride,
+            window, window.offset, rows, columns,
+        )
     }
 }

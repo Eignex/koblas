@@ -13,7 +13,7 @@ class RunnerTest {
     @Test
     fun `recorded providers follow the actual threshold and layout dispatcher`() {
         var calls = 0
-        val leaf = object : EngineKernels {
+        val leaf = object : KernelProvider {
             override val name = "chosen"
             override fun minimumLength(implementation: EngineImplementation): Int = 64
             override fun requiresUnitStride(implementation: EngineImplementation): Boolean = true
@@ -152,7 +152,7 @@ class RunnerTest {
 
     @Test
     fun `host identity attributes only its supplied capabilities`() {
-        val source = object : EngineKernels {
+        val source = object : KernelProvider {
             override val name = "vendor"
             override val vendor = Vendor.OneMkl
             override val libraryPath = "/mkl"

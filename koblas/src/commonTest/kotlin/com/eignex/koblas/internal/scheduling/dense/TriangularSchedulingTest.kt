@@ -2,7 +2,7 @@ package com.eignex.koblas.internal.scheduling.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.internal.kernels.KernelProvider
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import com.eignex.koblas.internal.operations.triangle
 import com.eignex.koblas.internal.storage.MAX_IDLE_LENGTHS
@@ -167,9 +167,9 @@ class TriangularSchedulingTest {
         }
 
     private fun assertTriangularBlocks(
-        panels: EngineKernels,
-        products: EngineKernels,
-        triangles: EngineKernels,
+        panels: KernelProvider,
+        products: KernelProvider,
+        triangles: KernelProvider,
         flags: Flags,
         solve: Boolean,
     ) {

@@ -12,7 +12,9 @@ multiplatform module; platform source sets supply their own runtime and arithmet
   maintain sorted structure and retain written zeros. Dense equality and serialization visit logical entries only. Engine eligibility checks layout rather than concrete types.
 - `KoblasEngine` owns typed BLAS calls over dense and sparse containers. Logical dimensions are validated
   before views are unpacked. Its matrix methods prepare their operands and invoke shared schedules.
-  Primitive array windows, including windowed `ger`, belong to the internal `EngineKernels` interface.
+  Dense vector views survive validation, whole-call dispatch and alias preparation. Matrix product windows
+  retain matrix views through schedule selection, then unpack for packed or panel arithmetic. Internal
+  array-window adapters call the same typed methods; windowed `ger` keeps its direct panel schedule.
 - Column views provide mutable vector access without copying matrix entries. Concrete containers retain
   typed dense/sparse callbacks; base `Matrix` helpers also adapt custom storage. Sparse vectors identify
   their packed window by offset and count. A sparse column view holds its owner and column index, so
@@ -36,7 +38,7 @@ multiplatform module; platform source sets supply their own runtime and arithmet
 | `operations` | Reusable BLAS validation, alias snapshots, scratch loans and vector storage adaptation. |
 | `scheduling.dense` | Panels, packing, product blocking, selected triangles and triangular traversal. |
 | `scheduling.sparse` | CSC traversal, right-hand-side grouping and sparse accumulation schedules. |
-| `kernels` | The `EngineKernels` arithmetic contract, `PanelWork` and shared kernel policies. |
+| `kernels` | Independent `EngineKernels` arithmetic and geometry, the `KernelProvider` engine bridge, and array-window adapters. |
 | `kernels.scalar` | The complete scalar engine and numerical leaves over addressed windows. |
 | `engine` | Startup selection, fixed kernel roles, one optional host library, host facts and measured cutoffs. |
 | `host` | Shared host-library contracts and ABI adaptation. |
@@ -50,8 +52,12 @@ Schedules own traversal and workspace extents. Kernels own arithmetic and recomm
 geometry through their contract. The schedule can process a smaller group; group width, register tile,
 cache block and diagonal block are independent quantities. Scalar and SIMD engines share the schedules.
 
-Scalar leaves depend on storage and kernel contracts. They do not invoke operation preparation or shared
-schedules. Sparse traversal remains shared CSC traversal regardless of which Level 1 engine is selected.
+`EngineKernels` has no public BLAS operations or dependency on engine selection and preparation.
+`KernelProvider` combines that arithmetic with `KoblasEngine` for implementations that are also engines;
+it adds no dispatch layer. Backend geometry and body attribution stay with the numerical callbacks they
+describe. Scalar leaves depend on storage and kernel contracts. They do not invoke operation preparation
+or shared schedules. Sparse Level 2 preparation and traversal live in ordinary operation functions and
+shared CSC schedules, regardless of which Level 1 engine is selected.
 
 ## Platforms
 

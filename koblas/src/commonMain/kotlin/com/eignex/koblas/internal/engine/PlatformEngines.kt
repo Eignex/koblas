@@ -1,13 +1,13 @@
 package com.eignex.koblas.internal.engine
 
 import com.eignex.koblas.*
-import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.internal.kernels.KernelProvider
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 
-internal expect fun platformEngine(): EngineKernels
+internal expect fun platformEngine(): KernelProvider
 internal expect fun platformEngineSetting(): String?
 internal expect fun simdBackend(): BuiltinEngine?
-internal expect fun vendorEngine(vendor: Vendor): EngineKernels?
+internal expect fun vendorEngine(vendor: Vendor): KernelProvider?
 
 internal val simdEngine: BuiltinEngine? by lazy { simdBackend() }
 
@@ -17,8 +17,8 @@ internal fun standardEngine(
     nativeAccess: Boolean = true,
     host: HostPlatform = hostPlatform(),
     owned: BuiltinEngine? = simdEngine,
-    openVendor: (Vendor) -> EngineKernels? = ::vendorEngine,
-): EngineKernels {
+    openVendor: (Vendor) -> KernelProvider? = ::vendorEngine,
+): KernelProvider {
     if (host.architecture == Architecture.Other) return ScalarEngine
     val selected = if (nativeAccess) vendorOrder(runtime, host).firstNotNullOfOrNull(openVendor) else null
     if (selected == null && owned == null) return ScalarEngine

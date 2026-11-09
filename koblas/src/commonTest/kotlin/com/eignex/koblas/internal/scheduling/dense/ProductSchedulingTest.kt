@@ -6,7 +6,6 @@ import com.eignex.koblas.dense.*
 import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
-import com.eignex.koblas.internal.kernels.scalar.dense.SCALAR_PRODUCT_TILE
 import com.eignex.koblas.internal.operations.staged
 import kotlin.random.Random
 import kotlin.test.Test
@@ -30,7 +29,7 @@ class ProductSchedulingTest {
      * Shapes cross each block boundary while keeping the other axes small for the oracle.
      * Tile-derived extents ensure packing on wide species and leave remainder tiles.
      */
-    private fun blockedShapes(tile: EngineKernels): List<Triple<Int, Int, Int>> {
+    private fun blockedShapes(tile: KernelProvider): List<Triple<Int, Int, Int>> {
         val rows = packedExtent(tile.tileRows)
         val columns = packedExtent(tile.tileColumns)
         return listOf(
@@ -399,8 +398,8 @@ class ProductSchedulingTest {
 
             productWindow(
                 engineWithKernels(products = products, panels = panelsFor(products)),
-                ALPHA, DoubleArray(0), 0, 1, false, DoubleArray(0), 0, 1, false,
-                BETA, destination, C_ORIGIN, leading, order, order, 0, selected, null,
+                ALPHA, DenseMatrix.zero(order, 0), false, DenseMatrix.zero(0, order), false,
+                BETA, DenseMatrix.wrap(order, order, destination, C_ORIGIN, leading), selected, null,
             )
 
             for (column in 0 until order) {
@@ -422,7 +421,7 @@ class ProductSchedulingTest {
 
     @Suppress("LongParameterList") // the backend and the four facts that pick out one case of the sweep
     private fun assertWindowed(
-        products: EngineKernels,
+        products: KernelProvider,
         selected: OutputTriangle,
         packed: Boolean,
         transposeA: Boolean,
@@ -466,9 +465,9 @@ class ProductSchedulingTest {
                 products = products,
                 panels = panelsFor(products),
             ),
-            ALPHA, left, A_ORIGIN, a.rows + 3, transposeA, right, B_ORIGIN, b.rows + 5, transposeB,
-            BETA, destination, C_ORIGIN,
-            order + 7, order, order, depth, selected, Scratch(),
+            ALPHA, DenseMatrix.wrap(a.rows, a.cols, left, A_ORIGIN, a.rows + 3), transposeA,
+            DenseMatrix.wrap(b.rows, b.cols, right, B_ORIGIN, b.rows + 5), transposeB,
+            BETA, DenseMatrix.wrap(order, order, destination, C_ORIGIN, order + 7), selected, Scratch(),
         )
 
         assertContentEquals(leftBefore, left, "$context: the left operand was written")
@@ -506,7 +505,7 @@ class ProductSchedulingTest {
     /** A rank update whose operand is its own destination reads the operand it was given, not the result. */
     @Test
     fun `a rank update over its own destination agrees with the oracle`() = withEngines { blas ->
-        val order = 2 * SCALAR_PRODUCT_TILE + 1
+        val order = 2 * ScalarEngine.tileRows + 1
         val start = randomMatrix(order, order, rng)
         for (lower in booleanArrayOf(false, true)) {
             val expected = start.copyOf()
@@ -540,10 +539,10 @@ class ProductSchedulingTest {
         }
     }
 
-    private fun koblasPanels(): EngineKernels = KoblasEngine.simd?.panelProvider ?: ScalarEngine
+    private fun koblasPanels(): KernelProvider = KoblasEngine.simd?.panelProvider ?: ScalarEngine
 
     /** The panel backend that belongs beside [products], so a composition under test is a real one. */
-    private fun panelsFor(products: EngineKernels): EngineKernels =
+    private fun panelsFor(products: KernelProvider): KernelProvider =
         if (products === ScalarEngine) ScalarEngine else koblasPanels()
 
     /** The blocked shape and the direct one, so every conformance check covers both routes. */
