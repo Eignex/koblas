@@ -9,7 +9,7 @@ import com.eignex.koblas.internal.kernels.scalar.dense.*
 import com.eignex.koblas.internal.kernels.scalar.sparse.*
 
 /** Complete portable arithmetic, independent of every accelerated provider. */
-internal object ScalarEngine : EngineKernels {
+internal object ScalarEngine : KernelProvider {
     override val name: String = "scalar"
     override val id: String = "portable"
     override val implementations = EngineImplementation.entries.toSet()
@@ -325,10 +325,22 @@ internal object ScalarEngine : EngineKernels {
         c: DoubleArray,
         cOffset: Int,
         ldc: Int,
-    ) = scalarProductBlock(
-        alpha, packedA, aOffset, aGroupStride, packedB, bOffset, bGroupStride, rows, columns, depth, beta,
-        c, cOffset, ldc,
-    )
+    ) {
+        if (rows <= 0 || columns <= 0) return
+        scaleProductWindow(beta, c, cOffset, ldc, rows, columns)
+        if (depth <= 0) return
+        for (column in 0 until columns) {
+            val bStart = bOffset + column / SCALAR_PRODUCT_TILE * bGroupStride + column % SCALAR_PRODUCT_TILE
+            for (row in 0 until rows) {
+                val aStart = aOffset + row / SCALAR_PRODUCT_TILE * aGroupStride + row % SCALAR_PRODUCT_TILE
+                var sum = 0.0
+                for (step in 0 until depth) {
+                    sum += packedA[aStart + step * SCALAR_PRODUCT_TILE] * packedB[bStart + step * SCALAR_PRODUCT_TILE]
+                }
+                c[cOffset + row + column * ldc] += alpha * sum
+            }
+        }
+    }
 
     override fun rightHandSideGroup(order: Int, sides: Int): Int = if (sides > 0) sides else 1
 
@@ -370,3 +382,6 @@ internal object ScalarEngine : EngineKernels {
         t, n, start, size, transposed, lower, unitDiag, x, xOffset, orderStride, rhsStride, sides, tOffset,
     )
 }
+
+/** Width of the row and column groups in the scalar engine's packed operands. */
+private const val SCALAR_PRODUCT_TILE: Int = 4

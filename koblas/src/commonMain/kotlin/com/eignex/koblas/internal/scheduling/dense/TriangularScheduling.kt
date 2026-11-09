@@ -279,16 +279,26 @@ private fun triangularUpdate(
     sourceCount: Int,
     arrays: Scratch?,
 ) {
-    val triangle = tOffset + triangleWindow(order, transposed, targetStart, sourceStart)
+    val triangle = DenseMatrix.wrap(
+        if (transposed) sourceCount else targetCount,
+        if (transposed) targetCount else sourceCount,
+        t,
+        tOffset + triangleWindow(order, transposed, targetStart, sourceStart),
+        order,
+    )
     if (right) {
         productWindow(
-            engine, coefficient, b, bOffset + sourceStart * ldb, ldb, false, t, triangle, order, !transposed, 1.0,
-            b, bOffset + targetStart * ldb, ldb, sides, targetCount, sourceCount, OutputTriangle.Full, arrays,
+            engine, coefficient, DenseMatrix.wrap(sides, sourceCount, b, bOffset + sourceStart * ldb, ldb), false,
+            triangle, !transposed, 1.0,
+            DenseMatrix.wrap(sides, targetCount, b, bOffset + targetStart * ldb, ldb),
+            OutputTriangle.Full, arrays,
         )
     } else {
         productWindow(
-            engine, coefficient, t, triangle, order, transposed, b, bOffset + sourceStart, ldb, false, 1.0,
-            b, bOffset + targetStart, ldb, targetCount, sides, sourceCount, OutputTriangle.Full, arrays,
+            engine, coefficient, triangle, transposed,
+            DenseMatrix.wrap(sourceCount, sides, b, bOffset + sourceStart, ldb), false, 1.0,
+            DenseMatrix.wrap(targetCount, sides, b, bOffset + targetStart, ldb),
+            OutputTriangle.Full, arrays,
         )
     }
 }

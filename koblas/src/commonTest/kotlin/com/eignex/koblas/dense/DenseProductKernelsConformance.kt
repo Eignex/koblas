@@ -3,7 +3,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.internal.kernels.KernelProvider
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.assertEquals
@@ -48,7 +48,7 @@ private fun packedRightFixture(depth: Int, columns: Int, group: Int, entry: (Int
 }
 
 /** That [kernels] computes `alpha · A · B + beta · C` over every extent and writes nowhere else. */
-internal fun assertProductBlockAgreesWithReference(kernels: EngineKernels) {
+internal fun assertProductBlockAgreesWithReference(kernels: KernelProvider) {
     val rng = Random(20261003)
     for (rows in BLOCK_ROWS) {
         for (columns in BLOCK_COLUMNS) {
@@ -61,7 +61,7 @@ internal fun assertProductBlockAgreesWithReference(kernels: EngineKernels) {
 }
 
 private fun assertOneProductBlock(
-    kernels: EngineKernels,
+    kernels: KernelProvider,
     rows: Int,
     columns: Int,
     depth: Int,
@@ -111,7 +111,7 @@ private fun assertUntouchedOutside(
 }
 
 /** Empty arrays make any forbidden packed-panel read fail with an index error. */
-internal fun assertEmptyProductBlockReadsNothing(kernels: EngineKernels) {
+internal fun assertEmptyProductBlockReadsNothing(kernels: KernelProvider) {
     val nothing = DoubleArray(0)
     val c = DoubleArray(12) { 1.0 + it }
     kernels.productBlock(2.0, nothing, 0, 0, nothing, 0, 0, 0, 3, 5, 0.5, c, 0, 4)
@@ -127,7 +127,7 @@ internal fun assertEmptyProductBlockReadsNothing(kernels: EngineKernels) {
 }
 
 /** That a zero beta overwrites rather than multiplies, which `0.0 * NaN` would not. */
-internal fun assertZeroBetaOverwritesPoison(kernels: EngineKernels) {
+internal fun assertZeroBetaOverwritesPoison(kernels: KernelProvider) {
     val rows = kernels.tileRows + 1
     val columns = kernels.tileColumns + 1
     val depth = 3
@@ -153,7 +153,7 @@ internal fun assertZeroBetaOverwritesPoison(kernels: EngineKernels) {
 /**
  * Freshly packed depth blocks must agree with one whole product, applying beta only to the first block.
  */
-internal fun assertDepthBlocksAccumulate(kernels: EngineKernels) {
+internal fun assertDepthBlocksAccumulate(kernels: KernelProvider) {
     val rng = Random(20261004)
     val rows = kernels.tileRows + 3
     val columns = kernels.tileColumns + 3

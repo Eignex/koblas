@@ -405,7 +405,7 @@ class SparseDenseProductTest {
 }
 
 /** [AdjacentPreferringPanels] at the widest group the staging rule admits, wider than any copy-cost ratio. */
-private object WidePanels : EngineKernels by AdjacentPreferringPanels {
+private object WidePanels : KernelProvider by AdjacentPreferringPanels {
     const val GROUP = 64
 
     override fun executionGroup(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean): Int =

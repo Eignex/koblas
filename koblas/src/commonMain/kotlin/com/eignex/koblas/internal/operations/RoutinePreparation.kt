@@ -10,8 +10,8 @@ import com.eignex.koblas.internal.storage.*
  * What every implementation of a dense routine does around its arithmetic after checking the routine's shapes:
  * settle the calls with nothing to compute or a zero multiplier, and snapshot an input that shares the
  * destination's storage. The shared schedule and a vendor binding run their arithmetic inside the same
- * preparation, so a call reaches either one with the same operands. Vector operands are array windows, so a
- * call whose operands share no storage allocates nothing here.
+ * preparation, so a call reaches either one with the same operands. Vector views retain their addressing
+ * until the arithmetic boundary; only overlapping inputs need a snapshot.
  */
 
 /**
@@ -23,30 +23,23 @@ internal inline fun prepareMatrixVector(
     alpha: Double,
     a: DenseMatrix,
     transpose: Boolean,
-    x: DoubleArray,
-    xOffset: Int,
-    xStride: Int,
+    x: DenseVector,
     beta: Double,
-    y: DoubleArray,
-    yOffset: Int,
-    yStride: Int,
+    y: DenseVector,
     lower: Boolean?,
     arrays: Scratch?,
-    body: (DenseMatrix, DoubleArray, Int, Int) -> Unit,
+    body: (DenseMatrix, DenseVector) -> Unit,
 ) {
     val rows = if (transpose) a.cols else a.rows
     val depth = if (transpose) a.rows else a.cols
-    requireVectorWindow(x.size, xOffset, depth, xStride, "x")
-    requireVectorWindow(y.size, yOffset, rows, yStride, "y")
+    requireGemvOperands(a, transpose, x.size, y.size)
     if (rows == 0) return
     if (alpha == 0.0 || depth == 0) {
-        applyBeta(vectors, y, yOffset, rows, beta, yStride)
+        applyBeta(vectors, y.values, y.offset, rows, beta, y.stride)
         return
     }
-    if (a.values !== y && x !== y) return body(a, x, xOffset, xStride)
-    stagedRegionAgainst(arrays, a, y, yOffset, rows, yStride, lower = lower) { sa ->
-        val aliased = windowsOverlap(x, xOffset, depth, xStride, y, yOffset, rows, yStride)
-        stagedWindow(arrays, x, xOffset, depth, xStride, aliased) { sx, so, ss -> body(sa, sx, so, ss) }
+    stagedRegionAgainst(arrays, a, y, lower = lower) { sa ->
+        stagedWindow(arrays, x, x.overlaps(y)) { sx -> body(sa, sx) }
     }
 }
 
@@ -56,21 +49,15 @@ internal inline fun prepareMatrixVector(
  */
 internal inline fun prepareRankUpdate(
     alpha: Double,
-    x: DoubleArray,
-    xOffset: Int,
-    xStride: Int,
-    y: DoubleArray,
-    yOffset: Int,
-    yStride: Int,
+    x: DenseVector,
+    y: DenseVector,
     a: DenseMatrix,
     arrays: Scratch?,
-    body: (DoubleArray, Int, Int, DoubleArray, Int, Int) -> Unit,
+    body: (DenseVector, DenseVector) -> Unit,
 ) {
-    requireVectorWindow(x.size, xOffset, a.rows, xStride, "x")
-    requireVectorWindow(y.size, yOffset, a.cols, yStride, "y")
+    requireGerOperands(x.size, y.size, a)
     if (alpha == 0.0 || a.rows == 0 || a.cols == 0) return
-    if (x !== a.values && y !== a.values) return body(x, xOffset, xStride, y, yOffset, yStride)
-    stagedWindows(arrays, x, xOffset, a.rows, xStride, y, yOffset, a.cols, yStride, a, body)
+    stagedWindows(arrays, x, y, a, body)
 }
 
 /**
@@ -79,21 +66,16 @@ internal inline fun prepareRankUpdate(
  */
 internal inline fun prepareTriangularVector(
     a: DenseMatrix,
-    x: DoubleArray,
-    xOffset: Int,
-    xStride: Int,
+    x: DenseVector,
     lower: Boolean,
     unitDiag: Boolean,
     what: String,
     arrays: Scratch?,
     body: (DenseMatrix) -> Unit,
 ) {
-    requireSquare(a, what)
-    val n = a.rows
-    requireVectorWindow(x.size, xOffset, n, xStride, "$what x")
-    if (n == 0) return
-    if (a.values !== x) return body(a)
-    stagedRegionAgainst(arrays, a, x, xOffset, n, xStride, lower = lower, unitDiag = unitDiag) { body(it) }
+    requireTriangularVectorOperands(a, x.size, what)
+    if (a.rows == 0) return
+    stagedRegionAgainst(arrays, a, x, lower = lower, unitDiag = unitDiag, block = body)
 }
 
 /**

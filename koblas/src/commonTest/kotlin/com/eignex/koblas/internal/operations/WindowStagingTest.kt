@@ -1,6 +1,7 @@
 package com.eignex.koblas.internal.operations
 
 import com.eignex.koblas.*
+import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.storage.windowsOverlap
 import kotlin.test.Test
@@ -26,14 +27,11 @@ class WindowStagingTest {
 
             stagedWindow(
                 scratch,
-                backing,
-                offset,
-                count,
-                stride,
+                DenseVector.wrap(backing, offset, count, stride),
                 aliased = true,
-            ) { copy, origin, step ->
+            ) { copy ->
                 assertEquals(count, copy.size, "$offset/$count/$stride staged its buffer rather than its entries")
-                assertContentEquals(expected, DoubleArray(count) { copy[origin + it * step] })
+                assertContentEquals(expected, copy.toDoubleArray())
             }
 
             assertEquals(1, scratch.available(count), "$offset/$count/$stride did not hand its loan back")
@@ -46,13 +44,57 @@ class WindowStagingTest {
         val backing = DoubleArray(64)
         val scratch = Scratch()
 
-        stagedWindow(scratch, backing, 33, 4, -8, aliased = false) { values, offset, stride ->
-            assertSame(backing, values)
-            assertEquals(33, offset)
-            assertEquals(-8, stride)
+        val view = DenseVector.wrap(backing, 33, 4, -8)
+        stagedWindow(scratch, view, aliased = false) { stable ->
+            assertSame(view, stable)
         }
 
         assertEquals(0, scratch.idleLengths())
+    }
+
+    @Test
+    fun `identical mappings share one snapshot`() {
+        for ((offset, count, stride) in listOf(Triple(0, 4, 1), Triple(7, 4, -2), Triple(2, 1, 3))) {
+            val backing = DoubleArray(8) { it.toDouble() }
+            val destination = DenseMatrix.wrap(4, 2, backing)
+            val x = DenseVector.wrap(backing, offset, count, stride)
+            val y = DenseVector.wrap(backing, offset, count, if (count == 1) 1 else stride)
+            val expected = x.toDoubleArray()
+            val scratch = Scratch()
+
+            stagedWindows(scratch, x, y, destination) { sx, sy ->
+                backing.fill(-1.0)
+                assertSame(sx, sy)
+                assertContentEquals(expected, sx.toDoubleArray())
+            }
+
+            assertEquals(1, scratch.available(count))
+        }
+    }
+
+    @Test
+    fun `aliased vector calls reuse their scratch`() {
+        for (symmetric in booleanArrayOf(false, true)) {
+            val a = DenseMatrix.wrap(3, 3, DoubleArray(9) { 1.0 + it })
+            val workspace = Scratch()
+            val actual = DenseVector.wrap(doubleArrayOf(1.0, 2.0, 3.0))
+            val expected = actual.toDoubleArray()
+
+            repeat(3) {
+                val input = expected.copyOf()
+                if (symmetric) {
+                    ReferenceBlas.symv(0.5, a, input, 0.25, expected)
+                    KoblasEngine.scalar.symv(0.5, a, actual, 0.25, actual, scratch = workspace)
+                } else {
+                    ReferenceBlas.gemv(0.5, a, input, 0.25, expected)
+                    KoblasEngine.scalar.gemv(0.5, a, actual, 0.25, actual, scratch = workspace)
+                }
+            }
+
+            assertClose(expected, actual.toDoubleArray(), "aliased matrix vector symmetric=$symmetric")
+            assertEquals(1, workspace.available(actual.size))
+            assertEquals(1, workspace.idleLengths())
+        }
     }
 
     @Test

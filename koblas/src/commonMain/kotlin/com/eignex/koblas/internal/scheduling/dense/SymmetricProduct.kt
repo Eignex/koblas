@@ -94,18 +94,26 @@ internal fun symmetricProduct(
         columnStart: Int,
         opColumns: Int,
     ) {
+        val storedRows = if (transposeS) opColumns else opRows
+        val storedColumns = if (transposeS) opRows else opColumns
+        val symmetric = DenseMatrix.wrap(storedRows, storedColumns, s, at, lds)
         if (right) {
             productWindow(
-                engine, alpha, b, bOffset + rowStart * ldb, ldb, false, s, at, lds, transposeS, 1.0, c,
-                cOffset + columnStart * ldc, ldc, rows, opColumns, opRows, OutputTriangle.Full, arrays,
+                engine, alpha, DenseMatrix.wrap(rows, opRows, b, bOffset + rowStart * ldb, ldb), false,
+                symmetric, transposeS, 1.0,
+                DenseMatrix.wrap(rows, opColumns, c, cOffset + columnStart * ldc, ldc),
+                OutputTriangle.Full, arrays,
             )
         } else {
             productWindow(
-                engine, alpha, s, at, lds, transposeS, b, bOffset + columnStart, ldb, false, 1.0, c,
-                cOffset + rowStart, ldc, opRows, columns, opColumns, OutputTriangle.Full, arrays,
+                engine, alpha, symmetric, transposeS,
+                DenseMatrix.wrap(opColumns, columns, b, bOffset + columnStart, ldb), false, 1.0,
+                DenseMatrix.wrap(opRows, columns, c, cOffset + rowStart, ldc),
+                OutputTriangle.Full, arrays,
             )
         }
     }
+
     val block = if (SYMMETRIC_BLOCK < order) SYMMETRIC_BLOCK else order
     arrays.borrowOptional(block * block) { square ->
         forEachSymmetricBlock(order, block, lower) { start, size, stripStart, stripCount ->

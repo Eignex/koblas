@@ -5,7 +5,7 @@ import com.eignex.koblas.dense.*
 import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.host.environmentVariableOrNull
 import com.eignex.koblas.internal.kernels.*
-import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.internal.kernels.KernelProvider
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import kotlin.test.*
 import kotlin.test.Test
@@ -19,7 +19,7 @@ import kotlin.test.assertTrue
 class KoblasEngineTest {
     @Test
     fun `typed vector calls use the chosen engine primitives`() {
-        val engine = object : EngineKernels {
+        val engine = object : KernelProvider {
             override val name = "recording"
             override fun sum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
                 assertEquals(3, len)
@@ -311,7 +311,7 @@ class KoblasEngineTest {
         assertClose(expected, actual, "typed engine reduction")
     }
 
-    private val partial = object : EngineKernels {
+    private val partial = object : KernelProvider {
         override val name = "partial"
         override val implementations = setOf(EngineImplementation.Dot)
         override fun dot(
@@ -356,7 +356,7 @@ class KoblasEngineTest {
     fun `exact SIMD uses supplied kernels from their intrinsic minimum length`() {
         val simd = KoblasEngine.simd ?: return
         val leaf = simd.providers.first { it.id == "jvm-simd" && EngineImplementation.Iamax in it.implementations }
-            as EngineKernels
+            as KernelProvider
 
         assertEquals(
             leaf.name,
@@ -432,7 +432,7 @@ class KoblasEngineTest {
         println("SKIPPED: no CBLAS library installed; $what was not verified on this host")
     }
 
-    private fun provider(id: String, operations: Set<EngineImplementation>): KoblasEngine = object : EngineKernels {
+    private fun provider(id: String, operations: Set<EngineImplementation>): KoblasEngine = object : KernelProvider {
         override val name = id
         override val implementations = operations
     }

@@ -4,7 +4,7 @@ package com.eignex.koblas.internal.host
 
 import com.eignex.koblas.*
 import com.eignex.koblas.EngineImplementation
-import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.internal.kernels.KernelProvider
 import com.eignex.koblas.internal.operations.*
 import com.eignex.koblas.internal.storage.sameRegion
 
@@ -14,7 +14,7 @@ import com.eignex.koblas.internal.storage.sameRegion
  * A binding supplies the calls themselves, which receive operands already validated and free of overlap with
  * their destination. A routine the library does not export fails before any operand is touched.
  */
-internal abstract class HostBlas : EngineKernels {
+internal abstract class HostBlas : KernelProvider {
     protected abstract fun cblasGemv(
         alpha: Double,
         a: DenseMatrix,
@@ -124,173 +124,83 @@ internal abstract class HostBlas : EngineKernels {
     override fun gemv(
         alpha: Double,
         a: DenseMatrix,
-        x: DoubleArray,
-        xOffset: Int,
-        xStride: Int,
+        x: DenseVector,
         beta: Double,
-        y: DoubleArray,
-        yOffset: Int,
-        yStride: Int,
+        y: DenseVector,
         transpose: Boolean,
         scratch: Scratch?,
     ) {
         requireExport(EngineImplementation.Gemv)
-        val rows = if (transpose) a.cols else a.rows
-        val depth = if (transpose) a.rows else a.cols
-        prepareMatrixVector(this, alpha, a, transpose, x, xOffset, xStride, beta, y, yOffset, yStride, null, scratch) {
-                sa,
-                sx,
-                so,
-                ss,
-            ->
-            cblasGemv(
-                alpha,
-                sa,
-                transpose,
-                DenseVector.wrap(sx, so, depth, ss),
-                beta,
-                DenseVector.wrap(y, yOffset, rows, yStride),
-            )
+        prepareMatrixVector(this, alpha, a, transpose, x, beta, y, null, scratch) { sa, sx ->
+            cblasGemv(alpha, sa, transpose, sx, beta, y)
         }
     }
 
     override fun symv(
         alpha: Double,
         a: DenseMatrix,
-        x: DoubleArray,
-        xOffset: Int,
-        xStride: Int,
+        x: DenseVector,
         beta: Double,
-        y: DoubleArray,
-        yOffset: Int,
-        yStride: Int,
+        y: DenseVector,
         lower: Boolean,
         scratch: Scratch?,
     ) {
         requireExport(EngineImplementation.Symv)
         requireSquare(a, "symv")
-        prepareMatrixVector(this, alpha, a, false, x, xOffset, xStride, beta, y, yOffset, yStride, lower, scratch) {
-                sa,
-                sx,
-                so,
-                ss,
-            ->
-            val n = a.rows
-            cblasSymv(
-                alpha,
-                sa,
-                symmetricStructure(lower),
-                DenseVector.wrap(sx, so, n, ss),
-                beta,
-                DenseVector.wrap(y, yOffset, n, yStride),
-            )
+        prepareMatrixVector(this, alpha, a, false, x, beta, y, lower, scratch) { sa, sx ->
+            cblasSymv(alpha, sa, symmetricStructure(lower), sx, beta, y)
         }
     }
 
-    override fun ger(
-        alpha: Double,
-        x: DoubleArray,
-        xOffset: Int,
-        xStride: Int,
-        y: DoubleArray,
-        yOffset: Int,
-        yStride: Int,
-        a: DenseMatrix,
-        scratch: Scratch?,
-    ) {
+    override fun ger(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix, scratch: Scratch?) {
         requireExport(EngineImplementation.Ger)
-        prepareRankUpdate(alpha, x, xOffset, xStride, y, yOffset, yStride, a, scratch) {
-                sx,
-                xo,
-                xs,
-                sy,
-                yo,
-                ys,
-            ->
-            cblasGer(alpha, DenseVector.wrap(sx, xo, a.rows, xs), DenseVector.wrap(sy, yo, a.cols, ys), a)
-        }
+        prepareRankUpdate(alpha, x, y, a, scratch) { sx, sy -> cblasGer(alpha, sx, sy, a) }
     }
 
-    override fun syr(
-        alpha: Double,
-        x: DoubleArray,
-        xOffset: Int,
-        xStride: Int,
-        a: DenseMatrix,
-        lower: Boolean,
-        scratch: Scratch?,
-    ) {
+    override fun syr(alpha: Double, x: DenseVector, a: DenseMatrix, lower: Boolean, scratch: Scratch?) {
         requireExport(EngineImplementation.Syr)
         requireSquare(a, "syr")
-        prepareRankUpdate(alpha, x, xOffset, xStride, x, xOffset, xStride, a, scratch) { sx, xo, xs, _, _, _ ->
-            cblasSyr(alpha, DenseVector.wrap(sx, xo, a.rows, xs), a, symmetricStructure(lower))
-        }
+        prepareRankUpdate(alpha, x, x, a, scratch) { sx, _ -> cblasSyr(alpha, sx, a, symmetricStructure(lower)) }
     }
 
     override fun syr2(
         alpha: Double,
-        x: DoubleArray,
-        xOffset: Int,
-        xStride: Int,
-        y: DoubleArray,
-        yOffset: Int,
-        yStride: Int,
+        x: DenseVector,
+        y: DenseVector,
         a: DenseMatrix,
         lower: Boolean,
         scratch: Scratch?,
     ) {
         requireExport(EngineImplementation.Syr2)
         requireSquare(a, "syr2")
-        prepareRankUpdate(alpha, x, xOffset, xStride, y, yOffset, yStride, a, scratch) {
-                sx,
-                xo,
-                xs,
-                sy,
-                yo,
-                ys,
-            ->
-            val n = a.rows
-            cblasSyr2(
-                alpha,
-                DenseVector.wrap(sx, xo, n, xs),
-                DenseVector.wrap(sy, yo, n, ys),
-                a,
-                symmetricStructure(lower),
-            )
-        }
+        prepareRankUpdate(alpha, x, y, a, scratch) { sx, sy -> cblasSyr2(alpha, sx, sy, a, symmetricStructure(lower)) }
     }
 
     override fun trsv(
         a: DenseMatrix,
-        x: DoubleArray,
-        xOffset: Int,
-        xStride: Int,
+        x: DenseVector,
         lower: Boolean,
         transpose: Boolean,
         unitDiag: Boolean,
         scratch: Scratch?,
     ) {
         requireExport(EngineImplementation.Trsv)
-        prepareTriangularVector(a, x, xOffset, xStride, lower, unitDiag, "trsv", scratch) { sa ->
-            val vector = DenseVector.wrap(x, xOffset, a.rows, xStride)
-            cblasTriangularVector(EngineImplementation.Trsv, sa, triangle(lower, unitDiag), transpose, vector)
+        prepareTriangularVector(a, x, lower, unitDiag, "trsv", scratch) { sa ->
+            cblasTriangularVector(EngineImplementation.Trsv, sa, triangle(lower, unitDiag), transpose, x)
         }
     }
 
     override fun trmv(
         a: DenseMatrix,
-        x: DoubleArray,
-        xOffset: Int,
-        xStride: Int,
+        x: DenseVector,
         lower: Boolean,
         transpose: Boolean,
         unitDiag: Boolean,
         scratch: Scratch?,
     ) {
         requireExport(EngineImplementation.Trmv)
-        prepareTriangularVector(a, x, xOffset, xStride, lower, unitDiag, "trmv", scratch) { sa ->
-            val vector = DenseVector.wrap(x, xOffset, a.rows, xStride)
-            cblasTriangularVector(EngineImplementation.Trmv, sa, triangle(lower, unitDiag), transpose, vector)
+        prepareTriangularVector(a, x, lower, unitDiag, "trmv", scratch) { sa ->
+            cblasTriangularVector(EngineImplementation.Trmv, sa, triangle(lower, unitDiag), transpose, x)
         }
     }
 

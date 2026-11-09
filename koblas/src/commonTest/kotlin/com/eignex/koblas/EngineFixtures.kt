@@ -1,7 +1,7 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.internal.engine.*
-import com.eignex.koblas.internal.kernels.EngineKernels
+import com.eignex.koblas.internal.kernels.KernelProvider
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 
 internal fun engineWithKernels(
@@ -13,8 +13,8 @@ internal fun engineWithKernels(
 ): BuiltinEngine = BuiltinEngine(
     "test",
     KernelSet(
-        (vectors as? BuiltinEngine)?.roles?.vectors ?: vectors as EngineKernels,
-        (indexed as? BuiltinEngine)?.roles?.indexed ?: indexed as EngineKernels,
+        (vectors as? BuiltinEngine)?.roles?.vectors ?: vectors as KernelProvider,
+        (indexed as? BuiltinEngine)?.roles?.indexed ?: indexed as KernelProvider,
         panels.panelProvider,
         products.productProvider,
         triangles.triangularProvider,
@@ -25,5 +25,5 @@ internal fun engineWithHost(portable: KoblasEngine, host: KoblasEngine, eligible
     BuiltinEngine(
         "host-test",
         (portable as? BuiltinEngine)?.roles ?: KernelSet(),
-        (host as EngineKernels).takeIf { eligible },
+        (host as KernelProvider).takeIf { eligible },
     )

@@ -24,7 +24,7 @@ import com.eignex.koblas.internal.storage.*
  * Operands are typed containers; dense views retain their offsets and strides. Routines validate logical
  * dimensions and preserve BLAS no-read rules. Copies, AXPY and matrix operations stage destructive aliases,
  * borrowing from a [Scratch] when one is given. Rotations and swaps have their own overlap requirements.
- * Primitive array windows belong to the internal kernel interface. Rounding, reduction order and unspecified
+ * Primitive array windows stay internal. Rounding, reduction order and unspecified
  * exceptional results belong to the selected arithmetic.
  */
 public interface KoblasEngine {
@@ -180,7 +180,7 @@ public interface KoblasEngine {
         scratch: Scratch? = null,
     ) {
         requireGemvOperands(a, transpose, x.size, y.size)
-        kernels.gemv(alpha, a, x.values, x.offset, x.stride, beta, y.values, y.offset, y.stride, transpose, scratch)
+        multiplyMatrixVector(alpha, a, x, beta, y, transpose, scratch)
     }
 
     /**
@@ -198,9 +198,7 @@ public interface KoblasEngine {
         scratch: Scratch? = null,
     ) {
         requireGemvOperands(a, transpose, x.size, y.size)
-        withSparseMatrixVectors(alpha, a, x, beta, y) { input, output ->
-            kernels.gemv(alpha, a, input, beta, output, transpose, scratch)
-        }
+        multiplySparseMatrixVector(alpha, a, x, beta, y, transpose, scratch)
     }
 
     /**
@@ -218,7 +216,7 @@ public interface KoblasEngine {
         scratch: Scratch? = null,
     ) {
         requireSymvOperands(a, x.size, y.size)
-        kernels.symv(alpha, a, x.values, x.offset, x.stride, beta, y.values, y.offset, y.stride, lower, scratch)
+        multiplySymmetricVector(alpha, a, x, beta, y, lower, scratch)
     }
 
     /**
@@ -236,21 +234,19 @@ public interface KoblasEngine {
         scratch: Scratch? = null,
     ) {
         requireSymvOperands(a, x.size, y.size)
-        withSparseMatrixVectors(alpha, a, x, beta, y) { input, output ->
-            kernels.symv(alpha, a, input, beta, output, lower, scratch)
-        }
+        multiplySparseSymmetricVector(alpha, a, x, beta, y, lower, scratch)
     }
 
     /** Adds `alpha * x * yᵀ` to [a], requiring matching logical dimensions and staging aliased inputs. */
     public fun ger(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix, scratch: Scratch? = null) {
         requireGerOperands(x.size, y.size, a)
-        kernels.ger(alpha, x.values, x.offset, x.stride, y.values, y.offset, y.stride, a, scratch)
+        updateDenseRank(alpha, x, y, a, scratch)
     }
 
     /** Adds `alpha * x * xᵀ` to the selected triangle of square [a]. Aliased inputs are staged. */
     public fun syr(alpha: Double, x: DenseVector, a: DenseMatrix, lower: Boolean = true, scratch: Scratch? = null) {
         requireSyrOperands(a, x.size, "syr")
-        kernels.syr(alpha, x.values, x.offset, x.stride, a, lower, scratch)
+        updateSymmetricRank(alpha, x, a, lower, scratch)
     }
 
     /** Adds `alpha * (x * yᵀ + y * xᵀ)` to the selected triangle of square [a]. Aliased inputs are staged. */
@@ -263,7 +259,7 @@ public interface KoblasEngine {
         scratch: Scratch? = null,
     ) {
         requireSyr2Operands(a, x.size, y.size, "syr2")
-        kernels.syr2(alpha, x.values, x.offset, x.stride, y.values, y.offset, y.stride, a, lower, scratch)
+        updateSymmetricRankTwo(alpha, x, y, a, lower, scratch)
     }
 
     /**
@@ -279,7 +275,7 @@ public interface KoblasEngine {
         scratch: Scratch? = null,
     ) {
         requireTriangularVectorOperands(a, x.size, "trsv")
-        kernels.trsv(a, x.values, x.offset, x.stride, lower, transpose, unitDiag, scratch)
+        applyTriangularVector(a, x, lower, transpose, unitDiag, true, scratch)
     }
 
     /**
@@ -295,7 +291,7 @@ public interface KoblasEngine {
         scratch: Scratch? = null,
     ) {
         requireTriangularVectorOperands(a, x.size, "trsv")
-        withContiguousVector(x) { kernels.trsv(a, it, lower, transpose, unitDiag, scratch) }
+        applySparseTriangularVector(a, x, lower, transpose, unitDiag, true, scratch)
     }
 
     /**
@@ -311,7 +307,7 @@ public interface KoblasEngine {
         scratch: Scratch? = null,
     ) {
         requireTriangularVectorOperands(a, x.size, "trmv")
-        kernels.trmv(a, x.values, x.offset, x.stride, lower, transpose, unitDiag, scratch)
+        applyTriangularVector(a, x, lower, transpose, unitDiag, false, scratch)
     }
 
     /**
@@ -327,7 +323,7 @@ public interface KoblasEngine {
         scratch: Scratch? = null,
     ) {
         requireTriangularVectorOperands(a, x.size, "trmv")
-        withContiguousVector(x) { kernels.trmv(a, it, lower, transpose, unitDiag, scratch) }
+        applySparseTriangularVector(a, x, lower, transpose, unitDiag, false, scratch)
     }
 
     /** Dot product of [column] with equally sized [dense]. Only stored matrix entries participate, including stored zeros. */
@@ -380,7 +376,7 @@ public interface KoblasEngine {
         if (routed != null) return routed.gemm(alpha, a, transposeA, b, transposeB, beta, c, scratch)
         requireGemmOperands(a, transposeA, b, transposeB, c)
         prepareProduct(alpha, a, b, beta, c, depth, null, null, null, scratch) { sa, sb ->
-            scheduleGemm(alpha, sa, transposeA, sb, transposeB, beta, c, depth, scratch)
+            scheduleGemm(alpha, sa, transposeA, sb, transposeB, beta, c, scratch)
         }
     }
 

@@ -121,7 +121,7 @@ class VectorOperationsTest {
     fun `sparse norms use selected kernels over stored values only`() {
         val source = SparseVector.wrap(Int.MAX_VALUE, intArrayOf(1, 100), doubleArrayOf(2.0, -3.0))
         val calls = mutableListOf<String>()
-        val engine = object : EngineKernels {
+        val engine = object : KernelProvider {
             override val name = "recording"
             override fun asum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
                 assertSame(source.values, v)
@@ -152,7 +152,7 @@ class VectorOperationsTest {
     fun `sparse sum uses the selected kernel over stored values only`() {
         val source = SparseVector.wrap(Int.MAX_VALUE, intArrayOf(1, 100), doubleArrayOf(2.0, -3.0))
         var length = -1
-        val engine = object : EngineKernels {
+        val engine = object : KernelProvider {
             override val name = "recording"
             override fun sum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
                 assertSame(source.values, v)

@@ -67,14 +67,15 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             val x = Fixtures.vector(if (transpose) d[0] else d[1], 2)
             val y0 = Fixtures.vector(if (transpose) d[1] else d[0], 3)
             val y = y0.copyOf()
+            val xVector = DenseVector.wrap(x); val yVector = DenseVector.wrap(y)
             val expected = DenseReference.gemv(alpha, SparseReference.dense(a), transpose, x, beta, y0)
             arm(
                 verify = {
                     y0.copyInto(y)
-                    engine.kernels.gemv(alpha, a, x, beta, y, transpose)
+                    engine.gemv(alpha, a, xVector, beta, yVector, transpose)
                     DenseReference.check(expected, y, "${case.id} gemv")
                 },
-            ) { y0.copyInto(y); engine.kernels.gemv(alpha, a, x, beta, y, transpose); y[0] }
+            ) { y0.copyInto(y); engine.gemv(alpha, a, xVector, beta, yVector, transpose); y[0] }
         }
 
         "spmm" -> {
@@ -139,14 +140,15 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             val x = Fixtures.vector(d[0], 2)
             val y0 = Fixtures.vector(d[0], 3)
             val y = y0.copyOf()
+            val xVector = DenseVector.wrap(x); val yVector = DenseVector.wrap(y)
             val expected = DenseReference.symv(alpha, SparseReference.dense(a), lower, x, beta, y0)
             arm(
                 verify = {
                     y0.copyInto(y)
-                    engine.kernels.symv(alpha, a, x, beta, y, lower)
+                    engine.symv(alpha, a, xVector, beta, yVector, lower)
                     DenseReference.check(expected, y, "${case.id} symmetric product")
                 },
-            ) { y0.copyInto(y); engine.kernels.symv(alpha, a, x, beta, y, lower); y[0] }
+            ) { y0.copyInto(y); engine.symv(alpha, a, xVector, beta, yVector, lower); y[0] }
         }
 
         "spsymm" -> {
@@ -173,6 +175,7 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             val a = Fixtures.sparse(d[0], d[0], density, 1, triangular = true, lower = lower, support = support)
             val x0 = Fixtures.vector(d[0], 2)
             val x = x0.copyOf()
+            val vector = DenseVector.wrap(x)
             val solve = case.operation == "sptrsv"
             val triangle = SparseReference.dense(a)
             val expected = if (solve) {
@@ -183,12 +186,12 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             arm(
                 verify = {
                     x0.copyInto(x)
-                    if (solve) engine.kernels.trsv(a, x, lower, transpose, unit) else engine.kernels.trmv(a, x, lower, transpose, unit)
+                    if (solve) engine.trsv(a, vector, lower, transpose, unit) else engine.trmv(a, vector, lower, transpose, unit)
                     DenseReference.check(expected, x, "${case.id} triangular")
                 },
             ) {
                 x0.copyInto(x)
-                if (solve) engine.kernels.trsv(a, x, lower, transpose, unit) else engine.kernels.trmv(a, x, lower, transpose, unit)
+                if (solve) engine.trsv(a, vector, lower, transpose, unit) else engine.trmv(a, vector, lower, transpose, unit)
                 x[0]
             }
         }

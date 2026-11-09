@@ -237,7 +237,7 @@ class SimdOpsTest {
     }
 
     /** The exact Vector API engine, which hands each window to [SimdOps] once it fills a lane block. */
-    private fun simdEngine(): EngineKernels {
+    private fun simdEngine(): KernelProvider {
         assumeSimd()
         return checkNotNull(KoblasEngine.simd).kernels
     }

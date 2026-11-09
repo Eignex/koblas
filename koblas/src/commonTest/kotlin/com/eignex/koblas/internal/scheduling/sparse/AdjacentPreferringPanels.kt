@@ -11,7 +11,7 @@ import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
  * Its group of three is deliberately not a lane count and not a power of two, so a call cuts groups the
  * shipped backends never would.
  */
-internal object AdjacentPreferringPanels : EngineKernels by ScalarEngine {
+internal object AdjacentPreferringPanels : KernelProvider by ScalarEngine {
     private const val GROUP = 3
 
     override val implementations = setOf(EngineImplementation.Panels)

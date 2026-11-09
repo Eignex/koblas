@@ -52,19 +52,13 @@ internal fun shrinkingRankUpdateWork(case: BenchCase, engine: KoblasEngine): Cas
             fixture.matrix.values.last()
         }
     } else {
-        {
-            for (step in fixture.x.indices) engine.kernels.ger(
-                -1.0,
-                fixture.x[step],
-                0,
-                1,
-                fixture.y[step],
-                0,
-                1,
-                fixture.matrix,
-            )
+        val x = fixture.x.map { DenseVector.wrap(it) }
+        val y = fixture.y.map { DenseVector.wrap(it) }
+        val full: () -> Double = {
+            for (step in x.indices) engine.ger(-1.0, x[step], y[step], fixture.matrix)
             fixture.matrix.values.last()
         }
+        full
     }
     fixture.verify(case.id, run)
     return engineWork(engine, case.operation, "arithmetic", run, fixture.matrix.values)

@@ -4,21 +4,17 @@ package com.eignex.koblas.internal.kernels
 
 import com.eignex.koblas.*
 import com.eignex.koblas.EngineImplementation
-import com.eignex.koblas.internal.engine.*
-import com.eignex.koblas.internal.engine.implementationFor
-import com.eignex.koblas.internal.operations.*
-import com.eignex.koblas.internal.scheduling.dense.*
-import com.eignex.koblas.internal.scheduling.sparse.*
-import com.eignex.koblas.internal.storage.*
 
 /**
  * The kernels a shared schedule calls into, and the hints routing reads before it calls them.
  *
- * Portable, Vector API and vendor engines implement it; the BLAS routines on [KoblasEngine] are what callers
- * see. A kernel an engine does not supply fails. Built-in engines bind fixed kernel roles and provide
- * scalar coverage for omitted operations.
+ * Schedules depend on arithmetic and its layout hints, without inheriting public BLAS operations or engine
+ * selection. A kernel a provider does not supply fails. Built-in engines bind fixed kernel roles and
+ * provide scalar coverage for omitted operations.
  */
-internal interface EngineKernels : KoblasEngine {
+internal interface EngineKernels {
+    /** Label used for unsupported callbacks and arithmetic attribution. */
+    val name: String
 
     // Primitive dense vector windows.
 
@@ -31,7 +27,7 @@ internal interface EngineKernels : KoblasEngine {
         len: Int,
         aStride: Int = 1,
         bStride: Int = 1,
-    ): Double = unsupported()
+    ): Double = missingKernel(name)
 
     /**
      * Adds `alpha * x[xOff + i]` into `y[yOff + i]` over [len] entries. A zero [alpha] returns without
@@ -46,19 +42,19 @@ internal interface EngineKernels : KoblasEngine {
         len: Int,
         yStride: Int = 1,
         xStride: Int = 1,
-    ): Unit = unsupported()
+    ): Unit = missingKernel(name)
 
     /** Scales [len] entries in [v] by [alpha]. */
-    fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int, vStride: Int = 1): Unit = unsupported()
+    fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int, vStride: Int = 1): Unit = missingKernel(name)
 
     /**
      * Returns the rescaled Euclidean norm over [len] entries, or zero for an empty run. Implementations
      * must avoid the avoidable overflow and underflow of a plain square-sum followed by a square root.
      */
-    fun nrm2(v: DoubleArray, vOff: Int, len: Int, vStride: Int = 1): Double = unsupported()
+    fun nrm2(v: DoubleArray, vOff: Int, len: Int, vStride: Int = 1): Double = missingKernel(name)
 
     /** Sum of absolute values over [len] entries, or zero for an empty run. */
-    fun asum(v: DoubleArray, vOff: Int, len: Int, vStride: Int = 1): Double = unsupported()
+    fun asum(v: DoubleArray, vOff: Int, len: Int, vStride: Int = 1): Double = missingKernel(name)
 
     /**
      * Zero-based index within the selected run of a maximum absolute value, or `-1` when empty. A nonempty
@@ -69,7 +65,7 @@ internal interface EngineKernels : KoblasEngine {
      * ties go to the first and a NaN loses to a later finite entry, while a vendor may report the NaN's index
      * and may resolve a tie the other way for a negatively spaced run.
      */
-    fun iamax(v: DoubleArray, vOff: Int, len: Int, vStride: Int = 1): Int = unsupported()
+    fun iamax(v: DoubleArray, vOff: Int, len: Int, vStride: Int = 1): Int = missingKernel(name)
 
     /**
      * Applies the plane rotation `(c, s, -s, c)` to two primitive vector runs. Each pair is loaded before either
@@ -87,7 +83,7 @@ internal interface EngineKernels : KoblasEngine {
         s: Double,
         xStride: Int = 1,
         yStride: Int = 1,
-    ): Unit = unsupported()
+    ): Unit = missingKernel(name)
 
     /** Exchanges [len] entries of the two runs. */
     fun swap(
@@ -98,7 +94,7 @@ internal interface EngineKernels : KoblasEngine {
         len: Int,
         aStride: Int = 1,
         bStride: Int = 1,
-    ): Unit = unsupported()
+    ): Unit = missingKernel(name)
 
     /** Copies a primitive vector window. Callers stage destructive overlap before dispatch. */
     fun copy(
@@ -109,13 +105,13 @@ internal interface EngineKernels : KoblasEngine {
         len: Int,
         aStride: Int = 1,
         bStride: Int = 1,
-    ): Unit = unsupported()
+    ): Unit = missingKernel(name)
 
     /**
      * Returns the plain sum over [len] entries, or zero for an empty run. This is not compensated summation;
      * compiled leaves may reduce vector lanes as a tree.
      */
-    fun sum(v: DoubleArray, vOff: Int, len: Int, vStride: Int = 1): Double = unsupported()
+    fun sum(v: DoubleArray, vOff: Int, len: Int, vStride: Int = 1): Double = missingKernel(name)
 
     // Indexed sparse vector windows.
 
@@ -130,7 +126,7 @@ internal interface EngineKernels : KoblasEngine {
         valueOffset: Int,
         count: Int,
         dense: DoubleArray,
-    ): Double = unsupported()
+    ): Double = missingKernel(name)
 
     /** `Σ x(k) · y(k)` over the positions two stored runs share. Both index runs must be strictly increasing. */
     fun dot(
@@ -144,7 +140,7 @@ internal interface EngineKernels : KoblasEngine {
         yValues: DoubleArray,
         yValueOffset: Int,
         yCount: Int,
-    ): Double = unsupported()
+    ): Double = missingKernel(name)
 
     /**
      * `destination(indices(k)) += alpha · values(k)` (Sparse BLAS `usaxpy`). Indices must be strictly increasing,
@@ -159,7 +155,7 @@ internal interface EngineKernels : KoblasEngine {
         count: Int,
         alpha: Double,
         destination: DoubleArray,
-    ): Unit = unsupported()
+    ): Unit = missingKernel(name)
 
     /** `destination(indices(k)) = values(k)` (Sparse BLAS `ussc`), with the index and buffer rules of [axpy]. */
     fun scatter(
@@ -169,7 +165,7 @@ internal interface EngineKernels : KoblasEngine {
         valueOffset: Int,
         count: Int,
         destination: DoubleArray,
-    ): Unit = unsupported()
+    ): Unit = missingKernel(name)
 
     /** `values(k) = source(indices(k))` (Sparse BLAS `usga`). [values] must not be [source]. */
     fun gather(
@@ -179,7 +175,7 @@ internal interface EngineKernels : KoblasEngine {
         valueOffset: Int,
         count: Int,
         source: DoubleArray,
-    ): Unit = unsupported()
+    ): Unit = missingKernel(name)
 
     /** [gather], then zero each position read in [source] (Sparse BLAS `usgz`). Indices must be strictly increasing. */
     fun gatherZero(
@@ -189,326 +185,7 @@ internal interface EngineKernels : KoblasEngine {
         valueOffset: Int,
         count: Int,
         source: DoubleArray,
-    ): Unit = unsupported()
-
-    // Dense matrix-vector and rank operations.
-
-    /**
-     * `y = alpha · op(A) · x + beta · y` (BLAS `dgemv`), with `op(A)` being `Aᵀ` when [transpose]. `x` is the
-     * [xStride]-spaced window of [x] from [xOffset], and `y` likewise; a negative stride walks backwards from its
-     * offset, which is the window's first entry.
-     *
-     * A zero [alpha] or an empty `A` reads neither `A` nor `x`, and a zero [beta] overwrites `y` without reading
-     * it. An operand sharing `y`'s storage is snapshotted, from [scratch] when one is given, before the first
-     * write.
-     */
-    fun gemv(
-        alpha: Double,
-        a: DenseMatrix,
-        x: DoubleArray,
-        xOffset: Int,
-        xStride: Int,
-        beta: Double,
-        y: DoubleArray,
-        yOffset: Int,
-        yStride: Int,
-        transpose: Boolean = false,
-        scratch: Scratch? = null,
-    ) {
-        val operation = if (transpose) EngineImplementation.GemvTransposed else EngineImplementation.Gemv
-        val routed = routedWholeCall(operation, a.rows, a.cols, 1, !a.isWholeBuffer)
-        if (routed !=
-            null
-        ) {
-            return routed.kernels.gemv(alpha, a, x, xOffset, xStride, beta, y, yOffset, yStride, transpose, scratch)
-        }
-        prepareMatrixVector(this, alpha, a, transpose, x, xOffset, xStride, beta, y, yOffset, yStride, null, scratch) {
-                sa,
-                sx,
-                so,
-                ss,
-            ->
-            scheduleGemv(alpha, sa, sx, so, ss, beta, y, yOffset, yStride, transpose)
-        }
-    }
-
-    /**
-     * `y = alpha · A · x + beta · y` for a symmetric `A` (BLAS `dsymv`), read from its [lower] or upper triangle,
-     * diagonal included. Windows, zero multipliers and overlap follow [gemv].
-     */
-    fun symv(
-        alpha: Double,
-        a: DenseMatrix,
-        x: DoubleArray,
-        xOffset: Int,
-        xStride: Int,
-        beta: Double,
-        y: DoubleArray,
-        yOffset: Int,
-        yStride: Int,
-        lower: Boolean = true,
-        scratch: Scratch? = null,
-    ) {
-        val routed = routedWholeCall(EngineImplementation.Symv, a.rows, a.cols, 1, !a.isWholeBuffer)
-        if (routed != null) return routed.kernels.symv(alpha, a, x, xOffset, xStride, beta, y, yOffset, yStride, lower, scratch)
-        requireSquare(a, "symv")
-        prepareMatrixVector(this, alpha, a, false, x, xOffset, xStride, beta, y, yOffset, yStride, lower, scratch) {
-                sa,
-                sx,
-                so,
-                ss,
-            ->
-            scheduleSymv(alpha, sa, sx, so, ss, beta, y, yOffset, yStride, lower)
-        }
-    }
-
-    /** `A = A + alpha · x · yᵀ` (BLAS `dger`). A vector sharing `A`'s storage is snapshotted. */
-    fun ger(
-        alpha: Double,
-        x: DoubleArray,
-        xOffset: Int,
-        xStride: Int,
-        y: DoubleArray,
-        yOffset: Int,
-        yStride: Int,
-        a: DenseMatrix,
-        scratch: Scratch? = null,
-    ) {
-        val routed = routedWholeCall(EngineImplementation.Ger, a.rows, a.cols, 1, !a.isWholeBuffer)
-        if (routed != null) return routed.kernels.ger(alpha, x, xOffset, xStride, y, yOffset, yStride, a, scratch)
-        updateRank(alpha, x, xOffset, xStride, y, yOffset, yStride, a, 0, 0, a.rows, a.cols, scratch)
-    }
-
-    /**
-     * `A(rowOffset + i, columnOffset + j) += alpha · x(xOffset + i) · y(yOffset + j)` for
-     * `0 <= i < rows` and `0 <= j < columns`. Entries outside this rectangle are untouched.
-     *
-     * The destination retains [a]'s column-major leading dimension. Built-in panel kernels update it
-     * directly, without copying the rectangle or allocating vector views. All matrix and vector ranges
-     * are validated before writing, including when [alpha] is zero or either extent is empty.
-     *
-     * A vector sharing [a]'s buffer is snapshotted over only its selected range. A zero [alpha] or an empty
-     * rectangle reads no entries and takes no scratch.
-     */
-    @Suppress("LongParameterList") // the rank update and its three independently addressed windows
-    fun ger(
-        alpha: Double,
-        x: DoubleArray,
-        y: DoubleArray,
-        a: DenseMatrix,
-        rowOffset: Int,
-        columnOffset: Int,
-        rows: Int,
-        columns: Int,
-        xOffset: Int = 0,
-        yOffset: Int = 0,
-        scratch: Scratch? = null,
-    ) {
-        requireGerWindowOperands(x.size, y.size, a, rowOffset, columnOffset, rows, columns, xOffset, yOffset)
-        updateRank(alpha, x, xOffset, 1, y, yOffset, 1, a, rowOffset, columnOffset, rows, columns, scratch)
-    }
-
-    /** `A = A + alpha · x · xᵀ` (BLAS `dsyr`), writing only the [lower] or upper triangle. Overlap follows [ger]. */
-    fun syr(
-        alpha: Double,
-        x: DoubleArray,
-        xOffset: Int,
-        xStride: Int,
-        a: DenseMatrix,
-        lower: Boolean = true,
-        scratch: Scratch? = null,
-    ) {
-        val routed = routedWholeCall(EngineImplementation.Syr, a.rows, a.rows, 1, !a.isWholeBuffer)
-        if (routed != null) return routed.kernels.syr(alpha, x, xOffset, xStride, a, lower, scratch)
-        requireSquare(a, "syr")
-        prepareRankUpdate(alpha, x, xOffset, xStride, x, xOffset, xStride, a, scratch) { sx, xo, xs, _, _, _ ->
-            scheduleSyr(alpha, sx, xo, xs, a, lower)
-        }
-    }
-
-    /** `A = A + alpha · (x · yᵀ + y · xᵀ)` (BLAS `dsyr2`), writing only the [lower] or upper triangle. */
-    fun syr2(
-        alpha: Double,
-        x: DoubleArray,
-        xOffset: Int,
-        xStride: Int,
-        y: DoubleArray,
-        yOffset: Int,
-        yStride: Int,
-        a: DenseMatrix,
-        lower: Boolean = true,
-        scratch: Scratch? = null,
-    ) {
-        val routed = routedWholeCall(EngineImplementation.Syr2, a.rows, a.rows, 1, !a.isWholeBuffer)
-        if (routed != null) return routed.kernels.syr2(alpha, x, xOffset, xStride, y, yOffset, yStride, a, lower, scratch)
-        requireSquare(a, "syr2")
-        prepareRankUpdate(alpha, x, xOffset, xStride, y, yOffset, yStride, a, scratch) {
-                sx,
-                xo,
-                xs,
-                sy,
-                yo,
-                ys,
-            ->
-            scheduleSyr2(alpha, sx, xo, xs, sy, yo, ys, a, lower)
-        }
-    }
-
-    /**
-     * Solve `op(T) · x = b` in place (BLAS `dtrsv`) for the [lower] or upper triangle of the square [a], `op`
-     * transposing when [transpose] and [unitDiag] taking the diagonal as 1. The window of [x] carries `b` in and
-     * `x` out.
-     *
-     * As in BLAS `dtrsv`, no singularity or conditioning check is performed; singular inputs have no guaranteed
-     * numerical result. The substitution overwrites `x` as it goes, so a triangle sharing that storage is
-     * snapshotted first.
-     */
-    fun trsv(
-        a: DenseMatrix,
-        x: DoubleArray,
-        xOffset: Int,
-        xStride: Int,
-        lower: Boolean,
-        transpose: Boolean = false,
-        unitDiag: Boolean = false,
-        scratch: Scratch? = null,
-    ) {
-        val operation = if (transpose) EngineImplementation.TrsvTransposed else EngineImplementation.Trsv
-        val routed = routedWholeCall(operation, a.rows, a.rows, 1, !a.isWholeBuffer)
-        if (routed != null) return routed.kernels.trsv(a, x, xOffset, xStride, lower, transpose, unitDiag, scratch)
-        prepareTriangularVector(a, x, xOffset, xStride, lower, unitDiag, "trsv", scratch) { sa ->
-            scheduleTrsv(sa, x, xOffset, xStride, lower, transpose, unitDiag)
-        }
-    }
-
-    /** `x = op(T) · x` in place (BLAS `dtrmv`), with the flags and overlap of [trsv]. */
-    fun trmv(
-        a: DenseMatrix,
-        x: DoubleArray,
-        xOffset: Int,
-        xStride: Int,
-        lower: Boolean,
-        transpose: Boolean = false,
-        unitDiag: Boolean = false,
-        scratch: Scratch? = null,
-    ) {
-        val operation = if (transpose) EngineImplementation.TrmvTransposed else EngineImplementation.Trmv
-        val routed = routedWholeCall(operation, a.rows, a.rows, 1, !a.isWholeBuffer)
-        if (routed != null) return routed.kernels.trmv(a, x, xOffset, xStride, lower, transpose, unitDiag, scratch)
-        prepareTriangularVector(a, x, xOffset, xStride, lower, unitDiag, "trmv", scratch) { sa ->
-            scheduleTrmv(sa, x, xOffset, xStride, lower, transpose, unitDiag)
-        }
-    }
-
-    /**
-     * Dot product of [column] of [matrix] with [dense], whose length must equal [SparseMatrix.rows].
-     * Only stored entries participate, including explicit zeros; absent positions are never evaluated.
-     * Reads the current [SparseMatrix.values] on every call and permits that array to be [dense].
-     *
-     * Built-in implementations reuse the matrix's validated CSC support and call the indexed dot leaf
-     * at the column's offsets without copying or rescanning indices. The matrix's structural arrays must
-     * remain unchanged, as [SparseMatrix.wrap] requires; this call retains no arrays or column view after returning.
-     *
-     * @throws IndexOutOfBoundsException if [column] is outside the matrix's columns.
-     * @throws IllegalArgumentException if [dense] has the wrong length.
-     */
-    fun dotColumn(matrix: SparseMatrix, column: Int, dense: DoubleArray): Double {
-        requireIndex(column in 0 until matrix.cols) { "column $column is outside [0, ${matrix.cols})" }
-        requireShape(matrix.rows == dense.size) { "dotColumn: sizes differ, ${matrix.rows} vs ${dense.size}" }
-        val start = matrix.colPointers[column]
-        val count = matrix.colPointers[column + 1] - start
-        return dot(matrix.rowIndices, start, matrix.values, start, count, dense)
-    }
-
-    /**
-     * In-place `y = alpha · op(A) · x + beta · y` for a sparse [a], where `op(A)` is `Aᵀ` when [transpose]. A zero
-     * [beta] overwrites [y] without reading it, and a zero [alpha] reads neither [a] nor [x].
-     *
-     * Only stored entries are visited, so an implicit zero of [a] forms no product: a column [a] does not store
-     * leaves [y] untouched even where [x] holds an infinity. A stored zero does form its product. [x] and [a]'s
-     * coefficients may share [y]'s storage and are snapshotted before [y] is scaled.
-     */
-    fun gemv(
-        alpha: Double,
-        a: SparseMatrix,
-        x: DoubleArray,
-        beta: Double,
-        y: DoubleArray,
-        transpose: Boolean = false,
-        scratch: Scratch? = null,
-    ) {
-        requireGemvOperands(a, transpose, x.size, y.size)
-        // Zero alpha or zero extent reads neither operand; only destination scaling remains.
-        if (alpha == 0.0 || a.rows == 0 || a.cols == 0) return applyBeta(this, y, 0, y.size, beta)
-        // Snapshot aliased operands before destination scaling overwrites their coefficients.
-        staged(scratch, x, x === y) { stableX ->
-            staged(
-                scratch,
-                a,
-                a.values === y,
-            ) { stableA -> scheduleSparseGemv(alpha, stableA, stableX, beta, y, transpose) }
-        }
-    }
-
-    /**
-     * `y = alpha · A · x + beta · y` for a square sparse [a] interpreted as symmetric. Exactly the selected
-     * [lower] or upper stored triangle is read; a stored off-diagonal entry contributes to both mirrored
-     * positions. Multipliers and overlap follow the sparse [gemv].
-     */
-    fun symv(
-        alpha: Double,
-        a: SparseMatrix,
-        x: DoubleArray,
-        beta: Double,
-        y: DoubleArray,
-        lower: Boolean = true,
-        scratch: Scratch? = null,
-    ) {
-        requireSymvOperands(a, x.size, y.size)
-        if (alpha == 0.0) return applyBeta(this, y, 0, y.size, beta)
-        staged(scratch, x, x === y) { stableX ->
-            staged(
-                scratch,
-                a,
-                a.values === y,
-            ) { stableA -> scheduleSparseSymv(alpha, stableA, stableX, beta, y, lower) }
-        }
-    }
-
-    /**
-     * Solve `op(T) · x = b` in place for a sparse triangle, with the flags of the dense [trsv]. A missing diagonal
-     * entry represents zero and no singularity check is performed. A right-hand side that is already exactly zero
-     * contributes no update, as in reference `dtrsv`.
-     */
-    fun trsv(
-        a: SparseMatrix,
-        x: DoubleArray,
-        lower: Boolean,
-        transpose: Boolean = false,
-        unitDiag: Boolean = false,
-        scratch: Scratch? = null,
-    ) {
-        requireTriangularVectorOperands(a, x.size, "trsv")
-        // Snapshot an aliased triangle before substitution overwrites coefficients needed by later columns.
-        staged(scratch, a, a.values === x) { stable ->
-            triangularVectorCore(stable, x, lower, transpose, unitDiag, solve = true)
-        }
-    }
-
-    /** `x = op(T) · x` in place for a sparse triangle. A missing diagonal entry is simply zero. */
-    fun trmv(
-        a: SparseMatrix,
-        x: DoubleArray,
-        lower: Boolean,
-        transpose: Boolean = false,
-        unitDiag: Boolean = false,
-        scratch: Scratch? = null,
-    ) {
-        requireTriangularVectorOperands(a, x.size, "trmv")
-        staged(scratch, a, a.values === x) { stable ->
-            triangularVectorCore(stable, x, lower, transpose, unitDiag, solve = false)
-        }
-    }
+    ): Unit = missingKernel(name)
 
     /** Whether attribution can depend on the values processed by this contribution. */
     fun dynamicAttribution(implementation: EngineImplementation): Boolean = false
@@ -544,7 +221,7 @@ internal interface EngineKernels : KoblasEngine {
      * it is not going to reach. A scheduling of its own may then take less than what was recommended, for a
      * cache or a workspace it is keeping within; passing less is always correct.
      */
-    fun executionGroup(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean = true): Int = unsupported()
+    fun executionGroup(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean = true): Int = missingKernel(name)
 
     /**
      * Whether a panel of these extents is worth copying into adjacent rows before it is handed over.
@@ -561,7 +238,7 @@ internal interface EngineKernels : KoblasEngine {
      * layouts; where it is false the body may still differ, and the caller has simply been told not to pay
      * for the difference.
      */
-    fun prefersContiguous(work: PanelWork, rows: Int, columns: Int): Boolean = unsupported()
+    fun prefersContiguous(work: PanelWork, rows: Int, columns: Int): Boolean = missingKernel(name)
 
     /**
      * `y(c) = alpha · Σ a(i, c) · x(i) + beta · y(c)` for each of [columns] columns.
@@ -585,7 +262,7 @@ internal interface EngineKernels : KoblasEngine {
         y: DoubleArray,
         yOffset: Int,
         yStride: Int,
-    ): Unit = unsupported()
+    ): Unit = missingKernel(name)
 
     /**
      * `y(i) += Σ (alpha · x(c)) · a(i, c)` over [rows] destination entries and [columns] panel columns.
@@ -606,7 +283,7 @@ internal interface EngineKernels : KoblasEngine {
         y: DoubleArray,
         yOffset: Int,
         yStride: Int,
-    ): Unit = unsupported()
+    ): Unit = missingKernel(name)
 
     /**
      * One pass over a panel that both updates a destination window and reduces the panel against a vector.
@@ -640,7 +317,7 @@ internal interface EngineKernels : KoblasEngine {
         yStride: Int = 1,
         coefficientStride: Int = 1,
         sumStride: Int = 1,
-    ): Unit = unsupported()
+    ): Unit = missingKernel(name)
 
     /**
      * `a(i, c) += (alpha · coefficients(c)) · x(i)`, the rank-one update of a panel of destination columns.
@@ -661,7 +338,7 @@ internal interface EngineKernels : KoblasEngine {
         coefficients: DoubleArray,
         coefficientOffset: Int,
         coefficientStride: Int,
-    ): Unit = unsupported()
+    ): Unit = missingKernel(name)
 
     /**
      * `a(i, c) += alpha · (x(i) · u(c) + y(i) · v(c))`, the symmetric rank-two update of a panel.
@@ -689,7 +366,7 @@ internal interface EngineKernels : KoblasEngine {
         v: DoubleArray,
         vOffset: Int,
         vStride: Int,
-    ): Unit = unsupported()
+    ): Unit = missingKernel(name)
 
     /**
      * `y(i) += Σ (alpha · values(c)) · a(i, indices(c))` over a panel whose columns an index array selects.
@@ -724,7 +401,7 @@ internal interface EngineKernels : KoblasEngine {
         rows: Int,
         y: DoubleArray,
         yOffset: Int,
-    ): Unit = unsupported()
+    ): Unit = missingKernel(name)
 
     /**
      * `a(i, indices(c)) += (alpha · values(c)) · x(i)`, the indexed counterpart of [rankUpdate].
@@ -756,7 +433,7 @@ internal interface EngineKernels : KoblasEngine {
         rows: Int,
         x: DoubleArray,
         xOffset: Int,
-    ): Unit = unsupported()
+    ): Unit = missingKernel(name)
 
     /**
      * One pass over an indexed panel that both scatters into the positions it selects and reduces them.
@@ -812,17 +489,17 @@ internal interface EngineKernels : KoblasEngine {
         destinationOffset: Int = offset,
         destinationRowStride: Int = rowStride,
         destinationIndexStride: Int = indexStride,
-    ): Unit = unsupported()
+    ): Unit = missingKernel(name)
 
     /**
      * Destination rows one register tile accumulates, which is the group a left panel is packed in.
      *
      * Positive and fixed for the life of an implementation.
      */
-    val tileRows: Int get() = unsupported()
+    val tileRows: Int get() = missingKernel(name)
 
     /** Destination columns one register tile accumulates, which is the group a right panel is packed in. */
-    val tileColumns: Int get() = unsupported()
+    val tileColumns: Int get() = missingKernel(name)
 
     /**
      * Whether a product of these logical extents is worth packing into this engine's tiles at all.
@@ -837,7 +514,7 @@ internal interface EngineKernels : KoblasEngine {
      *
      * The crossover is local: a tile that finishes more arithmetic per loaded value pays off a copy sooner.
      */
-    fun packsProduct(rows: Int, columns: Int, depth: Int): Boolean = unsupported()
+    fun packsProduct(rows: Int, columns: Int, depth: Int): Boolean = missingKernel(name)
 
     /**
      * `C = alpha · A · B + beta · C` over one `rows` by `columns` window, accumulating `depth` steps.
@@ -869,7 +546,7 @@ internal interface EngineKernels : KoblasEngine {
         c: DoubleArray,
         cOffset: Int,
         ldc: Int,
-    ): Unit = unsupported()
+    ): Unit = missingKernel(name)
 
     /**
      * How many right-hand sides this engine recommends substituting at once, for a block of [order] steps
@@ -880,7 +557,7 @@ internal interface EngineKernels : KoblasEngine {
      * scheduling chose: a diagonal block is as wide as the dependency chain is long, and this is how much of
      * the work beside it is done together.
      */
-    fun rightHandSideGroup(order: Int, sides: Int): Int = unsupported()
+    fun rightHandSideGroup(order: Int, sides: Int): Int = missingKernel(name)
 
     /**
      * Whether a group of right-hand sides this far apart is worth copying into adjacent storage first.
@@ -890,7 +567,7 @@ internal interface EngineKernels : KoblasEngine {
      * nothing from that and answers false, and so does one whose right-hand sides are already adjacent.
      * Where this answers true the caller gathers.
      */
-    fun gathersRightHandSides(rhsStride: Int, order: Int, sides: Int): Boolean = unsupported()
+    fun gathersRightHandSides(rhsStride: Int, order: Int, sides: Int): Boolean = missingKernel(name)
 
     /**
      * Solves `M · X = X` in place over one diagonal block, for every right-hand side at once.
@@ -913,7 +590,7 @@ internal interface EngineKernels : KoblasEngine {
         rhsStride: Int,
         sides: Int,
         tOffset: Int = 0,
-    ): Unit = unsupported()
+    ): Unit = missingKernel(name)
 
     /**
      * Multiplies `X = M · X` in place over one diagonal block, for every right-hand side at once.
@@ -936,11 +613,8 @@ internal interface EngineKernels : KoblasEngine {
         rhsStride: Int,
         sides: Int,
         tOffset: Int = 0,
-    ): Unit = unsupported()
+    ): Unit = missingKernel(name)
 }
 
-internal fun KoblasEngine.unsupported(): Nothing =
+private fun missingKernel(name: String): Nothing =
     throw UnsupportedOperationException("This operation is not supplied by $name")
-
-/** Access to the primitive seam is confined to storage adapters and shared schedules. */
-internal val KoblasEngine.kernels: EngineKernels get() = this as? EngineKernels ?: unsupported()

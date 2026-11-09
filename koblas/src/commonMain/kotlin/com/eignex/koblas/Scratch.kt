@@ -12,7 +12,7 @@ import com.eignex.koblas.internal.storage.PooledBuffers
  * A call given none allocates its own temporary storage. Buffers never retain an operand and are returned even if
  * arithmetic throws.
  *
- * Reuse is by exact length, keeping repeated shapes allocation-free without exposing stale tail entries.
+ * Reuse is by exact length, so repeated shapes reuse temporary arrays without exposing stale tail entries.
  * Retention keeps a bounded number of recently returned lengths, so changing shapes cannot grow the pool
  * indefinitely. Active loans remain valid through nested calls.
  */
