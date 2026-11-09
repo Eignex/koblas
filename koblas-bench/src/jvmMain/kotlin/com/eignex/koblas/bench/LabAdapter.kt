@@ -23,9 +23,14 @@ public object LabAdapter {
 internal object KoblasLabSuite : BenchSuite {
     private const val CASES = "koblas-bench/lab/cases-vendor-comparison.txt"
     private const val ROW = "row"
+    private val sweepProfiles = mapOf(
+        "status-v2" to "koblas-bench/lab/cases-status-sweep-v2.txt",
+        "status-v3" to "koblas-bench/lab/cases-status-sweep-v3.txt",
+        "extended-v1" to "koblas-bench/lab/cases-sweep-extended-v1.txt",
+    )
     private val vendors = Vendor.entries.associateBy { it.vendorName.lowercase() }
     private val parameters = setOf("vendor", "arch", "platform", "operation", "cases", "samples", "warmups",
-        "target-ms", "forks", "rounds", "targets", "profile-gc", "jvm-options", "smoke", "status-sweep")
+        "target-ms", "forks", "rounds", "targets", "profile-gc", "jvm-options", "smoke", "status-sweep", "sweep-profile")
     private val owned = setOf("jvm-scalar", "jvm-simd", "jvm-default", "native", "native-default")
 
     override fun describe() = BenchDescriptor("koblas-bench", "Prepared paired JVM and Native workloads")
@@ -48,7 +53,8 @@ internal object KoblasLabSuite : BenchSuite {
                 (vendor == Vendor.OneMkl && it.removeSuffix("-jvm") == "openblas")
         }) { "Invalid capture targets" }
         val sweep = p["status-sweep"] == "true"
-        val cases = p["cases"] ?: if (sweep) "koblas-bench/lab/cases-status-sweep-v2.txt" else CASES
+        val profile = p["sweep-profile"] ?: if (sweep) "status-v3" else null
+        val cases = p["cases"] ?: profile?.let(sweepProfiles::getValue) ?: CASES
         val inputs = mutableListOf(BenchInput(cases, role = "cases"))
         if (selected.any { !it.startsWith("jvm-") && !it.endsWith("-jvm") }) {
             val target = when {
@@ -63,18 +69,17 @@ internal object KoblasLabSuite : BenchSuite {
         if (vendor == Vendor.OneMkl && platform == "linux") {
             inputs += BenchInput("koblas-bench/build/vendor-reference", role = "vendor")
         }
-        val rows = Files.readAllLines(repositoryRoot().resolve(cases)).map(String::trim)
-            .filter { it.isNotEmpty() && !it.startsWith('#') }
-            .map { line -> Cases.parse(line).single() to line }
-            .filter { (case, _) -> "default" in case.suites && (p["operation"] == null || p["operation"] == "all" || case.operation == p["operation"]) }
+        val rows = Cases.parse(Files.readString(repositoryRoot().resolve(cases)))
+            .filter { "default" in it.suites && (p["operation"] == null || p["operation"] == "all" || it.operation == p["operation"]) }
         require(rows.isNotEmpty()) { "No workloads selected" }
         val host = if (vendor == Vendor.OpenBlas) "openblas-$arch" else p["vendor"] ?: "owned-$platform-$arch"
-        return rows.map { (case, row) ->
-            LabCase("comparison/$host/${case.operation}/${case.id}", p + mapOf(ROW to row, "targets" to targets),
+        return rows.map { case ->
+            LabCase("comparison/$host/${case.operation}/${case.id}", p + mapOf(ROW to case.id, "targets" to targets) +
+                    (profile?.let { mapOf("sweep-profile" to it) } ?: emptyMap()),
                 BenchResources(memoryMiB = 2048, timeoutSeconds = if (sweep) 60 else 7200,
                     requiredTags = setOf("platform:$platform", "arch:$arch")), inputs = inputs,
                 attributes = if (sweep) mapOf("regressionPolicy" to "metric-v1", "regressionMetric" to "median_ns",
-                    "regressionThreshold" to "0.15", "suite" to "koblas-status-v1") else emptyMap())
+                    "regressionThreshold" to "0.15", "suite" to if (profile == "status-v2") "koblas-status-v1" else "koblas-$profile") else emptyMap())
         }
     }
 
@@ -121,6 +126,7 @@ internal object KoblasLabSuite : BenchSuite {
         val complete = Files.isRegularFile(metadata) && Files.newBufferedReader(metadata).use { it.readLine() == "status=complete" }
         val controls = buildJsonObject {
             put("policy", "koblas-jmh-status-v1")
+            put("sweepProfile", case.parameters["sweep-profile"] ?: "status-v3")
             put("java", runtimeIdentity())
             put("vm", System.getProperty("java.vm.name"))
             put("os", System.getProperty("os.name"))
@@ -150,6 +156,10 @@ internal object KoblasLabSuite : BenchSuite {
 
     private fun validate(p: Map<String, String>) {
         require(p.keys.all { it in parameters } && p.values.none { value -> value.isBlank() || value.any(Char::isISOControl) })
+        p["sweep-profile"]?.let {
+            require(it in sweepProfiles) { "Unknown sweep profile" }
+            require(p["cases"] == null) { "Choose sweep-profile or cases" }
+        }
         p["vendor"]?.let { require(it in vendors) { "Unknown vendor" } }
         for (key in listOf("samples", "target-ms", "forks", "rounds")) {
             p[key]?.let { require(it.toIntOrNull()?.let { value -> value > 0 } == true) { "$key must be positive" } }
@@ -161,7 +171,7 @@ internal object KoblasLabSuite : BenchSuite {
             require(p["targets"] == null || p["targets"] == "jvm-default")
             require(p["samples"] == "3" && p["warmups"] == "3" && p["target-ms"] == "100" &&
                 p["forks"] == "1" && p["rounds"] == "1" && p["smoke"] != "true" && p["profile-gc"] != "true") {
-                "Status sweep v2 requires 3 warmups, 3 samples, 100ms, one fork and one round"
+                "Status sweeps require 3 warmups, 3 samples, 100ms, one fork and one round"
             }
         }
         p["jvm-options"]?.let { options ->
