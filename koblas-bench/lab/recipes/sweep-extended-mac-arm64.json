@@ -1,0 +1,28 @@
+{
+  "name": "koblas-sweep-extended-mac-arm64",
+  "description": "Opt-in extended v1: 187 representative workloads with larger working sets and paired exact-engine arms. View adapter cases are supported only on the default JVM arm. This recipe does not register a schedule.",
+  "repository": "Eignex/koblas",
+  "tags": [
+    "local"
+  ],
+  "priority": 50,
+  "parallel": 4,
+  "repeats": 1,
+  "bench": {
+    "manifest": "koblas-bench/lab/status-sweep.json",
+    "runTimeoutSec": 10800,
+    "request": {
+      "parameters": {
+        "sweep-profile": "extended-v1",
+        "platform": "mac",
+        "arch": "arm64",
+        "targets": "jvm-default,jvm-scalar,jvm-simd",
+        "samples": "5",
+        "warmups": "20",
+        "target-ms": "200",
+        "forks": "2",
+        "rounds": "3"
+      }
+    }
+  }
+}

@@ -18,16 +18,6 @@ import com.eignex.koblas.internal.operations.*
 @Suppress("LongMethod", "CyclomaticComplexMethod") // one branch per benchmarked operation
 internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
     if (!case.operation.startsWith("sp")) return null
-    val density = case.option("density", "0.01").toDouble()
-    val d = case.dimensions
-
-    fun arm(count: Int, timing: String, result: DoubleArray? = null, run: () -> Double): ArmChoice =
-        if (count == 0) {
-            declined()
-        } else {
-            ArmChoice(engineWork(engine, case.operation, timing, run, result), null)
-        }
-
     return when (case.operation) {
         "spbuild-triplets", "spbuild-duplicates" -> {
             if (engine !== KoblasEngine.scalar) {
@@ -39,73 +29,8 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
         "spdot-view" -> vectorViewsArm(case, engine)
         "spdot-column", "spdot-column-raw" -> sparseColumnDotArm(case, engine)
         "spdot-slice", "spaxpy-slice", "spscatter-slice" -> sparseSlicesArm(case, engine)
-        "spdot" -> {
-            val x = Fixtures.sparseVector(d[0], density, 1); val y = Fixtures.vector(d[0], 2)
-            arm(x.values.size, "arithmetic") { engine.kernels.dot(x.indices, 0, x.values, 0, x.values.size, y) }
-        }
-        "spdot-raw" -> {
-            val x = Fixtures.sparseVector(d[0], density, 1); val y = Fixtures.vector(d[0], 2)
-            val indices = x.copyIndices()
-            arm(x.values.size, "arithmetic") {
-                engine.kernels.dot(indices, 0, x.values, 0, x.values.size, y)
-            }
-        }
-        "spdot-sparse" -> {
-            val x = Fixtures.sparseVector(d[0], density, 1); val y = Fixtures.sparseVector(d[0], density, 2)
-            arm(x.values.size, "arithmetic") { engine.kernels.dot(x.indices, 0, x.values, 0, x.values.size, y.indices, 0, y.values, 0, y.values.size) }
-        }
-        "spaxpy" -> {
-            val x = Fixtures.sparseVector(d[0], density, 1); val y0 = Fixtures.vector(d[0], 2); val y = y0.copyOf()
-            arm(x.values.size, "reset-and-arithmetic") {
-                y0.copyInto(y); engine.kernels.axpy(x.indices, 0, x.values, 0, x.values.size, 0.875, y); y[0]
-            }
-        }
-        "spaxpy-raw" -> {
-            val x = Fixtures.sparseVector(d[0], density, 1); val indices = x.copyIndices()
-            val y0 = Fixtures.vector(d[0], 2); val y = y0.copyOf()
-            arm(x.values.size, "reset-and-arithmetic") {
-                y0.copyInto(y)
-                engine.kernels.axpy(indices, 0, x.values, 0, x.values.size, 0.875, y)
-                y[0]
-            }
-        }
-        "spnrm2", "spasum" -> {
-            val x = Fixtures.sparseVector(d[0], density, 1)
-            val norm = case.operation == "spnrm2"
-            arm(x.values.size, "arithmetic") {
-                if (norm) engine.kernels.normVector(x) else engine.kernels.absoluteSumVector(x)
-            }
-        }
-        "spscatter-raw" -> {
-            val x = Fixtures.sparseVector(d[0], density, 1); val indices = x.copyIndices()
-            val dense0 = Fixtures.vector(d[0], 2); val dense = dense0.copyOf()
-            arm(x.values.size, "reset-and-arithmetic") {
-                dense0.copyInto(dense)
-                engine.kernels.scatter(indices, 0, x.values, 0, x.values.size, dense)
-                dense[0]
-            }
-        }
-        "spgather" -> {
-            val x = Fixtures.sparseVector(d[0], density, 1); val indices = x.copyIndices()
-            val dense0 = Fixtures.vector(d[0], 2); val dense = dense0.copyOf()
-            val timing = case.option("timing", "reset-and-arithmetic")
-            arm(x.values.size, timing, result = x.values) {
-                if (timing == "reset-and-arithmetic") dense0.copyInto(dense)
-                engine.kernels.gather(indices, 0, x.values, 0, x.values.size, dense)
-                if (x.values.isEmpty()) 0.0 else x.values[0] + x.values[x.values.lastIndex]
-            }
-        }
-        "spscatter", "spgather-zero" -> {
-            val x = Fixtures.sparseVector(d[0], density, 1); val values0 = x.values.copyOf()
-            val indices = x.copyIndices()
-            val dense0 = Fixtures.vector(d[0], 2); val dense = dense0.copyOf()
-            val scatter = case.operation == "spscatter"
-            arm(x.values.size, "reset-and-arithmetic") {
-                values0.copyInto(x.values); dense0.copyInto(dense)
-                if (scatter) engine.kernels.scatter(x.indices, 0, x.values, 0, x.values.size, dense) else engine.kernels.gatherZero(indices, 0, x.values, 0, x.values.size, dense)
-                x.values.firstOrNull() ?: dense[0]
-            }
-        }
+        "spdot", "spdot-raw", "spdot-sparse", "spaxpy", "spaxpy-raw", "spnrm2", "spasum",
+        "spscatter", "spscatter-raw", "spgather", "spgather-zero" -> sparseIndexedArm(case, engine)
         else -> sparseMatrixArm(case, engine)
     }
 }

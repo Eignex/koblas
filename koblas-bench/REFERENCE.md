@@ -67,7 +67,11 @@ A request identifies `repository: "Eignex/koblas"` and passes this object as `be
 ```
 
 Each selected workload becomes one paired case. [LabAdapter.kt](src/jvmMain/kotlin/com/eignex/koblas/bench/LabAdapter.kt)
-lists the accepted parameters. Windows workers need Git Bash or an absolute `KOBLAS_BASH`.
+lists the accepted parameters. `sweep-profile=status-v3` selects the bounded status inventory;
+`extended-v1` selects its broader superset, and `status-v2` retains the legacy inventory. Profiles also work
+without `status-sweep=true` for ordinary paired captures with explicit engines and timing settings. Keep the
+status flag for fixed-control `jvm-default` regression metrics. Do not combine a profile with `cases`.
+Windows workers need Git Bash or an absolute `KOBLAS_BASH`.
 
 The [calibration manifest](lab/calibration.json) prepares the grids `generateCalibrationGrids` writes under
 `koblas-bench/build/calibration/`. Set `cases` to `training.txt` or `holdout.txt` for JVM, or

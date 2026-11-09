@@ -55,11 +55,20 @@ check their [definitions](REFERENCE.md#cases) before comparing them.
 
 ## Per-commit status sweep
 
-`lab/recipes/status-sweep.json` runs the default JVM engine on 41 fixed arithmetic workloads spanning the
-`KoblasEngine` routine families at exactly two sizes (82 cases). Typed storage overloads share these
-underlying kernels; the sweep checks routine-family coverage without counting public overloads. `lab/cases-status-sweep-v2.txt` freezes membership. Dense vectors and indexed
-vectors use 64/4096 entries, dense Level 2 and sparse matrices use orders 32/128, and dense Level 3 uses
-16/64. Sparse density is 1/8; matrix panels have eight right-hand sides.
+`lab/recipes/status-sweep.json` runs the default JVM engine on the frozen **status-v3** inventory:
+136 representative cases, retaining all 82 v2 identities. It covers the engine routine families and samples
+vector crossover neighbors, odd tails, rectangular and transposed products, upper triangles, right-side
+operations, unit diagonals, strided vectors, borrowed GEMM storage and retained scratch. A borrowed product
+crosses all three product cache block extents, and triangular cases cross the diagonal block with few right-hand
+sides. Sparse cases sample three densities and uniform, banded, skewed, empty-column and mixed support.
+
+This is a bounded change detector. It deliberately samples independent risk factors rather than taking their
+Cartesian product or counting every public overload. [The v3 inventory](lab/cases-status-sweep-v3.txt) records
+membership and intent; tests protect representative coverage and frozen identities. The lab parameter
+`sweep-profile=status-v2` retains the old inventory, `status-v3` selects the core, and `extended-v1` selects the
+broader inventory. A profile and a custom `cases` path are mutually exclusive. Status requests default to v3;
+profile names are carried into case parameters, regression suite attributes and measurement controls so a
+profile change establishes a fresh baseline. Timing controls remain fixed.
 
 The recipe matches the local Mac arm64 platform used by Klause's status sweep. It checks `main` every 120
 seconds, runs at priority 98 with four vCPUs (up to three single-thread cases), and has a 600-second active-time
@@ -67,7 +76,8 @@ ceiling including preparation. Queue waits and pauses are outside that ceiling. 
 one round, three 100ms warmup iterations and three 100ms measurement iterations, Serial GC and a fixed 512MiB
 heap. This is a short change detector; use longer paired captures to measure small differences.
 
-Each case validates numerical results before timing, retains the raw CSV/logs and exports `median_ns` in ns/op.
+Each case validates numerical results against a scalar reference before timing, including complete backing
+buffers for indexed sparse mutations, retains the raw CSV/logs and exports `median_ns` in ns/op.
 A numerical/capture failure or an unsupported default-engine workload fails its case. The lab's `metric-v1`
 confirmation policy selects correctness transitions and timing changes beyond 15%, reuses both accepted revision
 builds and frozen inputs, and runs three paired blocks at priority 99. Each block runs both revisions on one machine
@@ -80,3 +90,34 @@ After deploying lab support for `metric-v1`, register it with the maintained HTT
 ```bash
 lab schedule koblas-sweep main koblas-bench/lab/recipes/status-sweep.json 120
 ```
+
+## Extended sweep
+
+[Extended v1](lab/cases-sweep-extended-v1.txt) contains the 136 core cases plus 51 selected cases for larger
+working sets, additional vector crossovers, strided storage and matrix orientations. It is an opt-in capture;
+the recipes do not install schedules:
+
+- [Mac arm64](lab/recipes/sweep-extended-mac-arm64.json) compares `jvm-default`, `jvm-scalar` and `jvm-simd`.
+- [Linux x64](lab/recipes/sweep-extended-linux-x86_64.json) also compares `native` and `native-default`.
+
+Each workload keeps every selected arm together on one compatible machine and worker attempt. Placement is
+automatic and may change between rows. Unsupported view adapters appear only on the default JVM arm and
+cannot contribute a complete paired comparison across exact-engine arms. These captures retain raw reports;
+they use the ordinary comparison protocol rather than the short status regression policy. They use 20 warmups,
+five samples, 200ms iterations, two JVM forks and three rotating rounds.
+
+For a local capture, use the inventory directly:
+
+```bash
+koblas-bench/capture-report.sh --targets jvm-default,jvm-scalar,jvm-simd \
+  --cases koblas-bench/lab/cases-sweep-extended-v1.txt \
+  --rounds 3 --samples 5 --warmups 20 --target-ms 200 --forks 2 \
+  --output koblas-bench/build/benchmarks/extended
+```
+
+Before deploying a changed core recipe, pilot the actual prepared row protocol on its target platform. Record
+preparation time, total active time, row duration spread and failures; capture/JVM startup and reference checks
+are part of the cost beyond the nominal 600ms of iterations per row. Keep the 600-second core ceiling until a
+pilot demonstrates that it needs changing. A local capture of the whole inventory validates cases, but does
+not reproduce the lab's per-row startup and placement costs. The documented confirmation cap remains 40 rows;
+a broader change can leave additional affected rows unconfirmed and needs follow-up from the lab owner.
