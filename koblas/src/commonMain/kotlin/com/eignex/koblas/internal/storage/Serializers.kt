@@ -53,11 +53,7 @@ internal object DenseVectorSerializer : KSerializer<DenseVector> {
 /** Sparse views encode only their own support, with the same field names as owning vectors. */
 @Serializable
 @SerialName("SparseVector")
-internal class SparseVectorPayload(
-    val size: Int,
-    @SerialName("indices") val indices: IntArray,
-    @SerialName("values") val values: DoubleArray,
-)
+internal class SparseVectorPayload(val size: Int, val indices: IntArray, val values: DoubleArray)
 
 internal object SparseVectorSerializer : KSerializer<SparseVector> {
     private val delegate = SparseVectorPayload.serializer()

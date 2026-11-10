@@ -28,44 +28,13 @@ internal inline fun accumulateProductSlice(
     marks: IntArray,
     touched: IntArray,
     touchedCount: Int,
+    coefficientIndex: (Int) -> Int = { it },
 ): Int {
     var used = touchedCount
     for (position in start until end) {
         val row = rowIndices[position]
         if (row < firstRow || row >= lastRow) continue
-        val contribution = coefficients[position] * factor
-        if (marks[row] != epoch) {
-            marks[row] = epoch
-            sums[row] = contribution
-            touched[used++] = row
-        } else {
-            sums[row] += contribution
-        }
-    }
-    return used
-}
-
-@Suppress("LongParameterList")
-internal inline fun accumulateIndirectProductSlice(
-    rows: IntArray,
-    positions: IntArray,
-    coefficients: DoubleArray,
-    start: Int,
-    end: Int,
-    factor: Double,
-    firstRow: Int,
-    lastRow: Int,
-    epoch: Int,
-    sums: DoubleArray,
-    marks: IntArray,
-    touched: IntArray,
-    touchedCount: Int,
-): Int {
-    var used = touchedCount
-    for (at in start until end) {
-        val row = rows[at]
-        if (row < firstRow || row >= lastRow) continue
-        val contribution = coefficients[positions[at]] * factor
+        val contribution = coefficients[coefficientIndex(position)] * factor
         if (marks[row] != epoch) {
             marks[row] = epoch
             sums[row] = contribution

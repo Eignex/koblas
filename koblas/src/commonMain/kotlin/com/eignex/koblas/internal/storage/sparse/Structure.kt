@@ -89,24 +89,13 @@ internal fun lowerBound(rowIndices: IntArray, from: Int, to: Int, row: Int): Int
 }
 
 /**
- * Checks a result's pointer count before allocation. A valid [SparseMatrix] bounds its columns through
- * its pointer array but may have arbitrarily many rows; transposing those rows into columns must report
- * an unrepresentable array length as a shape error rather than an allocation failure.
+ * Checks compressed pointer lengths for results and scratch. A valid [SparseMatrix] bounds its columns
+ * but may have arbitrarily many rows; row-indexed pointers must reject an unrepresentable length before
+ * allocation.
  */
-internal fun pointerLength(columns: Int, what: String): Int {
-    requireShape(columns < Int.MAX_VALUE) {
-        "$what: a CSC result with $columns columns needs ${columns.toLong() + 1} pointers, more than one array can hold"
-    }
-    return columns + 1
-}
-
-/**
- * Checks extent-indexed scratch before allocation. Empty rank-update sources need no row scratch;
- * callers that do need it reject unrepresentable lengths here.
- */
-internal fun scratchLength(extent: Int, what: String): Int {
+internal fun pointerLength(extent: Int, what: String): Int {
     requireShape(extent < Int.MAX_VALUE) {
-        "$what: scratch for $extent rows needs ${extent.toLong() + 1} entries, more than one array can hold"
+        "$what: $extent entries need ${extent.toLong() + 1} pointers, more than one array can hold"
     }
     return extent + 1
 }
