@@ -10,18 +10,11 @@ import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
 
 /**
- * JVM Vector API diagonal substitution with portable fallbacks.
- *
- * Lanes cover independent right-hand sides; substitution steps remain a dependency chain.
- * Coefficients and diagonals are broadcast across the sides.
- *
- * Use division directly: a reciprocal of a subnormal diagonal can overflow even when the quotient
- * is finite. Zero and infinite diagonals also retain division semantics.
- *
- * Strided sides and incomplete lane blocks use [ScalarEngine];
- * [implementationsFor] reports those bodies. [gathersRightHandSides] requests a copy when it can
- * amortize vector loads. Species initialization requires the Vector API module, checked by
- * [KoblasEngine] before using this backend.
+ * Vector API substitution broadcasts coefficients across independent right-hand sides; steps remain dependent.
+ * Use division: a subnormal diagonal's reciprocal can overflow with a finite quotient, and zero or infinite
+ * diagonals also need division semantics. Strided or incomplete groups use [ScalarEngine]; [implementationsFor]
+ * reports the bodies and [gathersRightHandSides] requests profitable copies. [KoblasEngine] checks module
+ * availability before species initialization.
  */
 internal object SimdTriangularKernels : KernelProvider {
     override val id: String = "jvm-simd"
@@ -205,11 +198,8 @@ internal object SimdTriangularKernels : KernelProvider {
     }
 
     /**
-     * [solveBlock] over four adjacent lane blocks at once.
-     *
-     * One lane block is a single chain of fused steps, each waiting on the last, so it runs at the
-     * instruction's latency rather than its throughput. Four blocks are four independent chains that share
-     * each coefficient's broadcast.
+     * Four adjacent lane blocks form independent fused dependency chains, hiding instruction latency
+     * while sharing coefficient broadcasts.
      */
     private fun solveFour(
         t: DoubleArray,
@@ -334,15 +324,9 @@ internal object SimdTriangularKernels : KernelProvider {
     }
 
     /**
-     * One contiguous right-hand side, vectorised along the block instead of across sides.
-     *
-     * Four steps finish together: their corner is substituted in scalars, and then one vector pass carries all
-     * four into the steps that remain, which untransposed are the columns' runs below them and transposed are
-     * the rows' dots against the steps before them. A step at a time paid a pass and a scalar tail per step,
-     * which on a block a few lane blocks long cost as much as the arithmetic.
-     *
-     * Line `k` of the block, a column untransposed and a row transposed, starts at `base + k · n`, so both
-     * orientations walk the same memory and differ only in whether a pass reads a line or reduces it.
+     * Vectorise one contiguous right-hand side along the block. Substitute four pivots in scalars, then update
+     * or reduce the remaining rows together, avoiding a vector pass and scalar tail per pivot.
+     * Line `k` starts at `base + k · n` in either orientation; transpose selects update versus reduction.
      */
     private fun singleSolve(
         t: DoubleArray,

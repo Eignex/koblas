@@ -9,14 +9,8 @@ import kotlin.test.assertTrue
 
 class SimdRuntimeTest {
     @Test
-    fun `an enabled flag is the one answer that promises the instruction`() {
+    fun `only an enabled flag promises the instruction`() {
         assertTrue(hardwareFmaAvailable("true"))
-    }
-
-    @Test
-    fun `anything but an enabled flag reads as no instruction`() {
-        // Fusing without the instruction costs three orders of magnitude and declining with it costs a few
-        // percent, so an unrecognised answer takes the cheap mistake.
         for (reported in listOf(null, "", " ", "false", "TRUE", "1", "yes", "unknown")) {
             assertFalse(hardwareFmaAvailable(reported), "reported $reported")
         }

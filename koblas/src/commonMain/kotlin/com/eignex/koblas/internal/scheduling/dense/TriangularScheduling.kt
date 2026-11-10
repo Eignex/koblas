@@ -11,47 +11,25 @@ import com.eignex.koblas.internal.storage.borrowOptional
 import com.eignex.koblas.internal.storage.dense.*
 
 /*
- * Shared scheduling for `B = alpha · op(T)⁻¹ · B` and `B = alpha · op(T) · B`, from either side.
+ * Triangular solve and multiply from either side share one normalized triangle `M`.
+ * A right-side call flips the transpose because `X · op(T) = B` is `op(T)ᵀ · x = b` per row.
+ * Traversal and product windows then follow `M`'s dependencies.
  *
- * All sixteen flag combinations are one algorithm. Write the right-hand sides as `X(p, r)`, with `p` stepping
- * along the order of the triangle and `r` choosing one of the independent sides; then every variant is
- * `Σ M(p, q) · X(q, r)` over `M`'s own triangle, where `M(p, q)` is an entry of `T` read directly or
- * transposed. Which of the two it is depends on the side and the transpose together, because solving
- * `X · op(T) = B` for a row of `X` is solving `op(T)ᵀ · x = b` for a column, and the flags meet there.
- * Everything below that point, the direction of the substitution, which block updates which, and what the
- * product between them looks like, follows from `M`, so none of it is written out four times.
- *
- * The blocks are two and they are independent of each other and of everything under them: the diagonal block
- * is how much of the dependency chain one substitution covers, which is this file's own number, and the
- * right-hand sides handed over together are [KoblasEngine.rightHandSideGroup]'s answer. Neither is
- * a lane count, a register tile or a cache block: the product between the blocks is an ordinary window of
- * shared product scheduling and picks its own geometry, and the substitution inside a diagonal block picks
- * its own grouping.
- *
- * The right-hand sides are left where the caller put them. A left-side call has them strided by the
- * destination's leading dimension and a right-side call has them adjacent, and the backend says whether
- * adjacency is worth a copy for the block it is about to substitute. Where it is, one diagonal block's worth
- * is gathered and written back, which is bounded by the two blocks above and not by the size of the call.
+ * The diagonal block bounds substitution depth; the backend independently recommends a right-hand-side group.
+ * Neither is a lane count, register tile or product cache block. Left-side right-hand sides are strided,
+ * right-side ones adjacent. A backend-requested gathered copy is bounded by diagonal block times group,
+ * regardless of the whole call's dimensions.
  */
 
 /**
- * Steps of the order one diagonal substitution covers.
- *
- * The scheduling's own number. Below it is a dependency chain that nothing can overlap, so a larger block
- * means more of the call spent in a substitution and less of it in the products between them; above it the
- * substitution's own reads stop fitting anywhere useful. Sixty-four steps of a double-precision triangle is
- * thirty-two kilobytes of coefficients at the widest, which is the size at which the block being resident
- * still means something.
+ * Diagonal substitution depth. Larger blocks move work from parallel products into the dependency chain
+ * and increase the coefficient working set; this size belongs to the schedule.
  */
 internal const val TRIANGULAR_DIAGONAL_BLOCK: Int = 64
 
 /**
- * The diagonal blocks and the product window after each, in the order the traversal reaches them.
- *
- * A solve finishes a block and then removes it from every step still to come, so its product target is the
- * rest of the order and its source is the block. A multiply forms a block from the steps it depends on,
- * which have not been touched yet, so its target is the block and its source is the rest. Either way the
- * diagonal block comes first and the product second, and the two windows are disjoint.
+ * Substitute each diagonal block before its disjoint product update. Solves update remaining rows from
+ * finished blocks; multiplies form the current block from still-untouched dependencies.
  */
 internal inline fun forEachTriangularBlock(
     order: Int,
@@ -93,11 +71,8 @@ internal inline fun forEachTriangularBlock(
 }
 
 /**
- * `B = alpha · op(T)⁻¹ · B` or `B = alpha · op(T) · B`, from either side, over a triangle already staged
- * against an overlap with [b].
- *
- * This schedule scales the right-hand sides by [alpha] before substitution. Other scaling placements may
- * round differently within the routine's numerical contract.
+ * Triangular solve or multiply over coefficients already staged against overlap with [b].
+ * Scale right-hand sides by [alpha] before substitution; other placements may round differently.
  */
 internal fun triangularMatrix(
     engine: KoblasEngine,
@@ -158,12 +133,8 @@ internal fun triangularMatrix(
 }
 
 /**
- * Right-hand sides one diagonal substitution takes at a time, kept inside what the call actually has.
- *
- * The backend's recommendation governs every call and not only the gathered ones: the substitution reads its
- * block of sides once for every step before the one it is on, so how wide that block is decides what stays
- * resident whether the sides were copied or were already adjacent. A backend that wants every side at once
- * says so, which is what the portable one answers, and then the substitution is a single group.
+ * Cap the backend's recommended group by available sides, with a floor of one.
+ * The recommendation controls residency for both gathered and natively adjacent right-hand sides.
  */
 internal fun triangularGroup(triangles: EngineKernels, block: Int, sides: Int): Int {
     val recommended = triangles.rightHandSideGroup(block, sides)
@@ -172,11 +143,8 @@ internal fun triangularGroup(triangles: EngineKernels, block: Int, sides: Int): 
 }
 
 /**
- * One diagonal block substituted, where the caller's right-hand sides lie or in a gathered copy of them.
- *
- * The copy is a block of the order by a group of the sides, so it is bounded by the two scheduling blocks
- * and not by the call: a solve over ten thousand right-hand sides gathers the same amount as one over a
- * hundred, as many times.
+ * Substitute one diagonal block in place or in gathered storage bounded by block order times side group,
+ * independent of the whole call's dimensions.
  */
 private fun diagonalStep(
     triangles: EngineKernels,
@@ -254,13 +222,8 @@ private fun substitute(
 }
 
 /**
- * The product between a finished diagonal block and the steps it still has business with.
- *
- * An ordinary window of shared product scheduling, over both operands where they lie. From the left the
- * destination is a strip of rows of every right-hand side and the triangle is on the left of the product;
- * from the right it is a strip of columns and the triangle is on the right. The triangle's window is the
- * same rectangle of `M` either way, and which corner of `T` that rectangle is stored at is the one place the
- * transpose is read off.
+ * Update through shared product scheduling: left-side calls use row strips with the triangle on the left;
+ * right-side calls use column strips with it on the right. [triangleWindow] maps normalized `M` back to `T`.
  */
 private fun triangularUpdate(
     engine: KoblasEngine,
@@ -305,11 +268,8 @@ private fun triangularUpdate(
 }
 
 /**
- * Where the rectangle of `M` with these row and column starts is stored in `T`.
- *
- * `M(i, q)` is `T(q, i)` where the call transposed and `T(i, q)` where it did not, so the rectangle's origin
- * is one corner or the other of the same stored square. The product reads it with a matching transpose flag,
- * which is why the offset and the flag are worked out together.
+ * Map a rectangle of normalized `M` to stored `T`, pairing its origin with the product's transpose flag.
+ * A flipped orientation exchanges the rectangle's row and column starts.
  */
 internal fun triangleWindow(order: Int, transposed: Boolean, rowStart: Int, columnStart: Int): Int =
     if (transposed) columnStart + rowStart * order else rowStart + columnStart * order
@@ -335,13 +295,7 @@ internal inline fun forEachTrianglePanel(
 }
 
 /**
- * Steps of the order a triangular vector routine finishes column by column before the rest of the call sees
- * them through one panel.
- *
- * The scheduling's own number, separate from [TRIANGULAR_DIAGONAL_BLOCK] because here a block has one
- * right-hand side. Inside a block the substitution is one [KoblasEngine] diagonal call, a dependency
- * chain nothing overlaps; between blocks the whole block is a single panel as wide as the block, which a
- * backend can keep its destination in registers across. A larger block moves work into the chain, a smaller
- * one makes each panel narrower.
+ * Vector substitution depth, independent of [TRIANGULAR_DIAGONAL_BLOCK]. Inside each block is one dependency
+ * chain; between blocks, a panel update can keep its destination in registers across the whole block.
  */
 internal const val TRIANGULAR_VECTOR_BLOCK: Int = 64

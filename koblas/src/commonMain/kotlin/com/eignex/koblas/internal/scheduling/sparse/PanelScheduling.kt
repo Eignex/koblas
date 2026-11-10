@@ -8,14 +8,8 @@ import com.eignex.koblas.internal.kernels.scalar.sparse.sparseMaskedTriangularSc
 import com.eignex.koblas.internal.storage.sparse.*
 
 /**
- * Dense right-hand sides to visit per walk of a sparse column, for a destination of [columns] of them.
- *
- * The sparse traversal is this file's, and the indices it reads are not something the dense panel
- * contract knows about. What it takes from that contract is the grouping, so that this width follows the
- * machine the same way the dense ones do instead of being a constant here. [contiguous] is part of the
- * question because a backend whose body over adjacent right-hand sides is a different body may want a
- * different number of them in it; what the scheduling adds on top is a ceiling of its own, for the
- * staging buffer a copy has to fit in.
+ * Backend-recommended grouping for the current right-hand-side layout, capped by scheduling's staging budget.
+ * The traversal remains portable CSC; a grouping recommendation does not imply vectorised sparse indices.
  */
 internal fun KoblasEngine.sparseRightHandSideGroup(
     rows: Int,
@@ -25,12 +19,8 @@ internal fun KoblasEngine.sparseRightHandSideGroup(
 ): Int = panelProvider.executionGroup(sparsePanelWork(reduction), rows, columns, contiguous)
 
 /**
- * Whether this backend does better over a panel of [width] adjacent right-hand sides than over a strided
- * one, which is what decides whether staging a dense block is worth considering at all.
- *
- * The backend's own answer rather than a comparison between two of its labels. A portable backend reads
- * one entry at a time either way and says no, so it never pays for a copy; a vector one says yes where
- * it has a whole lane block of them.
+ * Whether adjacent panels of [width] sides outperform strided ones. This is an explicit backend preference;
+ * portable kernels decline staging because their arithmetic gains nothing from adjacency.
  */
 internal fun KoblasEngine.sparsePrefersAdjacentSides(width: Int, entries: Int, reduction: Boolean = false): Boolean =
     panelProvider.prefersContiguous(sparsePanelWork(reduction), width, entries)
@@ -40,19 +30,9 @@ private fun sparsePanelWork(reduction: Boolean): PanelWork =
     if (reduction) PanelWork.SparseRightHandSideReduction else PanelWork.SparseRightHandSides
 
 /**
- * One CSC column of a symmetric product against a panel of right-hand sides.
- *
- * The stored triangle serves two halves of the product. Every selected entry scatters its column of the
- * dense block into the rows it stores, and every selected entry off the diagonal also gathers those rows
- * back into the column's own row, which is the half the triangle does not store. Both halves run over
- * the same contiguous run of the column's stored entries, because the rows ascend and the selected ones
- * are a prefix or a suffix of them with the diagonal at its inner end, so the two are one call of one
- * panel leaf and the diagonal is the position that leaf leaves out of the second half.
- *
- * One multiplier serves both halves, `alpha · value`, and the mirrored half accumulates into the
- * destination's pivot row as the walk reaches it rather than into a scratch that is added afterwards.
- * Neither half reads a gathered copy, so [width] right-hand sides of [b] serve both and the destination
- * is where every product lands.
+ * One selected CSC run serves both symmetric halves: scatter every entry and gather its mirror, excluding
+ * the diagonal from the second half. Ascending rows make the selected triangle a contiguous prefix or suffix.
+ * Both halves share `alpha · value` and accumulate directly into the destination without gathered scratch.
  */
 @Suppress("LongParameterList") // one CSC column slice against a dense panel, with both layouts
 internal fun KoblasEngine.sparseSymmetricLeftColumn(
@@ -90,11 +70,8 @@ internal fun KoblasEngine.sparseSymmetricLeftColumn(
 }
 
 /**
- * One output row of a transposed sparse product, reduced against a panel of dense right-hand sides.
- *
- * The reduction lands in [work], which is adjacent whatever the dense block's layout is, so this half of
- * the product vectorises as soon as the block's own right-hand sides are adjacent. [alpha] scales the
- * finished sum.
+ * Reduce a transposed sparse column against dense right-hand sides into adjacent [work].
+ * Vectorisation depends on the dense source layout; [alpha] scales the finished sum.
  */
 @Suppress("LongParameterList") // the column slice, the dense window, and the output panel
 internal fun KoblasEngine.sparseGatherProductPanel(
@@ -123,11 +100,8 @@ internal fun KoblasEngine.sparseGatherProductPanel(
 }
 
 /**
- * One inner index of an untransposed sparse product, scattered across a panel of right-hand sides.
- *
- * The coefficients are gathered into [work] first, so the scattered half sees an adjacent source
- * whatever the dense operand's layout is; what decides whether this vectorises is the destination's own,
- * which is why a staged destination is what this direction of the product asks for.
+ * Scatter an untransposed sparse column using coefficients gathered into adjacent [work].
+ * Vectorisation depends on the destination layout, so this direction may stage the destination.
  */
 @Suppress("LongParameterList") // the column slice, the dense window, and the output panel
 internal fun KoblasEngine.sparseScatterProductPanel(
@@ -154,19 +128,9 @@ internal fun KoblasEngine.sparseScatterProductPanel(
 }
 
 /**
- * One triangular column against a panel of right-hand sides, in the direction that finishes the pivot
- * first and then updates the rows below it.
- *
- * A right-hand side that is exactly zero is skipped, which is [KoblasEngine.trsv]'s rule carried to several
- * columns at once: it is what keeps a zero right-hand side from forming a product against a stored
- * infinity. Which ones are live is recorded in the second half of [work], so the update loop reads that
- * rather than the values again, and so no width is wider than the record can hold. [work] therefore needs
- * twice [width] entries here, where the other panels need [width].
- *
- * A group whose right-hand sides are all live is handed to the panel leaf instead, because with nothing
- * masked the two agree entry for entry: the skip only ever avoided a product with a zero. A group with
- * one dead right-hand side keeps the written-out loop, whatever the layout, so the rule survives on
- * every backend rather than becoming a property of the one that does not vectorise.
+ * Finish a triangular pivot, then scatter it. Exactly-zero right-hand sides are skipped, preserving TRSV's
+ * no-read rule against stored infinities. The second half of [work] records live sides, requiring twice [width].
+ * Only wholly live groups use the panel leaf; partially masked groups retain the explicit loop on every backend.
  */
 @Suppress("LongParameterList") // the column slice, its two triangle flags, and the panel window
 internal fun KoblasEngine.sparseTriangularPanelScatter(
@@ -217,11 +181,8 @@ internal fun KoblasEngine.sparseTriangularPanelScatter(
 }
 
 /**
- * One triangular column against a panel, in the direction that gathers the finished rows into the pivot.
- *
- * Nothing is masked here: this direction reads the rows it has already finished rather than spreading a
- * pivot into rows it has not, so every right-hand side contributes and the whole strictly triangular run
- * is one panel call. The accumulation lands in [work], which is adjacent whatever the block's layout is.
+ * Gather finished triangular rows into the pivot through adjacent [work]. Unlike scatter, this direction
+ * masks nothing: every stored strictly triangular entry participates.
  */
 @Suppress("LongParameterList") // the column slice, its two triangle flags, and the panel window
 internal fun KoblasEngine.sparseTriangularPanelGather(
@@ -260,11 +221,8 @@ internal fun KoblasEngine.sparseTriangularPanelGather(
 }
 
 /**
- * One triangular column with the triangle on the right of the dense block, which makes every update a
- * whole contiguous dense column and therefore the selected Level 1 `axpy` and `scale`.
- *
- * The diagonal is divided by rather than multiplied by its reciprocal, so a right-hand solve rounds the
- * way [KoblasEngine.trsv] does over the same triangle.
+ * Right-side triangular updates use contiguous column Level 1 operations. Divide by the diagonal directly;
+ * reciprocal multiplication would change the solve's division semantics.
  */
 @Suppress("LongParameterList") // the column slice, its four flags, and the dense block
 internal fun KoblasEngine.sparseTriangularRightColumn(

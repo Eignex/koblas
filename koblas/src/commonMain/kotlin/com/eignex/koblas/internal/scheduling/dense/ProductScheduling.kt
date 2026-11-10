@@ -11,15 +11,9 @@ import com.eignex.koblas.internal.storage.borrowOptional
 
 /*
  * Shared scheduling for `C = alpha * op(A) * op(B) + beta * C`.
- *
- * Large products use cache blocks packed for [KoblasEngine.productBlock]; small or thin products
- * use Level 2 panels over the original storage, gathering strided coefficients when profitable.
- * The schedule owns traversal and applies beta once per output window: in the first depth block for packed
- * products, or when an unpacked column is written. Backends own the arithmetic within those windows.
- *
- * Array windows carry offsets and leading dimensions so structured routines can pass strips and blocks
- * without copying. An origin at logical (row, column) is `row + column * lda` in stored orientation and
- * `column + row * lda` when transposed.
+ * Large windows pack cache blocks for [EngineKernels.productBlock]; small or thin ones use Level 2 panels.
+ * Beta applies once per destination window, on the first depth block or unpacked column writeback.
+ * Offsets and leading dimensions let structured routines pass strips and blocks without copying.
  */
 
 /** Destination rows one cache block covers. */
@@ -29,22 +23,14 @@ internal const val PRODUCT_BLOCK_ROWS: Int = 128
 internal const val PRODUCT_BLOCK_COLUMNS: Int = 256
 
 /**
- * Steps of the shared dimension a cache block accumulates before the destination is touched again.
- *
- * This sets the working set, since both packed panels are as deep as it: a block holds
- * [PRODUCT_BLOCK_ROWS] by this and this by [PRODUCT_BLOCK_COLUMNS] doubles at once. A destination tile stays
- * in registers for the whole of it, so a deeper block means fewer passes over the destination and a larger
- * pair of panels to keep resident. These three are the shared scheduling's and are independent of the
- * backend's register tile, which divides a block rather than sizing it.
+ * Depth accumulated before touching the destination again. Deeper blocks trade fewer destination passes
+ * for larger packed panels. Cache geometry is independent of the backend's register tile.
  */
 internal const val PRODUCT_BLOCK_DEPTH: Int = 128
 
 /**
- * Which part of a square destination a product is allowed to write.
- *
- * [Full] is an ordinary rectangular product. The other two are the rank-k and triangle-selected routines,
- * whose contract is that the opposite triangle is neither read nor written, so a block lying wholly in it is
- * never scheduled and a block straddling the diagonal reaches the destination one selected entry at a time.
+ * The writable destination region. The opposite triangle is neither read nor written:
+ * blocks outside it are skipped, and blocks crossing its diagonal merge only selected entries.
  */
 internal enum class OutputTriangle {
     /** Every entry of the destination window is written. */
@@ -146,11 +132,8 @@ internal fun blockedProduct(
 }
 
 /**
- * The blocks a product of these extents is cut into, in the order the traversal reaches them.
- *
- * The column block is outermost and the depth block next, so a right panel is packed once for every strip of
- * the destination it serves rather than once per row block. The row block is innermost, which is what makes
- * the live piece of the destination one block rather than a whole column strip.
+ * Column, depth, then row blocks reuse each packed right panel across a destination strip
+ * while keeping the live destination working set within one block.
  */
 internal inline fun forEachProductBlock(
     m: Int,
@@ -193,13 +176,7 @@ internal fun productBlockColumns(kernels: EngineKernels, n: Int): Int =
 /** The shared-dimension steps one block accumulates, which needs no rounding. */
 internal fun productBlockDepth(k: Int): Int = if (PRODUCT_BLOCK_DEPTH < k) PRODUCT_BLOCK_DEPTH else k
 
-/**
- * Whether a window of the destination lies wholly outside the selected triangle, so nothing schedules it.
- *
- * The extents are the destination's own, and the diagonal is the destination's: these routines are square,
- * and the window's position in it is what decides. A window below a lower triangle's diagonal is entirely
- * selected and one above it entirely discarded, which is what [insideTriangle] and this answer between them.
- */
+/** Whether the destination window lies wholly outside the selected triangle. */
 internal fun outsideTriangle(
     row: Int,
     rowCount: Int,
@@ -226,11 +203,8 @@ internal fun insideTriangle(
 }
 
 /**
- * The register tiles a block straddling the diagonal is cut into, skipping the ones it may not write.
- *
- * `whole` is true where every
- * entry of a tile is selected, which is the tile that reaches the destination directly; a tile that
- * straddles accumulates first and only its selected entries are merged.
+ * Tiles crossing the diagonal merge only selected entries; `whole` tiles write directly.
+ * Tiles wholly outside the selected triangle are skipped.
  */
 internal inline fun forEachSelectedTile(
     kernels: EngineKernels,
@@ -330,18 +304,9 @@ private fun blockedProductCore(
 }
 
 /**
- * One block straddling the diagonal, written a register tile at a time so only selected entries reach it.
- *
- * The tiles are the backend's own, and the panels are the enclosing block's: a tile reads the group its row
- * or column falls in, which is why this needs no packing of its own. A tile wholly inside the triangle is
- * an ordinary block of the backend's tile shape and goes to the destination directly. One that straddles
- * accumulates into [edge] with no destination multiplier, and the merge below is what spends that
- * multiplier, once, on the entries the call is allowed to write. A tile wholly outside runs nothing.
- *
- * How many tiles straddle is the tile shape's own answer and is not one: a row of tiles crosses the diagonal
- * over as many of them as the tile's rows cover columns. What is bounded is what a straddling tile discards,
- * which is part of one tile rather than part of a cache block, and that is the whole reason the merge
- * happens here rather than over the enclosing block.
+ * Writes a diagonal-crossing block using its already packed panels. Whole tiles write directly;
+ * crossing tiles accumulate into [edge] and merge selected entries, applying beta once.
+ * Merging per register tile bounds discarded work to part of a tile instead of part of a cache block.
  */
 private fun selectedBlock(
     kernels: EngineKernels,
@@ -430,19 +395,10 @@ private fun mergeSelected(
 }
 
 /**
- * The product as Level 2 panel work, one destination column at a time, without packing both operands.
- *
- * Untransposed on the left, panels accumulate in a bounded arrays column before destination writeback.
- * The thin-GEMM comparison found this faster than direct destination updates; alpha placement stays internal.
- * Transposed panels apply both multipliers on write. Neither form promises identical backend rounding.
- *
- * The coefficient vector is a column of `op(B)`, adjacent when `B` is untransposed and [ldb] apart when it
- * is not. A strided one is scalar work for a reduction whatever the width, so where the reduction is long
- * enough to pay for it the column is gathered once into adjacent storage and the reduction runs vectorised
- * against that. [gathersCoefficients] is where that choice is made.
- *
- * A selected triangle shortens each destination column to the rows the call may write, and the panels it
- * hands over are that much of the operand. No entry outside the selected triangle is read or written.
+ * Unpacked Level 2 panels, shortened to the selected destination rows so no other entries are read or written.
+ * Untransposed panels use a bounded accumulation column, measured faster than direct destination updates;
+ * transposed panels apply both multipliers on writeback. Backend rounding may differ.
+ * [gathersCoefficients] gathers strided columns of `op(B)` when vector reductions amortize the copy.
  */
 internal fun directProduct(
     panels: EngineKernels,
@@ -557,18 +513,9 @@ internal fun selectedRows(j: Int, m: Int, selected: OutputTriangle): Int = when 
 }
 
 /**
- * Whether the direct path gathers a strided coefficient column into adjacent storage before reducing.
- *
- * Three conditions, and all of them have to hold for the copy to be worth making. The column has to be
- * strided, because an adjacent one is already what a vector body wants. The gather has to change which body
- * the reduction reaches, which is the backend's own answer and not an assumption about it. And there have to
- * be enough destination rows to read the gathered column back several times, since the copy costs one pass
- * over it and each destination row saves one strided pass.
- *
- * [DIRECT_GATHER_MINIMUM_ROWS] is where the copy is clearly ahead rather than where it first is. The local
- * evidence has the reduction run both ways over the same operands: from eight destination rows the copy
- * leads by a wide margin at every depth long enough to have something to read back, and at four rows the two
- * swap places between captures. That is one machine, and it establishes no crossover for another host.
+ * Gather a strided coefficient column only if it enables a different reduction body and enough destination
+ * rows reuse it to amortize the copy. [DIRECT_GATHER_MINIMUM_ROWS] reflects local measurements:
+ * eight rows clearly won, while four varied between captures. Other hosts need their own evidence.
  */
 internal fun gathersCoefficients(panels: EngineKernels, rows: Int, depth: Int, strided: Boolean): Boolean {
     if (!strided || rows < DIRECT_GATHER_MINIMUM_ROWS || depth <= 0) return false
@@ -613,11 +560,8 @@ internal fun scratchCapacity(size: Int): Int {
 private const val LARGEST_ROUNDED_SCRATCH: Int = 1 shl 30
 
 /**
- * Whole tiles of [preferred], never more than the extent needs and never less than one tile.
- *
- * A block extent is a multiple of the tile so that every block but the last starts on a group boundary,
- * so every panel starts on a group boundary. A configured block smaller than one tile would
- * leave a block with no extent and a traversal that never advances, so one tile is the floor.
+ * Round [preferred] to whole tiles, capped by the extent. A one-tile floor prevents zero-step traversal;
+ * all blocks except the tail start on tile boundaries.
  */
 internal fun blockExtent(preferred: Int, tile: Int, extent: Int): Int {
     val whole = ((extent.toLong() + tile - 1) / tile * tile).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()

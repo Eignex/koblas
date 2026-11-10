@@ -5,11 +5,8 @@ import jdk.incubator.vector.DoubleVector
 import java.lang.management.ManagementFactory
 
 /**
- * Whether HotSpot enables hardware fused multiply-add.
- *
- * Without the instruction, the Vector API preserves single rounding through expensive exact
- * arithmetic per lane. Kernels use separate multiply and add operations instead. HotSpot's flag
- * reflects the compiler's CPU detection and also respects an explicitly disabled `UseFMA`.
+ * HotSpot's `UseFMA` reflects CPU support and explicit disabling. Without it, Vector API fused operations
+ * emulate single rounding with expensive exact arithmetic per lane, so kernels use separate multiply and add.
  */
 internal val hardwareFusedMultiplyAdd: Boolean = hardwareFmaAvailable(hotSpotUseFma())
 
@@ -27,12 +24,9 @@ private fun hotSpotUseFma(): String? = runCatching {
 }.getOrNull()
 
 /**
- * One multiply-add, fused where [hardwareFusedMultiplyAdd] found the instruction and two operations
- * where it did not.
- *
- * Inline because a helper returning a [DoubleVector] that the JIT declines to inline makes the vector a
- * heap object, allocating per loop iteration or tile depth step. Kotlin inlining keeps the vector in the
- * caller and lets the JIT fold the hardware flag so only one arithmetic form reaches the loop.
+ * Fuse only when [hardwareFusedMultiplyAdd] permits it. Kotlin inlining keeps the returned [DoubleVector]
+ * in its caller: a JIT refusal to inline would otherwise allocate a vector per loop iteration.
+ * It also lets the JIT fold the hardware flag to one arithmetic form.
  */
 @Suppress("NOTHING_TO_INLINE")
 internal inline fun multiplyAdd(x: DoubleVector, y: DoubleVector, accumulator: DoubleVector): DoubleVector =

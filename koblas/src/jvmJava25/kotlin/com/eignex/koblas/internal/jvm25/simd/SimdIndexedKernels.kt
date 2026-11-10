@@ -7,15 +7,9 @@ import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
 
 /**
- * The indexed dense dot in two lanes. Other operations have no registration here.
- *
- * The dot is the one indexed kernel whose lanes measured faster than HotSpot's scalar loop, and only on two-lane
- * units, where a lane block is two scalar loads put side by side: 0.81 to 0.92 of the scalar time on Apple
- * silicon. An indexed gather or scatter through the Vector API measured slower everywhere else, from about
- * even to 1.4 times on four-lane ARM and from 2 to over 200 times on 512-bit x86, where it fell back to
- * allocating Java code, so gather, scatter and axpy stay scalar.
- *
- * Its own object so the initializer, which touches DoubleVector, runs only once the module is present.
+ * Only two-lane indexed dots measured faster than scalar loops. Indexed gather, scatter and axpy stay scalar:
+ * Vector API indexed operations measured slower and can fall back to allocating Java code.
+ * Keep a separate object so DoubleVector initialization occurs only when the module is present.
  */
 internal object SimdIndexedKernels : KernelProvider {
     override val id: String = "jvm-simd"
