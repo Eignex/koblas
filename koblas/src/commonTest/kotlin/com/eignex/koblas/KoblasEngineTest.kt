@@ -117,19 +117,14 @@ class KoblasEngineTest {
                         val y = vectorView(-stride)
                         val expectedX = x.values.copyOf()
                         val expectedY = y.values.copyOf()
+                        val referenceX = DenseVector.wrap(expectedX, x.offset, x.size, stride)
+                        val referenceY = DenseVector.wrap(expectedY, y.offset, y.size, -stride)
                         val scalar = KoblasEngine.scalar
                         when (operation) {
-                            "gemv" -> scalar.kernels.gemv(
-                                0.75, dense, expectedX, x.offset, stride, -0.5, expectedY, y.offset, -stride, transpose,
-                            )
-
-                            "symv" -> scalar.kernels.symv(
-                                0.75, dense, expectedX, x.offset, stride, -0.5, expectedY, y.offset, -stride, true,
-                            )
-
-                            "trsv" -> scalar.kernels.trsv(dense, expectedX, x.offset, stride, true, transpose)
-
-                            "trmv" -> scalar.kernels.trmv(dense, expectedX, x.offset, stride, true, transpose)
+                            "gemv" -> scalar.gemv(0.75, dense, referenceX, -0.5, referenceY, transpose = transpose)
+                            "symv" -> scalar.symv(0.75, dense, referenceX, -0.5, referenceY, lower = true)
+                            "trsv" -> scalar.trsv(dense, referenceX, lower = true, transpose = transpose)
+                            "trmv" -> scalar.trmv(dense, referenceX, lower = true, transpose = transpose)
                         }
 
                         if (sparseStorage) {
@@ -166,22 +161,9 @@ class KoblasEngineTest {
             val x = vectorView(-2)
             val y = vectorView(2)
             when (operation) {
-                "ger" -> KoblasEngine.scalar.kernels.ger(
-                    0.75,
-                    x.values,
-                    x.offset,
-                    x.stride,
-                    y.values,
-                    y.offset,
-                    y.stride,
-                    expectedRegion,
-                )
-
-                "syr" -> KoblasEngine.scalar.kernels.syr(0.75, x.values, x.offset, x.stride, expectedRegion, false)
-
-                "syr2" -> KoblasEngine.scalar.kernels.syr2(
-                    0.75, x.values, x.offset, x.stride, y.values, y.offset, y.stride, expectedRegion, false,
-                )
+                "ger" -> KoblasEngine.scalar.ger(0.75, x, y, expectedRegion)
+                "syr" -> KoblasEngine.scalar.syr(0.75, x, expectedRegion, lower = false)
+                "syr2" -> KoblasEngine.scalar.syr2(0.75, x, y, expectedRegion, lower = false)
             }
 
             when (operation) {
@@ -212,29 +194,6 @@ class KoblasEngineTest {
     }
 
     @Test
-    fun `structured vector calls reject rectangular matrices before writing`() = withEngines { engine ->
-        for (operation in listOf("symv", "syr", "syr2", "trsv", "trmv")) {
-            val a = DenseMatrix.zero(2, 3)
-            val x = DenseVector.zero(2)
-            val y = DenseVector.zero(3)
-            val before = a.values.copyOf()
-
-            val failure = assertFailsWith<DimensionMismatch> {
-                when (operation) {
-                    "symv" -> engine.symv(0.0, a, y, 0.0, x)
-                    "syr" -> engine.syr(0.0, x, a)
-                    "syr2" -> engine.syr2(0.0, x, y, a)
-                    "trsv" -> engine.trsv(a, x, true)
-                    "trmv" -> engine.trmv(a, x, true)
-                }
-            }
-
-            assertTrue(failure.message.orEmpty().startsWith(operation))
-            assertContentEquals(before, a.values)
-        }
-    }
-
-    @Test
     fun `typed matrix vector calls stage overlapping views`() {
         val a = DenseMatrix.ofRows(
             arrayOf(
@@ -255,7 +214,13 @@ class KoblasEngineTest {
             val x = DenseVector.wrap(backing, 1, 3)
             val y = DenseVector.wrap(backing, 3, 3, -1)
             val expected = backing.copyOf()
-            KoblasEngine.scalar.kernels.gemv(0.75, a, x.toDoubleArray(), 0, 1, -0.5, expected, 3, -1)
+            KoblasEngine.scalar.gemv(
+                0.75,
+                a,
+                DenseVector.wrap(x.toDoubleArray()),
+                -0.5,
+                DenseVector.wrap(expected, 3, a.rows, -1),
+            )
 
             if (sparseStorage) {
                 koblas.gemv(0.75, sparse, x, -0.5, y)

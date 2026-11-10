@@ -31,7 +31,14 @@ class Level2SchedulingTest {
                     ReferenceSparseBlas.gemv(alpha, matrix, x, beta, expected, transpose)
 
                     val actual = initial.copyOf()
-                    koblas.kernels.gemv(alpha, matrix, x, beta, actual, transpose)
+                    koblas.gemv(
+                        alpha,
+                        matrix,
+                        DenseVector.wrap(x),
+                        beta,
+                        DenseVector.wrap(actual),
+                        transpose = transpose,
+                    )
 
                     assertClose(expected, actual, "transpose=$transpose alpha=$alpha beta=$beta")
                 }
@@ -50,7 +57,7 @@ class Level2SchedulingTest {
                 ReferenceSparseBlas.gemv(alpha, matrix, x, beta, expected, transpose = true)
 
                 val actual = initial.copyOf()
-                koblas.kernels.gemv(alpha, matrix, x, beta, actual, transpose = true)
+                koblas.gemv(alpha, matrix, DenseVector.wrap(x), beta, DenseVector.wrap(actual), transpose = true)
 
                 assertContentEquals(expected, actual, "alpha=$alpha beta=$beta")
             }
@@ -62,7 +69,7 @@ class Level2SchedulingTest {
         val a = SparseMatrix.ofColumns(2, 1, listOf(listOf(0 to Double.POSITIVE_INFINITY)))
         val y = DoubleArray(2)
 
-        koblas.kernels.gemv(1.0, a, doubleArrayOf(0.0), 0.0, y)
+        koblas.gemv(1.0, a, DenseVector.wrap(doubleArrayOf(0.0)), 0.0, DenseVector.wrap(y))
 
         assertTrue(y[0].isNaN(), "the stored infinity produced ${y[0]}")
         assertEquals(0.0, y[1], "the missing entry was not structural zero")
@@ -96,7 +103,7 @@ class Level2SchedulingTest {
             }
             val y = DoubleArray(3)
 
-            koblas.kernels.symv(1.0, a, x, 0.0, y, lower)
+            koblas.symv(1.0, a, DenseVector.wrap(x), 0.0, DenseVector.wrap(y), lower = lower)
 
             assertContentEquals(doubleArrayOf(27.0, 14.0, 28.0), y, "lower=$lower")
         }
@@ -120,7 +127,7 @@ class Level2SchedulingTest {
             val actual = expected.copyOf()
             ReferenceSparseBlas.symv(0.75, a, x, -1.5, expected, lower)
 
-            koblas.kernels.symv(0.75, a, x, -1.5, actual, lower)
+            koblas.symv(0.75, a, DenseVector.wrap(x), -1.5, DenseVector.wrap(actual), lower = lower)
 
             assertContentEquals(expected, actual, "lower=$lower")
         }

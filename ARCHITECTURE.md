@@ -14,7 +14,7 @@ multiplatform module; platform source sets supply their own runtime and arithmet
   before views are unpacked. Its matrix methods prepare their operands and invoke shared schedules.
   Dense vector views survive validation, whole-call dispatch and alias preparation. Matrix product windows
   retain matrix views through schedule selection, then unpack for packed or panel arithmetic. The internal
-  windowed `ger` adapter keeps its direct panel schedule; array adapters used by tests live in test sources.
+  windowed `ger` adapter keeps its direct panel schedule.
 - Column views provide mutable vector access without copying matrix entries. Concrete containers retain
   typed dense/sparse callbacks; base `Matrix` helpers also adapt custom storage. Sparse vectors identify
   their packed window by offset and count. A sparse column view holds its owner and column index, so

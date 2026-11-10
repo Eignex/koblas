@@ -50,7 +50,7 @@ class JvmVendorBlasTest {
             val expected = y.values.copyOf()
             ReferenceBlas.gemv(0.5, a, x.values, 2.0, expected, transpose)
 
-            blas.kernels.gemv(0.5, a, x.values, x.offset, x.stride, 2.0, y.values, y.offset, y.stride, transpose)
+            blas.gemv(0.5, a, x, 2.0, y, transpose = transpose)
 
             assertAgreesWithReference(expected, y.values, "gemv transA=$transpose")
         }
@@ -69,7 +69,7 @@ class JvmVendorBlasTest {
         val expected = DoubleArray(order)
         ReferenceBlas.symv(1.0, a, x.values, 0.0, expected)
 
-        blas.kernels.symv(1.0, a, x.values, x.offset, x.stride, 0.0, y.values, y.offset, y.stride, true)
+        blas.symv(1.0, a, x, 0.0, y, lower = true)
 
         assertAgreesWithReference(expected, y.values, "symv")
     }

@@ -223,16 +223,7 @@ class CblasTest {
     fun `host GER agrees with the reference on shrinking supports and extreme finite inputs`() =
         withHost("GER shrinking supports") { blas ->
             assertShrinkingGerAgreesWithReference { x, y, a ->
-                blas.kernels.ger(
-                    -1.0,
-                    x,
-                    0,
-                    1,
-                    y,
-                    0,
-                    1,
-                    a,
-                )
+                blas.ger(-1.0, DenseVector.wrap(x), DenseVector.wrap(y), a)
             }
         }
 
@@ -265,8 +256,8 @@ class CblasTest {
 
             val actualSyr = DenseMatrix.wrap(ORDER, ORDER, base.values.copyOf())
             val actualSyr2 = DenseMatrix.wrap(ORDER, ORDER, base.values.copyOf())
-            blas.kernels.syr(ALPHA, x.values, x.offset, x.stride, actualSyr, lower)
-            blas.kernels.syr2(ALPHA, x.values, x.offset, x.stride, y.values, y.offset, y.stride, actualSyr2, lower)
+            blas.syr(ALPHA, x, actualSyr, lower = lower)
+            blas.syr2(ALPHA, x, y, actualSyr2, lower = lower)
 
             assertClose(expectedSyr, actualSyr, "syr lower=$lower", TOLERANCE)
             assertClose(expectedSyr2, actualSyr2, "syr2 lower=$lower", TOLERANCE)
@@ -283,7 +274,7 @@ class CblasTest {
         ReferenceBlas.ger(ALPHA, x, y, expected)
 
         val actual = DenseMatrix.wrap(ROWS, COLUMNS, base.values.copyOf())
-        blas.kernels.ger(ALPHA, x, 0, 1, y, 0, 1, actual)
+        blas.ger(ALPHA, DenseVector.wrap(x), DenseVector.wrap(y), actual)
 
         assertClose(expected, actual, "ger", TOLERANCE)
     }
@@ -304,12 +295,24 @@ class CblasTest {
                         val expectedSolve = b.copyOf()
                         ReferenceBlas.trsv(explicit, expectedSolve, lower, transpose, unitDiag)
                         val actualSolve = b.copyOf()
-                        blas.kernels.trsv(poisoned, actualSolve, 0, 1, lower, transpose, unitDiag)
+                        blas.trsv(
+                            poisoned,
+                            DenseVector.wrap(actualSolve),
+                            lower = lower,
+                            transpose = transpose,
+                            unitDiag = unitDiag,
+                        )
 
                         val expectedMultiply = b.copyOf()
                         ReferenceBlas.trmv(explicit, expectedMultiply, lower, transpose, unitDiag)
                         val actualMultiply = b.copyOf()
-                        blas.kernels.trmv(poisoned, actualMultiply, 0, 1, lower, transpose, unitDiag)
+                        blas.trmv(
+                            poisoned,
+                            DenseVector.wrap(actualMultiply),
+                            lower = lower,
+                            transpose = transpose,
+                            unitDiag = unitDiag,
+                        )
 
                         assertClose(expectedSolve, actualSolve, "trsv $where", TOLERANCE)
                         assertClose(expectedMultiply, actualMultiply, "trmv $where", TOLERANCE)
@@ -424,18 +427,7 @@ class CblasTest {
             ReferenceBlas.gemv(ALPHA, separate, square.values.copyOf(ORDER), 0.0, expectedGemv)
             val matrix = DenseMatrix.wrap(ORDER, ORDER, square.values.copyOf())
             val column = DenseVector.wrap(matrix.values, 0, ORDER)
-            blas.kernels.gemv(
-                ALPHA,
-                matrix,
-                column.values,
-                column.offset,
-                column.stride,
-                0.0,
-                column.values,
-                column.offset,
-                column.stride,
-                scratch = workspace,
-            )
+            blas.gemv(ALPHA, matrix, column, 0.0, column, scratch = workspace)
 
             assertClose(expectedProduct, product, "gemm over one buffer", TOLERANCE)
             assertClose(expectedSolve, solve, "trsm over one buffer", TOLERANCE)

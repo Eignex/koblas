@@ -164,7 +164,7 @@ class SparseOpsTest {
                 val expected = KoblasEngine.scalar.kernels.dot(indices, start, values, start, length, dense)
 
                 for (selected in vectorEngines) {
-                    val actual = selected.kernels.dotColumn(matrix, column, dense)
+                    val actual = selected.dotColumn(matrix, column, DenseVector.wrap(dense))
 
                     assertDotAgreesWithReference(expected, actual, "${selected.name} count=$count column=$column")
                 }
@@ -205,7 +205,7 @@ class SparseOpsTest {
         }
         val kernels = engineWithKernels(indexed = selected).kernels
 
-        for (column in 0 until matrix.cols) kernels.dotColumn(matrix, column, denseOperand)
+        for (column in 0 until matrix.cols) kernels.dotColumn(matrix, column, DenseVector.wrap(denseOperand))
 
         assertEquals(listOf(0 to 1, 1 to 2, 3 to 0, 3 to 0), calls)
     }
@@ -224,7 +224,7 @@ class SparseOpsTest {
                 val dense = doubleArrayOf(Double.NaN, Double.NEGATIVE_INFINITY, rhs, Double.NaN)
                 val expected = KoblasEngine.scalar.kernels.dot(matrix.rowIndices, 1, matrix.values, 1, 1, dense)
 
-                val actual = koblas.kernels.dotColumn(matrix, 1, dense)
+                val actual = koblas.dotColumn(matrix, 1, DenseVector.wrap(dense))
 
                 assertDotAgreesWithReference(expected, actual, "stored=$stored rhs=$rhs")
             }
@@ -245,7 +245,7 @@ class SparseOpsTest {
             matrix.values[1] = coefficient
             val expected = KoblasEngine.scalar.kernels.dot(matrix.rowIndices, 1, matrix.values, 1, 2, dense)
 
-            val actual = koblas.kernels.dotColumn(matrix, 1, dense)
+            val actual = koblas.dotColumn(matrix, 1, DenseVector.wrap(dense))
 
             assertDotAgreesWithReference(expected, actual, "coefficient=$coefficient")
         }
@@ -264,7 +264,7 @@ class SparseOpsTest {
         val expected = KoblasEngine.scalar.kernels.dot(matrix.rowIndices, 1, before, 1, 2, before)
 
         for (engine in vectorEngines) {
-            val actual = engine.kernels.dotColumn(matrix, 1, matrix.values)
+            val actual = engine.dotColumn(matrix, 1, DenseVector.wrap(matrix.values))
 
             assertDotAgreesWithReference(expected, actual, engine.name)
             assertContentEquals(before, matrix.values, engine.name)
@@ -278,7 +278,11 @@ class SparseOpsTest {
         val expected = KoblasEngine.scalar.kernels.dot(IntArray(0), 0, DoubleArray(0), 0, 0, dense)
 
         for (column in 0 until matrix.cols) {
-            assertDotAgreesWithReference(expected, koblas.kernels.dotColumn(matrix, column, dense), "column=$column")
+            assertDotAgreesWithReference(
+                expected,
+                koblas.dotColumn(matrix, column, DenseVector.wrap(dense)),
+                "column=$column",
+            )
         }
     }
 
@@ -288,7 +292,7 @@ class SparseOpsTest {
             val matrix = SparseMatrix.wrap(3, columns, IntArray(columns + 1), IntArray(0), DoubleArray(0))
             for (column in listOf(Int.MIN_VALUE, -1, columns, Int.MAX_VALUE)) {
                 assertFailsWith<IndexOutOfBoundsException>("columns=$columns column=$column") {
-                    koblas.kernels.dotColumn(matrix, column, DoubleArray(matrix.rows))
+                    koblas.dotColumn(matrix, column, DenseVector.wrap(DoubleArray(matrix.rows)))
                 }
             }
         }
@@ -299,7 +303,7 @@ class SparseOpsTest {
         val matrix = SparseMatrix.wrap(3, 1, intArrayOf(0, 0), IntArray(0), DoubleArray(0))
         for (length in listOf(0, 2, 4)) {
             assertFailsWith<IllegalArgumentException>("length=$length") {
-                koblas.kernels.dotColumn(matrix, 0, DoubleArray(length))
+                koblas.dotColumn(matrix, 0, DenseVector.wrap(DoubleArray(length)))
             }
         }
     }
@@ -313,10 +317,17 @@ class SparseOpsTest {
         for (transpose in booleanArrayOf(false, true)) {
             val a = SparseMatrix.wrap(2, 2, intArrayOf(0, 2, 4), intArrayOf(0, 1, 0, 1), values.copyOf())
             val expected = doubleArrayOf(1.0, 2.0)
-            koblas.kernels.gemv(1.0, a, doubleArrayOf(1.0, 2.0), 0.0, expected, transpose)
+            koblas.gemv(
+                1.0,
+                a,
+                DenseVector.wrap(doubleArrayOf(1.0, 2.0)),
+                0.0,
+                DenseVector.wrap(expected),
+                transpose = transpose,
+            )
 
             val shared = doubleArrayOf(1.0, 2.0)
-            koblas.kernels.gemv(1.0, a, shared, 0.0, shared, transpose)
+            koblas.gemv(1.0, a, DenseVector.wrap(shared), 0.0, DenseVector.wrap(shared), transpose = transpose)
 
             assertContentEquals(expected, shared, "transpose=$transpose")
         }
@@ -328,10 +339,10 @@ class SparseOpsTest {
             val x = doubleArrayOf(1.0, -2.0, 0.5, 3.0)
             val independent = permutation()
             val expected = independent.values.copyOf()
-            koblas.kernels.gemv(0.5, independent, x, -1.5, expected, transpose)
+            koblas.gemv(0.5, independent, DenseVector.wrap(x), -1.5, DenseVector.wrap(expected), transpose = transpose)
 
             val shared = permutation()
-            koblas.kernels.gemv(0.5, shared, x, -1.5, shared.values, transpose)
+            koblas.gemv(0.5, shared, DenseVector.wrap(x), -1.5, DenseVector.wrap(shared.values), transpose = transpose)
 
             assertContentEquals(expected, shared.values, "transpose=$transpose")
         }
@@ -342,7 +353,7 @@ class SparseOpsTest {
         val a = SparseMatrix.wrap(2, 2, intArrayOf(0, 1, 2), intArrayOf(0, 1), doubleArrayOf(2.0, 5.0))
         val shared = a.values
 
-        koblas.kernels.symv(1.0, a, shared, 0.0, shared, lower = true)
+        koblas.symv(1.0, a, DenseVector.wrap(shared), 0.0, DenseVector.wrap(shared), lower = true)
 
         assertContentEquals(doubleArrayOf(4.0, 25.0), shared)
     }
@@ -365,10 +376,10 @@ class SparseOpsTest {
         // a coefficient the substitution would already have overwritten.
         val independent = aliasTriangle()
         val expected = independent.values.copyOf()
-        koblas.kernels.trsv(independent, expected, lower = true)
+        koblas.trsv(independent, DenseVector.wrap(expected), lower = true)
 
         val shared = aliasTriangle()
-        koblas.kernels.trsv(shared, shared.values, lower = true)
+        koblas.trsv(shared, DenseVector.wrap(shared.values), lower = true)
 
         assertContentEquals(expected, shared.values)
     }
@@ -415,23 +426,39 @@ class SparseOpsTest {
 
         assertStaged(n, "gemv over the vector it writes") { w ->
             val y = doubleArrayOf(1.0, -2.0, 0.5, 3.0)
-            koblas.kernels.gemv(0.5, permutation(), y, -1.5, y, false, scratch = w)
+            koblas.gemv(
+                0.5,
+                permutation(),
+                DenseVector.wrap(y),
+                -1.5,
+                DenseVector.wrap(y),
+                transpose = false,
+                scratch = w,
+            )
         }
         assertStaged(n, "gemv over the coefficients it writes") { w ->
             val a = permutation()
-            koblas.kernels.gemv(0.5, a, doubleArrayOf(1.0, -2.0, 0.5, 3.0), -1.5, a.values, false, scratch = w)
+            koblas.gemv(
+                0.5,
+                a,
+                DenseVector.wrap(doubleArrayOf(1.0, -2.0, 0.5, 3.0)),
+                -1.5,
+                DenseVector.wrap(a.values),
+                transpose = false,
+                scratch = w,
+            )
         }
         assertStaged(n, "symv over the vector it writes") { w ->
             val y = doubleArrayOf(1.0, -2.0, 0.5, 3.0)
-            koblas.kernels.symv(0.5, permutation(), y, -1.5, y, true, scratch = w)
+            koblas.symv(0.5, permutation(), DenseVector.wrap(y), -1.5, DenseVector.wrap(y), lower = true, scratch = w)
         }
         assertStaged(3, "trsv over the coefficients that are its right-hand side") { w ->
             val a = aliasTriangle()
-            koblas.kernels.trsv(a, a.values, lower = true, scratch = w)
+            koblas.trsv(a, DenseVector.wrap(a.values), lower = true, scratch = w)
         }
         assertStaged(3, "trmv over the coefficients that are its right-hand side") { w ->
             val a = aliasTriangle()
-            koblas.kernels.trmv(a, a.values, lower = true, scratch = w)
+            koblas.trmv(a, DenseVector.wrap(a.values), lower = true, scratch = w)
         }
     }
 
@@ -441,7 +468,15 @@ class SparseOpsTest {
         val workspace = Scratch()
         val a = permutation()
 
-        koblas.kernels.gemv(0.5, a, doubleArrayOf(1.0, -2.0, 0.5, 3.0), -1.5, a.values, false, scratch = workspace)
+        koblas.gemv(
+            0.5,
+            a,
+            DenseVector.wrap(doubleArrayOf(1.0, -2.0, 0.5, 3.0)),
+            -1.5,
+            DenseVector.wrap(a.values),
+            transpose = false,
+            scratch = workspace,
+        )
 
         assertEquals(1, workspace.available(a.nnz), "the coefficients were not staged from the workspace")
         assertEquals(0, workspace.availableI32(a.cols + 1), "the column pointers were copied")
@@ -455,7 +490,7 @@ class SparseOpsTest {
         val poisoned = SparseMatrix.wrap(1, 1, intArrayOf(0, 1), intArrayOf(0), doubleArrayOf(Double.NaN))
         val y = doubleArrayOf(Double.NaN)
 
-        koblas.kernels.symv(0.0, poisoned, doubleArrayOf(Double.NaN), 0.0, y)
+        koblas.symv(0.0, poisoned, DenseVector.wrap(doubleArrayOf(Double.NaN)), 0.0, DenseVector.wrap(y))
 
         assertEquals(0.0, y[0])
     }
