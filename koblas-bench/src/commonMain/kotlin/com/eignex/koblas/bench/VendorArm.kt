@@ -8,7 +8,13 @@ import com.eignex.koblas.*
  *
  * Rejected arms leave the row untimed so measurements remain attributable to the requested implementation.
  */
-internal class ArmChoice(val work: CaseWork?, val reason: String?)
+internal sealed class ArmChoice {
+    open val work: CaseWork? get() = null
+    open val reason: String? get() = null
+
+    class Accepted(override val work: CaseWork) : ArmChoice()
+    class Declined(override val reason: String) : ArmChoice()
+}
 
 /** The prefix a vendor mode carries for each runtime, which is also which entry point may run it. */
 internal const val JVM_VENDOR_PREFIX: String = "jvm-vendor-"
@@ -52,9 +58,17 @@ internal fun openVendorForMode(mode: String): Pair<KoblasEngine, String> {
 internal fun vendorArm(case: BenchCase, blas: KoblasEngine): ArmChoice {
     val operation = if (case.operation == "ger-shrinking") EngineImplementation.Ger else case.implementation
     if (case.operation.startsWith("sp") || operation == null || operation in setOf(EngineImplementation.Panels, EngineImplementation.Products, EngineImplementation.Triangular) || operation.name.startsWith("Indexed") || operation == EngineImplementation.Sum) {
-        return ArmChoice(null, "${case.operation} has no vendor entry point in the bound CBLAS surface")
+        return ArmChoice.Declined("${case.operation} has no vendor entry point in the bound CBLAS surface")
     }
-    exactArmRejection(blas, operation)?.let { return ArmChoice(null, it) }
+    exactArmRejection(blas, operation)?.let { return ArmChoice.Declined(it) }
     val work = denseWork(case, blas) ?: return declined()
-    return ArmChoice(work.copy(comparisonKind = "direct", kernel = "${blas.vendor!!.vendorName}/$operation", provider = blas.id), null)
+    return ArmChoice.Accepted(work.copy(comparisonKind = "direct", kernel = "${blas.vendor!!.vendorName}/$operation", provider = blas.id))
 }
+
+/** Admission and measured forks resolve the same exact or default-policy workload. */
+internal fun benchmarkArm(case: BenchCase, engine: KoblasEngine, vendor: Boolean): ArmChoice? =
+    if (vendor) vendorArm(case, engine) else engineArm(case, engine)
+
+/** Both runners resolve an exact vendor separately from the platform's owned engines. */
+internal fun benchmarkEngine(mode: String): Pair<KoblasEngine, String> =
+    if (vendorFromMode(mode) != null) openVendorForMode(mode) else resolveEngine(mode)

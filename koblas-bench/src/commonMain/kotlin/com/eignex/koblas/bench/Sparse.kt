@@ -21,9 +21,9 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
     return when (case.operation) {
         "spbuild-triplets", "spbuild-duplicates" -> {
             if (engine !== KoblasEngine.scalar) {
-                ArmChoice(null, "the sparse factory is portable construction, timed on the scalar arm")
+                ArmChoice.Declined("the sparse factory is portable construction, timed on the scalar arm")
             } else {
-                ArmChoice(sparseFactoryWork(case), null)
+                ArmChoice.Accepted(sparseFactoryWork(case))
             }
         }
         "spdot-view" -> vectorViewsArm(case, engine)
@@ -257,4 +257,4 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
 
 /** A timed row for a sparse matrix call on [engine], refused when one of the case's extents is empty. */
 private fun publish(engine: KoblasEngine, case: BenchCase, timing: String, verify: () -> Unit, run: () -> Double) =
-    level23(engine, case, timing, verify, run)?.let { ArmChoice(it, null) } ?: declined()
+    level23(engine, case, timing, verify, run)?.let { ArmChoice.Accepted(it) } ?: declined()

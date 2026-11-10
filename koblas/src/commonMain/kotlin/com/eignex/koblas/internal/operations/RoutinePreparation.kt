@@ -31,7 +31,11 @@ internal inline fun prepareMatrixVector(
 ) {
     val rows = if (transpose) a.cols else a.rows
     val depth = if (transpose) a.rows else a.cols
-    requireGemvOperands(a, transpose, x.size, y.size)
+    if (lower == null) {
+        requireGemvOperands(a, transpose, x.size, y.size)
+    } else {
+        requireSymvOperands(a, x.size, y.size)
+    }
     if (rows == 0) return
     if (alpha == 0.0 || depth == 0) {
         applyBeta(vectors, y.values, y.offset, rows, beta, y.stride)
@@ -51,10 +55,15 @@ internal inline fun prepareRankUpdate(
     x: DenseVector,
     y: DenseVector,
     a: DenseMatrix,
+    what: String,
     arrays: Scratch?,
     body: (DenseVector, DenseVector) -> Unit,
 ) {
-    requireGerOperands(x.size, y.size, a)
+    when (what) {
+        "syr" -> requireSyrOperands(a, x.size, what)
+        "syr2" -> requireSyr2Operands(a, x.size, y.size, what)
+        else -> requireGerOperands(x.size, y.size, a)
+    }
     if (alpha == 0.0 || a.rows == 0 || a.cols == 0) return
     stagedWindows(arrays, x, y, a, body)
 }

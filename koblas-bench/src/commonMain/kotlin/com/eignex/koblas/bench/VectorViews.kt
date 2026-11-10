@@ -12,7 +12,7 @@ import com.eignex.koblas.internal.operations.dotVector
  */
 internal fun vectorViewsArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
     if (engine !== koblas) {
-        return ArmChoice(null, "vector entry points use the platform-selected engine")
+        return ArmChoice.Declined("vector entry points use the platform-selected engine")
     }
     val size = case.dimension(0)
     if (case.operation == "spdot-view") {
@@ -22,8 +22,8 @@ internal fun vectorViewsArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
         val view = DenseVector.wrap(backing, 0, size, 2)
         val expected = KoblasEngine.scalar.dotVector(sparse, DenseVector.wrap(dense))
         DenseReference.check(doubleArrayOf(expected), doubleArrayOf(sparse dot view), case.id)
-        return ArmChoice(CaseWork("default-policy", "arithmetic", { sparse dot view },
-            kernel = "portable-vector+scalar/dot-view"), null)
+        return ArmChoice.Accepted(CaseWork("default-policy", "arithmetic", { sparse dot view },
+            kernel = "portable-vector+scalar/dot-view"))
     }
     val overlap = case.operation == "copy-overlap"
     val initial = Fixtures.vector(if (overlap) size + 1 else size * 2, 1)
@@ -57,6 +57,6 @@ internal fun vectorViewsArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
         "copy-overlap" -> "portable-vector+array-copy/copy-overlap"
         else -> "portable-vector+${engineKernel(engine, case.operation)}"
     }
-    return ArmChoice(CaseWork("default-policy", "reset-and-arithmetic", run, result = backing,
-        kernel = kernel), null)
+    return ArmChoice.Accepted(CaseWork("default-policy", "reset-and-arithmetic", run, result = backing,
+        kernel = kernel))
 }

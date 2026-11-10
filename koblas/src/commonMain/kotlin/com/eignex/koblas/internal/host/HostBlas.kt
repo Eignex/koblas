@@ -146,7 +146,6 @@ internal abstract class HostBlas : KernelProvider {
         scratch: Scratch?,
     ) {
         requireExport(EngineImplementation.Symv)
-        requireSquare(a, "symv")
         prepareMatrixVector(this, alpha, a, false, x, beta, y, lower, scratch) { sa, sx ->
             cblasSymv(alpha, sa, symmetricStructure(lower), sx, beta, y)
         }
@@ -154,13 +153,12 @@ internal abstract class HostBlas : KernelProvider {
 
     override fun ger(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix, scratch: Scratch?) {
         requireExport(EngineImplementation.Ger)
-        prepareRankUpdate(alpha, x, y, a, scratch) { sx, sy -> cblasGer(alpha, sx, sy, a) }
+        prepareRankUpdate(alpha, x, y, a, "ger", scratch) { sx, sy -> cblasGer(alpha, sx, sy, a) }
     }
 
     override fun syr(alpha: Double, x: DenseVector, a: DenseMatrix, lower: Boolean, scratch: Scratch?) {
         requireExport(EngineImplementation.Syr)
-        requireSquare(a, "syr")
-        prepareRankUpdate(alpha, x, x, a, scratch) { sx, _ -> cblasSyr(alpha, sx, a, symmetricStructure(lower)) }
+        prepareRankUpdate(alpha, x, x, a, "syr", scratch) { sx, _ -> cblasSyr(alpha, sx, a, symmetricStructure(lower)) }
     }
 
     override fun syr2(
@@ -172,8 +170,14 @@ internal abstract class HostBlas : KernelProvider {
         scratch: Scratch?,
     ) {
         requireExport(EngineImplementation.Syr2)
-        requireSquare(a, "syr2")
-        prepareRankUpdate(alpha, x, y, a, scratch) { sx, sy -> cblasSyr2(alpha, sx, sy, a, symmetricStructure(lower)) }
+        prepareRankUpdate(
+            alpha,
+            x,
+            y,
+            a,
+            "syr2",
+            scratch,
+        ) { sx, sy -> cblasSyr2(alpha, sx, sy, a, symmetricStructure(lower)) }
     }
 
     override fun trsv(

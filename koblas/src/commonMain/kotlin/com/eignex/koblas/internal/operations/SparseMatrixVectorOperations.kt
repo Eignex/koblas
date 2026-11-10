@@ -44,7 +44,7 @@ internal fun applySparseTriangularVector(
     solve: Boolean,
     scratch: Scratch?,
 ) {
-    withContiguousVector(x) { values ->
+    withContiguousVector(x, scratch, writeBack = true) { values ->
         staged(scratch, a, a.values === values) { stable ->
             triangularVectorCore(stable, values, lower, transpose, unitDiag, solve)
         }
@@ -61,39 +61,34 @@ private inline fun KoblasEngine.withStableSparseVectors(
     scratch: Scratch?,
     body: (SparseMatrix, DoubleArray, DoubleArray) -> Unit,
 ) {
-    withSparseMatrixVectors(alpha, a, x, beta, y) { input, output ->
-        staged(scratch, input, input === output) { stableX ->
-            staged(scratch, a, a.values === output) { stableA -> body(stableA, stableX, output) }
-        }
-    }
-}
-
-/** Sparse schedules consume contiguous vectors; view packing preserves their no-read and alias rules. */
-private inline fun KoblasEngine.withSparseMatrixVectors(
-    alpha: Double,
-    a: SparseMatrix,
-    x: DenseVector,
-    beta: Double,
-    y: DenseVector,
-    body: (DoubleArray, DoubleArray) -> Unit,
-) {
     if (alpha == 0.0 || a.rows == 0 || a.cols == 0) {
         applyBeta(this, y.values, y.offset, y.size, beta, y.stride)
         return
     }
-    val input = if (x.isWholeBuffer) x.values else x.toDoubleArray()
-    val output = when {
-        y.isWholeBuffer -> y.values
-        beta == 0.0 -> DoubleArray(y.size)
-        else -> y.toDoubleArray()
+    withContiguousVector(x, scratch) { input ->
+        withContiguousVector(y, scratch, read = beta != 0.0, writeBack = true) { output ->
+            staged(scratch, input, input === output) { stableX ->
+                staged(scratch, a, a.values === output) { stableA -> body(stableA, stableX, output) }
+            }
+        }
     }
-    body(input, output)
-    if (!y.isWholeBuffer) for (i in 0 until y.size) y[i] = output[i]
 }
 
-/** Packs a vector view for an in-place sparse routine and writes its logical entries back. */
-private inline fun withContiguousVector(x: DenseVector, body: (DoubleArray) -> Unit) {
-    val values = if (x.isWholeBuffer) x.values else x.toDoubleArray()
-    body(values)
-    if (!x.isWholeBuffer) for (i in 0 until x.size) x[i] = values[i]
+/** Packs logical entries only; an overwritten output need not read its previous values. */
+private inline fun withContiguousVector(
+    vector: DenseVector,
+    scratch: Scratch?,
+    read: Boolean = true,
+    writeBack: Boolean = false,
+    body: (DoubleArray) -> Unit,
+) {
+    if (vector.isWholeBuffer) {
+        body(vector.values)
+        return
+    }
+    scratch.borrow(vector.size) { values ->
+        if (read) for (i in 0 until vector.size) values[i] = vector[i]
+        body(values)
+        if (writeBack) for (i in 0 until vector.size) vector[i] = values[i]
+    }
 }

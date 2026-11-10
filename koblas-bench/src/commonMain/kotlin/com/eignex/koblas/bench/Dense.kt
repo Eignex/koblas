@@ -36,7 +36,7 @@ internal fun engineWork(
 
 /** The reason a case with an empty extent is not timed. */
 internal fun declined(): ArmChoice =
-    ArmChoice(null, "this case's own contract stops before the arithmetic, so there is nothing to time")
+    ArmChoice.Declined("this case's own contract stops before the arithmetic, so there is nothing to time")
 
 /**
  * Built-in Level 2 or 3 work, declined when one of the case's extents is empty.
@@ -230,14 +230,17 @@ private fun vectorWork(case: BenchCase, engine: KoblasEngine): CaseWork {
  */
 internal fun engineArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
     val arm = sparseArm(case, engine) ?: denseArm(case, engine)
-    return arm?.work?.let {
-        ArmChoice(it.copy(provider = case.routingKey()?.provider(engine) ?: "scheduled"), null)
-    } ?: arm
+    return when (arm) {
+        is ArmChoice.Accepted -> ArmChoice.Accepted(
+            arm.work.copy(provider = case.routingKey()?.provider(engine) ?: "scheduled"),
+        )
+        else -> arm
+    }
 }
 
 internal fun denseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? = when (case.operation) {
     "copy-overlap", "axpy-views" -> vectorViewsArm(case, engine)
-    else -> denseWork(case, engine)?.let { ArmChoice(it, null) }
+    else -> denseWork(case, engine)?.let { ArmChoice.Accepted(it) }
 }
 
 private fun rankUpdateWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
