@@ -6,6 +6,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.operations.applyBeta
+import com.eignex.koblas.internal.scheduling.forEachPanel
 import com.eignex.koblas.internal.storage.borrowOptional
 
 /*
@@ -484,14 +485,7 @@ internal fun directProduct(
                 height, width, accumulated, 0, 1,
             )
             if (step + width == k) {
-                writeScaledColumn(
-                    alpha,
-                    accumulated,
-                    beta,
-                    c,
-                    cOffset + first + column * ldc,
-                    height,
-                )
+                writeScaledColumn(alpha, accumulated, beta, c, cOffset + first + column * ldc, height)
             }
         }
     }

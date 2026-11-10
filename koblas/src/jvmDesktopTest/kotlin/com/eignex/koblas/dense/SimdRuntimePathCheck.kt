@@ -1,7 +1,6 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.jvm25.simd.*
 import com.eignex.koblas.internal.kernels.*
@@ -35,10 +34,10 @@ internal object SimdRuntimePathCheck {
         }
         val engine = requireNotNull(KoblasEngine.simd) { "no Vector API arm" }
         assertReductionsAgreeWithReference(engine)
-        SimdOpsTest().`dot agrees with the scalar oracle across independent offsets and vector boundaries`()
+        SimdVectorOpsTest().`dot agrees with the scalar oracle across independent offsets and vector boundaries`()
         assertIamaxHonoursItsContract(engine)
-        SimdOpsTest().`iamax agrees with the scalar oracle when blocks keep improving`()
-        SimdOpsTest().`iamax distinguishes magnitudes sharing a high word`()
+        SimdVectorOpsTest().`iamax agrees with the scalar oracle when blocks keep improving`()
+        SimdVectorOpsTest().`iamax distinguishes magnitudes sharing a high word`()
         val panels = engine.panelProvider
         check(
             panels.name == "simd-panel($lanes lanes)",

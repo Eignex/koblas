@@ -1,6 +1,6 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.internal.storage.overlaps
+import com.eignex.koblas.internal.storage.dense.*
 import kotlinx.serialization.json.*
 import kotlin.test.*
 

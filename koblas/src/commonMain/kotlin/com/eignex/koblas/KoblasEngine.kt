@@ -11,6 +11,7 @@ import com.eignex.koblas.internal.operations.*
 import com.eignex.koblas.internal.scheduling.dense.*
 import com.eignex.koblas.internal.scheduling.sparse.*
 import com.eignex.koblas.internal.storage.*
+import com.eignex.koblas.internal.storage.dense.*
 
 /**
  * Dense and sparse BLAS through one immutable engine.
@@ -332,7 +333,7 @@ public interface KoblasEngine {
         requireSameSize(matrix.rows, dense.size, "dotColumn")
         val start = matrix.colPointers[column]
         val count = matrix.colPointers[column + 1] - start
-        return if (dense.isWholeArray) {
+        return if (dense.isWholeBuffer) {
             kernels.dot(matrix.rowIndices, start, matrix.values, start, count, dense.values)
         } else {
             com.eignex.koblas.internal.kernels.scalar.sparse.indexedDotDense(
@@ -589,13 +590,7 @@ public interface KoblasEngine {
     ) {
         // Right-side multiplication uses the same derivation with operands reversed.
         if (right) {
-            requireGemmOperands(
-                b,
-                transposeB,
-                a,
-                transposeA,
-                c,
-            )
+            requireGemmOperands(b, transposeB, a, transposeA, c)
         } else {
             requireGemmOperands(a, transposeA, b, transposeB, c)
         }

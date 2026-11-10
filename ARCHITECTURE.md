@@ -34,8 +34,10 @@ multiplatform module; platform source sets supply their own runtime and arithmet
 
 | Package | Owns |
 |---|---|
-| `storage` | Bounds, pooled arrays, physical windows and structural CSC utilities. |
-| `operations` | Reusable BLAS validation, alias snapshots, scratch loans and vector storage adaptation. |
+| `storage` | Shared bounds, pooled arrays, serialization and storage transformations. |
+| `storage.dense` / `storage.sparse` | Dense windows and copying / CSC column structure and transpose. |
+| `operations` | BLAS window adapters, validation, alias staging and matrix/vector storage adaptation. |
+| `scheduling` | Representation-independent panel iteration. |
 | `scheduling.dense` | Panels, packing, product blocking, selected triangles and triangular traversal. |
 | `scheduling.sparse` | CSC traversal, right-hand-side grouping and sparse accumulation schedules. |
 | `kernels` | Independent `EngineKernels` arithmetic and geometry, the `KernelProvider` engine bridge, and array-window adapters. |
@@ -62,7 +64,7 @@ shared CSC schedules, regardless of which Level 1 engine is selected.
 ## Platforms
 
 JVM Vector API kernels remain under `jvmJava25/internal/jvm25/simd`. JVM and native host bindings remain
-in their platform source sets under `internal/host`. Platform selection uses `internal/engine` actuals.
+under `internal/jvm25/host` and `internal/host`. Platform selection uses `internal/engine` actuals.
 Klause and Kumulant consume the public engine and containers; platform implementation and build setup
 stay within Koblas.
 

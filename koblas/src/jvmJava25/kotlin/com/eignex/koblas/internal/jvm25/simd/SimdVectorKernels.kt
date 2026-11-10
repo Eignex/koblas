@@ -1,7 +1,6 @@
 package com.eignex.koblas.internal.jvm25.simd
 
 import com.eignex.koblas.*
-import com.eignex.koblas.EngineImplementation
 import com.eignex.koblas.EngineImplementation.*
 import com.eignex.koblas.internal.engine.KernelSet
 import com.eignex.koblas.internal.kernels.*
@@ -23,9 +22,9 @@ private object SimdVectorLeaves : KernelProvider {
     override val implementations = setOf(Dot, Sum, Nrm2, Iamax, Asum, Axpy)
     override fun dynamicAttribution(implementation: EngineImplementation): Boolean = implementation == Nrm2
     override fun requiresUnitStride(implementation: EngineImplementation): Boolean = true
-    override fun minimumLength(implementation: EngineImplementation): Int = SimdOps.lanes()
+    override fun minimumLength(implementation: EngineImplementation): Int = SimdVectorOps.lanes()
 
-    override val name: String = "simd(${SimdOps.lanes()} lanes)"
+    override val name: String = "simd(${SimdVectorOps.lanes()} lanes)"
     override fun dot(
         a: DoubleArray,
         aOff: Int,
@@ -36,23 +35,23 @@ private object SimdVectorLeaves : KernelProvider {
         bStride: Int,
     ): Double {
         require(aStride == 1 && bStride == 1)
-        return SimdOps.dot(a, aOff, b, bOff, len)
+        return SimdVectorOps.dot(a, aOff, b, bOff, len)
     }
     override fun sum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
         require(vStride == 1)
-        return SimdOps.sum(v, vOff, len)
+        return SimdVectorOps.sum(v, vOff, len)
     }
     override fun asum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
         require(vStride == 1)
-        return SimdOps.asum(v, vOff, len)
+        return SimdVectorOps.asum(v, vOff, len)
     }
     override fun iamax(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Int {
         require(vStride == 1)
-        return SimdOps.iamax(v, vOff, len)
+        return SimdVectorOps.iamax(v, vOff, len)
     }
     override fun nrm2(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
         require(vStride == 1)
-        val squares = SimdOps.dot(v, vOff, v, vOff, len)
+        val squares = SimdVectorOps.dot(v, vOff, v, vOff, len)
         return if (squares.isFinite() && squares >= MIN_NORMAL) {
             sqrt(squares)
         } else {
@@ -72,10 +71,10 @@ private object SimdVectorLeaves : KernelProvider {
         xStride: Int,
     ) {
         require(yStride == 1 && xStride == 1)
-        SimdOps.axpy(y, yOff, alpha, x, xOff, len)
+        SimdVectorOps.axpy(y, yOff, alpha, x, xOff, len)
     }
 }
 
 internal val simdKernels: KernelSet by lazy {
-    KernelSet(SimdVectorLeaves, SparseSimd, SimdPanelKernels, SimdProductKernels, SimdTriangularKernels)
+    KernelSet(SimdVectorLeaves, SimdIndexedKernels, SimdPanelKernels, SimdProductKernels, SimdTriangularKernels)
 }

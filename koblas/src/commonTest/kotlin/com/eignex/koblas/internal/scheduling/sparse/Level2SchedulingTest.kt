@@ -10,7 +10,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 // The traversal is portable for every engine, and the one leaf with a vector body, the indexed dot, is checked
-// against the portable one in SparseSimdTest, so the selected engine is enough here.
+// against the portable one in SimdIndexedKernelsTest, so the selected engine is enough here.
 class Level2SchedulingTest {
     @Test
     fun `gemv agrees across transpose alpha and beta variants`() {

@@ -1,7 +1,7 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.internal.storage.*
-import com.eignex.koblas.internal.storage.sparse.lowerBound
+import com.eignex.koblas.internal.storage.sparse.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmStatic
@@ -120,7 +120,9 @@ public class SparseVector internal constructor(
         for (k in 0 until nnz) {
             if (indices[start + k] != other.indices[otherStart + k] ||
                 values[start + k].toBits() != other.values[otherStart + k].toBits()
-            ) return false
+            ) {
+                return false
+            }
         }
         return true
     }

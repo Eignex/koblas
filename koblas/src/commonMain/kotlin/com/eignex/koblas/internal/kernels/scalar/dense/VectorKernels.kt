@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions") // Independent windows and extents.
+
 package com.eignex.koblas.internal.kernels.scalar.dense
 
 import kotlin.math.abs
@@ -154,4 +156,26 @@ internal fun scalarEvaluatedAxpy(
     length: Int,
 ) {
     for (i in 0 until length) y[yOffset + i] += alpha * x[xOffset + i]
+}
+
+/** Plain sum over the run v(off until off + len). Not a BLAS routine: `dasum` sums absolute values. */
+internal fun scalarSum(v: DoubleArray, off: Int, stride: Int, len: Int): Double {
+    var s = 0.0
+    var iv = off
+    for (i in 0 until len) {
+        s += v[iv]
+        iv += stride
+    }
+    return s
+}
+
+/** Sum of absolute values over the run v(off until off + len) (BLAS `dasum`). */
+internal fun absoluteSum(v: DoubleArray, off: Int, stride: Int, len: Int): Double {
+    var s = 0.0
+    var iv = off
+    for (i in 0 until len) {
+        s += abs(v[iv])
+        iv += stride
+    }
+    return s
 }

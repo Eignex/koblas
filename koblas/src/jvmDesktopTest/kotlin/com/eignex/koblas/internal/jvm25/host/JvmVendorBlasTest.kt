@@ -161,7 +161,13 @@ class JvmVendorBlasTest {
         ScalarEngine.swap(expected, 0, expected, 1, size, lda, lda)
 
         blas.kernels.swap(
-            first.values, first.offset, second.values, second.offset, first.size, first.stride, second.stride,
+            first.values,
+            first.offset,
+            second.values,
+            second.offset,
+            first.size,
+            first.stride,
+            second.stride,
         )
 
         assertContentEquals(expected, storage, "swap backing buffer")

@@ -5,7 +5,6 @@ import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.KernelProvider
 import com.eignex.koblas.internal.operations.*
-import com.eignex.koblas.internal.operations.axpyVector
 import com.eignex.koblas.internal.scheduling.sparse.AdjacentPreferringPanels
 import kotlin.math.abs
 import kotlin.random.Random
@@ -16,7 +15,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-// The indexed dot is the only indexed operation with a vector body, and SparseSimdTest checks that body against
+// The indexed dot is the only indexed operation with a vector body, and SimdIndexedKernelsTest checks that body against
 // the portable one at every short count and offset. The tests below therefore run the selected engine once,
 // except where a shape that test leaves out, repeated support or an aliased operand, reaches the vector body.
 @OptIn(UnsafeKoblasApi::class)

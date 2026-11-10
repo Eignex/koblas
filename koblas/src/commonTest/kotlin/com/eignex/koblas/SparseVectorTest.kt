@@ -18,7 +18,8 @@ class SparseVectorTest {
         val encoded = Json.encodeToString(SparseVector.serializer(), view)
         val decoded = Json.decodeFromString(SparseVector.serializer(), encoded)
         val polymorphic = Json.decodeFromString(
-            VectorStorage.serializer(), Json.encodeToString(VectorStorage.serializer(), view),
+            VectorStorage.serializer(),
+            Json.encodeToString(VectorStorage.serializer(), view),
         )
 
         assertEquals(owning, view)
@@ -49,7 +50,8 @@ class SparseVectorTest {
             assertColumnReductionAgreesWithReference(KoblasEngine.scalar.nrm2(reference), engine.nrm2(view))
             assertColumnReductionAgreesWithReference(KoblasEngine.scalar.dot(reference, dense), engine.dot(view, dense))
             assertColumnReductionAgreesWithReference(
-                KoblasEngine.scalar.dot(reference, sparseReference), engine.dot(view, sparse),
+                KoblasEngine.scalar.dot(reference, sparseReference),
+                engine.dot(view, sparse),
             )
         }
         for (type in listOf(Norm.One, Norm.Two, Norm.Infinity, Norm.MaxAbs)) {
@@ -111,7 +113,11 @@ class SparseVectorTest {
     }
 
     private fun columnOwner(): SparseMatrix = SparseMatrix.wrap(
-        4, 3, intArrayOf(0, 2, 4, 5), intArrayOf(0, 3, 1, 2, 0), doubleArrayOf(2.0, -0.0, 3.0, 4.0, -5.0),
+        4,
+        3,
+        intArrayOf(0, 2, 4, 5),
+        intArrayOf(0, 3, 1, 2, 0),
+        doubleArrayOf(2.0, -0.0, 3.0, 4.0, -5.0),
     )
 
     private fun assertColumnReductionAgreesWithReference(expected: Double, actual: Double) {

@@ -4,7 +4,7 @@ package com.eignex.koblas.internal.operations
 
 import com.eignex.koblas.*
 import com.eignex.koblas.internal.scheduling.sparse.*
-import com.eignex.koblas.internal.storage.isWholeArray
+import com.eignex.koblas.internal.storage.dense.isWholeBuffer
 
 /** Sparse traversal stays portable; the selected engine supplies only numerical leaves. */
 internal fun KoblasEngine.multiplySparseMatrixVector(
@@ -81,19 +81,19 @@ private inline fun KoblasEngine.withSparseMatrixVectors(
         applyBeta(this, y.values, y.offset, y.size, beta, y.stride)
         return
     }
-    val input = if (x.isWholeArray) x.values else x.toDoubleArray()
+    val input = if (x.isWholeBuffer) x.values else x.toDoubleArray()
     val output = when {
-        y.isWholeArray -> y.values
+        y.isWholeBuffer -> y.values
         beta == 0.0 -> DoubleArray(y.size)
         else -> y.toDoubleArray()
     }
     body(input, output)
-    if (!y.isWholeArray) for (i in 0 until y.size) y[i] = output[i]
+    if (!y.isWholeBuffer) for (i in 0 until y.size) y[i] = output[i]
 }
 
 /** Packs a vector view for an in-place sparse routine and writes its logical entries back. */
 private inline fun withContiguousVector(x: DenseVector, body: (DoubleArray) -> Unit) {
-    val values = if (x.isWholeArray) x.values else x.toDoubleArray()
+    val values = if (x.isWholeBuffer) x.values else x.toDoubleArray()
     body(values)
-    if (!x.isWholeArray) for (i in 0 until x.size) x[i] = values[i]
+    if (!x.isWholeBuffer) for (i in 0 until x.size) x[i] = values[i]
 }
