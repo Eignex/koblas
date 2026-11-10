@@ -25,21 +25,13 @@ public object JvmBenchmarkBridge {
     @JvmStatic
     public fun create(mode: String, caseId: String, casesPath: String): JvmCaseWork {
         val case = Cases.parse(readTextFile(casesPath)).single { it.id == caseId }
-        if (vendorForRuntime(mode, JVM_VENDOR_PREFIX) != null) {
-            val arm = vendorArm(case, openVendorForMode(mode).first)
-            // A rejection after admission means the route changed between the scan and the fork.
-            return JvmCaseWork(arm.work ?: error("vendor arm declined $caseId in the measured fork: ${arm.reason}"))
+        val vendorMode = vendorForRuntime(mode, JVM_VENDOR_PREFIX) != null
+        require(mode in setOf("jvm-simd", "jvm-default", "jvm-scalar") || vendorMode) {
+            "JMH supports only JVM benchmark modes"
         }
-        val engine = resolveEngine(mode).first
-        val sparse = sparseArm(case, engine)
-        // Admitted cases must remain supported in the measured fork.
-        if (sparse != null) {
-            return JvmCaseWork(sparse.work ?: error("sparse arm declined $caseId in the measured fork: ${sparse.reason}"))
-        }
-        val dense = denseArm(case, engine) ?: error("unsupported case passed to JMH: $caseId")
-        return JvmCaseWork(
-            dense.work ?: error("dense arm declined $caseId in the measured fork: ${dense.reason}"),
-        )
+        val arm = benchmarkArm(case, benchmarkEngine(mode).first, vendorMode)
+        // A rejection after admission means the route changed between the scan and the fork.
+        return JvmCaseWork(arm?.work ?: error("arm declined $caseId in the measured fork: ${arm?.reason}"))
     }
 }
 
@@ -51,18 +43,14 @@ public fun main(args: Array<String>) {
     ) { "JMH supports only JVM benchmark modes" }
     val allCases = Cases.parse(readTextFile(settings.casesPath))
     val selected = Cases.select(allCases, settings.suite, settings.operation)
-    val vendor = if (vendorMode) openVendorForMode(settings.mode) else null
-    val resolved = if (vendorMode) null else resolveEngine(settings.mode)
-    val engine = resolved?.first
-    val implementation = vendor?.second ?: checkNotNull(resolved).second
+    val (engine, implementation) = benchmarkEngine(settings.mode)
     val supported = linkedMapOf<String, Pair<String, String>>()
     val kernels = linkedMapOf<String, String>()
     val providers = linkedMapOf<String, String>()
     val rowsByCase = linkedMapOf<String, MutableList<Measurement>>()
     for (case in selected) {
         // Build and verify work outside timing and decline unsupported arms before starting JMH.
-        val arm = vendor?.let { vendorArm(case, it.first) }
-            ?: engine?.let { engineArm(case, it) }
+        val arm = benchmarkArm(case, engine, vendorMode)
         val work = arm?.work
         if (work == null) {
             rowsByCase.getOrPut(case.id, ::arrayListOf) += measurement(

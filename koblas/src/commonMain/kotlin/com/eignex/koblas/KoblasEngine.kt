@@ -180,7 +180,6 @@ public interface KoblasEngine {
         transpose: Boolean = false,
         scratch: Scratch? = null,
     ) {
-        requireGemvOperands(a, transpose, x.size, y.size)
         multiplyMatrixVector(alpha, a, x, beta, y, transpose, scratch)
     }
 
@@ -216,7 +215,6 @@ public interface KoblasEngine {
         lower: Boolean = true,
         scratch: Scratch? = null,
     ) {
-        requireSymvOperands(a, x.size, y.size)
         multiplySymmetricVector(alpha, a, x, beta, y, lower, scratch)
     }
 
@@ -240,13 +238,11 @@ public interface KoblasEngine {
 
     /** Adds `alpha * x * yᵀ` to [a], requiring matching logical dimensions and staging aliased inputs. */
     public fun ger(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix, scratch: Scratch? = null) {
-        requireGerOperands(x.size, y.size, a)
         updateDenseRank(alpha, x, y, a, scratch)
     }
 
     /** Adds `alpha * x * xᵀ` to the selected triangle of square [a]. Aliased inputs are staged. */
     public fun syr(alpha: Double, x: DenseVector, a: DenseMatrix, lower: Boolean = true, scratch: Scratch? = null) {
-        requireSyrOperands(a, x.size, "syr")
         updateSymmetricRank(alpha, x, a, lower, scratch)
     }
 
@@ -259,7 +255,6 @@ public interface KoblasEngine {
         lower: Boolean = true,
         scratch: Scratch? = null,
     ) {
-        requireSyr2Operands(a, x.size, y.size, "syr2")
         updateSymmetricRankTwo(alpha, x, y, a, lower, scratch)
     }
 
@@ -275,7 +270,6 @@ public interface KoblasEngine {
         unitDiag: Boolean = false,
         scratch: Scratch? = null,
     ) {
-        requireTriangularVectorOperands(a, x.size, "trsv")
         applyTriangularVector(a, x, lower, transpose, unitDiag, true, scratch)
     }
 
@@ -307,7 +301,6 @@ public interface KoblasEngine {
         unitDiag: Boolean = false,
         scratch: Scratch? = null,
     ) {
-        requireTriangularVectorOperands(a, x.size, "trmv")
         applyTriangularVector(a, x, lower, transpose, unitDiag, false, scratch)
     }
 

@@ -72,6 +72,6 @@ internal fun sparseIndexedArm(case: BenchCase, engine: KoblasEngine): ArmChoice 
     DenseReference.check(reference.values, x.values, "${case.id} sparse backing storage")
     DenseReference.check(referenceDense, dense, "${case.id} dense backing storage")
     initialDense.copyInto(dense)
-    return ArmChoice(engineWork(engine, operation, timing, run,
-        if (operation == "spgather") x.values else null), null)
+    return ArmChoice.Accepted(engineWork(engine, operation, timing, run,
+        if (operation == "spgather") x.values else null))
 }

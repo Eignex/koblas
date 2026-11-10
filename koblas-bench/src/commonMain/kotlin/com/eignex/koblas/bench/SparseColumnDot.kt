@@ -23,5 +23,5 @@ internal fun sparseColumnDotArm(case: BenchCase, engine: KoblasEngine): ArmChoic
     }
     val expected = KoblasEngine.scalar.kernels.dot(indices, 3, values, 3, count, dense)
     DenseReference.check(doubleArrayOf(expected), doubleArrayOf(run()), case.id)
-    return ArmChoice(engineWork(engine, case.operation, "arithmetic", run), null)
+    return ArmChoice.Accepted(engineWork(engine, case.operation, "arithmetic", run))
 }

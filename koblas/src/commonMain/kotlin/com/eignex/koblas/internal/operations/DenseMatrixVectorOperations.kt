@@ -51,7 +51,7 @@ internal fun KoblasEngine.updateDenseRank(
 ) {
     val host = routedWholeCall(Ger, a.rows, a.cols, 1, !a.isWholeBuffer)
     if (host != null) return host.ger(alpha, x, y, a, scratch)
-    prepareRankUpdate(alpha, x, y, a, scratch) { sx, sy ->
+    prepareRankUpdate(alpha, x, y, a, "ger", scratch) { sx, sy ->
         scheduleGer(
             alpha, sx.values, sx.offset, sx.stride, sy.values, sy.offset, sy.stride,
             a, a.offset, a.rows, a.cols,
@@ -68,7 +68,7 @@ internal fun KoblasEngine.updateSymmetricRank(
 ) {
     val host = routedWholeCall(Syr, a.rows, a.rows, 1, !a.isWholeBuffer)
     if (host != null) return host.syr(alpha, x, a, lower, scratch)
-    prepareRankUpdate(alpha, x, x, a, scratch) { sx, _ ->
+    prepareRankUpdate(alpha, x, x, a, "syr", scratch) { sx, _ ->
         scheduleSyr(alpha, sx.values, sx.offset, sx.stride, a, lower)
     }
 }
@@ -83,7 +83,7 @@ internal fun KoblasEngine.updateSymmetricRankTwo(
 ) {
     val host = routedWholeCall(Syr2, a.rows, a.rows, 1, !a.isWholeBuffer)
     if (host != null) return host.syr2(alpha, x, y, a, lower, scratch)
-    prepareRankUpdate(alpha, x, y, a, scratch) { sx, sy ->
+    prepareRankUpdate(alpha, x, y, a, "syr2", scratch) { sx, sy ->
         scheduleSyr2(alpha, sx.values, sx.offset, sx.stride, sy.values, sy.offset, sy.stride, a, lower)
     }
 }

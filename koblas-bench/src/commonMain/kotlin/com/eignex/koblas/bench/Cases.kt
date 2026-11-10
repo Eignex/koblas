@@ -14,25 +14,7 @@ internal data class BenchCase(
 }
 
 internal object Cases {
-    private val dimensionCounts = mapOf(
-        "dot" to 1, "axpy" to 1, "axpy-unit" to 1, "scal" to 1, "nrm2" to 1, "asum" to 1, "sum" to 1,
-        "iamax" to 1, "swap" to 1, "rot" to 1, "copy" to 1,
-        "copy-overlap" to 1, "axpy-views" to 1, "spdot-view" to 1,
-        "gemv" to 2, "symv" to 1, "ger" to 2, "syr" to 1, "syr2" to 1, "trsv" to 1,
-        "ger-shrinking" to 1, "ger-window-shrinking" to 1,
-        "trmv" to 1, "gemm" to 3, "symm" to 2, "gemmt" to 2, "syrk" to 2, "syr2k" to 2,
-        "trsm" to 2, "trmm" to 2,
-        "spdot" to 1, "spdot-raw" to 1, "spdot-sparse" to 1, "spaxpy" to 1, "spaxpy-raw" to 1,
-        "spdot-column" to 1, "spdot-column-raw" to 1,
-        "spnrm2" to 1, "spasum" to 1,
-        "spscatter" to 1, "spscatter-raw" to 1, "spgather" to 1, "spgather-zero" to 1,
-        "spdot-slice" to 1, "spaxpy-slice" to 1, "spscatter-slice" to 1,
-        "spbuild-triplets" to 2, "spbuild-duplicates" to 2,
-        "spgemv" to 2, "spmm" to 3, "spmm-right" to 3,
-        "spsymv" to 1, "spsymm" to 2, "sptrsv" to 1, "sptrmv" to 1, "sptrsm" to 2, "sptrmm" to 2,
-        "spsyrk-dense" to 2,
-    )
-    private val fixtures = setOf("uniform", "triangular", "sparse-uniform", "sparse-triangular")
+    private val fixtures = operationSpecs.values.mapTo(mutableSetOf()) { it.fixture }
     private val optionOrder =
         listOf("density", "support", "mode", "side", "uplo", "transA", "transB", "diag", "timing", "workspace", "layout", "stride")
 
@@ -64,12 +46,12 @@ internal object Cases {
         val parts = line.split('+')
         if (parts.size < 3 || parts.any { it.isEmpty() }) invalid("expected operation+dimensions+fixture")
         val operation = parts[0]
-        val count = dimensionCounts[operation] ?: invalid("unknown operation '$operation'")
+        val spec = operationSpecs[operation] ?: invalid("unknown operation '$operation'")
         val dimensions = parts[1].split('x').map {
             it.toIntOrNull()?.takeIf { value -> value > 0 } ?: invalid("invalid positive dimension '$it'")
         }
-        if (dimensions.size != count) invalid("$operation requires $count dimensions")
-        if (operation in setOf("ger-shrinking", "ger-window-shrinking") && dimensions[0] < 2) {
+        if (dimensions.size != spec.dimensions) invalid("$operation requires ${spec.dimensions} dimensions")
+        if (dimensions[0] < spec.minimumOrder) {
             invalid("$operation requires an order of at least two")
         }
         val fixture = parts[2]
@@ -92,7 +74,7 @@ internal object Cases {
             validateOption(pair[0], pair[1], invalid = ::invalid)
             options[pair[0]] = pair[1]
         }
-        validateCompatibility(operation, dimensions, fixture, options, invalid = ::invalid)
+        validateCompatibility(operation, spec, fixture, options, invalid = ::invalid)
         val ordered = optionOrder.filter { it in options }.associateWith { options.getValue(it) }
         val id = (listOf(operation, dimensions.joinToString("x"), fixture) + ordered.map { "${it.key}=${it.value}" }).joinToString("+")
         return BenchCase(operation, dimensions, fixture, ordered, id, suites ?: setOf("default"))
@@ -102,7 +84,7 @@ internal object Cases {
         when (name) {
             "density" -> if (value.toDoubleOrNull()?.let { it > 0.0 && it <= 1.0 } != true) invalid("invalid density '$value'")
             "support" -> if (value !in SUPPORTS) invalid("invalid support '$value'")
-            "mode" -> if (value !in MODES) invalid("invalid mode '$value'")
+            "mode" -> if (value != "oneshot") invalid("invalid mode '$value'")
             "side" -> if (value !in setOf("L", "R")) invalid("invalid side '$value'")
             "uplo" -> if (value !in setOf("L", "U")) invalid("invalid uplo '$value'")
             "transA", "transB" -> if (value !in setOf("N", "T")) invalid("invalid transpose '$value'")
@@ -115,94 +97,24 @@ internal object Cases {
 
     private fun validateCompatibility(
         operation: String,
-        dimensions: List<Int>,
+        spec: OperationSpec,
         fixture: String,
         options: Map<String, String>,
         invalid: (String) -> Nothing,
     ) {
-        val sparse = operation.startsWith("sp")
-        val triangular = operation in TRIANGULAR_FIXTURE_OPERATIONS
-        val expectedFixture = when {
-            sparse && triangular -> "sparse-triangular"
-            sparse -> "sparse-uniform"
-            triangular -> "triangular"
-            else -> "uniform"
-        }
-        if (fixture != expectedFixture) invalid("$operation requires fixture '$expectedFixture'")
-        val allowed = allowedOptions(operation, sparse)
-        val incompatible = options.keys.firstOrNull { it !in allowed }
+        if (fixture != spec.fixture) invalid("$operation requires fixture '${spec.fixture}'")
+        val incompatible = options.keys.firstOrNull { it !in spec.allowed }
         if (incompatible != null) invalid("option '$incompatible' is incompatible with $operation")
-        if (operation in MODE_OPERATIONS && "mode" !in options) invalid("$operation requires mode")
-        val required = requiredOptions(operation, sparse)
-        val missing = required.firstOrNull { it !in options }
+        val missing = spec.required.firstOrNull { it !in options }
         if (missing != null) invalid("$operation requires option '$missing'")
         val defaults = mapOf("side" to "L", "uplo" to "L", "transA" to "N", "transB" to "N", "diag" to "N")
-        val redundant = options.entries.firstOrNull { (name, value) -> name !in required && defaults[name] == value }
+        val redundant = options.entries.firstOrNull { (name, value) -> name !in spec.required && defaults[name] == value }
         if (redundant != null) invalid("redundant default option '${redundant.key}=${redundant.value}'")
-        if (operation in setOf("scal", "axpy", "swap", "rot", "gemv", "symv", "ger", "syr", "syr2", "spgather") && "timing" in options && options["timing"] != "arithmetic") {
+        if ("timing" in options && options["timing"] != "arithmetic") {
             invalid("$operation supports only timing=arithmetic as an explicit override")
         }
     }
 
-    private fun allowedOptions(operation: String, sparse: Boolean): Set<String> = buildSet {
-        if (operation in setOf("dot", "copy", "axpy", "scal", "nrm2", "asum", "sum", "iamax", "swap", "rot")) add("stride")
-        if (sparse) add("density")
-        // Only where a matrix operand is drawn: a sparse vector case has one column and no distribution.
-        if (operation in SUPPORT_OPERATIONS) add("support")
-        addAll(requiredOptions(operation, sparse))
-        when (operation) {
-            "gemv", "gemm" -> add("transA")
-        }
-        // The sparse operand's own orientation.
-        if (operation in TRANSPOSABLE_SPARSE_OPERATIONS) add("transA")
-        if (operation == "gemm") {
-            add("transB")
-            add("workspace")
-            add("layout")
-        }
-        // Dense storage changes the axis available to a right-hand side panel. The benchmark currently
-        // exposes this flag for left-sparse products; the production right-sparse API also supports it.
-        if (operation == "spmm") add("transB")
-        if (operation in setOf("scal", "axpy", "swap", "rot", "gemv", "symv", "ger", "syr", "syr2", "spgather")) add("timing")
-        if (operation in MODE_OPERATIONS) add("mode")
-    }
-
-    private fun requiredOptions(operation: String, sparse: Boolean): Set<String> {
-        val required = linkedSetOf<String>()
-        if (sparse) required += "density"
-        when (operation) {
-            "symv", "syr", "syr2" -> required += "uplo"
-            "symm", "spsymm" -> required += setOf("side", "uplo")
-            "gemmt" -> required += setOf("uplo", "transA", "transB")
-            "syrk", "syr2k" -> required += setOf("uplo", "transA")
-            "trsv", "trmv", "sptrsv", "sptrmv" -> required += setOf("uplo", "transA", "diag")
-            "trsm", "trmm", "sptrsm", "sptrmm" -> required += setOf("side", "uplo", "transA", "diag")
-            "spsymv", "spsyrk-dense" -> required += "uplo"
-        }
-        return required
-    }
-
-    /**
-     * How a sparse matrix call is timed. `oneshot` is the whole call and the only mode; the option stays in the
-     * case identity so recorded rows keep matching their cases.
-     */
-    private val MODES = setOf("oneshot")
-    private val MODE_OPERATIONS = setOf(
-        "spgemv", "spmm", "spmm-right", "spsymv", "spsymm", "sptrsv", "sptrmv", "sptrsm", "sptrmm",
-    )
-    private val TRANSPOSABLE_SPARSE_OPERATIONS = setOf(
-        "spgemv", "spmm", "spmm-right",
-    )
-    private val TRIANGULAR_FIXTURE_OPERATIONS = setOf(
-        "trsv", "trmv", "trsm", "trmm", "spsymv", "spsymm", "sptrsv", "sptrmv", "sptrsm", "sptrmm",
-    )
-    /** The support distributions a sparse fixture can be drawn from, which cost differently at one density. */
+    /** Sparse fixture distributions have different costs even at one density. */
     private val SUPPORTS = setOf("uniform", "banded", "skewed", "empty", "mixed")
-
-    /** The operations whose operand is a sparse matrix, which is where a distribution means anything. */
-    private val SUPPORT_OPERATIONS = setOf(
-        "spgemv", "spmm", "spmm-right", "spsymv", "spsymm", "sptrsv", "sptrmv", "sptrsm", "sptrmm",
-        "spsyrk-dense",
-        "spbuild-triplets", "spbuild-duplicates",
-    )
 }

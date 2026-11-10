@@ -33,15 +33,11 @@ public fun main(args: Array<String>) {
     }
     val allCases = Cases.parse(readTextFile(settings.casesPath))
     val selected = Cases.select(allCases, settings.suite, settings.operation)
-    val vendor = if (vendorMode) openVendorForMode(settings.mode) else null
-    val resolved = if (vendorMode) null else resolveEngine(settings.mode)
-    val engine = resolved?.first
-    val implementation = vendor?.second ?: checkNotNull(resolved).second
+    val (engine, implementation) = benchmarkEngine(settings.mode)
     val rows = ArrayList<Measurement>()
     var sink = 0.0
     for (case in selected) {
-        val arm = vendor?.let { vendorArm(case, it.first) }
-            ?: engine?.let { engineArm(case, it) }
+        val arm = benchmarkArm(case, engine, vendorMode)
         val work = arm?.work
         if (work == null) {
             rows += measurement(
@@ -194,32 +190,11 @@ internal fun measurement(
     nanos,
 )
 
-/** A case's primitive operation; batched schedules and construction cases carry no single routing key. */
-internal val BenchCase.implementation: EngineImplementation? get() {
-    val name = when (operation) {
-        "scal" -> "Scale"
-        "axpy-unit" -> "Axpy"
-        "spdot", "spdot-raw", "spdot-slice" -> "IndexedDot"
-        "spdot-sparse" -> "IndexedSparseDot"
-        "spaxpy", "spaxpy-raw", "spaxpy-slice" -> "IndexedAxpy"
-        "spscatter", "spscatter-raw", "spscatter-slice" -> "IndexedScatter"
-        "spgather" -> "IndexedGather"
-        "spgather-zero" -> "IndexedGatherZero"
-        "spnrm2" -> "Nrm2"
-        "spasum" -> "Asum"
-        else -> operation
-    }
-    val base = EngineImplementation.entries.firstOrNull { it.name.equals(name, ignoreCase = true) } ?: return null
-    return if (operation in setOf("gemv", "trmv", "trsv") && flag("transA")) {
-        EngineImplementation.valueOf("${base.name}Transposed")
-    } else base
-}
-
 /** Shape passed to the engine, shared by both report writers and routing inspection outside timing. */
 internal fun BenchCase.routingKey(): RoutingKey? {
     val selected = implementation ?: return null
     val transposedGemv = selected == EngineImplementation.GemvTransposed
-    val vector = dimensions.size == 1 && operation !in setOf("symv", "syr", "syr2", "trmv", "trsv")
+    val vector = spec.level == 1
     val rows = if (operation.startsWith("sp")) {
         Fixtures.storedCount(dimension(0), option("density", "0.01").toDouble())
     } else dimension(if (transposedGemv) 1 else 0)
@@ -228,13 +203,14 @@ internal fun BenchCase.routingKey(): RoutingKey? {
         operation in setOf("gemmt", "syrk", "syr2k") || dimensions.size == 1 -> rows
         else -> dimension(if (transposedGemv) 0 else 1)
     }
-    val (level, depth) = when (operation) {
-        "gemm" -> 3 to dimension(2)
-        "gemmt", "syrk", "syr2k" -> 3 to dimension(1)
-        "symm", "trmm", "trsm" -> 3 to if (option("side", "L") == "R") columns else rows
-        else -> (if (vector) 1 else 2) to 1
+    val depth = when (selected) {
+        EngineImplementation.Gemm -> dimension(2)
+        EngineImplementation.Gemmt, EngineImplementation.Syrk, EngineImplementation.Syr2k -> dimension(1)
+        EngineImplementation.Symm, EngineImplementation.Trmm, EngineImplementation.Trsm ->
+            if (option("side", "L") == "R") columns else rows
+        else -> 1
     }
-    return RoutingKey(selected, rows, columns, depth, option("layout", "owned") == "borrowed", level, option("stride", "1") == "1")
+    return RoutingKey(selected, rows, columns, depth, option("layout", "owned") == "borrowed", spec.level, option("stride", "1") == "1")
 }
 
 internal data class RoutingKey(

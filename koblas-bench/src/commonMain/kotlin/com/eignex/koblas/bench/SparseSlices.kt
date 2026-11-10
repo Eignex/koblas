@@ -52,7 +52,7 @@ internal fun sparseSlicesArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
         DenseReference.check(doubleArrayOf(expected), doubleArrayOf(run()), case.id)
     }
     val timing = if (mutation) "reset-and-arithmetic" else "arithmetic"
-    return ArmChoice(engineWork(engine, operation, timing, run, if (mutation) destination else null), null)
+    return ArmChoice.Accepted(engineWork(engine, operation, timing, run, if (mutation) destination else null))
 }
 
 private const val INDEX_OFFSET = 3

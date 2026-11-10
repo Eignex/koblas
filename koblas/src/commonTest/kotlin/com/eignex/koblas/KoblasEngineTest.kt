@@ -212,6 +212,29 @@ class KoblasEngineTest {
     }
 
     @Test
+    fun `structured vector calls reject rectangular matrices before writing`() = withEngines { engine ->
+        for (operation in listOf("symv", "syr", "syr2", "trsv", "trmv")) {
+            val a = DenseMatrix.zero(2, 3)
+            val x = DenseVector.zero(2)
+            val y = DenseVector.zero(3)
+            val before = a.values.copyOf()
+
+            val failure = assertFailsWith<DimensionMismatch> {
+                when (operation) {
+                    "symv" -> engine.symv(0.0, a, y, 0.0, x)
+                    "syr" -> engine.syr(0.0, x, a)
+                    "syr2" -> engine.syr2(0.0, x, y, a)
+                    "trsv" -> engine.trsv(a, x, true)
+                    "trmv" -> engine.trmv(a, x, true)
+                }
+            }
+
+            assertTrue(failure.message.orEmpty().startsWith(operation))
+            assertContentEquals(before, a.values)
+        }
+    }
+
+    @Test
     fun `typed matrix vector calls stage overlapping views`() {
         val a = DenseMatrix.ofRows(
             arrayOf(
