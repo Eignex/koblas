@@ -3,6 +3,7 @@ package com.eignex.koblas.bench
 import com.eignex.lab.bench.*
 import java.nio.file.Files
 import java.nio.file.Path
+import kotlinx.serialization.json.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -118,6 +119,44 @@ class LabAdapterTest {
                 assertTrue("--prepared" in arguments && "--retain-incomplete" in arguments)
             } finally { root.toFile().deleteRecursively() }
         }
+    }
+
+    @Test fun `status capture exports each engine metric with its measured attribution`() {
+        val root = Files.createTempDirectory("koblas-engine-status")
+        try {
+            val repository = Files.createDirectories(root.resolve("repository/koblas-bench")).parent
+            Files.writeString(repository.resolve("koblas-bench/capture-report.sh"), """
+                #!/usr/bin/env bash
+                set -eu
+                while ((${ '$'}#)); do
+                  case "${'$'}1" in
+                    --prepared|--retain-incomplete) shift ;;
+                    --output) output=${'$'}2; shift 2 ;;
+                    --cases) cases=${'$'}2; shift 2 ;;
+                    *) shift 2 ;;
+                  esac
+                done
+                mkdir "${'$'}output"
+                row=${'$'}(cat "${'$'}cases")
+                for target in jvm-default jvm-scalar jvm-simd; do
+                  printf '%s\n' '$CSV_HEADER' > "${'$'}output/${'$'}target.csv"
+                  printf '%s,ok,direct,arithmetic,scalar/dot,scalar,key,3,1,12.5,12.5,12.5\n' "${'$'}row" >> "${'$'}output/${'$'}target.csv"
+                done
+                printf 'status=complete\n' > "${'$'}output/metadata.txt"
+            """.trimIndent() + "\n")
+            val case = KoblasLabSuite.plan(BenchRequest(mapOf("status-sweep" to "true", "samples" to "3",
+                "warmups" to "3", "target-ms" to "100", "forks" to "1", "rounds" to "1",
+                "targets" to "jvm-default,jvm-scalar,jvm-simd"))).first()
+
+            val result = KoblasLabSuite.run(case, BenchContext(root.resolve("out"), worktree = repository))
+
+            assertEquals(BenchStatus.SUCCESS, result.status)
+            assertEquals(listOf("median_ns", "median_ns/jvm-scalar", "median_ns/jvm-simd"), result.metrics.map { it.name })
+            assertTrue(result.metrics.all { it.value == 12.5 && it.unit == "ns/op" })
+            val attribution = result.details!!.getValue("metricAttribution").jsonObject.getValue("median_ns/jvm-simd").jsonObject
+            assertEquals("jvm-simd", attribution.getValue("engine").jsonPrimitive.content)
+            assertEquals("scalar", attribution.getValue("provider").jsonPrimitive.content)
+        } finally { root.toFile().deleteRecursively() }
     }
 
 }

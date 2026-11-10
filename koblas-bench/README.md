@@ -55,7 +55,8 @@ check their [definitions](REFERENCE.md#cases) before comparing them.
 
 ## Per-commit status sweep
 
-`lab/recipes/status-sweep.json` runs the default JVM engine on the frozen **status-v3** inventory:
+`lab/recipes/status-sweep.json` runs `jvm-default`, `jvm-scalar`, `jvm-simd`, `native` and
+`native-default` together for each workload on the frozen **status-v3** inventory:
 136 representative cases, retaining all 82 v2 identities. It covers the engine routine families and samples
 vector crossover neighbors, odd tails, rectangular and transposed products, upper triangles, right-side
 operations, unit diagonals, strided vectors, borrowed GEMM storage and retained scratch. A borrowed product
@@ -68,24 +69,42 @@ membership and intent; tests protect representative coverage and frozen identiti
 `sweep-profile=status-v2` retains the old inventory, `status-v3` selects the core, and `extended-v1` selects the
 broader inventory. A profile and a custom `cases` path are mutually exclusive. Status requests default to v3;
 profile names are carried into case parameters, regression suite attributes and measurement controls so a
-profile change establishes a fresh baseline. Timing controls remain fixed.
+profile change establishes a fresh baseline. Timing controls remain fixed. Multi-engine rows use a separate `-engines-v1` regression suite and
+export `median_ns` for `jvm-default` plus `median_ns/<target>` for the other engines. Every metric retains
+its requested engine, measured provider and actual kernel; SIMD-arm measurements may reach scalar
+fallbacks. `native` is portable Kotlin/Native, while `native-default` records the platform-selected
+engine including any host vendor. Unsupported exact-engine view adapters retain their unsupported
+status and contribute no invented timing or regression coverage.
 
 The recipe matches the local Mac arm64 platform used by Klause's status sweep. It checks `main` every 120
 seconds, runs at priority 98 with four vCPUs (up to three single-thread cases), and has a 600-second active-time
-ceiling including preparation. Queue waits and pauses are outside that ceiling. Each workload has one JMH fork,
-one round, three 100ms warmup iterations and three 100ms measurement iterations, Serial GC and a fixed 512MiB
-heap. This is a short change detector; use longer paired captures to measure small differences.
+ceiling including preparation. Queue waits and pauses are outside that ceiling. Each workload's engine arms stay on one machine in one worker attempt. Every JVM arm has one JMH fork,
+one round, three 100ms warmup iterations and three 100ms measurement iterations, Serial GC and a fixed
+512MiB heap; Native arms use the same warmup/sample durations through the Native runner. Preparation
+builds and freezes the Mac arm64 Native executable as well as the JVM classes. This is a short change detector; use longer paired captures to measure small differences.
 
 Each case validates numerical results against a scalar reference before timing, including complete backing
 buffers for indexed sparse mutations, retains the raw CSV/logs and exports `median_ns` in ns/op.
-A numerical/capture failure or an unsupported default-engine workload fails its case. The lab's `metric-v1`
+A numerical/capture failure, a missing engine report or an unsupported default-engine workload fails its case. The lab's `metric-v1`
 confirmation policy selects correctness transitions and timing changes beyond 15%, reuses both accepted revision
 builds and frozen inputs, and runs three paired blocks at priority 99. Each block runs both revisions on one machine
 in one attempt; other rows may use other compatible local machines. A majority must agree. Changed controls,
 missing samples, instrumentation and skipped cases cannot vote. At most 40 affected workloads are confirmed per
 run, prioritizing correctness transitions; the rest stay unconfirmed. Retain failed-attempt costs separately.
 
-After deploying lab support for `metric-v1`, register it with the maintained HTTP client:
+The report plots candidate regression counts against each workload's own fixed baseline, with separate
+engine lines and theme panels. Selecting a workload shows absolute ns/op and engine-to-engine relative
+speed. Paired confirmations still compare their recorded neighboring revisions and vote independently
+for each exported engine metric; their status is kept distinct from fixed-baseline candidates.
+
+Before migrating the schedule, deploy coordinator support for `regressionMetrics` and the engine-aware
+trend fields. Pilot the five-arm prepared protocol on Mac arm64 and record preparation, active time and
+failures under the unchanged 600-second ceiling. The additional arms and Native preparation have not
+been budgeted by multiplying old timing averages. Until that pilot and deployment complete, keep the
+installed schedule on its existing default-only recipe. The retained `lab/status-sweep.json` manifest
+continues to support that protocol; the new recipe uses `lab/status-sweep-engines.json`.
+
+After deployment and the pilot, register it with the maintained HTTP client:
 
 ```bash
 lab schedule koblas-sweep main koblas-bench/lab/recipes/status-sweep.json 120

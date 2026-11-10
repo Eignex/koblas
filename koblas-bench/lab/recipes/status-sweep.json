@@ -1,6 +1,6 @@
 {
   "name": "koblas-sweep",
-  "description": "Per-commit default JVM engine status v3: 136 representative cases retaining the 82 v2 cases and sampling boundaries, storage, orientations and sparse support. Three 100ms warmups and samples, one fork/round. Local only; 600s active-time cap including preparation; metric changes beyond 15% and correctness failures get paired confirmation.",
+  "description": "Per-commit default JVM, exact JVM scalar and SIMD, and portable and default Native engine status v3: 136 representative cases retaining the 82 v2 cases and sampling boundaries, storage, orientations and sparse support. Three 100ms warmups and samples, one fork/round. Local only; 600s active-time cap including preparation; metric changes beyond 15% and correctness failures get paired confirmation.",
   "repository": "Eignex/koblas",
   "tags": [
     "local"
@@ -9,14 +9,14 @@
   "parallel": 4,
   "repeats": 1,
   "bench": {
-    "manifest": "koblas-bench/lab/status-sweep.json",
+    "manifest": "koblas-bench/lab/status-sweep-engines.json",
     "runTimeoutSec": 600,
     "request": {
       "parameters": {
         "status-sweep": "true",
         "platform": "mac",
         "arch": "arm64",
-        "targets": "jvm-default",
+        "targets": "jvm-default,jvm-scalar,jvm-simd,native,native-default",
         "samples": "3",
         "warmups": "3",
         "target-ms": "100",
