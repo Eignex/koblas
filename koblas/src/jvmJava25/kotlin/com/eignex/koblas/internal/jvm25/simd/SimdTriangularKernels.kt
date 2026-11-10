@@ -368,7 +368,7 @@ internal object SimdTriangularKernels : KernelProvider {
                 // Reduce each row against the steps already finished, which lie before the group.
                 val from = if (lower) 0 else p0 + 1
                 val until = if (lower) p0 else size
-                SimdPanelKernels.dotFour(
+                dotFour(
                     -1.0, t, base + p0 * n + from, direction * n, x, xOffset + from, until - from,
                     1.0, x, xOffset + p0, direction,
                 )
@@ -407,9 +407,7 @@ internal object SimdTriangularKernels : KernelProvider {
                 // Carry the four finished steps into the ones after the group.
                 val from = if (lower) p3 + 1 else 0
                 val until = if (lower) size else p3
-                SimdPanelKernels.updateFour(
-                    t, base + p0 * n + from, direction * n, until - from, x, xOffset + from, -x0, -x1, -x2, -x3,
-                )
+                updateFour(t, base + p0 * n + from, direction * n, until - from, x, xOffset + from, -x0, -x1, -x2, -x3)
             }
             done += GROUP
         }
@@ -425,7 +423,7 @@ internal object SimdTriangularKernels : KernelProvider {
                 x[xOffset + p] = value
                 val from = if (lower) p + 1 else 0
                 val until = if (lower) size else p
-                SimdPanelKernels.updateOne(t, base + p * n + from, until - from, x, xOffset + from, -value)
+                updateOne(t, base + p * n + from, until - from, x, xOffset + from, -value)
             }
         }
     }
@@ -463,9 +461,7 @@ internal object SimdTriangularKernels : KernelProvider {
                 // The group's columns reach the steps already finished, which lie before it in this order.
                 val from = if (lower) p0 + 1 else 0
                 val until = if (lower) size else p0
-                SimdPanelKernels.updateFour(
-                    t, base + p0 * n + from, direction * n, until - from, x, xOffset + from, x0, x1, x2, x3,
-                )
+                updateFour(t, base + p0 * n + from, direction * n, until - from, x, xOffset + from, x0, x1, x2, x3)
             }
             x[xOffset + p0] = scale(x0, t, base, n, p0, unitDiag) + entry(t, base, n, transposed, p0, p1) * x1 +
                 entry(t, base, n, transposed, p0, p2) * x2 + entry(t, base, n, transposed, p0, p3) * x3
@@ -477,7 +473,7 @@ internal object SimdTriangularKernels : KernelProvider {
                 // Each row also reduces the steps not yet reached, which still hold their inputs.
                 val from = if (lower) 0 else p3 + 1
                 val until = if (lower) p3 else size
-                SimdPanelKernels.dotFour(
+                dotFour(
                     1.0, t, base + p0 * n + from, direction * n, x, xOffset + from, until - from,
                     1.0, x, xOffset + p0, direction,
                 )
@@ -496,7 +492,7 @@ internal object SimdTriangularKernels : KernelProvider {
                 x[xOffset + p] = scaled
                 val from = if (lower) p + 1 else 0
                 val until = if (lower) size else p
-                SimdPanelKernels.updateOne(t, base + p * n + from, until - from, x, xOffset + from, own)
+                updateOne(t, base + p * n + from, until - from, x, xOffset + from, own)
             }
         }
     }

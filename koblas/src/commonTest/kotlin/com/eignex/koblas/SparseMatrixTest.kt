@@ -83,7 +83,11 @@ class SparseMatrixTest {
     }
 
     private fun columnFixture(): SparseMatrix = SparseMatrix.wrap(
-        4, 3, intArrayOf(0, 2, 4, 5), intArrayOf(0, 3, 1, 2, 0), doubleArrayOf(2.0, -0.0, 3.0, 4.0, -5.0),
+        4,
+        3,
+        intArrayOf(0, 2, 4, 5),
+        intArrayOf(0, 3, 1, 2, 0),
+        doubleArrayOf(2.0, -0.0, 3.0, 4.0, -5.0),
     )
 
     private fun assertColumnsAgreeWithReference(expected: DoubleArray, actual: DoubleArray) {

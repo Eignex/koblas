@@ -1,6 +1,5 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.internal.kernels.*
 import kotlin.math.abs
@@ -39,9 +38,12 @@ class MatrixOpsTest {
         val view = parent.view(1, 2, 2, 3)
         for (j in 0 until dense.cols) for (i in 0 until dense.rows) view[i, j] = dense[i, j]
         val expected = listOf(
-            Triple(0, 0, 1.0), Triple(1, 0, 3.0),
-            Triple(0, 1, 0.0), Triple(1, 1, 4.0),
-            Triple(0, 2, -2.0), Triple(1, 2, 5.0),
+            Triple(0, 0, 1.0),
+            Triple(1, 0, 3.0),
+            Triple(0, 1, 0.0),
+            Triple(1, 1, 4.0),
+            Triple(0, 2, -2.0),
+            Triple(1, 2, 5.0),
         )
         for (source in listOf<Matrix>(dense, view, ForeignMatrix(dense), ForeignMatrix(view))) {
             val actual = mutableListOf<Triple<Int, Int, Double>>()

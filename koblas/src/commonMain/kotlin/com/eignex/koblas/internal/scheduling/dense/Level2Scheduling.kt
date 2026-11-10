@@ -6,6 +6,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.kernels.PanelWork
 import com.eignex.koblas.internal.operations.applyBeta
+import com.eignex.koblas.internal.scheduling.forEachPanel
 
 // Each routine here runs after its preparation has settled an empty operand and a zero alpha.
 

@@ -4,8 +4,8 @@ import com.eignex.koblas.*
 import com.eignex.koblas.internal.engine.vectorProviderFor
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
-import com.eignex.koblas.internal.kernels.scalar.zeroVector
 import com.eignex.koblas.internal.storage.*
+import com.eignex.koblas.internal.storage.dense.*
 import com.eignex.koblas.internal.storage.sparse.pointerLength
 
 internal fun KoblasEngine.copyIntoVector(source: Vector, destination: Vector) {
@@ -40,20 +40,30 @@ private fun KoblasEngine.copyIntoDenseVector(source: Vector, destination: DenseV
         // Portable contiguous copy is a memmove, so it needs no alias snapshot.
         val stable = if (provider === ScalarEngine && contiguous) source else source.stableFor(destination)
         provider.kernels.copy(
-            stable.values, stable.offset, destination.values, destination.offset,
-            source.size, stable.stride, destination.stride,
+            stable.values,
+            stable.offset,
+            destination.values,
+            destination.offset,
+            source.size,
+            stable.stride,
+            destination.stride,
         )
         return
     }
     when (val stable = source.stableFor(destination)) {
         is SparseVector -> {
-            zeroVector(destination.values, destination.offset, destination.size, destination.stride)
+            applyBeta(this, destination.values, destination.offset, destination.size, 0.0, destination.stride)
             scatterStored(stable, destination)
         }
 
         is DenseVector -> kernels.copy(
-            stable.values, stable.offset, destination.values, destination.offset,
-            stable.size, stable.stride, destination.stride,
+            stable.values,
+            stable.offset,
+            destination.values,
+            destination.offset,
+            stable.size,
+            stable.stride,
+            destination.stride,
         )
     }
 }

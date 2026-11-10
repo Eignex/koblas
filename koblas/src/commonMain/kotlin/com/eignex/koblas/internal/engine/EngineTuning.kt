@@ -118,27 +118,3 @@ internal class EngineTuning(
 /** Compare work without multiplying three potentially maximum extents. */
 private fun hasWork(rows: Int, columns: Int, depth: Int, minimum: Long): Boolean = depth > 0 &&
     rows.toLong() * columns >= minimum / depth + if (minimum % depth == 0L) 0 else 1
-
-internal fun vendorOrder(runtime: EngineRuntime, platform: HostPlatform): List<Vendor> = when {
-    platform.architecture == Architecture.Other -> emptyList()
-
-    platform.operatingSystem == OperatingSystem.MacOs -> listOf(Vendor.Accelerate)
-
-    platform.operatingSystem == OperatingSystem.Other -> emptyList()
-
-    platform.architecture == Architecture.Arm64 -> listOfNotNull(
-        Vendor.OpenBlas,
-        Vendor.ArmPl.takeIf { runtime == EngineRuntime.Jvm },
-    )
-
-    else -> (
-        if (platform.cpuClass == CpuClass.Avx512) {
-            listOf(Vendor.OneMkl, Vendor.OpenBlas)
-        } else {
-            listOf(
-                Vendor.OpenBlas,
-                Vendor.OneMkl,
-            )
-        }
-        ) + listOfNotNull(Vendor.Aocl.takeIf { runtime == EngineRuntime.Jvm })
-}

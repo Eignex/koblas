@@ -6,7 +6,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.EngineImplementation
 import com.eignex.koblas.internal.kernels.KernelProvider
 import com.eignex.koblas.internal.operations.*
-import com.eignex.koblas.internal.storage.sameRegion
+import com.eignex.koblas.internal.storage.dense.*
 
 /**
  * A host library's Level 2 and 3 routines, checked and staged as every implementation is before its CBLAS call.

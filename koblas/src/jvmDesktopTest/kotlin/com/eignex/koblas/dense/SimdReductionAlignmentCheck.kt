@@ -1,7 +1,6 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.internal.jvm25.simd.*
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.testutil.allocation.*
@@ -15,16 +14,16 @@ internal object SimdReductionAlignmentCheck {
         val prefix = HotSpotArrayAlignment.prefix(values, 0, 65_536)
         val knownAlignment = HotSpotArrayAlignment.hasKnownAlignment(values)
         val mode = args.single()
-        if (mode == "fallback" || (mode == "object64" && SimdOps.lanes() > 8) ||
-            (mode == "zgc" && SimdOps.lanes() > 64)
+        if (mode == "fallback" || (mode == "object64" && SimdVectorOps.lanes() > 8) ||
+            (mode == "zgc" && SimdVectorOps.lanes() > 64)
         ) {
             check(!knownAlignment) { "an unsupported layout reported known alignment" }
             check(prefix == 0) { "an unsupported layout supplied an alignment prefix" }
-        } else if (SimdOps.lanes() > 2) {
+        } else if (SimdVectorOps.lanes() > 2) {
             check(knownAlignment) { "the selected layout did not report known alignment" }
-            check(prefix in 1 until SimdOps.lanes()) { "the selected layout did not exercise alignment" }
+            check(prefix in 1 until SimdVectorOps.lanes()) { "the selected layout did not exercise alignment" }
         }
-        if (mode == "zgc" && SimdOps.lanes() <= 64) {
+        if (mode == "zgc" && SimdVectorOps.lanes() <= 64) {
             check(!HotSpotArrayAlignment.hasKnownAlignment(DoubleArray(32_760))) {
                 "a ZGC small array reported known alignment"
             }
@@ -32,16 +31,16 @@ internal object SimdReductionAlignmentCheck {
             check(HotSpotArrayAlignment.hasKnownAlignment(medium)) {
                 "a ZGC medium or large array did not report known alignment"
             }
-            for (length in 0 until SimdOps.lanes()) {
+            for (length in 0 until SimdVectorOps.lanes()) {
                 check(HotSpotArrayAlignment.prefix(medium, 0, length) in 0..length) {
                     "the alignment prefix exceeded the window"
                 }
             }
         }
 
-        SimdOpsTest().`reductions agree with the scalar oracle for windows in large backing arrays`()
-        SimdOpsTest().assertFiniteReductionsAgreeWithReference(65_536)
-        SimdOpsTest().assertFiniteReductionsAgreeWithReference(65_537)
+        SimdVectorOpsTest().`reductions agree with the scalar oracle for windows in large backing arrays`()
+        SimdVectorOpsTest().assertFiniteReductionsAgreeWithReference(65_536)
+        SimdVectorOpsTest().assertFiniteReductionsAgreeWithReference(65_537)
         val kernels = requireNotNull(KoblasEngine.simd).kernels
         for (i in values.indices) values[i] = (i % 17 - 8) / 16.0
         val other = DoubleArray(values.size) { (it % 11 - 5) / 8.0 }

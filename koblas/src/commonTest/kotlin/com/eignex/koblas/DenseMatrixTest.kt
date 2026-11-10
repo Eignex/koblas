@@ -45,7 +45,6 @@ class DenseMatrixTest {
         assertClose(expected, actual, "dense column writes")
     }
 
-
     @Test
     fun `DenseMatrix of rejects ragged rows`() {
         assertFailsWith<DimensionMismatch> {

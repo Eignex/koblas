@@ -6,7 +6,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.EngineImplementation.*
 import com.eignex.koblas.internal.engine.routedWholeCall
 import com.eignex.koblas.internal.scheduling.dense.*
-import com.eignex.koblas.internal.storage.isWholeBuffer
+import com.eignex.koblas.internal.storage.dense.isWholeBuffer
 
 /** Whole-call dispatch and alias preparation retain views until the numerical schedule begins. */
 internal fun KoblasEngine.multiplyMatrixVector(
@@ -22,9 +22,7 @@ internal fun KoblasEngine.multiplyMatrixVector(
     val host = routedWholeCall(operation, a.rows, a.cols, 1, !a.isWholeBuffer)
     if (host != null) return host.gemv(alpha, a, x, beta, y, transpose, scratch)
     prepareMatrixVector(this, alpha, a, transpose, x, beta, y, null, scratch) { sa, sx ->
-        scheduleGemv(
-            alpha, sa, sx.values, sx.offset, sx.stride, beta, y.values, y.offset, y.stride, transpose,
-        )
+        scheduleGemv(alpha, sa, sx.values, sx.offset, sx.stride, beta, y.values, y.offset, y.stride, transpose)
     }
 }
 

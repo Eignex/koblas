@@ -1,4 +1,4 @@
-@file:Suppress("TooManyFunctions") // Storage dispatch for the vector convenience API.
+@file:Suppress("TooManyFunctions") // Independent windows and numerical leaves.
 
 package com.eignex.koblas.internal.operations
 
@@ -7,7 +7,7 @@ import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.*
 import com.eignex.koblas.internal.kernels.scalar.sparse.*
 import com.eignex.koblas.internal.storage.copyVectorStorage
-import com.eignex.koblas.internal.storage.isWholeArray
+import com.eignex.koblas.internal.storage.dense.*
 import kotlin.math.abs
 
 /** Storage adapters use selected array kernels where possible and portable readers for opaque storage. */
@@ -15,14 +15,20 @@ internal fun KoblasEngine.dotVector(x: Vector, y: Vector): Double {
     requireSameSize(x.size, y.size, "dot")
     return when {
         x is DenseVector && y is DenseVector -> kernels.dot(
-            x.values, x.offset, y.values, y.offset, x.size, x.stride, y.stride,
+            x.values,
+            x.offset,
+            y.values,
+            y.offset,
+            x.size,
+            x.stride,
+            y.stride,
         )
 
         x is SparseVector && y is SparseVector -> kernels.dot(
             x.indices, x.offset, x.values, x.offset, x.nnz, y.indices, y.offset, y.values, y.offset, y.nnz,
         )
 
-        x is SparseVector && y is DenseVector -> if (y.isWholeArray) {
+        x is SparseVector && y is DenseVector -> if (y.isWholeBuffer) {
             kernels.dot(x.indices, x.offset, x.values, x.offset, x.nnz, y.values)
         } else {
             indexedDotDense(x.indices, x.offset, x.values, x.offset, x.nnz, y.values, y.offset, y.stride)
@@ -101,7 +107,7 @@ internal fun KoblasEngine.axpyVector(alpha: Double, x: Vector, y: Vector) {
 
 private fun KoblasEngine.axpyDenseVector(alpha: Double, x: Vector, y: DenseVector) {
     when (val source = x.stableFor(y)) {
-        is SparseVector -> if (y.isWholeArray) {
+        is SparseVector -> if (y.isWholeBuffer) {
             kernels.axpy(source.indices, source.offset, source.values, source.offset, source.nnz, alpha, y.values)
         } else {
             indexedAxpy(
@@ -112,9 +118,69 @@ private fun KoblasEngine.axpyDenseVector(alpha: Double, x: Vector, y: DenseVecto
 
         is DenseVector -> {
             requireSameSize(source.size, y.size, "axpy")
-            kernels.axpy(
-                y.values, y.offset, alpha, source.values, source.offset, source.size, y.stride, source.stride,
+            kernels.axpy(y.values, y.offset, alpha, source.values, source.offset, source.size, y.stride, source.stride)
+        }
+    }
+}
+
+internal fun KoblasEngine.scatterVector(source: SparseVector, destination: DenseVector) {
+    requireSameSize(source.size, destination.size, "scatter")
+    val aliased = source.values === destination.values
+    val values = if (aliased) source.values.copyOfRange(source.offset, source.offset + source.nnz) else source.values
+    scatterStored(source, destination, values, if (aliased) 0 else source.offset)
+}
+
+/** Writes coefficients already staged against [destination], preserving absent positions. */
+internal fun KoblasEngine.scatterStored(
+    source: SparseVector,
+    destination: DenseVector,
+    values: DoubleArray = source.values,
+    valueOffset: Int = source.offset,
+) {
+    if (destination.isWholeBuffer) {
+        kernels.scatter(source.indices, source.offset, values, valueOffset, source.nnz, destination.values)
+    } else {
+        indexedScatter(
+            source.indices,
+            source.offset,
+            values,
+            valueOffset,
+            source.nnz,
+            destination.values,
+            destination.offset,
+            destination.stride,
+        )
+    }
+}
+
+internal fun KoblasEngine.gatherVector(source: DenseVector, destination: SparseVector, zero: Boolean) {
+    requireSameSize(source.size, destination.size, "gather")
+    require(source.values !== destination.values) { "gather requires distinct coefficient buffers" }
+    if (source.isWholeBuffer) {
+        if (zero) {
+            kernels.gatherZero(
+                destination.indices,
+                destination.offset,
+                destination.values,
+                destination.offset,
+                destination.nnz,
+                source.values,
             )
+        } else {
+            kernels.gather(
+                destination.indices,
+                destination.offset,
+                destination.values,
+                destination.offset,
+                destination.nnz,
+                source.values,
+            )
+        }
+    } else {
+        for (k in destination.offset until destination.offset + destination.nnz) {
+            val i = destination.indices[k]
+            destination.values[k] = source[i]
+            if (zero) source[i] = 0.0
         }
     }
 }
