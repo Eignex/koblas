@@ -42,7 +42,10 @@ class SparseMatrixVectorOperationsTest {
                     scratch.borrow(4) { it.fill(Double.NaN) }
                 }
 
-                repeat(3) { assertPackedProductAgreesWithReference(engine, operation, beta, scratch) }
+                val a = fixture(doubleArrayOf(1.5, 2.0, 0.5, 3.0))
+                val x = DenseVector.wrap(DoubleArray(9) { it * 0.25 }, 7, 4, -2)
+                val y = DenseVector.wrap(DoubleArray(9) { -77.0 }, 1, 4, 2)
+                repeat(3) { assertProductAgreesWithReference(engine, operation, a, x, y, beta, scratch) }
 
                 assertEquals(2, scratch.available(4), "$operation did not reuse its packed vectors")
                 assertEquals(1, scratch.idleLengths())
@@ -75,36 +78,6 @@ class SparseMatrixVectorOperationsTest {
         assertFailsWith<IllegalStateException> { engine.gemv(0.5, a, x, 0.5, y, scratch = scratch) }
 
         assertEquals(2, scratch.available(4))
-    }
-
-    private fun assertPackedProductAgreesWithReference(
-        engine: KoblasEngine,
-        operation: String,
-        beta: Double,
-        scratch: Scratch,
-    ) {
-        val a = fixture(doubleArrayOf(1.5, 2.0, 0.5, 3.0))
-        val x = DenseVector.wrap(DoubleArray(9) { it * 0.25 }, 7, 4, -2)
-        val y = DenseVector.wrap(DoubleArray(9) { -77.0 }, 1, 4, 2)
-        val expected = y.toDoubleArray()
-        val backing = y.values.copyOf()
-        val symmetric = operation.startsWith("symv")
-        val flag = operation.endsWith("transposed") || operation.endsWith("lower")
-        if (symmetric) {
-            ReferenceSparseBlas.symv(0.5, a, x.toDoubleArray(), beta, expected, flag)
-        } else {
-            ReferenceSparseBlas.gemv(0.5, a, x.toDoubleArray(), beta, expected, flag)
-        }
-        for (i in expected.indices) backing[y.offset + i * y.stride] = expected[i]
-        if (beta == 0.0) for (i in 0 until y.size) y[i] = Double.NaN
-
-        if (symmetric) {
-            engine.symv(0.5, a, x, beta, y, flag, scratch)
-        } else {
-            engine.gemv(0.5, a, x, beta, y, flag, scratch)
-        }
-
-        assertClose(backing, y.values, "${engine.name} packed $operation beta $beta")
     }
 
     private fun assertPackedTriangleAgreesWithReference(engine: KoblasEngine, solve: Boolean, scratch: Scratch) {
@@ -145,20 +118,37 @@ class SparseMatrixVectorOperationsTest {
         val a = fixture(doubleArrayOf(1.5, 2.0, 0.5, 3.0))
         val x = DenseVector.wrap(a.values, if (xStride < 0) 3 else 0, 4, xStride)
         val y = DenseVector.wrap(a.values, if (yStride < 0) 3 else 0, 4, yStride)
-        val reference = fixture(a.values.copyOf())
+        assertProductAgreesWithReference(engine, operation, a, x, y, -0.25, scratch)
+    }
+
+    private fun assertProductAgreesWithReference(
+        engine: KoblasEngine,
+        operation: String,
+        a: SparseMatrix,
+        x: DenseVector,
+        y: DenseVector,
+        beta: Double,
+        scratch: Scratch,
+    ) {
         val expected = y.toDoubleArray()
+        val backing = y.values.copyOf()
         val symmetric = operation.startsWith("symv")
         val flag = operation.endsWith("transposed") || operation.endsWith("lower")
+        if (symmetric) {
+            ReferenceSparseBlas.symv(0.5, a, x.toDoubleArray(), beta, expected, flag)
+        } else {
+            ReferenceSparseBlas.gemv(0.5, a, x.toDoubleArray(), beta, expected, flag)
+        }
+        for (i in expected.indices) backing[y.offset + i * y.stride] = expected[i]
+        if (beta == 0.0) for (i in 0 until y.size) y[i] = Double.NaN
 
         if (symmetric) {
-            ReferenceSparseBlas.symv(0.5, reference, x.toDoubleArray(), -0.25, expected, flag)
-            engine.symv(0.5, a, x, -0.25, y, flag, scratch)
+            engine.symv(0.5, a, x, beta, y, flag, scratch)
         } else {
-            ReferenceSparseBlas.gemv(0.5, reference, x.toDoubleArray(), -0.25, expected, flag)
-            engine.gemv(0.5, a, x, -0.25, y, flag, scratch)
+            engine.gemv(0.5, a, x, beta, y, flag, scratch)
         }
 
-        assertClose(expected, y.toDoubleArray(), "${engine.name} $operation strides $xStride $yStride")
+        assertClose(backing, y.values, "${engine.name} $operation beta $beta")
     }
 
     private fun fixture(values: DoubleArray): SparseMatrix = SparseMatrix.wrap(

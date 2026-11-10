@@ -13,6 +13,7 @@ class JvmRunnerTest {
     @Test
     fun `measured forks preserve admission for sparse and default policy workloads`() {
         val cases = Cases.parse("""
+            gemm+15x7x31+uniform
             dot+7+uniform
             spdot+16+sparse-uniform+density=0.25
             spdot-view+16+sparse-uniform+density=0.25
@@ -21,7 +22,9 @@ class JvmRunnerTest {
         val path = Files.createTempFile("koblas-admission-", ".txt")
         try {
             Files.writeString(path, cases.joinToString("\n") { it.id })
-            for ((mode, engine) in mapOf("jvm-default" to koblas, "jvm-scalar" to KoblasEngine.scalar)) {
+            val exact = if (KoblasEngine.simd != null) "jvm-simd" else "jvm-scalar"
+            val engines = mapOf("jvm-default" to koblas, exact to (KoblasEngine.simd ?: KoblasEngine.scalar))
+            for ((mode, engine) in engines) {
                 for (case in cases) {
                     val admission = assertNotNull(benchmarkArm(case, engine, vendor = false))
                     val expected = admission.work
@@ -48,26 +51,4 @@ class JvmRunnerTest {
         }
     }
 
-    @Test
-    fun `the generic product is built by the measured fork on the default and an exact arm`() {
-        // The bridge reads its case file, but its admission rule is independent of the benchmark workload size.
-        val case = Cases.parse("gemm+15x7x31+uniform").single()
-        val exact = if (KoblasEngine.simd != null) "jvm-simd" else "jvm-scalar"
-        val engines = mapOf("jvm-default" to koblas, exact to (KoblasEngine.simd ?: KoblasEngine.scalar))
-        val path = Files.createTempFile("koblas-generic-case-", ".txt")
-        try {
-            Files.writeString(path, case.id)
-            for ((mode, engine) in engines) {
-                val work = JvmBenchmarkBridge.create(mode, case.id, path.toString())
-                try {
-                    assertEquals(ENGINE_COMPARISON, work.comparisonKind, mode)
-                    assertEquals("${engine.name}/${case.operation}", work.kernel, mode)
-                } finally {
-                    work.close()
-                }
-            }
-        } finally {
-            Files.deleteIfExists(path)
-        }
-    }
 }

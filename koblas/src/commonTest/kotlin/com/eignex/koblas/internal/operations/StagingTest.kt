@@ -21,37 +21,72 @@ class StagingTest {
 
         assertStaged(n, "gemv over the vector it writes") { w ->
             val y = randomVector(n, rng)
-            blas.kernels.gemv(0.875, randomMatrix(n, n, rng), y, 0, 1, -0.25, y, 0, 1, false, scratch = w)
+            blas.gemv(
+                0.875,
+                randomMatrix(n, n, rng),
+                DenseVector.wrap(y),
+                -0.25,
+                DenseVector.wrap(y),
+                transpose = false,
+                scratch = w,
+            )
         }
         assertStaged(n, "gemv over the matrix it writes") { w ->
             val y = randomVector(n, rng)
-            blas.kernels.gemv(
-                0.875, DenseMatrix.wrap(n, 1, y), doubleArrayOf(2.0), 0, 1, -0.25, y, 0, 1, false, scratch = w,
+            blas.gemv(
+                0.875,
+                DenseMatrix.wrap(n, 1, y),
+                DenseVector.wrap(doubleArrayOf(2.0)),
+                -0.25,
+                DenseVector.wrap(y),
+                transpose = false,
+                scratch = w,
             )
         }
         assertStaged(n, "symv over the vector it writes") { w ->
             val y = randomVector(n, rng)
-            blas.kernels.symv(0.875, randomMatrix(n, n, rng), y, 0, 1, -0.25, y, 0, 1, true, scratch = w)
+            blas.symv(
+                0.875,
+                randomMatrix(n, n, rng),
+                DenseVector.wrap(y),
+                -0.25,
+                DenseVector.wrap(y),
+                lower = true,
+                scratch = w,
+            )
         }
         assertStaged(n, "ger over the vector that is its matrix") { w ->
             val values = randomVector(n, rng)
-            blas.kernels.ger(0.875, values, 0, 1, doubleArrayOf(2.0), 0, 1, DenseMatrix.wrap(n, 1, values), scratch = w)
+            blas.ger(
+                0.875,
+                DenseVector.wrap(values),
+                DenseVector.wrap(doubleArrayOf(2.0)),
+                DenseMatrix.wrap(n, 1, values),
+                scratch = w,
+            )
         }
         assertStaged(1, "syr over the vector that is its matrix") { w ->
             val values = doubleArrayOf(2.0)
-            blas.kernels.syr(0.875, values, 0, 1, one(values), true, scratch = w)
+            blas.syr(0.875, DenseVector.wrap(values), one(values), lower = true, scratch = w)
         }
         assertStaged(1, "syr2 over the vector that is its matrix") { w ->
             val values = doubleArrayOf(2.0)
-            blas.kernels.syr2(0.875, values, 0, 1, doubleArrayOf(3.0), 0, 1, one(values), true, scratch = w)
+            blas.syr2(
+                0.875,
+                DenseVector.wrap(values),
+                DenseVector.wrap(doubleArrayOf(3.0)),
+                one(values),
+                lower = true,
+                scratch = w,
+            )
         }
         assertStaged(1, "trsv over the triangle that is its right-hand side") { w ->
             val values = doubleArrayOf(2.0)
-            blas.kernels.trsv(one(values), values, 0, 1, lower = true, scratch = w)
+            blas.trsv(one(values), DenseVector.wrap(values), lower = true, scratch = w)
         }
         assertStaged(1, "trmv over the triangle that is its right-hand side") { w ->
             val values = doubleArrayOf(2.0)
-            blas.kernels.trmv(one(values), values, 0, 1, lower = true, scratch = w)
+            blas.trmv(one(values), DenseVector.wrap(values), lower = true, scratch = w)
         }
     }
 
@@ -183,7 +218,7 @@ class StagingTest {
         val expected = actual.copyOf()
         ReferenceBlas.gemv(0.875, contiguousCopy(a), doubleArrayOf(2.0), -0.25, expected)
 
-        blas.kernels.gemv(0.875, a, doubleArrayOf(2.0), 0, 1, -0.25, actual, 0, 1, scratch = Scratch())
+        blas.gemv(0.875, a, DenseVector.wrap(doubleArrayOf(2.0)), -0.25, DenseVector.wrap(actual), scratch = Scratch())
 
         assertClose(expected, actual, "aliased region gemv")
     }

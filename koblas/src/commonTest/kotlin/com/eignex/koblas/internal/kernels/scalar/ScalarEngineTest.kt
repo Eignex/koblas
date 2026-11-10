@@ -102,44 +102,22 @@ class ScalarEngineTest {
                     when (operation) {
                         Gemv -> {
                             ReferenceBlas.gemv(0.75, a, x.values, -0.5, expected, transpose)
-                            ScalarEngine.gemv(
-                                0.75,
-                                a,
-                                x.values,
-                                x.offset,
-                                x.stride,
-                                -0.5,
-                                actual.values,
-                                actual.offset,
-                                actual.stride,
-                                transpose,
-                            )
+                            ScalarEngine.gemv(0.75, a, x, -0.5, actual, transpose = transpose)
                         }
 
                         Symv -> {
                             ReferenceBlas.symv(0.75, a, x.values, -0.5, expected, lower)
-                            ScalarEngine.symv(
-                                0.75,
-                                a,
-                                x.values,
-                                x.offset,
-                                x.stride,
-                                -0.5,
-                                actual.values,
-                                actual.offset,
-                                actual.stride,
-                                lower,
-                            )
+                            ScalarEngine.symv(0.75, a, x, -0.5, actual, lower = lower)
                         }
 
                         Trsv -> {
                             ReferenceBlas.trsv(a, expected, lower, transpose)
-                            ScalarEngine.trsv(a, actual.values, actual.offset, actual.stride, lower, transpose)
+                            ScalarEngine.trsv(a, actual, lower = lower, transpose = transpose)
                         }
 
                         Trmv -> {
                             ReferenceBlas.trmv(a, expected, lower, transpose)
-                            ScalarEngine.trmv(a, actual.values, actual.offset, actual.stride, lower, transpose)
+                            ScalarEngine.trmv(a, actual, lower = lower, transpose = transpose)
                         }
 
                         else -> error("Unexpected operation $operation")
@@ -153,27 +131,17 @@ class ScalarEngineTest {
                 when (operation) {
                     Ger -> {
                         ReferenceBlas.ger(0.75, x.values, y.values, expected)
-                        ScalarEngine.ger(0.75, x.values, x.offset, x.stride, y.values, y.offset, y.stride, actual)
+                        ScalarEngine.ger(0.75, x, y, actual)
                     }
 
                     Syr -> {
                         ReferenceBlas.syr(0.75, x, expected, lower)
-                        ScalarEngine.syr(0.75, x.values, x.offset, x.stride, actual, lower)
+                        ScalarEngine.syr(0.75, x, actual, lower = lower)
                     }
 
                     Syr2 -> {
                         ReferenceBlas.syr2(0.75, x, y, expected, lower)
-                        ScalarEngine.syr2(
-                            0.75,
-                            x.values,
-                            x.offset,
-                            x.stride,
-                            y.values,
-                            y.offset,
-                            y.stride,
-                            actual,
-                            lower,
-                        )
+                        ScalarEngine.syr2(0.75, x, y, actual, lower = lower)
                     }
 
                     else -> error("Unexpected operation $operation")

@@ -103,13 +103,13 @@ class BuiltinEngineTest {
         )
         val (recorder, blas) = forced()
 
-        blas.kernels.gemv(1.0, a, x, 0, 1, 0.0, y, 0, 1)
-        blas.kernels.symv(1.0, a, x, 0, 1, 0.0, y, 0, 1)
-        blas.kernels.ger(1.0, x, 0, 1, x, 0, 1, matrix(ORDER))
-        blas.kernels.syr(1.0, v.values, v.offset, v.stride, matrix(ORDER))
-        blas.kernels.syr2(1.0, v.values, v.offset, v.stride, v.values, v.offset, v.stride, matrix(ORDER))
-        blas.kernels.trsv(a, x.copyOf(), 0, 1, lower = true)
-        blas.kernels.trmv(a, x.copyOf(), 0, 1, lower = true)
+        blas.gemv(1.0, a, DenseVector.wrap(x), 0.0, DenseVector.wrap(y))
+        blas.symv(1.0, a, DenseVector.wrap(x), 0.0, DenseVector.wrap(y))
+        blas.ger(1.0, DenseVector.wrap(x), DenseVector.wrap(x), matrix(ORDER))
+        blas.syr(1.0, v, matrix(ORDER))
+        blas.syr2(1.0, v, v, matrix(ORDER))
+        blas.trsv(a, DenseVector.wrap(x.copyOf()), lower = true)
+        blas.trmv(a, DenseVector.wrap(x.copyOf()), lower = true)
         blas.gemm(1.0, a, false, b, false, 0.0, c)
         blas.gemmt(1.0, a, false, b, false, 0.0, matrix(ORDER))
         blas.syrk(1.0, a, false, 0.0, matrix(ORDER))
@@ -315,10 +315,17 @@ class BuiltinEngineTest {
         val beside = parent.view(0, 4, 3, 5)
         val workspace = Scratch()
 
-        blas.kernels.gemv(1.0, panel, DoubleArray(3), 0, 1, 0.0, DoubleArray(5), 0, 1, scratch = workspace)
+        blas.gemv(
+            1.0,
+            panel,
+            DenseVector.wrap(DoubleArray(3)),
+            0.0,
+            DenseVector.wrap(DoubleArray(5)),
+            scratch = workspace,
+        )
         blas.gemm(1.0, panel, false, beside, false, 1.0, trailing, scratch = workspace)
         blas.syrk(-1.0, panel, false, 1.0, trailing, scratch = workspace)
-        blas.kernels.trsv(triangle, DoubleArray(3), 0, 1, lower = true, scratch = workspace)
+        blas.trsv(triangle, DenseVector.wrap(DoubleArray(3)), lower = true, scratch = workspace)
         blas.trsm(triangle, beside, lower = true, scratch = workspace)
 
         val expected = listOf(
