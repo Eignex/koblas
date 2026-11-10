@@ -11,6 +11,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonObject
 
 /** Prepared paired captures through the Lab Bench protocol. */
 public object LabAdapter {
@@ -79,7 +80,9 @@ internal object KoblasLabSuite : BenchSuite {
                 BenchResources(memoryMiB = 2048, timeoutSeconds = if (sweep) 60 else 7200,
                     requiredTags = setOf("platform:$platform", "arch:$arch")), inputs = inputs,
                 attributes = if (sweep) mapOf("regressionPolicy" to "metric-v1", "regressionMetric" to "median_ns",
-                    "regressionThreshold" to "0.15", "suite" to if (profile == "status-v2") "koblas-status-v1" else "koblas-$profile") else emptyMap())
+                    "regressionThreshold" to "0.15", "suite" to (if (profile == "status-v2") "koblas-status-v1" else "koblas-$profile") +
+                        (if (selected.size > 1) "-engines-v1" else "")) +
+                    (if (selected.size > 1) mapOf("regressionMetrics" to selected.joinToString(",", transform = ::statusMetric)) else emptyMap()) else emptyMap())
         }
     }
 
@@ -133,24 +136,34 @@ internal object KoblasLabSuite : BenchSuite {
             put("arch", System.getProperty("os.arch"))
             put("cpu", hostPlatform().cpuModel ?: "unknown")
             put("gc", "serial"); put("heap", "512m")
+            put("targets", case.parameters.getValue("targets"))
         }
         val sweep = case.parameters["status-sweep"] == "true"
         val timing = if (sweep && exit == 0 && complete) runCatching {
-            val rows = readTimingCsv(Files.readString(output.resolve("jvm-default.csv")))
-            require(rows.size == 1) { "Sweep needs exactly one timed workload" }
-            val row = rows.values.single()
-            require(row.getValue("case") == Cases.parse(case.parameters.getValue(ROW)).single().id)
-            require(row.getValue("status") == "ok") { "Default engine declined a sweep workload" }
-            require(row.getValue("samples").toInt() == case.parameters.getValue("samples").toInt())
-            require(row.getValue("forks") == "1")
-            row.getValue("median_ns").toDouble().also { require(it.isFinite() && it > 0) }
+            val workload = Cases.parse(case.parameters.getValue(ROW)).single()
+            case.parameters.getValue("targets").split(',').map { target ->
+                readStatusTiming(target, workload, case.parameters.getValue("samples").toInt(),
+                    Files.readString(output.resolve("$target.csv")))
+            }
         } else null
         val success = exit == 0 && complete && (!sweep || timing?.isSuccess == true)
         return BenchResult(case.id, if (success) BenchStatus.SUCCESS else BenchStatus.FAILED,
             artifacts = context.artifacts() + context.artifact("capture.log", "text/plain") +
                 if (case.inputs.any { it.role == "vendor" }) listOf(context.artifact("vendor-package.txt", "text/plain")) else emptyList(),
-            metrics = timing?.getOrNull()?.let { listOf(BenchMetric("median_ns", it, "ns/op", MetricDirection.LOWER)) }.orEmpty(),
-            details = if (sweep) buildJsonObject { put("benchmarkControls", controls) } else null,
+            metrics = timing?.getOrNull().orEmpty().mapNotNull { arm -> arm.nanos?.let {
+                BenchMetric(arm.metric, it, "ns/op", MetricDirection.LOWER)
+            } },
+            details = if (sweep) buildJsonObject {
+                put("benchmarkControls", controls)
+                putJsonObject("metricAttribution") {
+                    for (arm in timing?.getOrNull().orEmpty().filter { it.nanos != null }) putJsonObject(arm.metric) {
+                        put("engine", arm.engine); put("provider", arm.provider); put("kernel", arm.kernel)
+                    }
+                }
+                putJsonObject("engineStatuses") {
+                    for (arm in timing?.getOrNull().orEmpty()) put(arm.engine, if (arm.nanos == null) "unsupported" else "success")
+                }
+            } else null,
             message = if (success) null else "Capture exited $exit, was incomplete, or failed timing validation: ${timing?.exceptionOrNull()?.message}")
     }
 
@@ -168,7 +181,9 @@ internal object KoblasLabSuite : BenchSuite {
         for (key in listOf("smoke", "profile-gc", "status-sweep")) p[key]?.toBooleanStrict()
         if (p["status-sweep"] == "true") {
             require(p["vendor"] == null && p["cases"] == null && p["operation"] == null && p["jvm-options"] == null)
-            require(p["targets"] == null || p["targets"] == "jvm-default")
+            p["targets"]?.split(',')?.let { targets ->
+                require("jvm-default" in targets && targets.all { it in owned })
+            }
             require(p["samples"] == "3" && p["warmups"] == "3" && p["target-ms"] == "100" &&
                 p["forks"] == "1" && p["rounds"] == "1" && p["smoke"] != "true" && p["profile-gc"] != "true") {
                 "Status sweeps require 3 warmups, 3 samples, 100ms, one fork and one round"

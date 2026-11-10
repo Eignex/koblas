@@ -121,6 +121,22 @@ class StatusSweepTest {
         }
     }
 
+    @Test fun `engine sweep keeps all engines in the workload and prepares the native executable`() {
+        val targets = "jvm-default,jvm-scalar,jvm-simd,native,native-default"
+
+        val cases = KoblasLabSuite.plan(BenchRequest(parameters + mapOf("targets" to targets,
+            "platform" to "mac", "arch" to "arm64")))
+
+        assertEquals(136, cases.size)
+        for (case in cases) {
+            assertEquals(targets, case.parameters["targets"])
+            assertEquals("median_ns,median_ns/jvm-scalar,median_ns/jvm-simd,median_ns/native,median_ns/native-default",
+                case.attributes["regressionMetrics"])
+            assertEquals("koblas-status-v3-engines-v1", case.attributes["suite"])
+            assertTrue(case.inputs.single { it.role == "executable" }.path.contains("macosArm64"))
+        }
+    }
+
     @Test fun `status sweep refuses controls that would mix measurement series`() {
         for (override in listOf(mapOf("rounds" to "2"), mapOf("samples" to "1"), mapOf("targets" to "jvm-scalar"),
             mapOf("smoke" to "true"), mapOf("cases" to "koblas-bench/cases.txt"),
