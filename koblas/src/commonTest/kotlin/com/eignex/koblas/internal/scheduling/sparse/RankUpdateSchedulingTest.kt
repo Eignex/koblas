@@ -3,7 +3,6 @@ package com.eignex.koblas.internal.scheduling.sparse
 import com.eignex.koblas.*
 import com.eignex.koblas.sparse.ReferenceSparseBlas
 import kotlin.test.Test
-import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -22,29 +21,6 @@ class RankUpdateSchedulingTest {
 
         assertTrue(stored[1, 0].isNaN(), "a stored zero must form zero times infinity")
         assertEquals(0.0, implicitDense[1, 0], "implicit sparse zero must not form zero times infinity")
-    }
-
-    @Test
-    fun `sparse syrk agrees with the independent sparse oracle`() {
-        val a = SparseMatrix.ofColumns(
-            4,
-            4,
-            listOf(
-                listOf(0 to 2.0, 2 to -1.5),
-                listOf(1 to 3.25, 3 to 0.5),
-                listOf(2 to 4.0),
-                listOf(3 to -2.25),
-            ),
-        )
-        for (lower in booleanArrayOf(false, true)) {
-            val expected = DenseMatrix.wrap(4, 4, DoubleArray(16) { 0.25 * it })
-            val actual = expected.copyOf()
-            ReferenceSparseBlas.syrk(1.25, a, false, -0.5, expected, lower)
-
-            koblas.syrk(1.25, a, false, -0.5, actual, lower)
-
-            assertContentEquals(expected.values, actual.values, "lower=$lower")
-        }
     }
 
     @Test
@@ -71,7 +47,7 @@ class RankUpdateSchedulingTest {
                 ),
             ),
         )
-        for (engine in listOfNotNull(KoblasEngine.scalar, KoblasEngine.simd).distinct()) {
+        for (engine in listOfNotNull(KoblasEngine.scalar, KoblasEngine.simd, koblas).distinct()) {
             val workspace = Scratch()
             // Epoch one collides with the first column unless marks are cleared; nonzero row counts
             // expose an adjacency builder that assumes its borrowed pointers are fresh.

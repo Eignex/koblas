@@ -12,49 +12,21 @@ import com.eignex.koblas.internal.storage.borrowOptional
 import kotlin.jvm.JvmInline
 import kotlin.math.min
 
-/**
- * The most right-hand sides the sparse scheduling will hold staged adjacent at once.
- *
- * A ceiling over the backend's recommendation rather than the width itself: how many right-hand sides a
- * panel wants is the backend's question, since it is the one with the body, and how much of a dense
- * block may be copied into a scratch buffer while one sparse column is walked is the scheduling's.
- * Where the recommendation is below this, this changes nothing.
- */
+/** Schedule-owned staging capacity, independent of the backend's recommended panel width. */
 private const val CONTIGUOUS_RHS_PANEL: Int = 64
 
 /**
- * Stored entries per dense element copied, below which a sparse product keeps the caller's layout.
- *
- * Staging a panel of right-hand sides into adjacent order costs a copy of the dense operand, or of the
- * destination twice over, and buys vector arithmetic over the entries the traversal walks. The ratio
- * between those two is this number, and a product too sparse to pay it runs where its operands already
- * are.
- *
- * The measured ratio is four: the band just below it was no better than the caller's own layout,
- * and above it the copy pays and keeps paying as the support thickens. A gathering product copies half
- * as much as a scattering one, so the same ratio admits it at half the density, which is what a ratio
- * rather than a density is for.
+ * Minimum stored entries traversed per dense element copied. Local measurements favored staging from
+ * ratio four; sparser products keep the caller's layout. Gather copies the source once, scatter copies
+ * the destination in and out, so the same ratio admits gather at half the density.
  */
 private const val STAGED_RHS_CROSSOVER: Int = 4
 
 /**
- * Chooses right-hand-side grouping and staging for a sparse product with a dense block.
- *
- * Staging makes right-hand sides adjacent for vector panels. The backend recommends a width for the
- * resulting layout; [CONTIGUOUS_RHS_PANEL] caps retained staging storage. Copy only when the
- * backend prefers adjacent panels and the accelerated arithmetic outweighs the copy. Already-adjacent
- * inputs need no copy, and the portable backend never stages.
- *
- * [RhsPlan] encodes staging in the width's sign without allocating a plan object.
- *
- * @param kernels backend sparse panel kernels.
- * @param rows destination rows used to choose grouping.
- * @param sides right-hand-side count.
- * @param entries stored entries traversed per right-hand side.
- * @param copiedPerSide elements copied per staged right-hand side, counting a destination twice for
- *   read and write. `Long` prevents valid extents from overflowing the copy-cost calculation.
- * @param nativelyContiguous whether right-hand sides are already adjacent.
- * @param reduction whether panels reduce into accumulators or update destination windows.
+ * Choose backend grouping, capped by [CONTIGUOUS_RHS_PANEL], and stage only when adjacent arithmetic repays
+ * its copy. Already-adjacent inputs and portable kernels need no staging. [RhsPlan] encodes staging in the
+ * width's sign without a plan allocation. [rows] selects grouping; [reduction] selects gather or scatter.
+ * [copiedPerSide] counts source copies once and destination copies twice; `Long` avoids cost overflow.
  */
 @Suppress("LongParameterList") // the seam, the two extents, the copy's cost and what the direction admits
 internal fun planRightHandSides(
@@ -85,11 +57,8 @@ internal fun planRightHandSides(
 }
 
 /**
- * The plan a sparse-by-dense product takes.
- *
- * What a staged copy pays for is what the direction reads: a transposed operand reduces a column into an
- * accumulator of its own, so the copy is the dense source and one already in right-hand-side order needs
- * none; an untransposed one spreads a column across the destination, which is read in and written back.
+ * Gather products stage the dense source once; scatter products stage the destination in and out.
+ * Already-adjacent right-hand sides need no copy.
  */
 internal fun productRhsPlan(
     kernels: KoblasEngine,
@@ -126,13 +95,9 @@ internal value class RhsPlan(private val encoded: Int) {
 }
 
 /**
- * Copies [actual] right-hand sides of a dense block into [panel], or back out of it when not [toPanel].
- *
- * Right-hand side `r` at index `i` of the block is `values(origin + r · rhsStride + i · indexStride)`, and
- * [count] is how far the indexed axis runs. The panel holds [width] adjacent right-hand sides per index,
- * which is the layout whose right-hand-side axis a vector body can load. Writing back covers every position,
- * including one the arithmetic never reached: a destination is staged by copying it rather than by starting
- * from zero, so an untouched entry returns bit for bit and a negative zero stays negative.
+ * Copy [actual] right-hand sides between the dense block and [panel], with [width] adjacent sides per index.
+ * Dense address: `origin + r · rhsStride + i · indexStride`, for `i` below [count].
+ * Copyback includes untouched positions, preserving their bits and negative zeros.
  */
 @Suppress("LongParameterList") // the block window with its two strides, and the staged panel
 internal fun copyRhsPanel(
@@ -191,13 +156,9 @@ internal inline fun withRhsPanel(
 }
 
 /**
- * `C += alpha · op(A) · op(B)` for a sparse `A` on the left, reusing each walk over a panel of right-hand
- * sides.
- *
- * The transposed operand reduces the rows its column stores into one output row, so its accumulator is
- * adjacent whatever the dense block looks like and only the block's own layout decides whether the panel
- * vectorises. The untransposed one spreads one inner index across the rows it stores, so its destination is
- * the dense block and a column-major one is strided there; that is the direction a staged panel is for.
+ * Sparse-left product, reusing each CSC walk over a right-hand-side panel. Transposed products reduce into
+ * adjacent accumulators; untransposed products scatter into the dense destination, whose layout determines
+ * whether adjacent staging enables vector arithmetic.
  */
 @OptIn(UnsafeKoblasApi::class)
 @Suppress("LongParameterList") // the operands, their flags, and the shape already worked out
@@ -327,12 +288,8 @@ private fun scatterPanel(
 }
 
 /**
- * `C += alpha · A · B` for a symmetric sparse `A` on the left, over panels of right-hand sides.
- *
- * Both dense operands are the same shape and the same layout, so one panel geometry serves the source and
- * the destination. Staging copies both, and writes only the destination back; that is three passes over a
- * right-hand side against the two a general product's destination costs, which is why the two callers weigh
- * the copy differently.
+ * Symmetric sparse-left product. One panel geometry serves both dense operands; staging copies both in
+ * and only the destination out, costing three passes per side versus a general scatter product's two.
  */
 @OptIn(UnsafeKoblasApi::class)
 @Suppress("LongParameterList") // the operands, the triangle flag, and the scratch
@@ -496,11 +453,8 @@ internal fun multiplySymmetricFromTheRight(
 }
 
 /**
- * `y += alpha · x` over a contiguous run, forming the product even where [alpha] is zero.
- *
- * This update represents a stored sparse position, including an explicit zero. Its participation is
- * required by the sparse structural contract, unlike a zero coefficient in a dense update. Level 1
- * `axpy` skips a zero multiplier, so that case needs its own loop here.
+ * `y += alpha · x`, evaluating even zero [alpha] because it represents a stored sparse position.
+ * Level 1 `axpy` skips a zero multiplier, so that case requires its own loop.
  */
 @Suppress("LongParameterList") // the two windows and the run length
 private fun KoblasEngine.sparseEvaluatedAxpy(

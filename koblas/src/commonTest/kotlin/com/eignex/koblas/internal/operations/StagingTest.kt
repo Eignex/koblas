@@ -13,36 +13,7 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class StagingTest {
-    /**
-     * A matrix-vector product whose input is also its destination, against the oracle's answer for the same
-     * numbers held apart.
-     */
-    @Test
-    fun `a staged vector gives the answer the reference computes from unaliased operands`() {
-        val rng = Random(20260927)
-        val n = 7
-        val workspace = Scratch()
-        for (transpose in booleanArrayOf(false, true)) {
-            val a = randomMatrix(n, n, rng)
-            val start = randomVector(n, rng)
-            val expected = start.copyOf()
-            ReferenceBlas.gemv(0.875, a, start.copyOf(), -0.25, expected, transpose)
-            val aliased = start.copyOf()
-
-            blas.kernels.gemv(0.875, a, aliased, 0, 1, -0.25, aliased, 0, 1, transpose, scratch = workspace)
-
-            assertClose(expected, aliased, "gemv transpose=$transpose")
-        }
-    }
-
-    /**
-     * Every Level 2 routine that can snapshot an operand takes that snapshot from the workspace.
-     *
-     * Which overlap is reachable differs by routine, because a matrix's array is as long as all of it while
-     * a vector is as long as one side: a product reaches the matrix through a single column, and a routine
-     * requiring a square matrix reaches it only at order one. What is asserted is the loan either way, since
-     * the answers these produce are the alias suite's subject.
-     */
+    // Square routines can alias a whole vector through their matrix buffer only at order one.
     @Test
     fun `every level two routine stages its alias from the workspace`() {
         val rng = Random(20260932)
@@ -72,19 +43,7 @@ class StagingTest {
         }
         assertStaged(1, "syr2 over the vector that is its matrix") { w ->
             val values = doubleArrayOf(2.0)
-            val other = DenseVector.wrap(doubleArrayOf(3.0))
-            blas.kernels.syr2(
-                0.875,
-                values,
-                0,
-                1,
-                other.values,
-                other.offset,
-                other.stride,
-                one(values),
-                true,
-                scratch = w,
-            )
+            blas.kernels.syr2(0.875, values, 0, 1, doubleArrayOf(3.0), 0, 1, one(values), true, scratch = w)
         }
         assertStaged(1, "trsv over the triangle that is its right-hand side") { w ->
             val values = doubleArrayOf(2.0)
@@ -96,10 +55,8 @@ class StagingTest {
         }
     }
 
-    /** The one-entry matrix over [values], which is the only shape a square routine can alias through. */
     private fun one(values: DoubleArray): DenseMatrix = DenseMatrix.wrap(1, 1, values)
 
-    /** That [call] took exactly one loan, of [length], and returned it. */
     private fun assertStaged(length: Int, what: String, call: (Scratch) -> Unit) {
         val workspace = Scratch()
 
@@ -159,22 +116,6 @@ class StagingTest {
     }
 
     @Test
-    fun `disjoint trailing updates borrow no panel snapshot`() = withEngines { blas ->
-        val parent = paddedRegion(12, 12)
-        val a = parent.view(4, 0, 8, 4)
-        val c = parent.view(4, 4, 8, 8)
-        val expected = contiguousCopy(c)
-        val before = parent.values.copyOf()
-        val workspace = Scratch()
-        ReferenceBlas.syrk(-1.0, contiguousCopy(a), false, 1.0, expected)
-
-        blas.syrk(-1.0, a, false, 1.0, c, scratch = workspace)
-
-        assertRegionAgreesWithReference(expected, c, before)
-        assertEquals(0, workspace.available(a.rows * a.cols))
-    }
-
-    @Test
     fun `disjoint rectangles of one parent agree with the reference`() = withRegionEngines { blas ->
         val parent = paddedRegion(12, 12)
         val panel = parent.view(4, 0, 8, 4)
@@ -188,7 +129,9 @@ class StagingTest {
         ReferenceBlas.trsm(contiguousCopy(triangle), expectedBeside, lower = true)
         val before = parent.values.copyOf()
 
-        blas.syrk(-1.0, panel, false, 1.0, trailing, scratch = Scratch())
+        val workspace = Scratch()
+        blas.syrk(-1.0, panel, false, 1.0, trailing, scratch = workspace)
+        assertEquals(0, workspace.available(panel.rows * panel.cols))
         blas.gemm(0.5, panel, false, beside, false, 1.0, trailing, scratch = Scratch())
         assertRegionAgreesWithReference(expectedTrailing, trailing, before, "trailing")
         val afterProducts = parent.values.copyOf()
@@ -344,7 +287,7 @@ class StagingTest {
 
     @Test
     fun `aliased vector calls reuse their scratch`() {
-        for (symmetric in booleanArrayOf(false, true)) {
+        for ((symmetric, transpose) in listOf(false to false, false to true, true to false)) {
             val a = DenseMatrix.wrap(3, 3, DoubleArray(9) { 1.0 + it })
             val workspace = Scratch()
             val actual = DenseVector.wrap(doubleArrayOf(1.0, 2.0, 3.0))
@@ -356,12 +299,12 @@ class StagingTest {
                     ReferenceBlas.symv(0.5, a, input, 0.25, expected)
                     KoblasEngine.scalar.symv(0.5, a, actual, 0.25, actual, scratch = workspace)
                 } else {
-                    ReferenceBlas.gemv(0.5, a, input, 0.25, expected)
-                    KoblasEngine.scalar.gemv(0.5, a, actual, 0.25, actual, scratch = workspace)
+                    ReferenceBlas.gemv(0.5, a, input, 0.25, expected, transpose)
+                    KoblasEngine.scalar.gemv(0.5, a, actual, 0.25, actual, transpose, scratch = workspace)
                 }
             }
 
-            assertClose(expected, actual.toDoubleArray(), "aliased matrix vector symmetric=$symmetric")
+            assertClose(expected, actual.toDoubleArray(), "symmetric=$symmetric transpose=$transpose")
             assertEquals(1, workspace.available(actual.size))
             assertEquals(1, workspace.idleLengths())
         }

@@ -32,11 +32,8 @@ internal enum class MatrixStructure {
 }
 
 /**
- * The triangle and diagonal a genuinely triangular operand declares.
- *
- * Only the four triangular routines use this. A symmetric destination takes [symmetricStructure] instead, even
- * though both spellings reach the same CBLAS `uplo`: a rank update's destination is stored as a symmetric
- * matrix is, and calling it triangular would declare the other half to be zeros it is not.
+ * Structure for triangular operands only. Symmetric destinations use [symmetricStructure]:
+ * their unstored half is mirrored, whereas a triangular operand declares it zero.
  */
 internal fun triangle(lower: Boolean, unitDiag: Boolean): MatrixStructure = when {
     unitDiag && lower -> MatrixStructure.UnitLower

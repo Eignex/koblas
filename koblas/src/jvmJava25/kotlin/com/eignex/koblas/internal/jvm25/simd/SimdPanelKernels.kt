@@ -8,18 +8,10 @@ import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 
 /**
- * JVM Vector API panel arithmetic with [ScalarEngine] fallbacks.
- *
- * Explicit lanes allow floating-point reductions to reorder additions. Column and rank updates
- * keep a destination strip in registers while several columns accumulate into it. Column grouping
- * is independent of the lane count: lanes run down rows.
- *
- * A multi-dot or column update shorter than one lane block runs along its row instead, as a dot, an
- * elementwise update or a scalar pass over all its columns at once, and a column update of one or two lane
- * blocks keeps its destination in registers across every column. Other short panels and strided operands
- * requiring gathers use the portable bodies; [implementationFor] reports the body reached. Species
- * initialization requires the Vector API module, so [KoblasEngine] checks availability
- * before using this backend.
+ * Vector API panels with [ScalarEngine] fallbacks. Lanes run down rows independently of column grouping;
+ * reductions may reorder additions. Short multi-dots and updates switch axes or use scalar bodies, while
+ * resident updates retain destination vectors across columns. [implementationFor] reports the actual body.
+ * [KoblasEngine] checks module availability before species initialization.
  */
 internal object SimdPanelKernels : KernelProvider {
     override val id: String = "jvm-simd"
@@ -354,11 +346,8 @@ internal object SimdPanelKernels : KernelProvider {
     }
 
     /**
-     * The indexed column update in lanes of right-hand sides.
-     *
-     * The vectorised axis is the group of right-hand sides, which is the one with nothing to carry between
-     * its entries. The indices select where in the panel each column sits and are never themselves a vector
-     * operation, so no indexed load or store is involved and a host without one is unaffected.
+     * Lanes cover independent right-hand sides. Scalar indices select columns, so no Vector API indexed
+     * load or store is needed.
      */
     override fun indexedColumnUpdate(
         alpha: Double,

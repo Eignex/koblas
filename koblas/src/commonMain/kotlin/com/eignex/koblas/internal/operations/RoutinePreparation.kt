@@ -9,11 +9,8 @@ import com.eignex.koblas.internal.storage.*
 import com.eignex.koblas.internal.storage.dense.*
 
 /*
- * What every implementation of a dense routine does around its arithmetic after checking the routine's shapes:
- * settle the calls with nothing to compute or a zero multiplier, and snapshot an input that shares the
- * destination's storage. The shared schedule and a vendor binding run their arithmetic inside the same
- * preparation, so a call reaches either one with the same operands. Vector views retain their addressing
- * until the arithmetic boundary; only overlapping inputs need a snapshot.
+ * Shared portable and vendor preparation settles empty and zero-multiplier calls before arithmetic,
+ * and snapshots overlapping inputs. Nonoverlapping vector views retain their addressing until the kernel.
  */
 
 /**
@@ -109,11 +106,8 @@ internal inline fun prepareProduct(
 }
 
 /**
- * `B = alpha · op(T)⁻¹ · B` or `B = alpha · op(T) · B`, from either side.
- *
- * The staging comes before any scaling. `alpha` is spent on the right-hand sides before the substitution,
- * and where the triangle shares their storage that write would otherwise reach the coefficients the
- * substitution is about to read.
+ * Stage triangular coefficients before scaling right-hand sides by alpha:
+ * aliased destination writes must not change coefficients still needed for substitution.
  */
 internal inline fun prepareTriangularMatrix(
     a: DenseMatrix,

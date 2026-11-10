@@ -66,16 +66,9 @@ internal inline fun withExplicitDiagonal(
 }
 
 /**
- * Sparse triangular multiply or solve over panels of right-hand sides, so a column's values and indices are
- * read once for several of them.
- *
- * One traversal for both, because they are the same walk with the same panels and differ in what each column
- * does at its pivot. The dependence between columns is the triangle's and stays in the order below; the
- * right-hand sides of a panel are independent of each other, which is what a panel leaf may vectorise.
- *
- * Where the block's right-hand sides are worth staging adjacent, the whole panel is solved or multiplied in
- * the staged copy and written back, which is correct for the same reason the panel exists: nothing in one
- * right-hand side's arithmetic reaches another's. A null [diagonal] is a unit one, taken as 1.
+ * Sparse triangular solve or multiply shares a CSC traversal, differing at each pivot. Columns follow
+ * triangle dependencies; right-hand sides are independent and may vectorise or be staged as a whole panel.
+ * A null [diagonal] represents a unit diagonal.
  */
 @OptIn(UnsafeKoblasApi::class)
 @Suppress("LongParameterList") // the triangle, the block, and the three BLAS triangle flags
@@ -136,11 +129,9 @@ internal fun triangularLeftCore(
 }
 
 /**
- * Triangular multiply or solve with the triangle on the right of contiguous dense columns, which turns every
- * sparse update into a Level 1 operation. A row times op(T) is op(T)ᵀ times its column-shaped view, so this
- * walks the triangle as [triangularLeftCore] does with the transpose flag flipped, only every scalar lane of
- * that algorithm is a whole column of [b] here instead of one right-hand side in a panel. [gather] is that
- * flipped direction's, and a null [diagonal] is a unit one.
+ * Right-side triangular solve or multiply uses `op(T)ᵀ` per row, flipping [triangularLeftCore]'s traversal.
+ * Each scalar update becomes a contiguous column Level 1 operation; [gather] follows the flipped direction.
+ * A null [diagonal] represents a unit diagonal.
  */
 @OptIn(UnsafeKoblasApi::class)
 @Suppress("LongParameterList") // the triangle, the block, and the three BLAS triangle flags
@@ -206,12 +197,9 @@ internal inline fun forEachSparseColumn(
 }
 
 /**
- * Sparse `dtrsv` when [solve] and `dtrmv` otherwise, in place over [x]. The direction preserves each source
- * before its destination is written, so no work buffer is needed for the ordinary in-place case.
- *
- * The diagonal is probed as `A(j, j)`, a binary search per column, and a unit diagonal is taken as 1, which
- * multiplies and divides exactly. That is the vector routines' to pay: the matrix ones walk several
- * right-hand sides against one triangle and precompute the diagonal for themselves instead.
+ * In-place sparse `dtrsv` or `dtrmv` preserves sources by traversal direction, requiring no work buffer.
+ * Each column binary-searches its diagonal, treating unit diagonals as 1. Matrix routines instead precompute
+ * diagonals once for reuse across right-hand sides.
  */
 @OptIn(UnsafeKoblasApi::class)
 @Suppress("LongParameterList") // the triangle, the vector, and the four BLAS triangle flags

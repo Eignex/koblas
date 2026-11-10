@@ -6,31 +6,14 @@ import com.eignex.koblas.*
 import com.eignex.koblas.internal.storage.borrowOptional
 
 /*
- * `C = alpha · A · B + beta · C` and `C = alpha · B · A + beta · C` for a symmetric `A`, as ordinary windows
- * of shared product scheduling.
- *
- * A symmetric operand is a square whose stored triangle stands for both halves, which is the one thing a
- * product block cannot be told. So the square is cut instead: the blocks along its diagonal, and the strips
- * of the stored triangle beside them. A strip is an ordinary rectangle of stored entries and is used twice,
- * once as itself and once transposed, which is what the mirrored half of the matrix is. Nothing outside the
- * stored triangle is read, and nothing is expanded except one diagonal block at a time.
- *
- * A diagonal block is the part that has no rectangular form: it holds the diagonal, where the two halves
- * meet. It is written out into a square of scratch bounded by the block size, and multiplied as an ordinary
- * dense window. The copy is one block of the order per block of the order, which against a product over
- * every right-hand side is a pass over the operand rather than a pass over the work.
- *
- * `beta` is spent once, on the whole destination, before any of this: the destination of a symmetric product
- * is written in full, and each of its entries is accumulated into by several of the windows below.
+ * Symmetric products use shared product scheduling over diagonal blocks and stored off-diagonal strips.
+ * Each strip serves both halves, once directly and once transposed; only diagonal blocks expand into scratch.
+ * Nothing outside the stored triangle is read. Beta applies once to the full destination before accumulation.
  */
 
 /**
- * Steps of the order one diagonal block of a symmetric operand covers.
- *
- * This file's own number, independent of the register tile, the panel grouping and the cache block. It
- * bounds the scratch a symmetric product expands into, which is one square of it, and it sets how often the
- * strips beside the diagonal are cut: a smaller block copies less and schedules more products, a larger one
- * the reverse.
+ * Diagonal block order, independent of register tiles, panel groups and cache blocks.
+ * It bounds the expanded scratch square and trades copy size against the number of strip products.
  */
 internal const val SYMMETRIC_BLOCK: Int = 64
 
@@ -129,11 +112,8 @@ internal fun symmetricProduct(
 }
 
 /**
- * One diagonal block of the symmetric operand written out as a full square.
- *
- * Only the stored triangle is read. The entry above a lower triangle's diagonal is its mirror below, which
- * is the whole of what a symmetric operand means, and the copy is what lets an ordinary product block read
- * the block without being told about the structure.
+ * Expand one diagonal block for ordinary dense products, mirroring only the stored triangle.
+ * Scratch is bounded by the block size.
  */
 private fun expandSymmetric(
     a: DoubleArray,

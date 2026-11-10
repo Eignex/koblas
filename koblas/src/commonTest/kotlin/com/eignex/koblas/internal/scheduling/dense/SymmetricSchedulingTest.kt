@@ -38,23 +38,16 @@ class SymmetricSchedulingTest {
 
     @Test
     fun `symm agrees with the oracle on both sides and reads only the stored triangle`() = withEngines { blas ->
-        // One block and a tail, one short order, and a single entry, since the blocks are the order's rather
-        // than the destination's.
-        for ((order, sides) in listOf(SYMMETRIC_BLOCK + 3 to 7, 5 to 2, 1 to 3)) {
+        for ((order, sides) in listOf(
+            1 to 3,
+            5 to 2,
+            SYMMETRIC_BLOCK + 3 to 7,
+            2 * SYMMETRIC_BLOCK + 3 to VECTOR_SIDES + 3,
+        )) {
             for (lower in booleanArrayOf(false, true)) {
                 for (right in booleanArrayOf(false, true)) {
                     assertSymmetricProductAgreesWithReference(blas, order, sides, lower, right)
                 }
-            }
-        }
-    }
-
-    @Test
-    fun `symm agrees with the oracle over three blocks on either side with either triangle`() = withEngines { blas ->
-        val order = 2 * SYMMETRIC_BLOCK + 3
-        for (lower in booleanArrayOf(false, true)) {
-            for (right in booleanArrayOf(false, true)) {
-                assertSymmetricProductAgreesWithReference(blas, order, VECTOR_SIDES + 3, lower, right)
             }
         }
     }
@@ -73,8 +66,7 @@ class SymmetricSchedulingTest {
         val start = randomMatrix(rows, columns, rng)
         val expected = start.copyOf()
         val actual = start.copyOf()
-        // The oracle takes the full symmetric matrix, so its answer does not depend on which
-        // half this call was given.
+        // The full symmetric oracle is independent of the poisoned half.
         ReferenceBlas.symm(0.875, full, b, -0.25, expected, lower = true, right = right)
 
         blas.symm(0.875, poisoned, b, -0.25, actual, lower, right)
@@ -87,7 +79,6 @@ class SymmetricSchedulingTest {
         )
     }
 
-    /** A symmetric product whose dense operand is its destination reads what the caller supplied. */
     @Test
     fun `symm over its own destination agrees with the oracle`() = withEngines { blas ->
         val order = SYMMETRIC_BLOCK + 3
