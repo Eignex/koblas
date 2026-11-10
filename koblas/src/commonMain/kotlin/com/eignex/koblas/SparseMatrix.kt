@@ -270,7 +270,7 @@ public class SparseMatrix internal constructor(
             values: DoubleArray,
         ): TripletRuns {
             val nnz = values.size
-            val rowEnds = IntArray(scratchLength(rows, "ofTriplets"))
+            val rowEnds = IntArray(pointerLength(rows, "ofTriplets"))
             for (k in 0 until nnz) rowEnds[rowIndices[k] + 1]++
             for (i in 0 until rows) rowEnds[i + 1] += rowEnds[i]
             val byRowCol = IntArray(nnz)

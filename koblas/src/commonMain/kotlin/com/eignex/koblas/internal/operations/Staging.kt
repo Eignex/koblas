@@ -3,7 +3,6 @@
 package com.eignex.koblas.internal.operations
 
 import com.eignex.koblas.*
-import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.storage.*
 import com.eignex.koblas.internal.storage.dense.*
 
@@ -82,11 +81,6 @@ internal inline fun <T> stagedRegion(
     if (!regionsOverlap(a, destination)) return block(a)
     return stagedRegion(arrays, a, destination.values, stable, original, lower, unitDiag, block)
 }
-
-/*
- * Overlap tests and snapshots over vector windows given as an array, an origin, a length and a stride, so a
- * routine that receives its vectors that way never builds a vector object to stage them.
- */
 
 /** [block] over [vector], or over a contiguous snapshot of its logical entries when [aliased]. */
 internal inline fun <T> stagedWindow(

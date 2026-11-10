@@ -3,7 +3,7 @@ package com.eignex.koblas.internal.scheduling.sparse
 import com.eignex.koblas.*
 import com.eignex.koblas.internal.kernels.scalar.sparse.*
 import com.eignex.koblas.internal.storage.borrowI32
-import com.eignex.koblas.internal.storage.sparse.scratchLength
+import com.eignex.koblas.internal.storage.sparse.pointerLength
 
 /** Adds the selected triangle of `alpha · op(A) · op(A)ᵀ` directly into dense [c]. */
 @Suppress("LongParameterList") // the operands plus the borrowed scratch set
@@ -66,10 +66,10 @@ private fun accumulateRankColumn(
     }
     for (jp in a.colPointers[j] until a.colPointers[j + 1]) {
         val p = a.rowIndices[jp]
-        used = accumulateIndirectProductSlice(
-            adjacentColumns, adjacentPositions, a.values, rowPointers[p], rowPointers[p + 1], a.values[jp],
+        used = accumulateProductSlice(
+            adjacentColumns, a.values, rowPointers[p], rowPointers[p + 1], a.values[jp],
             firstRow, lastRow, epoch, sums, touchedAt, touched, used,
-        )
+        ) { adjacentPositions[it] }
     }
     return used
 }
@@ -102,7 +102,6 @@ private fun buildRowAdjacency(
  * created; each buffer remains an independent arrays loan and is returned if a later loan or the kernel
  * throws.
  */
-@Suppress("LongParameterList")
 internal inline fun <T> withSymmetricRankScratch(
     arrays: Scratch?,
     order: Int,
@@ -120,7 +119,7 @@ internal inline fun <T> withSymmetricRankScratch(
 ): T = arrays.borrow(order) { sums ->
     arrays.borrowI32(order) { touchedAt ->
         arrays.borrowI32(order) { touched ->
-            arrays.borrowI32(scratchLength(sourceRows, "syrk")) { rowPointers ->
+            arrays.borrowI32(pointerLength(sourceRows, "syrk")) { rowPointers ->
                 arrays.borrowI32(sourceEntries) { adjacentColumns ->
                     arrays.borrowI32(sourceEntries) { adjacentPositions ->
                         arrays.borrowI32(sourceRows) { rowCursor ->

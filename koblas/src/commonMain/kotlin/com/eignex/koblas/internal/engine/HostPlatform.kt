@@ -1,7 +1,5 @@
 package com.eignex.koblas.internal.engine
 
-import com.eignex.koblas.*
-
 internal enum class EngineRuntime { Jvm, Native }
 internal enum class OperatingSystem { Linux, MacOs, Windows, Other }
 internal enum class Architecture { X86_64, Arm64, Other }
