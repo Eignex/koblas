@@ -146,7 +146,7 @@ internal fun parseArguments(args: Array<String>): Settings {
         mode in setOf("jvm-simd", "jvm-default", "jvm-default-no-simd", "jvm-scalar", "native", "native-default") ||
             vendorFromMode(mode) != null,
     ) {
-        "mode must be jvm-simd, jvm-default, jvm-scalar, native, native-default, or a " +
+        "mode must be jvm-simd, jvm-default, jvm-default-no-simd, jvm-scalar, native, native-default, or a " +
             "jvm-vendor-/native-vendor- arm"
     }
     val warmups = values["warmups"]?.toInt() ?: 3

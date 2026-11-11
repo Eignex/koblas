@@ -27,7 +27,8 @@ lengths, strided fallbacks, overlapping views and an unchanged dot-product contr
 |---|---|
 | `jvm-scalar` | Portable Kotlin |
 | `jvm-simd` | JVM SIMD with its scalar fallbacks |
-| `jvm-default` | The engine ordinary JVM calls use |
+| `jvm-default` | The engine ordinary JVM calls use, with SIMD enabled |
+| `jvm-default-no-simd` | The default engine without the Vector API module; vendor access stays enabled |
 | `native`, `native-default` | Portable and platform-default Kotlin/Native engines |
 | `<vendor>`, `<vendor>-jvm` | Native and JVM vendor bindings; JVM timings include array transfers |
 

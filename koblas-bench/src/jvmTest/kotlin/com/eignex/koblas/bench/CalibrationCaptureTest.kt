@@ -52,6 +52,15 @@ class CalibrationCaptureTest {
         assertEquals(listOf(0.5, 0.5, 0.5), scalar.timings.map { it.ratio })
     }
 
+    @Test fun `a scalar baseline rejects vendor capabilities`() = fixture { root ->
+        rounds(root, jvm = true)
+        rewrite(root.resolve("pass-2/metadata.txt"), "caps[portable:Dot]", "caps[openblas:Dot]")
+
+        assertFailsWith<IllegalArgumentException> {
+            readCalibration(listOf(root), "jvm-scalar", "onemkl-jvm", "onemkl")
+        }
+    }
+
     private fun rewrite(path: Path, before: String, after: String) = Files.writeString(path, Files.readString(path).replace(before, after))
     private fun fixture(block: (Path) -> Unit) {
         val root = Files.createTempDirectory("koblas-tuning")

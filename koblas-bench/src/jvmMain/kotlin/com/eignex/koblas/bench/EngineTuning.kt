@@ -47,7 +47,7 @@ public object EngineTuning {
             val reached = checked.timings.map { it.provider }.toSet()
             require(training.field("backend") in reached) { "The fitted provider was not exercised" }
             val regressions = checked.timings.groupBy { it.case to it.cpu }.filterValues { median(it.map { t -> t.ratio }) > 1.05 }
-            Files.writeString(output.resolve("validation.json"), json(mapOf("engine_name" to option("engine-name"),
+            Files.writeString(output.resolve("validation.json"), json(mapOf("engine_name" to option("engine-name"), "baseline" to baseline,
                 "timings" to checked.timings.map(::timingEvidence), "hashes" to checked.hashes, "provenance" to checked.provenance,
                 "regressions" to regressions.mapKeys { it.key.toString() }.mapValues { it.value.map(::timingEvidence) })).toString())
             require(regressions.isEmpty()) { "Selected engine or control regression; inspect validation.json" }
@@ -56,6 +56,9 @@ public object EngineTuning {
         val vendors = Vendor.entries.associateBy { it.vendorName.lowercase() }
         val source = requireNotNull(option("backend")) { "Specify one backend per fit" }
         require(source in vendors || source == "jvm-simd" && runtime == "jvm")
+        require(source != "jvm-simd" || option("baseline") == null || baseline == "jvm-scalar") {
+            "SIMD calibration requires the scalar baseline"
+        }
         val cases = option("cases")?.let(Path::of) ?: output.resolve("training.txt").also {
             Files.writeString(it, CalibrationCases.training(runtime == "native").joinToString("\n", postfix = "\n"))
         }

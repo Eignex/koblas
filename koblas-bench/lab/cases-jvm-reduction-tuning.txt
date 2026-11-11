@@ -1,0 +1,7 @@
+# Coarse bounds around the cache-sized scalar fallback wins, with a streaming control.
+asum+4096+uniform
+asum+65536+uniform
+asum+262144+uniform
+iamax+4096+uniform
+iamax+65536+uniform
+iamax+262144+uniform
