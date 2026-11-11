@@ -72,6 +72,9 @@ lists the accepted parameters. `sweep-profile=status-v3` selects the bounded sta
 without `status-sweep=true` for ordinary paired captures with explicit engines and timing settings. Keep the
 status flag for fixed-control `jvm-default` regression metrics. Do not combine a profile with `cases`.
 Windows workers need Git Bash or an absolute `KOBLAS_BASH`.
+For bounded calibration rows, `case-timeout` sets the lab deadline in seconds, up to 7,200; it leaves the
+capture's warmup and sampling protocol unchanged. Ordinary captures default to 7,200 seconds. Status
+sweeps retain their fixed 60-second deadline and reject an override.
 
 The [calibration manifest](lab/calibration.json) prepares the grids `generateCalibrationGrids` writes under
 `koblas-bench/build/calibration/`. Set `cases` to `training.txt` or `holdout.txt` for JVM, or

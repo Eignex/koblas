@@ -48,6 +48,18 @@ class LabAdapterTest {
         }
     }
 
+    @Test fun `calibration rows can bound their case deadline`() {
+        val parameters = mapOf("targets" to "jvm-scalar", "operation" to "dot", "case-timeout" to "600")
+        val cases = KoblasLabSuite.plan(BenchRequest(parameters))
+
+        assertTrue(cases.all { it.resources.timeoutSeconds == 600L })
+        for (invalid in listOf("0", "-1", "7201", "unknown")) {
+            assertFailsWith<IllegalArgumentException> {
+                KoblasLabSuite.plan(BenchRequest(parameters + ("case-timeout" to invalid)))
+            }
+        }
+    }
+
     @Test fun `vendor placement rejects incompatible hosts`() {
         for (parameters in listOf(mapOf("vendor" to "onemkl", "arch" to "arm64"),
             mapOf("vendor" to "openblas", "platform" to "mac"))) {
