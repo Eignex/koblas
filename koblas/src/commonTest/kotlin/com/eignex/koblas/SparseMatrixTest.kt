@@ -66,6 +66,29 @@ class SparseMatrixTest {
     }
 
     @Test
+    fun `copying between equal column patterns preserves the backing storage`() {
+        for ((from, to) in listOf(0 to 2, 2 to 0, 1 to 1)) {
+            val matrix = SparseMatrix.wrap(
+                4,
+                3,
+                intArrayOf(0, 2, 4, 6),
+                intArrayOf(1, 3, 1, 3, 1, 3),
+                doubleArrayOf(2.0, -0.0, 3.0, 4.0, 0.0, -5.0),
+            )
+            val source = matrix.columnView(from)
+            val destination = matrix.columnView(to)
+            val backing = matrix.values
+            val expected = backing.copyOf()
+            backing.copyInto(expected, destination.offset, source.offset, source.offset + source.nnz)
+
+            destination.copyFrom(source)
+
+            assertSame(backing, matrix.values)
+            assertContentEquals(expected, matrix.values)
+        }
+    }
+
+    @Test
     fun `column traversal visits empty columns without scanning the row domain`() {
         val matrix = SparseMatrix.ofColumns(Int.MAX_VALUE, 3, listOf(emptyList(), listOf(5 to 2.0), emptyList()))
         val counts = mutableListOf<Int>()
