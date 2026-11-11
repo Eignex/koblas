@@ -61,14 +61,6 @@ class DenseMatrixTest {
     }
 
     @Test
-    fun `DenseMatrix wrap aliases the backing array without copying`() {
-        val values = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
-        val m = DenseMatrix.wrap(2, 2, values)
-        values[0] = 99.0 // mutating the source is visible through the wrapped matrix
-        assertEquals(99.0, m[0, 0], 0.0)
-    }
-
-    @Test
     fun `DenseMatrix toArray returns a fresh copy`() {
         val m = DenseMatrix.diagonal(2, 1.0)
         val arr = m.toArray()

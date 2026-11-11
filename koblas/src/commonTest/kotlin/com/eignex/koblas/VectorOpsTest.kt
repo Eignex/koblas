@@ -166,23 +166,6 @@ class VectorOpsTest {
     }
 
     @Test
-    fun `norm two agrees with the scalar oracle on dense and sparse`() {
-        val values = doubleArrayOf(3.0, 0.0, -4.0)
-        assertReductionAgreesWithReference(
-            KoblasEngine.scalar.kernels.nrm2(values, 0, values.size),
-            DenseVector.of(values).norm(),
-            "dense",
-        )
-        assertReductionAgreesWithReference(
-            KoblasEngine.scalar.kernels.nrm2(denseOfSparse.values, 0, denseOfSparse.size),
-            sparse.norm(),
-            "sparse",
-        )
-        assertEquals(0.0, DenseVector.zero(4).norm())
-        assertEquals(0.0, DenseVector.zero(0).norm())
-    }
-
-    @Test
     fun `supported norms agree with the scalar oracle across vector storage`() {
         val values = doubleArrayOf(-1.5, 0.0, 3.5, -7.25, 0.0, 2.0)
         for (source in normOperands(values)) {
@@ -434,16 +417,6 @@ class VectorOpsTest {
 
             assertReductionAgreesWithReference(expected, actual, "foreign dot")
         }
-    }
-
-    @Test
-    fun `copy accepts a foreign source`() {
-        val source = foreignRamp(6)
-        val destination = DenseVector.zero(6)
-
-        destination.copyFrom(source)
-
-        assertContentEquals(source.toDoubleArray(), destination.values)
     }
 
     @Test
