@@ -144,10 +144,10 @@ internal fun parseArguments(args: Array<String>): Settings {
     val mode = values["mode"] ?: error("--mode is required")
     require(
         mode in setOf("jvm-simd", "jvm-default", "jvm-default-no-simd", "jvm-scalar", "native", "native-default") ||
-            vendorFromMode(mode) != null,
+            vendorFromMode(mode) != null || automaticVendorFromMode(mode) != null,
     ) {
         "mode must be jvm-simd, jvm-default, jvm-default-no-simd, jvm-scalar, native, native-default, or a " +
-            "jvm-vendor-/native-vendor- arm"
+            "jvm-vendor-/native-vendor- arm or jvm-auto-<vendor>-no-simd"
     }
     val warmups = values["warmups"]?.toInt() ?: 3
     val samples = values["samples"]?.toInt() ?: 5

@@ -31,7 +31,7 @@ internal object KoblasLabSuite : BenchSuite {
     )
     private val vendors = Vendor.entries.associateBy { it.vendorName.lowercase() }
     private val parameters = setOf("vendor", "arch", "platform", "operation", "cases", "samples", "warmups",
-        "target-ms", "forks", "rounds", "targets", "profile-gc", "jvm-options", "smoke", "status-sweep", "sweep-profile")
+        "target-ms", "forks", "rounds", "case-timeout", "targets", "profile-gc", "jvm-options", "smoke", "status-sweep", "sweep-profile")
     private val owned = setOf("jvm-scalar", "jvm-simd", "jvm-default", "jvm-default-no-simd", "native", "native-default")
 
     override fun describe() = BenchDescriptor("koblas-bench", "Prepared paired JVM and Native workloads")
@@ -51,6 +51,7 @@ internal object KoblasLabSuite : BenchSuite {
         val selected = targets.split(',')
         require(selected.distinct().size == selected.size && selected.all {
             it in owned || it.removeSuffix("-jvm") == p["vendor"] ||
+                automaticVendorFromMode(it)?.let { vendor -> vendor.vendorName.lowercase() == p["vendor"] } == true ||
                 (vendor == Vendor.OneMkl && it.removeSuffix("-jvm") == "openblas")
         }) { "Invalid capture targets" }
         val sweep = p["status-sweep"] == "true"
@@ -77,7 +78,7 @@ internal object KoblasLabSuite : BenchSuite {
         return rows.map { case ->
             LabCase("comparison/$host/${case.operation}/${case.id}", p + mapOf(ROW to case.id, "targets" to targets) +
                     (profile?.let { mapOf("sweep-profile" to it) } ?: emptyMap()),
-                BenchResources(memoryMiB = 2048, timeoutSeconds = if (sweep) 60 else 7200,
+                BenchResources(memoryMiB = 2048, timeoutSeconds = p["case-timeout"]?.toLong() ?: if (sweep) 60L else 7200L,
                     requiredTags = setOf("platform:$platform", "arch:$arch")), inputs = inputs,
                 attributes = if (sweep) mapOf("regressionPolicy" to "metric-v1", "regressionMetric" to "median_ns",
                     "regressionThreshold" to "0.15", "suite" to (if (profile == "status-v2") "koblas-status-v1" else "koblas-$profile") +
@@ -174,13 +175,14 @@ internal object KoblasLabSuite : BenchSuite {
             require(p["cases"] == null) { "Choose sweep-profile or cases" }
         }
         p["vendor"]?.let { require(it in vendors) { "Unknown vendor" } }
-        for (key in listOf("samples", "target-ms", "forks", "rounds")) {
+        for (key in listOf("samples", "target-ms", "forks", "rounds", "case-timeout")) {
             p[key]?.let { require(it.toIntOrNull()?.let { value -> value > 0 } == true) { "$key must be positive" } }
         }
+        p["case-timeout"]?.let { require(it.toInt() <= 7200) { "case-timeout must not exceed 7200 seconds" } }
         p["warmups"]?.let { require(it.toIntOrNull()?.let { value -> value >= 0 } == true) }
         for (key in listOf("smoke", "profile-gc", "status-sweep")) p[key]?.toBooleanStrict()
         if (p["status-sweep"] == "true") {
-            require(p["vendor"] == null && p["cases"] == null && p["operation"] == null && p["jvm-options"] == null)
+            require(p["vendor"] == null && p["cases"] == null && p["operation"] == null && p["jvm-options"] == null && p["case-timeout"] == null)
             p["targets"]?.split(',')?.let { targets ->
                 require("jvm-default" in targets && targets.all { it in owned })
             }

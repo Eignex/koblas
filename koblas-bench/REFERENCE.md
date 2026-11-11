@@ -72,6 +72,9 @@ lists the accepted parameters. `sweep-profile=status-v3` selects the bounded sta
 without `status-sweep=true` for ordinary paired captures with explicit engines and timing settings. Keep the
 status flag for fixed-control `jvm-default` regression metrics. Do not combine a profile with `cases`.
 Windows workers need Git Bash or an absolute `KOBLAS_BASH`.
+For bounded calibration rows, `case-timeout` sets the lab deadline in seconds, up to 7,200; it leaves the
+capture's warmup and sampling protocol unchanged. Ordinary captures default to 7,200 seconds. Status
+sweeps retain their fixed 60-second deadline and reject an override.
 
 The [calibration manifest](lab/calibration.json) prepares the grids `generateCalibrationGrids` writes under
 `koblas-bench/build/calibration/`. Set `cases` to `training.txt` or `holdout.txt` for JVM, or
@@ -99,13 +102,26 @@ arguments to refit fetched captures. Each fit measures one backend; automatic se
 
 JVM vendor fits default to `--baseline jvm-owned`, comparing against the faster of scalar and SIMD.
 Use `--baseline jvm-scalar` to tune calls without SIMD, or `--baseline jvm-simd` for that exact fallback.
-The evidence records the baseline and holdout validation reuses it. Scalar-baseline validation measures
+The evidence records the baseline and holdout validation reuses it. A vector report can include
+`maximum_rows` when consecutive cache-sized wins lose again at streaming sizes; a single isolated
+winning size does not establish such a region. Scalar-baseline validation measures
 `jvm-default-no-simd`, an opt-in target that launches the ordinary default without the Vector API module.
 It still enables native access and can load installed vendors. `jvm-default` continues to enable SIMD.
 
+For a vendor that ordinary `auto` does not choose on the measurement host, the opt-in
+`jvm-auto-<vendor>-no-simd` target offers only that vendor to the same production automatic selector.
+It represents the policy on a compatible host where that vendor is the available library; it does not
+claim to be the current host's ordinary default. It keeps measured size cutoffs and scalar fallback,
+whereas `<vendor>-jvm` calls the vendor directly. For example, compare
+`jvm-scalar,jvm-auto-openblas-no-simd` with `--libraries openblas`. Validate its fetched holdouts with
+`--engine-target jvm-auto-openblas-no-simd --engine-name auto-openblas`; the target must match the
+training vendor and scalar fallback. No application selection setting is added.
+
 The coarse [JVM fallback grid](lab/cases-jvm-fallback-tuning.txt) covers vector and matrix–vector calls.
 Use [its manifest](lab/jvm-fallback-tuning.json) for JVM-only lab preparation; it does not build Native
-executables. Keep scalar, SIMD and the vendor together in every row so either baseline can be fitted
+executables. OpenBLAS and Accelerate need only the ordinary `bench.json` preparation; the JVM vendor
+manifest also downloads the pinned oneMKL package and needs `curl`, `sha256sum` and `dpkg-deb`.
+Keep scalar, SIMD and the vendor together in every row so either baseline can be fitted
 from the same accepted attempt.
 
 Validate the rebuilt engine by its reported name:

@@ -12,7 +12,7 @@ public object EngineTuning {
     @JvmStatic
     public fun main(args: Array<String>) {
         val options = linkedMapOf<String, MutableList<String>>()
-        val allowed = setOf("write-cases", "baseline", "runtime", "backend", "engine-name", "output", "results", "capture", "cases",
+        val allowed = setOf("write-cases", "baseline", "runtime", "backend", "engine-name", "engine-target", "output", "results", "capture", "cases",
             "validate-results", "training", "validation-cases", "lab-arm", "cpu", "cpu-class", "sve-vector-bits", "native-executable")
         var i = 0
         while (i < args.size) {
@@ -38,7 +38,12 @@ public object EngineTuning {
             val recordedBaseline = calibrationBaseline(runtime, training.field("baseline").takeIf(String::isNotEmpty))
             require(option("baseline") == null || baseline == recordedBaseline) { "Validation baseline differs from training" }
             baseline = recordedBaseline
-            val candidate = if (baseline == "jvm-scalar" && training.field("backend") != "jvm-simd") "jvm-default-no-simd" else "$runtime-default"
+            val inferred = if (baseline == "jvm-scalar" && training.field("backend") != "jvm-simd") "jvm-default-no-simd" else "$runtime-default"
+            val candidate = option("engine-target") ?: inferred
+            require(candidate == inferred || runtime == "jvm" && baseline == "jvm-scalar" &&
+                automaticVendorFromMode(candidate)?.vendorName?.lowercase() == training.field("backend")) {
+                "Validation target must match the measured vendor and fallback"
+            }
             val checked = read(paths, candidate, name = requireNotNull(option("engine-name")) { "Specify the rebuilt engine name" })
             val expected = option("validation-cases")?.let { readCases(Path.of(it)) } ?: CalibrationCases.holdout(runtime == "native")
             val measured = checked.timings.map { canonicalCase(it.case) }.toSet()
@@ -47,7 +52,7 @@ public object EngineTuning {
             val reached = checked.timings.map { it.provider }.toSet()
             require(training.field("backend") in reached) { "The fitted provider was not exercised" }
             val regressions = checked.timings.groupBy { it.case to it.cpu }.filterValues { median(it.map { t -> t.ratio }) > 1.05 }
-            Files.writeString(output.resolve("validation.json"), json(mapOf("engine_name" to option("engine-name"), "baseline" to baseline,
+            Files.writeString(output.resolve("validation.json"), json(mapOf("engine_name" to option("engine-name"), "engine_target" to candidate, "baseline" to baseline,
                 "timings" to checked.timings.map(::timingEvidence), "hashes" to checked.hashes, "provenance" to checked.provenance,
                 "regressions" to regressions.mapKeys { it.key.toString() }.mapValues { it.value.map(::timingEvidence) })).toString())
             require(regressions.isEmpty()) { "Selected engine or control regression; inspect validation.json" }
@@ -106,7 +111,8 @@ private fun timingEvidence(t: PairedTiming): Map<String, Any?> = mapOf("case" to
 
 /** A measurement report, never loaded by the engine. */
 internal data class FittedCutoff(val operation: EngineImplementation, val rows: Int, val columns: Int = 0,
-    val depth: Int = 0, val work: Long = 0, val contiguous: Boolean? = null, val borrowed: Boolean? = null)
+    val depth: Int = 0, val work: Long = 0, val contiguous: Boolean? = null, val borrowed: Boolean? = null,
+    val maximumRows: Int? = null)
 
 internal fun fitCutoffs(timings: List<PairedTiming>): List<FittedCutoff> = buildList {
     val shapes = timings.filter { it.shape != null }.groupBy { it.shape!! }
@@ -117,8 +123,24 @@ internal fun fitCutoffs(timings: List<PairedTiming>): List<FittedCutoff> = build
         val first = keys.first()
         if (first.dimensions == 1) {
             val ordered = keys.sortedBy { it.rows }
-            val minimum = ordered.indices.firstOrNull { i -> ordered.drop(i).all(::wins) } ?: continue
-            add(FittedCutoff(first.operation, rows = ordered[minimum].rows, contiguous = first.contiguous))
+            val minimum = ordered.indices.firstOrNull { i -> ordered.drop(i).all(::wins) }
+            if (minimum != null) {
+                add(FittedCutoff(first.operation, rows = ordered[minimum].rows, contiguous = first.contiguous))
+            } else {
+                // Transfer costs can win in cache and lose again once both arrays stream from memory.
+                val runs = mutableListOf<MutableList<RoutingShape>>()
+                for (shape in ordered) {
+                    if (!wins(shape)) {
+                        if (runs.lastOrNull()?.isNotEmpty() == true) runs.add(mutableListOf())
+                    } else {
+                        if (runs.isEmpty()) runs.add(mutableListOf())
+                        runs.last().add(shape)
+                    }
+                }
+                val region = runs.filter { it.size >= 2 }.maxByOrNull { it.size } ?: continue
+                add(FittedCutoff(first.operation, rows = region.first().rows, contiguous = first.contiguous,
+                    maximumRows = region.last().rows))
+            }
         } else {
             // A single broad work/extent region replaces exact shape islands.
             val regions = keys.filter(::wins).mapNotNull { start ->
@@ -133,9 +155,9 @@ internal fun fitCutoffs(timings: List<PairedTiming>): List<FittedCutoff> = build
 }
 
 internal fun renderCutoffs(cutoffs: List<FittedCutoff>): String = buildString {
-    append("operation\trows\tcolumns\tdepth\twork\tcontiguous\tborrowed\n")
+    append("operation\trows\tcolumns\tdepth\twork\tcontiguous\tborrowed\tmaximum_rows\n")
     for (cutoff in cutoffs) append(listOf(cutoff.operation, cutoff.rows, cutoff.columns, cutoff.depth, cutoff.work,
-        cutoff.contiguous ?: "*", cutoff.borrowed ?: "*").joinToString("\t", postfix = "\n"))
+        cutoff.contiguous ?: "*", cutoff.borrowed ?: "*", cutoff.maximumRows ?: "*").joinToString("\t", postfix = "\n"))
 }
 
 /** The fallback measured by one fit, independent of which optional modules the fitting JVM loaded. */

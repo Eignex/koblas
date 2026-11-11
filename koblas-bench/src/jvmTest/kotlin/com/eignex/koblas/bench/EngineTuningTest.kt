@@ -15,6 +15,22 @@ class EngineTuningTest {
         assertEquals(128, rule.rows)
     }
 
+    @Test fun `cache sized wins stop before streaming losses`() {
+        val data = listOf(256 to 2.0, 4096 to 0.8, 16384 to 0.5, 65536 to 0.7, 262144 to 1.5)
+            .map { (n, cost) -> timing(n, cost) }
+
+        val rule = fitCutoffs(data).single()
+
+        assertEquals(4096, rule.rows)
+        assertEquals(65536, rule.maximumRows)
+    }
+
+    @Test fun `an isolated vector win does not establish a bounded region`() {
+        val data = listOf(timing(256, 2.0), timing(16384, 0.5), timing(1048576, 1.5))
+
+        assertTrue(fitCutoffs(data).isEmpty())
+    }
+
     @Test fun `one cpu model cannot hide another model losing`() {
         val data = List(30) { timing(128, 0.5) } + List(3) { timing(128, 1.1).copy(cpu = "B") }
 
@@ -44,7 +60,7 @@ class EngineTuningTest {
     @Test fun `cutoff report includes operation and layout bounds`() {
         val report = renderCutoffs(listOf(FittedCutoff(EngineImplementation.Dot, rows = 128, contiguous = true)))
 
-        assertEquals("operation\trows\tcolumns\tdepth\twork\tcontiguous\tborrowed\nDot\t128\t0\t0\t0\ttrue\t*\n", report)
+        assertEquals("operation\trows\tcolumns\tdepth\twork\tcontiguous\tborrowed\tmaximum_rows\nDot\t128\t0\t0\t0\ttrue\t*\t*\n", report)
     }
 
     @Test fun `calibration baselines select the actual fallback`() {
