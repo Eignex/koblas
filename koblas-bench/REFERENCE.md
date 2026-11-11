@@ -116,6 +116,8 @@ whereas `<vendor>-jvm` calls the vendor directly. For example, compare
 `jvm-scalar,jvm-auto-openblas-no-simd` with `--libraries openblas`. Validate its fetched holdouts with
 `--engine-target jvm-auto-openblas-no-simd --engine-name auto-openblas`; the target must match the
 training vendor and scalar fallback. No application selection setting is added.
+Confirm chosen cutoffs with paired old/new automatic-engine runs using identical harness code.
+The JIT can compile exact-engine and automatic-engine calls differently.
 
 The coarse [JVM fallback grid](lab/cases-jvm-fallback-tuning.txt) covers vector and matrix–vector calls.
 Use [its manifest](lab/jvm-fallback-tuning.json) for JVM-only lab preparation; it does not build Native

@@ -99,7 +99,7 @@ class EngineTuningTest {
     }
 
     @Test
-    fun `jvm scalar reductions use the host only inside the measured window`() {
+    fun `jvm scalar absolute sum uses the host only inside the measured window`() {
         for (cpu in listOf(CpuClass.Avx2, CpuClass.Avx512)) {
             val platform = HostPlatform(OperatingSystem.Linux, Architecture.X86_64, cpuClass = cpu)
             val host = provider(Vendor.OpenBlas, setOf(Asum, Iamax))
@@ -107,14 +107,23 @@ class EngineTuningTest {
                 host.takeIf { requested == Vendor.OpenBlas }
             } as BuiltinEngine
 
-            for (operation in listOf(Asum, Iamax)) {
-                for (length in listOf(4095, 4096, 65536, 65537)) {
-                    val expected = if (length in 4096..65536) host else KoblasEngine.scalar
+            for (length in listOf(4095, 4096, 65536, 65537)) {
+                val expected = if (length in 4096..65536) host else KoblasEngine.scalar
 
-                    assertSame(expected, engine.vectorProvider(operation, length, true))
-                    assertSame(KoblasEngine.scalar, engine.vectorProvider(operation, length, false))
-                }
+                assertSame(expected, engine.vectorProvider(Asum, length, true))
+                assertSame(KoblasEngine.scalar, engine.vectorProvider(Asum, length, false))
             }
+        }
+    }
+
+    @Test
+    fun `jvm index maximum keeps its scalar fallback without SIMD`() {
+        val platform = HostPlatform(OperatingSystem.Linux, Architecture.X86_64)
+        val host = provider(Vendor.OpenBlas, setOf(Iamax))
+        val engine = standardEngine(EngineRuntime.Jvm, host = platform, owned = null) { host } as BuiltinEngine
+
+        for (length in listOf(4096, 8192, 32768, 65536)) {
+            assertSame(KoblasEngine.scalar, engine.vectorProvider(Iamax, length, true))
         }
     }
 

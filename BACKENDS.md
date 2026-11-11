@@ -53,9 +53,10 @@ under `~/intel/oneapi/mkl/latest` and `/opt/intel/oneapi/mkl/latest`.
 Automatic selection tries compatible host libraries in platform order and keeps the first available vendor.
 That library handles calls above internal measured cutoffs or documented estimates; other calls and missing
 exports use the owned SIMD/scalar kernels. The cutoffs account for whether JVM SIMD is available.
-Without it, x64 OpenBLAS handles contiguous `asum` and `iamax` reductions from 4,096 through 65,536
+Without it, x64 OpenBLAS handles contiguous `asum` reductions from 4,096 through 65,536
 elements. Shorter calls and larger streaming vectors stay scalar because native-memory transfers cost
-more than the faster reduction saves. JVM matrix–vector calls retain the owned schedule: transfer-inclusive
+more than the faster reduction saves. Other JVM vectors retain their owned kernels. JVM matrix–vector
+calls retain the owned schedule: transfer-inclusive
 measurements have not established a broad vendor crossover. These are internal cutoffs, not user settings.
 Explicitly naming a vendor uses it for every operation it exports. JDK 17–24, Android and iOS automatically
 use portable Kotlin.
