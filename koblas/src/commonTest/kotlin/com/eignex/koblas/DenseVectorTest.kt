@@ -83,18 +83,6 @@ class DenseVectorTest {
     }
 
     @Test
-    fun `reversed views round trip through polymorphic vector storage`() {
-        val source: VectorStorage = DenseVector.of(doubleArrayOf(1.0, 2.0, 3.0, 4.0)).view(3, 2, -2)
-
-        val encoded = Json.encodeToString(VectorStorage.serializer(), source)
-        val decoded = Json.decodeFromString(VectorStorage.serializer(), encoded)
-
-        assertEquals("DenseVector", Json.parseToJsonElement(encoded).jsonObject.getValue("type").jsonPrimitive.content)
-        assertEquals(source, decoded)
-        assertContentEquals(doubleArrayOf(4.0, 2.0), assertIs<DenseVector>(decoded).values)
-    }
-
-    @Test
     fun `empty views compare and serialize without reading the buffer`() {
         for (stride in intArrayOf(Int.MIN_VALUE, -1, 1, Int.MAX_VALUE)) {
             val source = DenseVector.wrap(doubleArrayOf(Double.NaN), 1, 0, stride)

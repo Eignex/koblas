@@ -17,10 +17,6 @@ class SparseVectorTest {
         view.forEachStored { index, _ -> indices += index }
         val encoded = Json.encodeToString(SparseVector.serializer(), view)
         val decoded = Json.decodeFromString(SparseVector.serializer(), encoded)
-        val polymorphic = Json.decodeFromString(
-            VectorStorage.serializer(),
-            Json.encodeToString(VectorStorage.serializer(), view),
-        )
 
         assertEquals(owning, view)
         assertEquals(owning.hashCode(), view.hashCode())
@@ -28,7 +24,6 @@ class SparseVectorTest {
         assertEquals(Json.encodeToString(SparseVector.serializer(), owning), encoded)
         assertEquals(owning, copied)
         assertEquals(owning, decoded)
-        assertEquals(owning, polymorphic)
         assertEquals(0, decoded.offset)
         assertEquals(2, decoded.values.size)
         assertNotSame(view.values, copied.values)
@@ -266,8 +261,8 @@ class SparseVectorTest {
     @Test
     fun `deserialization rejects a negative size`() {
         val failure = assertFailsWith<JsonException> {
-            Json.decodeFromString<VectorStorage>(
-                """{"type":"SparseVector","size":-5,"indices":[],"values":[]}""",
+            Json.decodeFromString<SparseVector>(
+                """{"size":-5,"indices":[],"values":[]}""",
             )
         }
         assertIs<DimensionMismatch>(failure.cause)

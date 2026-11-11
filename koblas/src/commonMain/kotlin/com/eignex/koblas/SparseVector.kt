@@ -30,7 +30,7 @@ public class SparseVector internal constructor(
     @SerialName("values") private var storedValues: DoubleArray,
     private val columnOwner: SparseMatrix? = null,
     private val columnIndex: Int = 0,
-) : VectorStorage {
+) : Vector {
 
     /** Live stored positions; structural writes may replace this buffer. Do not mutate it. */
     @property:UnsafeKoblasApi

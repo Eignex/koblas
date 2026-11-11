@@ -1,4 +1,4 @@
-public final class com/eignex/koblas/DenseMatrix : com/eignex/koblas/MatrixStorage {
+public final class com/eignex/koblas/DenseMatrix : com/eignex/koblas/Matrix {
 	public static final field Companion Lcom/eignex/koblas/DenseMatrix$Companion;
 	public final fun columnView (I)Lcom/eignex/koblas/DenseVector;
 	public static final fun diagonal (I)Lcom/eignex/koblas/DenseMatrix;
@@ -44,7 +44,7 @@ public final class com/eignex/koblas/DenseMatrix$Companion {
 	public static synthetic fun zero$default (Lcom/eignex/koblas/DenseMatrix$Companion;IIILjava/lang/Object;)Lcom/eignex/koblas/DenseMatrix;
 }
 
-public final class com/eignex/koblas/DenseVector : com/eignex/koblas/VectorStorage {
+public final class com/eignex/koblas/DenseVector : com/eignex/koblas/Vector {
 	public static final field Companion Lcom/eignex/koblas/DenseVector$Companion;
 	public fun equals (Ljava/lang/Object;)Z
 	public fun get (I)D
@@ -337,18 +337,6 @@ public final class com/eignex/koblas/Matrix$DefaultImpls {
 	public static fun toArray (Lcom/eignex/koblas/Matrix;)[[D
 }
 
-public abstract interface class com/eignex/koblas/MatrixStorage : com/eignex/koblas/Matrix {
-	public static final field Companion Lcom/eignex/koblas/MatrixStorage$Companion;
-}
-
-public final class com/eignex/koblas/MatrixStorage$Companion {
-	public final fun serializer ()Lkotlinx/serialization/KSerializer;
-}
-
-public final class com/eignex/koblas/MatrixStorage$DefaultImpls {
-	public static fun toArray (Lcom/eignex/koblas/MatrixStorage;)[[D
-}
-
 public final class com/eignex/koblas/Norm : java/lang/Enum {
 	public static final field Frobenius Lcom/eignex/koblas/Norm;
 	public static final field Infinity Lcom/eignex/koblas/Norm;
@@ -366,7 +354,7 @@ public final class com/eignex/koblas/Scratch {
 	public final fun take (I)[D
 }
 
-public final class com/eignex/koblas/SparseMatrix : com/eignex/koblas/MatrixStorage {
+public final class com/eignex/koblas/SparseMatrix : com/eignex/koblas/Matrix {
 	public static final field Companion Lcom/eignex/koblas/SparseMatrix$Companion;
 	public final fun columnView (I)Lcom/eignex/koblas/SparseVector;
 	public final fun copyColumnPointers ()[I
@@ -408,7 +396,7 @@ public final class com/eignex/koblas/SparseMatrix$Companion {
 	public final fun wrap (II[I[I[D)Lcom/eignex/koblas/SparseMatrix;
 }
 
-public final class com/eignex/koblas/SparseVector : com/eignex/koblas/VectorStorage {
+public final class com/eignex/koblas/SparseVector : com/eignex/koblas/Vector {
 	public static final field Companion Lcom/eignex/koblas/SparseVector$Companion;
 	public final fun copyIndices ()[I
 	public fun equals (Ljava/lang/Object;)Z
@@ -452,18 +440,6 @@ public abstract interface class com/eignex/koblas/Vector {
 
 public final class com/eignex/koblas/Vector$DefaultImpls {
 	public static fun toDoubleArray (Lcom/eignex/koblas/Vector;)[D
-}
-
-public abstract interface class com/eignex/koblas/VectorStorage : com/eignex/koblas/Vector {
-	public static final field Companion Lcom/eignex/koblas/VectorStorage$Companion;
-}
-
-public final class com/eignex/koblas/VectorStorage$Companion {
-	public final fun serializer ()Lkotlinx/serialization/KSerializer;
-}
-
-public final class com/eignex/koblas/VectorStorage$DefaultImpls {
-	public static fun toDoubleArray (Lcom/eignex/koblas/VectorStorage;)[D
 }
 
 public final class com/eignex/koblas/Vendor : java/lang/Enum {

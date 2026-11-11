@@ -195,21 +195,7 @@ abstract interface com.eignex.koblas/Vector { // com.eignex.koblas/Vector|null[0
     open fun toDoubleArray(): kotlin/DoubleArray // com.eignex.koblas/Vector.toDoubleArray|toDoubleArray(){}[0]
 }
 
-sealed interface com.eignex.koblas/MatrixStorage : com.eignex.koblas/Matrix { // com.eignex.koblas/MatrixStorage|null[0]
-    final object Companion : kotlinx.serialization.internal/SerializerFactory { // com.eignex.koblas/MatrixStorage.Companion|null[0]
-        final fun serializer(): kotlinx.serialization/KSerializer<com.eignex.koblas/MatrixStorage> // com.eignex.koblas/MatrixStorage.Companion.serializer|serializer(){}[0]
-        final fun serializer(kotlin/Array<out kotlinx.serialization/KSerializer<*>>...): kotlinx.serialization/KSerializer<*> // com.eignex.koblas/MatrixStorage.Companion.serializer|serializer(kotlin.Array<out|kotlinx.serialization.KSerializer<*>>...){}[0]
-    }
-}
-
-sealed interface com.eignex.koblas/VectorStorage : com.eignex.koblas/Vector { // com.eignex.koblas/VectorStorage|null[0]
-    final object Companion : kotlinx.serialization.internal/SerializerFactory { // com.eignex.koblas/VectorStorage.Companion|null[0]
-        final fun serializer(): kotlinx.serialization/KSerializer<com.eignex.koblas/VectorStorage> // com.eignex.koblas/VectorStorage.Companion.serializer|serializer(){}[0]
-        final fun serializer(kotlin/Array<out kotlinx.serialization/KSerializer<*>>...): kotlinx.serialization/KSerializer<*> // com.eignex.koblas/VectorStorage.Companion.serializer|serializer(kotlin.Array<out|kotlinx.serialization.KSerializer<*>>...){}[0]
-    }
-}
-
-final class com.eignex.koblas/DenseMatrix : com.eignex.koblas/MatrixStorage { // com.eignex.koblas/DenseMatrix|null[0]
+final class com.eignex.koblas/DenseMatrix : com.eignex.koblas/Matrix { // com.eignex.koblas/DenseMatrix|null[0]
     final val cols // com.eignex.koblas/DenseMatrix.cols|{}cols[0]
         final fun <get-cols>(): kotlin/Int // com.eignex.koblas/DenseMatrix.cols.<get-cols>|<get-cols>(){}[0]
     final val leadingDimension // com.eignex.koblas/DenseMatrix.leadingDimension|{}leadingDimension[0]
@@ -240,7 +226,7 @@ final class com.eignex.koblas/DenseMatrix : com.eignex.koblas/MatrixStorage { //
     }
 }
 
-final class com.eignex.koblas/DenseVector : com.eignex.koblas/VectorStorage { // com.eignex.koblas/DenseVector|null[0]
+final class com.eignex.koblas/DenseVector : com.eignex.koblas/Vector { // com.eignex.koblas/DenseVector|null[0]
     final val offset // com.eignex.koblas/DenseVector.offset|{}offset[0]
         final fun <get-offset>(): kotlin/Int // com.eignex.koblas/DenseVector.offset.<get-offset>|<get-offset>(){}[0]
     final val size // com.eignex.koblas/DenseVector.size|{}size[0]
@@ -277,7 +263,7 @@ final class com.eignex.koblas/Scratch { // com.eignex.koblas/Scratch|null[0]
     final fun take(kotlin/Int): kotlin/DoubleArray // com.eignex.koblas/Scratch.take|take(kotlin.Int){}[0]
 }
 
-final class com.eignex.koblas/SparseMatrix : com.eignex.koblas/MatrixStorage { // com.eignex.koblas/SparseMatrix|null[0]
+final class com.eignex.koblas/SparseMatrix : com.eignex.koblas/Matrix { // com.eignex.koblas/SparseMatrix|null[0]
     final val colPointers // com.eignex.koblas/SparseMatrix.colPointers|{}colPointers[0]
         final fun <get-colPointers>(): kotlin/IntArray // com.eignex.koblas/SparseMatrix.colPointers.<get-colPointers>|<get-colPointers>(){}[0]
     final val cols // com.eignex.koblas/SparseMatrix.cols|{}cols[0]
@@ -320,7 +306,7 @@ final class com.eignex.koblas/SparseMatrix : com.eignex.koblas/MatrixStorage { /
     }
 }
 
-final class com.eignex.koblas/SparseVector : com.eignex.koblas/VectorStorage { // com.eignex.koblas/SparseVector|null[0]
+final class com.eignex.koblas/SparseVector : com.eignex.koblas/Vector { // com.eignex.koblas/SparseVector|null[0]
     final val indices // com.eignex.koblas/SparseVector.indices|{}indices[0]
         final fun <get-indices>(): kotlin/IntArray // com.eignex.koblas/SparseVector.indices.<get-indices>|<get-indices>(){}[0]
     final val nnz // com.eignex.koblas/SparseVector.nnz|{}nnz[0]

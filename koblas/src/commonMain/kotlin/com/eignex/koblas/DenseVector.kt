@@ -25,7 +25,7 @@ public class DenseVector internal constructor(
     public val offset: Int,
     override val size: Int,
     public val stride: Int,
-) : VectorStorage {
+) : Vector {
     init {
         requireViewBounds(values.size, offset, size, stride, "vector")
     }

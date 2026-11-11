@@ -23,7 +23,7 @@ arrays. [Matrix] and [Vector] are mutable contracts with fixed shapes that custo
 [DenseMatrix] represents whole buffers and views through offsets and leading dimensions. [DenseVector]
 represents contiguous buffers and slices with positive or negative strides. Dense equality and hashing compare
 logical entries, and serialization writes those entries and decodes independent compact storage.
-[MatrixStorage] and [VectorStorage] provide polymorphic serialization of built-in dense and sparse containers.
+Built-in dense and sparse containers serialize through their concrete types.
 Products accept at most one sparse operand, on either side, and produce dense storage.
 No sparse operand is densified. Products of two sparse matrices are unsupported. Rank updates and sparse
 column dots are [KoblasEngine.ger] and [KoblasEngine.dotColumn] members.
