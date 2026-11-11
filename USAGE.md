@@ -150,7 +150,7 @@ val reversed = x.view(offset = x.size - 1, size = x.size, stride = -1)
 
 Use `DenseVector.wrap(buffer, offset, size, stride)` to borrow an array window. Dense equality and
 hashing compare logical entries, and serialization writes only those entries, decoding into compact,
-independent storage. `MatrixStorage` and `VectorStorage` support polymorphic dense/sparse serialization.
+independent storage. Serialize built-in containers through their concrete types.
 
 Every dense BLAS routine accepts views directly, including dense operands in sparse products.
 A view itself shares storage, but an operation on it can still need temporary buffers. Built-in calls

@@ -27,7 +27,7 @@ public class DenseMatrix internal constructor(
     public val values: DoubleArray,
     public val offset: Int = 0,
     public val leadingDimension: Int = rows,
-) : MatrixStorage {
+) : Matrix {
     internal constructor(rows: Int, cols: Int = rows) : this(rows, cols, DoubleArray(entryCount(rows, cols)))
 
     init {

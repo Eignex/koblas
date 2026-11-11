@@ -1,7 +1,5 @@
 package com.eignex.koblas
 
-import kotlinx.serialization.Serializable
-
 /** Mutable matrix contract with a fixed logical shape. */
 public interface Matrix {
     /** Number of rows. */
@@ -19,12 +17,3 @@ public interface Matrix {
     /** Materialise into a fresh `Array<DoubleArray>` of rows, independent of the internal storage. */
     public fun toArray(): Array<DoubleArray> = Array(rows) { i -> DoubleArray(cols) { j -> get(i, j) } }
 }
-
-/**
- * The matrix storages koblas itself defines, [DenseMatrix] and [SparseMatrix].
- *
- * Encoded on the terms [VectorStorage] states: the storage's own class name, the numbers under `values`, and
- * each index array named for the axis it indexes.
- */
-@Serializable
-public sealed interface MatrixStorage : Matrix

@@ -31,7 +31,7 @@ public class SparseMatrix internal constructor(
     @SerialName("rowIndices") private var storedRowIndices: IntArray,
     @SerialName("values") private var storedValues: DoubleArray,
     @Transient private val trustedPattern: Boolean = false,
-) : MatrixStorage {
+) : Matrix {
     /** Live column pointers; structural writes may replace this buffer. Do not mutate it. */
     @property:UnsafeKoblasApi
     public val colPointers: IntArray get() = storedColPointers

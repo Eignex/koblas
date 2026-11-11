@@ -193,18 +193,6 @@ class DenseMatrixTest {
     }
 
     @Test
-    fun `views round trip through polymorphic matrix storage`() {
-        val source: MatrixStorage = DenseMatrix.diagonal(4).view(1, 1, 2, 2)
-
-        val encoded = Json.encodeToString(MatrixStorage.serializer(), source)
-        val decoded = Json.decodeFromString(MatrixStorage.serializer(), encoded)
-
-        assertEquals("DenseMatrix", Json.parseToJsonElement(encoded).jsonObject.getValue("type").jsonPrimitive.content)
-        assertEquals(source, decoded)
-        assertEquals(4, assertIs<DenseMatrix>(decoded).values.size)
-    }
-
-    @Test
     fun `empty equality hashing and serialization do not scan unused dimensions`() {
         val source = DenseMatrix.wrap(0, Int.MAX_VALUE, doubleArrayOf(Double.NaN), 1, Int.MAX_VALUE)
         val compact = DenseMatrix.zero(0, Int.MAX_VALUE)
