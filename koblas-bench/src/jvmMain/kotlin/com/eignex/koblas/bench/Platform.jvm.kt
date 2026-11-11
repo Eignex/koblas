@@ -22,7 +22,11 @@ internal actual fun resolveEngine(mode: String): Pair<KoblasEngine, String> {
         }
         // What an ordinary caller gets, which is a policy rather than an exact arm: its panels and kernels
         // are whatever this platform selected, and the engine name in each row says which those are.
-        "jvm-default" -> koblas
+        "jvm-default", "jvm-default-no-simd" -> koblas.also {
+            check(mode != "jvm-default-no-simd" || KoblasEngine.simd == null) {
+                "jvm-default-no-simd must launch without jdk.incubator.vector"
+            }
+        }
         else -> error("unknown JVM mode $mode")
     }
     return engine to engineIdentity(mode, engine)

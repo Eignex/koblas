@@ -47,6 +47,17 @@ class EngineTuningTest {
         assertEquals("operation\trows\tcolumns\tdepth\twork\tcontiguous\tborrowed\nDot\t128\t0\t0\t0\ttrue\t*\n", report)
     }
 
+    @Test fun `calibration baselines select the actual fallback`() {
+        assertEquals("jvm-owned", calibrationBaseline("jvm", null))
+        assertEquals(listOf("jvm-scalar", "jvm-simd"), calibrationTargets("jvm-owned"))
+        for (baseline in listOf("jvm-scalar", "jvm-simd")) {
+            assertEquals(baseline, calibrationBaseline("jvm", baseline))
+            assertEquals(listOf(baseline), calibrationTargets(baseline))
+            assertFailsWith<IllegalArgumentException> { calibrationBaseline("native", baseline) }
+        }
+        assertFailsWith<IllegalArgumentException> { calibrationBaseline("jvm", "jvm-default") }
+    }
+
     private fun timing(n: Int, ratio: Double) = PairedTiming("dot+$n+uniform", "A", "onemkl",
         RoutingShape(EngineImplementation.Dot, n, 1, 1, false, 1, true), ratio)
 }

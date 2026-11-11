@@ -32,7 +32,7 @@ internal object KoblasLabSuite : BenchSuite {
     private val vendors = Vendor.entries.associateBy { it.vendorName.lowercase() }
     private val parameters = setOf("vendor", "arch", "platform", "operation", "cases", "samples", "warmups",
         "target-ms", "forks", "rounds", "targets", "profile-gc", "jvm-options", "smoke", "status-sweep", "sweep-profile")
-    private val owned = setOf("jvm-scalar", "jvm-simd", "jvm-default", "native", "native-default")
+    private val owned = setOf("jvm-scalar", "jvm-simd", "jvm-default", "jvm-default-no-simd", "native", "native-default")
 
     override fun describe() = BenchDescriptor("koblas-bench", "Prepared paired JVM and Native workloads")
 

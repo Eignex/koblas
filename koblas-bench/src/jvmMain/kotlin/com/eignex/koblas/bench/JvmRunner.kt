@@ -26,7 +26,7 @@ public object JvmBenchmarkBridge {
     public fun create(mode: String, caseId: String, casesPath: String): JvmCaseWork {
         val case = Cases.parse(readTextFile(casesPath)).single { it.id == caseId }
         val vendorMode = vendorForRuntime(mode, JVM_VENDOR_PREFIX) != null
-        require(mode in setOf("jvm-simd", "jvm-default", "jvm-scalar") || vendorMode) {
+        require(mode in setOf("jvm-simd", "jvm-default", "jvm-default-no-simd", "jvm-scalar") || vendorMode) {
             "JMH supports only JVM benchmark modes"
         }
         val arm = benchmarkArm(case, benchmarkEngine(mode).first, vendorMode)
@@ -39,7 +39,7 @@ public fun main(args: Array<String>) {
     val settings = parseArguments(args)
     val vendorMode = vendorForRuntime(settings.mode, JVM_VENDOR_PREFIX) != null
     require(
-        settings.mode in setOf("jvm-simd", "jvm-default", "jvm-scalar") || vendorMode,
+        settings.mode in setOf("jvm-simd", "jvm-default", "jvm-default-no-simd", "jvm-scalar") || vendorMode,
     ) { "JMH supports only JVM benchmark modes" }
     val allCases = Cases.parse(readTextFile(settings.casesPath))
     val selected = Cases.select(allCases, settings.suite, settings.operation)

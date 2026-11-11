@@ -41,7 +41,7 @@ internal fun readCalibration(
     arm: String? = null, cpuClass: String? = null, sveBits: String? = null, engineName: String? = null,
 ): CalibrationCapture {
     require(directories.isNotEmpty() && directories.map { it.toRealPath() }.distinct().size == directories.size)
-    val targets = (if (baseline == "jvm-owned") listOf("jvm-scalar", "jvm-simd") else listOf(baseline)) + candidate
+    val targets = calibrationTargets(baseline) + candidate
     val hashes = linkedMapOf<String, String>()
     val provenance = mutableListOf<Any>()
     val timings = mutableListOf<PairedTiming>()

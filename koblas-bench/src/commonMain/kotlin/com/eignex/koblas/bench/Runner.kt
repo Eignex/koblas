@@ -143,7 +143,7 @@ internal fun parseArguments(args: Array<String>): Settings {
     require(values.keys.all { it in allowed }) { "unknown argument: ${values.keys.first { it !in allowed }}" }
     val mode = values["mode"] ?: error("--mode is required")
     require(
-        mode in setOf("jvm-simd", "jvm-default", "jvm-scalar", "native", "native-default") ||
+        mode in setOf("jvm-simd", "jvm-default", "jvm-default-no-simd", "jvm-scalar", "native", "native-default") ||
             vendorFromMode(mode) != null,
     ) {
         "mode must be jvm-simd, jvm-default, jvm-scalar, native, native-default, or a " +

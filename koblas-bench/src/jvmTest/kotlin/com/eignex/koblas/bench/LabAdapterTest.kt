@@ -71,7 +71,7 @@ class LabAdapterTest {
     }
 
     @Test fun `owned captures need no vendor and windows keeps compatible library architectures`() {
-        val owned = KoblasLabSuite.plan(BenchRequest(mapOf("targets" to "jvm-scalar,jvm-simd")))
+        val owned = KoblasLabSuite.plan(BenchRequest(mapOf("targets" to "jvm-scalar,jvm-simd,jvm-default-no-simd")))
         assertTrue(owned.all { it.inputs.none { input -> input.role in setOf("vendor", "executable") } })
         for ((vendor, arch) in mapOf("onemkl" to "x86_64", "aocl" to "x86_64", "armpl" to "arm64")) {
             val cases = KoblasLabSuite.plan(BenchRequest(mapOf("vendor" to vendor, "arch" to arch,

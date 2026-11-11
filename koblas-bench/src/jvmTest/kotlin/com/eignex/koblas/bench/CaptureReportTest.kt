@@ -168,7 +168,7 @@ class CaptureReportTest {
             check(java.toFile().setExecutable(true))
             val output = root.resolve("report")
             val process = ProcessBuilder(captureShell(), File("capture-report.sh").absolutePath,
-                "--targets", "jvm-simd,jvm-scalar", "--libraries", "openblas", "--prepared",
+                "--targets", "jvm-simd,jvm-scalar,jvm-default-no-simd", "--libraries", "openblas", "--prepared",
                 "--retain-incomplete", "--smoke", "--rounds", "2", "--jvm-gc", "serial",
                 "--jvm-heap", "256m", "--output", output.toString()).redirectErrorStream(true).apply {
                 environment()["KOBLAS_CAPTURE_ROOT"] = repository.toString()
@@ -179,9 +179,9 @@ class CaptureReportTest {
             assertEquals(0, process.waitFor(), log)
             val metadata = Files.readString(output.resolve("metadata.txt"))
             assertTrue(metadata.startsWith("status=complete\n"), metadata)
-            assertTrue(metadata.contains("round_1_targets=jvm-simd,jvm-scalar"), metadata)
-            assertTrue(metadata.contains("round_2_targets=jvm-scalar,jvm-simd"), metadata)
-            for (round in 1..2) for (target in listOf("jvm-scalar", "jvm-simd")) {
+            assertTrue(metadata.contains("round_1_targets=jvm-simd,jvm-scalar,jvm-default-no-simd"), metadata)
+            assertTrue(metadata.contains("round_2_targets=jvm-scalar,jvm-default-no-simd,jvm-simd"), metadata)
+            for (round in 1..2) for (target in listOf("jvm-scalar", "jvm-simd", "jvm-default-no-simd")) {
                 assertTrue(Files.readString(output.resolve("pass-$round/metadata.txt")).contains("profile_cpu_model=runtime fixture"))
                 assertTrue(Files.readString(output.resolve("pass-$round/metadata.txt")).contains("profile_cpu_class=Avx2"))
                 assertTrue(Files.readString(output.resolve("pass-$round/metadata.txt")).contains("profile_sve_vector_bits=*"))

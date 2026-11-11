@@ -12,7 +12,7 @@ public object EngineTuning {
     @JvmStatic
     public fun main(args: Array<String>) {
         val options = linkedMapOf<String, MutableList<String>>()
-        val allowed = setOf("write-cases", "runtime", "backend", "engine-name", "output", "results", "capture", "cases",
+        val allowed = setOf("write-cases", "baseline", "runtime", "backend", "engine-name", "output", "results", "capture", "cases",
             "validate-results", "training", "validation-cases", "lab-arm", "cpu", "cpu-class", "sve-vector-bits", "native-executable")
         var i = 0
         while (i < args.size) {
@@ -27,7 +27,7 @@ public object EngineTuning {
         Files.createDirectories(output)
         val runtime = option("runtime") ?: "native"
         require(runtime in listOf("native", "jvm"))
-        val baseline = if (runtime == "native") "native" else "jvm-owned"
+        var baseline = calibrationBaseline(runtime, option("baseline"))
         fun read(paths: List<String>, candidate: String, backend: String? = null, name: String? = null) = readCalibration(
             paths.map(Path::of), if (backend == "jvm-simd") "jvm-scalar" else baseline, candidate, backend,
             option("lab-arm"), option("cpu-class"), option("sve-vector-bits"), name,
@@ -35,7 +35,11 @@ public object EngineTuning {
         options["validate-results"]?.let { paths ->
             val training = Json.parseToJsonElement(Files.readString(Path.of(requireNotNull(option("training")), "evidence.json"))).jsonObject
             require(training.field("runtime") == runtime)
-            val checked = read(paths, "$runtime-default", name = requireNotNull(option("engine-name")) { "Specify the rebuilt engine name" })
+            val recordedBaseline = calibrationBaseline(runtime, training.field("baseline").takeIf(String::isNotEmpty))
+            require(option("baseline") == null || baseline == recordedBaseline) { "Validation baseline differs from training" }
+            baseline = recordedBaseline
+            val candidate = if (baseline == "jvm-scalar" && training.field("backend") != "jvm-simd") "jvm-default-no-simd" else "$runtime-default"
+            val checked = read(paths, candidate, name = requireNotNull(option("engine-name")) { "Specify the rebuilt engine name" })
             val expected = option("validation-cases")?.let { readCases(Path.of(it)) } ?: CalibrationCases.holdout(runtime == "native")
             val measured = checked.timings.map { canonicalCase(it.case) }.toSet()
             require(expected.isNotEmpty() && expected.all { canonicalCase(it) in measured }) { "Missing holdouts or controls" }
@@ -55,7 +59,7 @@ public object EngineTuning {
         val cases = option("cases")?.let(Path::of) ?: output.resolve("training.txt").also {
             Files.writeString(it, CalibrationCases.training(runtime == "native").joinToString("\n", postfix = "\n"))
         }
-        val targets = (if (runtime == "native") listOf("native") else listOf("jvm-scalar", "jvm-simd")) +
+        val targets = (if (source == "jvm-simd") listOf("jvm-scalar") else calibrationTargets(baseline)) +
             listOf(if (source == "jvm-simd" || runtime == "native") source else "$source-jvm")
         val directories = options["results"] ?: mutableListOf(output.resolve("capture").toString())
         require(options.containsKey("capture") != options.containsKey("results")) { "Choose --capture or --results" }
@@ -85,7 +89,7 @@ public object EngineTuning {
         OperatingSystem.valueOf(target[1]); Architecture.valueOf(target[2]); CpuClass.valueOf(target[4])
         val cutoffs = fitCutoffs(capture.timings)
         Files.writeString(output.resolve("cutoffs.tsv"), renderCutoffs(cutoffs))
-        Files.writeString(output.resolve("evidence.json"), json(mapOf("backend" to source, "runtime" to runtime,
+        Files.writeString(output.resolve("evidence.json"), json(mapOf("backend" to source, "runtime" to runtime, "baseline" to (if (source == "jvm-simd") "jvm-scalar" else baseline),
             "target" to target, "cutoffs_sha256" to digest(output.resolve("cutoffs.tsv")), "cases" to captured,
             "hashes" to capture.hashes, "provenance" to capture.provenance,
             "timings" to capture.timings.map(::timingEvidence))).toString())
@@ -130,3 +134,15 @@ internal fun renderCutoffs(cutoffs: List<FittedCutoff>): String = buildString {
     for (cutoff in cutoffs) append(listOf(cutoff.operation, cutoff.rows, cutoff.columns, cutoff.depth, cutoff.work,
         cutoff.contiguous ?: "*", cutoff.borrowed ?: "*").joinToString("\t", postfix = "\n"))
 }
+
+/** The fallback measured by one fit, independent of which optional modules the fitting JVM loaded. */
+internal fun calibrationBaseline(runtime: String, requested: String?): String {
+    val baseline = requested ?: if (runtime == "native") "native" else "jvm-owned"
+    require(if (runtime == "native") baseline == "native" else baseline in setOf("jvm-owned", "jvm-scalar", "jvm-simd")) {
+        "Choose native for Native, or jvm-owned, jvm-scalar or jvm-simd for JVM"
+    }
+    return baseline
+}
+
+internal fun calibrationTargets(baseline: String): List<String> =
+    if (baseline == "jvm-owned") listOf("jvm-scalar", "jvm-simd") else listOf(baseline)
