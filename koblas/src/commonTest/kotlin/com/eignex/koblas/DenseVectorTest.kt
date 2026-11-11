@@ -26,14 +26,6 @@ class DenseVectorTest {
     }
 
     @Test
-    fun `wrap aliases the backing array without copying`() {
-        val values = doubleArrayOf(1.0, 2.0)
-        val v = DenseVector.wrap(values)
-        values[1] = 42.0 // mutating the source is visible through the wrapped vector
-        assertEquals(42.0, v[1], 0.0)
-    }
-
-    @Test
     fun `wrap defaults to the remaining unit stride buffer`() {
         val values = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
 

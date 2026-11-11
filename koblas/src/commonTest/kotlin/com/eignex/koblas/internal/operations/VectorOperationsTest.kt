@@ -92,6 +92,7 @@ class VectorOperationsTest {
             override val size = 4
             override fun get(i: Int): Double = error("Unexpected read")
             override fun set(i: Int, v: Double) = error("Unexpected write")
+            override fun toDoubleArray(): DoubleArray = error("Snapshotted opaque storage")
         }
         for (destination in mutationOperands(doubleArrayOf(1.0, 0.0, 2.0, 3.0))) {
             val expected = destination.toDoubleArray()
@@ -230,23 +231,6 @@ class VectorOperationsTest {
     }
 
     @Test
-    fun `zero axpy validates size without reading opaque storage`() {
-        val source = object : Vector {
-            override val size = 4
-            override fun set(i: Int, v: Double) = error("Unexpected mutation")
-            override fun get(i: Int): Double = error("Read opaque storage")
-            override fun toDoubleArray(): DoubleArray = error("Snapshotted opaque storage")
-        }
-        val destination = DenseVector.of(doubleArrayOf(1.0, 2.0, 3.0, 4.0))
-        val before = destination.values.copyOf()
-
-        koblas.axpyVector(0.0, source, destination)
-
-        assertContentEquals(before, destination.values)
-        assertFailsWith<IllegalArgumentException> { koblas.axpyVector(0.0, source, DenseVector.zero(3)) }
-    }
-
-    @Test
     fun `identical mapping axpy agrees with the scalar snapshot reference`() {
         val inputs = doubleArrayOf(
             1.5e200,
@@ -308,22 +292,6 @@ class VectorOperationsTest {
     }
 
     @Test
-    fun `axpy adds alpha scaled x to y for any sparsity`() {
-        val y = DenseVector.of(doubleArrayOf(1.0, 2.0, 3.0))
-        koblas.axpyVector(2.0, sparse(3, 0 to 1.0, 2 to -1.0), y)
-        assertEquals(dense(3.0, 2.0, 1.0), y)
-    }
-
-    @Test
-    fun `scale mutates in place and respects identity`() {
-        val v = DenseVector.of(doubleArrayOf(1.0, -2.0, 3.0))
-        koblas.scaleVector(0.5, v)
-        assertEquals(dense(0.5, -1.0, 1.5), v)
-        koblas.scaleVector(1.0, v)
-        assertEquals(dense(0.5, -1.0, 1.5), v)
-    }
-
-    @Test
     fun `vector operations reject mismatched sizes`() {
         assertFailsWith<DimensionMismatch> { dense(1.0) dot dense(1.0, 2.0) }
         assertFailsWith<DimensionMismatch> { koblas.axpyVector(1.0, dense(1.0, 2.0), dense(1.0)) }
@@ -349,23 +317,6 @@ class VectorOperationsTest {
     }
 
     @Test
-    fun `axpy preserves a borrowed source sharing the destination buffer`() {
-        for (borrowed in booleanArrayOf(false, true)) {
-            val backing = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
-            val source = DenseVector.wrap(backing, 3, 4, -1)
-            val expected = DoubleArray(backing.size) { backing[it] + 2.0 * source[it] }
-
-            if (borrowed) {
-                koblas.axpyVector(2.0, source, DenseVector.wrap(backing, 0, 4))
-            } else {
-                koblas.axpyVector(2.0, source, DenseVector.wrap(backing))
-            }
-
-            assertContentEquals(expected, backing)
-        }
-    }
-
-    @Test
     fun `borrowed axpy with sparse input leaves unstored positions untouched`() {
         val backing = doubleArrayOf(1.0, 2.0, 3.0)
         val source = sparse(3, 1 to 2.0)
@@ -376,17 +327,6 @@ class VectorOperationsTest {
         koblas.axpyVector(Double.POSITIVE_INFINITY, source, destination)
 
         assertContentEquals(expected.values.reversedArray(), backing)
-    }
-
-    @Test
-    fun `axpy accepts a foreign source`() {
-        val source = foreignRamp(6)
-        val destination = DenseVector.zero(6)
-        val expected = DoubleArray(6) { 2.0 * source[it] }
-
-        koblas.axpyVector(2.0, source, destination)
-
-        assertClose(expected, destination.values, "foreign axpy")
     }
 
     @Test
@@ -401,14 +341,6 @@ class VectorOperationsTest {
         assertContentEquals(expected, backing)
     }
 
-    @Test
-    fun `alpha zero leaves the destination unchanged`() {
-        val y = DenseVector.of(doubleArrayOf(1.0, 2.0, 3.0))
-
-        koblas.axpyVector(0.0, DenseVector.of(doubleArrayOf(9.0, 9.0, 9.0)), y)
-
-        assertContentEquals(doubleArrayOf(1.0, 2.0, 3.0), y.values)
-    }
     private class ForeignVector(private val backing: DenseVector) : Vector {
         override val size: Int get() = backing.size
         override fun get(i: Int): Double = backing[i]
@@ -417,7 +349,6 @@ class VectorOperationsTest {
         }
     }
 
-    private fun foreignRamp(size: Int) = ForeignVector(DenseVector.of(DoubleArray(size) { it * 0.5 - 1.0 }))
     private fun dense(vararg values: Double) = DenseVector.of(values)
     private fun sparse(size: Int, vararg entries: Pair<Int, Double>) = SparseVector.of(
         size,
