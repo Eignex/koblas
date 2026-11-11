@@ -134,7 +134,7 @@ internal object KoblasLabSuite : BenchSuite {
             put("vm", System.getProperty("java.vm.name"))
             put("os", System.getProperty("os.name"))
             put("arch", System.getProperty("os.arch"))
-            put("cpu", hostPlatform().cpuModel ?: "unknown")
+            put("cpu", cpuModel() ?: "unknown")
             put("gc", "serial"); put("heap", "512m")
             put("targets", case.parameters.getValue("targets"))
         }

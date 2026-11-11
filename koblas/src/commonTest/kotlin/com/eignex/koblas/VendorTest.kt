@@ -4,7 +4,6 @@ import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.engine.cpuClass
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -87,19 +86,5 @@ class VendorTest {
         assertEquals(CpuClass.Sve, cpuClass(Architecture.Arm64, "fp asimd sve"))
         assertNull(cpuClass(Architecture.Arm64, null))
         assertNull(cpuClass(Architecture.X86_64, null))
-    }
-
-    @Test
-    fun `a host rejects an SVE width the architecture cannot have`() {
-        for (invalid in listOf(0, 64, 129, 4096)) {
-            assertFailsWith<IllegalArgumentException> {
-                HostPlatform(
-                    OperatingSystem.Linux,
-                    Architecture.Arm64,
-                    cpuClass = CpuClass.Sve,
-                    sveVectorBits = invalid,
-                )
-            }
-        }
     }
 }

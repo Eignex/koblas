@@ -436,7 +436,6 @@ public final class com/eignex/koblas/ThreadEvidence : java/lang/Enum {
 	public static final field Confirmed Lcom/eignex/koblas/ThreadEvidence;
 	public static final field Unconfirmed Lcom/eignex/koblas/ThreadEvidence;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public final fun getLabel ()Ljava/lang/String;
 	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/ThreadEvidence;
 	public static fun values ()[Lcom/eignex/koblas/ThreadEvidence;
 }

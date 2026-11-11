@@ -11,7 +11,7 @@ import platform.posix.fgets
 import platform.posix.fopen
 
 /** Resolved once; none of these facts change while the process runs. */
-private val host: HostPlatform by lazy { detectHost(operatingSystem(), architecture(), ::cpuInfo, ::sveVectorBits) }
+private val host: HostPlatform by lazy { detectHost(operatingSystem(), architecture(), ::cpuInfo) }
 
 /** The platform this process is running on, which a Native target largely knows at compile time. */
 internal actual fun hostPlatform(): HostPlatform = host

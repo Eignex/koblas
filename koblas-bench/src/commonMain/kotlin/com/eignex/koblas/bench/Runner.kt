@@ -255,6 +255,9 @@ private fun csv(value: String): String = if (value.any { it == ',' || it == '"' 
 internal const val CSV_HEADER = "case,status,comparison_kind,timing_mode,actual_kernel,provider,routing_key,samples,forks,median_ns,min_ns,max_ns"
 private const val MAX_OPERATIONS = 1_000_000
 
+private val ThreadEvidence.label: String
+    get() = if (this == ThreadEvidence.Confirmed) "1-thread-confirmed" else "1-thread-unconfirmed"
+
 /** The same engine and host evidence on either runtime. */
 internal fun engineIdentity(mode: String, engine: KoblasEngine): String {
     val host = engine.providers.filter { it.vendor != null }.joinToString("") {
@@ -273,7 +276,7 @@ internal fun printIdentity(implementation: String, harness: String, runtime: Eng
     println("profile_runtime=${runtime.name.lowercase()}")
     println("profile_os=${platform.operatingSystem}")
     println("profile_arch=${platform.architecture}")
-    println("profile_cpu_model=${platform.cpuModel ?: "*"}")
+    println("profile_cpu_model=${cpuModel() ?: "*"}")
     println("profile_cpu_class=${platform.cpuClass ?: "*"}")
-    println("profile_sve_vector_bits=${platform.sveVectorBits ?: "*"}")
+    println("profile_sve_vector_bits=${sveVectorBits() ?: "*"}")
 }
