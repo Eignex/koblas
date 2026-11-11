@@ -4,6 +4,7 @@ package com.eignex.koblas.internal.kernels.scalar.sparse
 
 import com.eignex.koblas.SparseVector
 import com.eignex.koblas.Vector
+import com.eignex.koblas.internal.storage.sparse.SparseEntries
 
 internal fun indexedDotDense(
     indices: IntArray,
@@ -117,8 +118,7 @@ internal fun indexedGatherZero(
 
 /** Merge sparse supports without scanning the logical domain or evaluating absent products. */
 internal fun scalarSparseVectorAxpy(alpha: Double, x: Vector, y: SparseVector): SparseVector {
-    val indices = mutableListOf<Int>()
-    val values = mutableListOf<Double>()
+    val entries = SparseEntries()
     var b = 0
     if (x is SparseVector) {
         var a = 0
@@ -128,8 +128,7 @@ internal fun scalarSparseVectorAxpy(alpha: Double, x: Vector, y: SparseVector): 
             val index = minOf(ia, ib)
             val previous = if (ib == index) y.values[y.offset + b++] else 0.0
             val value = if (ia == index) previous + alpha * x.values[x.offset + a++] else previous
-            indices += index
-            values += value
+            entries.add(index, value)
         }
     } else {
         for (i in 0 until x.size) {
@@ -137,10 +136,9 @@ internal fun scalarSparseVectorAxpy(alpha: Double, x: Vector, y: SparseVector): 
             val previous = if (stored) y.values[y.offset + b++] else 0.0
             val value = previous + alpha * x[i]
             if (stored || value.toBits() != 0L) {
-                indices += i
-                values += value
+                entries.add(i, value)
             }
         }
     }
-    return SparseVector.wrap(y.size, indices.toIntArray(), values.toDoubleArray())
+    return entries.toVector(y.size)
 }

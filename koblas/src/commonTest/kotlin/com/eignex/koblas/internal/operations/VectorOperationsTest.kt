@@ -73,6 +73,28 @@ class VectorOperationsTest {
     }
 
     @Test
+    fun `sparse axpy preserves entries across buffer growth boundaries`() {
+        for (count in intArrayOf(0, 15, 16, 17, 31, 32, 33, 511)) {
+            for (sparseSource in booleanArrayOf(false, true)) {
+                val values = DoubleArray(count) { if (it % 7 == 0) 0.0 else it * 0.125 }
+                val source: Vector = if (sparseSource) {
+                    SparseVector.wrap(count, IntArray(count) { it }, values)
+                } else {
+                    DenseVector.wrap(values)
+                }
+                val destination = SparseVector.wrap(count, IntArray(count) { it }, DoubleArray(count) { -1.0 })
+                val expected = destination.values.copyOf()
+                KoblasEngine.scalar.kernels.axpy(expected, 0, 0.5, values, 0, count)
+
+                koblas.axpyVector(0.5, source, destination)
+
+                assertContentEquals(IntArray(count) { it }, destination.copyIndices())
+                assertAxpyAgreesWithReference(expected, destination.values)
+            }
+        }
+    }
+
+    @Test
     fun `sparse axpy snapshots a custom source borrowing destination values`() {
         val backing = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
         val source: Vector = ForeignVector(DenseVector.wrap(backing, 3, 4, -1))

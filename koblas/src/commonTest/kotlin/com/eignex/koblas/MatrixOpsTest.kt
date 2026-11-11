@@ -192,6 +192,33 @@ class MatrixOpsTest {
     }
 
     @Test
+    fun `copy from disjoint or identical matrix views preserves the backing buffer`() {
+        for ((row, column) in listOf(3 to 0, 0 to 2, 0 to 0)) {
+            val parent = paddedRegion(6, 4)
+            val source = parent.view(0, 0, 3, 2)
+            val destination = parent.view(row, column, 3, 2)
+            val expected = contiguousCopy(source)
+            val before = parent.values.copyOf()
+
+            destination.copyFrom(source)
+
+            assertRegionAgreesWithReference(expected, destination, before)
+        }
+    }
+
+    @Test
+    fun `copy from a sparse matrix snapshots coefficients shared with dense storage`() {
+        val backing = doubleArrayOf(2.0, -0.0, 3.0, -4.0)
+        val source = SparseMatrix.wrap(2, 2, intArrayOf(0, 2, 4), intArrayOf(0, 1, 0, 1), backing)
+        val expected = backing.copyOf()
+        val destination = DenseMatrix.wrap(2, 2, backing)
+
+        destination.copyFrom(source)
+
+        assertContentEquals(expected, backing)
+    }
+
+    @Test
     fun `copy from validates the whole shape before writing`() {
         for (destination in reductionMatrices()) {
             val before = destination.toArray()

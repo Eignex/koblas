@@ -169,7 +169,11 @@ public class SparseVector internal constructor(
                     n++
                 }
             }
-            return SparseVector(size, idx.copyOf(n), vals.copyOf(n))
+            return SparseVector(
+                size,
+                if (n == idx.size) idx else idx.copyOf(n),
+                if (n == vals.size) vals else vals.copyOf(n),
+            )
         }
 
         /**
