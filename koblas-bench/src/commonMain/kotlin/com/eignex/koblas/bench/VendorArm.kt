@@ -41,6 +41,16 @@ internal fun vendorFromMode(mode: String): Vendor? {
 internal fun vendorForRuntime(mode: String, prefix: String): Vendor? =
     if (mode.startsWith(prefix)) vendorFromMode(mode) else null
 
+/** A vendor-isolated automatic policy, with SIMD withheld by the launching process. */
+internal fun automaticVendorFromMode(mode: String): Vendor? {
+    if (!mode.startsWith("jvm-auto-")) return null
+    require(mode.endsWith("-no-simd")) { "Automatic vendor modes must name the SIMD state" }
+    val name = mode.removePrefix("jvm-auto-").removeSuffix("-no-simd")
+    return requireNotNull(Vendor.entries.singleOrNull { it.vendorName.lowercase() == name }) {
+        "Unknown vendor in automatic mode $mode"
+    }
+}
+
 /**
  * Opens the vendor a mode names, failing loudly rather than quietly measuring something else.
  *

@@ -134,6 +134,8 @@ fi
 for vendor in "${vendors[@]}"; do
   if $native_capable; then available_targets+=("$vendor"); fi
   available_targets+=("$vendor-jvm")
+  policy_target="jvm-auto-$vendor-no-simd"
+  [[ ,$selected_targets, != *,$policy_target,* ]] || available_targets+=("$policy_target")
 done
 targets=("${available_targets[@]}")
 if [[ -n $selected_targets ]]; then
@@ -408,6 +410,10 @@ for target in "${targets[@]}"; do
         jvm-default-no-simd) task=jvmDefaultNoSimdBenchmark ;;
       esac
       run_jvm "$target" "$target" "$task"
+      ;;
+    jvm-auto-*-no-simd)
+      vendor=${target#jvm-auto-}; vendor=${vendor%-no-simd}
+      run_jvm "$target" "$target" jvmAutoVendorNoSimdBenchmark "-Pbench.vendor=$vendor"
       ;;
     native) run_native native native nativeBenchmark ;;
     native-default) run_native native-default native-default nativeDefaultBenchmark ;;

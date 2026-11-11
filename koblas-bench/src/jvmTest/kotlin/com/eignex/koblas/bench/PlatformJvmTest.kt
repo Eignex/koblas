@@ -45,6 +45,7 @@ class PlatformJvmTest {
     fun `default without SIMD requires the module to be absent`() {
         if (KoblasEngine.simd != null) {
             assertFailsWith<IllegalStateException> { resolveEngine("jvm-default-no-simd") }
+            assertFailsWith<IllegalStateException> { resolveEngine("jvm-auto-openblas-no-simd") }
         } else {
             val (engine, identity) = resolveEngine("jvm-default-no-simd")
             assertTrue(engine === koblas)

@@ -37,6 +37,17 @@ class LabAdapterTest {
         }
     }
 
+    @Test fun `isolated policies require the requested vendor and no native executable`() {
+        val parameters = mapOf("vendor" to "openblas", "targets" to "jvm-scalar,jvm-auto-openblas-no-simd")
+        val cases = KoblasLabSuite.plan(BenchRequest(parameters))
+
+        assertTrue(cases.all { case -> case.inputs.none { it.role == "executable" } })
+        for (invalid in listOf(parameters - "vendor", parameters + ("vendor" to "onemkl"),
+            mapOf("targets" to "unknown"))) {
+            assertFailsWith<IllegalArgumentException> { KoblasLabSuite.plan(BenchRequest(invalid)) }
+        }
+    }
+
     @Test fun `vendor placement rejects incompatible hosts`() {
         for (parameters in listOf(mapOf("vendor" to "onemkl", "arch" to "arm64"),
             mapOf("vendor" to "openblas", "platform" to "mac"))) {

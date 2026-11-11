@@ -3,6 +3,7 @@ package com.eignex.koblas.bench
 import com.eignex.koblas.*
 import kotlin.math.abs
 import kotlin.test.Test
+import kotlin.test.assertFailsWith
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -61,6 +62,16 @@ class VendorArmTest {
         "trsm+32x16+triangular+side=L+uplo=L+transA=N+diag=N",
         "trmm+32x16+triangular+side=R+uplo=U+transA=T+diag=N",
     )
+
+    @Test
+    fun `automatic vendor modes isolate one named vendor`() {
+        for (vendor in Vendor.entries) {
+            assertEquals(vendor, automaticVendorFromMode("jvm-auto-${vendor.vendorName.lowercase()}-no-simd"))
+        }
+        assertNull(automaticVendorFromMode("jvm-default-no-simd"))
+        assertFailsWith<IllegalArgumentException> { automaticVendorFromMode("jvm-auto-openblas") }
+        assertFailsWith<IllegalArgumentException> { automaticVendorFromMode("jvm-auto-unknown-no-simd") }
+    }
 
     @Test
     fun `every dense vendor case agrees with the scalar arm on the same fixtures`() {

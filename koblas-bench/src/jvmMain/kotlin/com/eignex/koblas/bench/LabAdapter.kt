@@ -51,6 +51,7 @@ internal object KoblasLabSuite : BenchSuite {
         val selected = targets.split(',')
         require(selected.distinct().size == selected.size && selected.all {
             it in owned || it.removeSuffix("-jvm") == p["vendor"] ||
+                automaticVendorFromMode(it)?.let { vendor -> vendor.vendorName.lowercase() == p["vendor"] } == true ||
                 (vendor == Vendor.OneMkl && it.removeSuffix("-jvm") == "openblas")
         }) { "Invalid capture targets" }
         val sweep = p["status-sweep"] == "true"

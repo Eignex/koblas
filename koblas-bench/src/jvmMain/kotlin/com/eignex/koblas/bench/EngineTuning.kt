@@ -12,7 +12,7 @@ public object EngineTuning {
     @JvmStatic
     public fun main(args: Array<String>) {
         val options = linkedMapOf<String, MutableList<String>>()
-        val allowed = setOf("write-cases", "baseline", "runtime", "backend", "engine-name", "output", "results", "capture", "cases",
+        val allowed = setOf("write-cases", "baseline", "runtime", "backend", "engine-name", "engine-target", "output", "results", "capture", "cases",
             "validate-results", "training", "validation-cases", "lab-arm", "cpu", "cpu-class", "sve-vector-bits", "native-executable")
         var i = 0
         while (i < args.size) {
@@ -38,7 +38,12 @@ public object EngineTuning {
             val recordedBaseline = calibrationBaseline(runtime, training.field("baseline").takeIf(String::isNotEmpty))
             require(option("baseline") == null || baseline == recordedBaseline) { "Validation baseline differs from training" }
             baseline = recordedBaseline
-            val candidate = if (baseline == "jvm-scalar" && training.field("backend") != "jvm-simd") "jvm-default-no-simd" else "$runtime-default"
+            val inferred = if (baseline == "jvm-scalar" && training.field("backend") != "jvm-simd") "jvm-default-no-simd" else "$runtime-default"
+            val candidate = option("engine-target") ?: inferred
+            require(candidate == inferred || runtime == "jvm" && baseline == "jvm-scalar" &&
+                automaticVendorFromMode(candidate)?.vendorName?.lowercase() == training.field("backend")) {
+                "Validation target must match the measured vendor and fallback"
+            }
             val checked = read(paths, candidate, name = requireNotNull(option("engine-name")) { "Specify the rebuilt engine name" })
             val expected = option("validation-cases")?.let { readCases(Path.of(it)) } ?: CalibrationCases.holdout(runtime == "native")
             val measured = checked.timings.map { canonicalCase(it.case) }.toSet()
@@ -47,7 +52,7 @@ public object EngineTuning {
             val reached = checked.timings.map { it.provider }.toSet()
             require(training.field("backend") in reached) { "The fitted provider was not exercised" }
             val regressions = checked.timings.groupBy { it.case to it.cpu }.filterValues { median(it.map { t -> t.ratio }) > 1.05 }
-            Files.writeString(output.resolve("validation.json"), json(mapOf("engine_name" to option("engine-name"), "baseline" to baseline,
+            Files.writeString(output.resolve("validation.json"), json(mapOf("engine_name" to option("engine-name"), "engine_target" to candidate, "baseline" to baseline,
                 "timings" to checked.timings.map(::timingEvidence), "hashes" to checked.hashes, "provenance" to checked.provenance,
                 "regressions" to regressions.mapKeys { it.key.toString() }.mapValues { it.value.map(::timingEvidence) })).toString())
             require(regressions.isEmpty()) { "Selected engine or control regression; inspect validation.json" }
