@@ -98,6 +98,63 @@ class EngineTuningTest {
         assertFalse(tuning.hostEligible(Gemm, 8, 8, 0, false))
     }
 
+    @Test
+    fun `jvm scalar reductions use the host only inside the measured window`() {
+        for (cpu in listOf(CpuClass.Avx2, CpuClass.Avx512)) {
+            val platform = HostPlatform(OperatingSystem.Linux, Architecture.X86_64, cpuClass = cpu)
+            val host = provider(Vendor.OpenBlas, setOf(Asum, Iamax))
+            val engine = standardEngine(EngineRuntime.Jvm, host = platform, owned = null) { requested ->
+                host.takeIf { requested == Vendor.OpenBlas }
+            } as BuiltinEngine
+
+            for (operation in listOf(Asum, Iamax)) {
+                for (length in listOf(4095, 4096, 65536, 65537)) {
+                    val expected = if (length in 4096..65536) host else KoblasEngine.scalar
+
+                    assertSame(expected, engine.vectorProvider(operation, length, true))
+                    assertSame(KoblasEngine.scalar, engine.vectorProvider(operation, length, false))
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `jvm SIMD reductions keep their owned provider`() {
+        val platform = HostPlatform(OperatingSystem.Linux, Architecture.X86_64)
+        val host = provider(Vendor.OpenBlas, setOf(Asum, Iamax))
+        val vectors = provider(Vendor.OpenBlas, setOf(Asum, Iamax))
+        val owned = BuiltinEngine("owned", KernelSet(vectors = vectors))
+        val engine = standardEngine(EngineRuntime.Jvm, host = platform, owned = owned) { host } as BuiltinEngine
+
+        for (operation in listOf(Asum, Iamax)) {
+            assertSame(vectors, engine.vectorProvider(operation, 16384, true))
+        }
+    }
+
+    @Test
+    fun `jvm scalar matrix vector calls retain the portable schedule`() {
+        val platform = HostPlatform(OperatingSystem.Linux, Architecture.X86_64)
+        val operations = setOf(Gemv, GemvTransposed, Symv, Ger, Syr, Syr2, Trmv, TrmvTransposed, Trsv, TrsvTransposed)
+        val host = provider(Vendor.OpenBlas, operations)
+        val engine = standardEngine(EngineRuntime.Jvm, host = platform, owned = null) { host }
+
+        for (operation in operations) {
+            assertNull(engine.wholeCallFor(operation, 1024, 1024))
+        }
+    }
+
+    @Test
+    fun `explicit host selection does not apply automatic length bounds`() {
+        val host = provider(Vendor.OpenBlas, setOf(Asum, Iamax))
+        val engine = BuiltinEngine("explicit", host = host)
+
+        for (operation in listOf(Asum, Iamax)) {
+            for (length in listOf(1, 1048576)) {
+                assertSame(host, engine.vectorProvider(operation, length, true))
+            }
+        }
+    }
+
     private fun provider(vendor: Vendor, operations: Set<EngineImplementation>): KernelProvider =
         object : KernelProvider {
             override val name = vendor.vendorName

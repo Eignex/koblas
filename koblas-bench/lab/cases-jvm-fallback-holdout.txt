@@ -1,0 +1,18 @@
+# Disjoint default-engine checks around the coarse reduction bounds and matrix-vector controls.
+asum+2048+uniform
+asum+8192+uniform
+asum+32768+uniform
+asum+65535+uniform
+asum+65537+uniform
+asum+1048577+uniform
+asum+8192+uniform+stride=2
+iamax+2048+uniform
+iamax+8192+uniform
+iamax+32768+uniform
+iamax+65535+uniform
+iamax+65537+uniform
+iamax+1048577+uniform
+iamax+8192+uniform+stride=2
+gemv+257x131+uniform
+gemv+257x131+uniform+transA=T
+symv+129+uniform+uplo=U

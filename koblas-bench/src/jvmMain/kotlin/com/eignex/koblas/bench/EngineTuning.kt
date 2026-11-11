@@ -106,7 +106,8 @@ private fun timingEvidence(t: PairedTiming): Map<String, Any?> = mapOf("case" to
 
 /** A measurement report, never loaded by the engine. */
 internal data class FittedCutoff(val operation: EngineImplementation, val rows: Int, val columns: Int = 0,
-    val depth: Int = 0, val work: Long = 0, val contiguous: Boolean? = null, val borrowed: Boolean? = null)
+    val depth: Int = 0, val work: Long = 0, val contiguous: Boolean? = null, val borrowed: Boolean? = null,
+    val maximumRows: Int? = null)
 
 internal fun fitCutoffs(timings: List<PairedTiming>): List<FittedCutoff> = buildList {
     val shapes = timings.filter { it.shape != null }.groupBy { it.shape!! }
@@ -117,8 +118,24 @@ internal fun fitCutoffs(timings: List<PairedTiming>): List<FittedCutoff> = build
         val first = keys.first()
         if (first.dimensions == 1) {
             val ordered = keys.sortedBy { it.rows }
-            val minimum = ordered.indices.firstOrNull { i -> ordered.drop(i).all(::wins) } ?: continue
-            add(FittedCutoff(first.operation, rows = ordered[minimum].rows, contiguous = first.contiguous))
+            val minimum = ordered.indices.firstOrNull { i -> ordered.drop(i).all(::wins) }
+            if (minimum != null) {
+                add(FittedCutoff(first.operation, rows = ordered[minimum].rows, contiguous = first.contiguous))
+            } else {
+                // Transfer costs can win in cache and lose again once both arrays stream from memory.
+                val runs = mutableListOf<MutableList<RoutingShape>>()
+                for (shape in ordered) {
+                    if (!wins(shape)) {
+                        if (runs.lastOrNull()?.isNotEmpty() == true) runs.add(mutableListOf())
+                    } else {
+                        if (runs.isEmpty()) runs.add(mutableListOf())
+                        runs.last().add(shape)
+                    }
+                }
+                val region = runs.filter { it.size >= 2 }.maxByOrNull { it.size } ?: continue
+                add(FittedCutoff(first.operation, rows = region.first().rows, contiguous = first.contiguous,
+                    maximumRows = region.last().rows))
+            }
         } else {
             // A single broad work/extent region replaces exact shape islands.
             val regions = keys.filter(::wins).mapNotNull { start ->
@@ -133,9 +150,9 @@ internal fun fitCutoffs(timings: List<PairedTiming>): List<FittedCutoff> = build
 }
 
 internal fun renderCutoffs(cutoffs: List<FittedCutoff>): String = buildString {
-    append("operation\trows\tcolumns\tdepth\twork\tcontiguous\tborrowed\n")
+    append("operation\trows\tcolumns\tdepth\twork\tcontiguous\tborrowed\tmaximum_rows\n")
     for (cutoff in cutoffs) append(listOf(cutoff.operation, cutoff.rows, cutoff.columns, cutoff.depth, cutoff.work,
-        cutoff.contiguous ?: "*", cutoff.borrowed ?: "*").joinToString("\t", postfix = "\n"))
+        cutoff.contiguous ?: "*", cutoff.borrowed ?: "*", cutoff.maximumRows ?: "*").joinToString("\t", postfix = "\n"))
 }
 
 /** The fallback measured by one fit, independent of which optional modules the fitting JVM loaded. */

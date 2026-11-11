@@ -8,12 +8,14 @@ import com.eignex.koblas.Vendor
  * Fixed crossovers for one selected library and the owned JVM kernels.
  *
  * Retained measurements: lab.eignex.com/jobs/10584, 10566, 10607, 10583, 10565, 10628 and 10630.
+ * JVM scalar reduction windows use lab.eignex.com/jobs/11832 and 11835.
  * AOCL, ArmPL and unmeasured platforms use the compatible library or instruction-class estimates.
  */
 internal class EngineTuning(
     private val runtime: EngineRuntime,
     private val platform: HostPlatform,
     private val vendor: Vendor?,
+    private val ownedSimd: Boolean = true,
 ) {
     private val x86 = platform.architecture == Architecture.X86_64
     private val wide = platform.cpuClass == CpuClass.Avx512
@@ -29,8 +31,12 @@ internal class EngineTuning(
         else -> 0
     }
 
+    private val scalarJvmReductions = runtime == EngineRuntime.Jvm && !ownedSimd && x86 && vendor == Vendor.OpenBlas
+
     fun hostMinimum(operation: EngineImplementation, contiguous: Boolean): Int {
-        if (runtime == EngineRuntime.Jvm) return -1
+        if (runtime == EngineRuntime.Jvm) {
+            return if (scalarJvmReductions && contiguous && operation in listOf(Asum, Iamax)) 4096 else -1
+        }
         if (vendor == Vendor.Accelerate) {
             return if (!contiguous) {
                 -1
@@ -61,6 +67,10 @@ internal class EngineTuning(
             else -> -1
         }
     }
+
+    /** Array transfers lose again once these reductions stream beyond cache. */
+    fun hostMaximum(operation: EngineImplementation): Int =
+        if (scalarJvmReductions && operation in listOf(Asum, Iamax)) 65536 else Int.MAX_VALUE
 
     fun hostEligible(
         operation: EngineImplementation,

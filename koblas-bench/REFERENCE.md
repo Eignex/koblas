@@ -99,13 +99,17 @@ arguments to refit fetched captures. Each fit measures one backend; automatic se
 
 JVM vendor fits default to `--baseline jvm-owned`, comparing against the faster of scalar and SIMD.
 Use `--baseline jvm-scalar` to tune calls without SIMD, or `--baseline jvm-simd` for that exact fallback.
-The evidence records the baseline and holdout validation reuses it. Scalar-baseline validation measures
+The evidence records the baseline and holdout validation reuses it. A vector report can include
+`maximum_rows` when consecutive cache-sized wins lose again at streaming sizes; a single isolated
+winning size does not establish such a region. Scalar-baseline validation measures
 `jvm-default-no-simd`, an opt-in target that launches the ordinary default without the Vector API module.
 It still enables native access and can load installed vendors. `jvm-default` continues to enable SIMD.
 
 The coarse [JVM fallback grid](lab/cases-jvm-fallback-tuning.txt) covers vector and matrix–vector calls.
 Use [its manifest](lab/jvm-fallback-tuning.json) for JVM-only lab preparation; it does not build Native
-executables. Keep scalar, SIMD and the vendor together in every row so either baseline can be fitted
+executables. OpenBLAS and Accelerate need only the ordinary `bench.json` preparation; the JVM vendor
+manifest also downloads the pinned oneMKL package and needs `curl`, `sha256sum` and `dpkg-deb`.
+Keep scalar, SIMD and the vendor together in every row so either baseline can be fitted
 from the same accepted attempt.
 
 Validate the rebuilt engine by its reported name:

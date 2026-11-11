@@ -45,7 +45,7 @@ internal fun standardEngine(
         "auto-${selected?.id ?: "owned"}",
         owned?.roles ?: KernelSet(),
         selected,
-        EngineTuning(runtime, host, selected?.vendor),
+        EngineTuning(runtime, host, selected?.vendor, ownedSimd = owned != null),
     )
 }
 
