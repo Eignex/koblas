@@ -79,3 +79,6 @@ binds the selected vendor once. Runtime dispatch and attribution share provider 
 Tuning cutoffs live in `internal/engine/EngineTuning.kt` as direct predicates; unmeasured targets borrow
 compatible estimates. The benchmark fitter reports cutoffs for one backend and retains target provenance
 for review before those predicates are updated.
+
+`koblas-bench` owns CPU model and active SVE-width probes and formats thread evidence for reports.
+The library detects only the host facts used by engine selection and tuning.

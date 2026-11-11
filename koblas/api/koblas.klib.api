@@ -75,8 +75,6 @@ final enum class com.eignex.koblas/ThreadEvidence : kotlin/Enum<com.eignex.kobla
 
     final val entries // com.eignex.koblas/ThreadEvidence.entries|#static{}entries[0]
         final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas/ThreadEvidence> // com.eignex.koblas/ThreadEvidence.entries.<get-entries>|<get-entries>#static(){}[0]
-    final val label // com.eignex.koblas/ThreadEvidence.label|{}label[0]
-        final fun <get-label>(): kotlin/String // com.eignex.koblas/ThreadEvidence.label.<get-label>|<get-label>(){}[0]
 
     final fun valueOf(kotlin/String): com.eignex.koblas/ThreadEvidence // com.eignex.koblas/ThreadEvidence.valueOf|valueOf#static(kotlin.String){}[0]
     final fun values(): kotlin/Array<com.eignex.koblas/ThreadEvidence> // com.eignex.koblas/ThreadEvidence.values|values#static(){}[0]

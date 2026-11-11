@@ -36,10 +36,6 @@ public enum class ThreadEvidence {
      * an environment variable read before the process starts, which cannot be observed from inside it.
      */
     Unconfirmed,
-    ;
-
-    /** How the evidence reads in a report. */
-    public val label: String get() = if (this == Confirmed) "1-thread-confirmed" else "1-thread-unconfirmed"
 }
 
 /** Operands whose shapes do not fit the routine. */

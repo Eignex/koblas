@@ -17,6 +17,7 @@ import kotlin.native.concurrent.Worker
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
+import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
@@ -117,8 +118,13 @@ class NativeVendorBlasTest {
         val vendors = koblas.providers.filter { it.vendor != null }
         if (vendors.isEmpty()) return println("SKIPPED: no host binding; thread configuration was not verified")
         for (vendor in vendors) {
-            assertTrue(
-                vendor.threadEvidence.label.startsWith("1-thread-"),
+            assertEquals(
+                if (vendor.vendor == Vendor.Accelerate) {
+                    ThreadEvidence.Unconfirmed
+                } else {
+                    ThreadEvidence.Confirmed
+                },
+                vendor.threadEvidence,
                 "${vendor.name} was not held to one compute thread",
             )
         }

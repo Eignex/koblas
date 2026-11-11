@@ -152,21 +152,27 @@ class RunnerTest {
 
     @Test
     fun `host identity attributes only its supplied capabilities`() {
-        val source = object : KernelProvider {
-            override val name = "vendor"
-            override val vendor = Vendor.OneMkl
-            override val libraryPath = "/mkl"
-            override val version = "mkl-version"
-            override val implementations = setOf(EngineImplementation.Dot)
+        for ((evidence, label) in listOf(
+            ThreadEvidence.Confirmed to "1-thread-confirmed",
+            ThreadEvidence.Unconfirmed to "1-thread-unconfirmed",
+        )) {
+            val source = object : KernelProvider {
+                override val name = "vendor"
+                override val vendor = Vendor.OneMkl
+                override val libraryPath = "/mkl"
+                override val version = "mkl-version"
+                override val threadEvidence = evidence
+                override val implementations = setOf(EngineImplementation.Dot)
+            }
+            val engine = BuiltinEngine("selected", host = source)
+
+            val identity = engineIdentity("native-default", engine)
+
+            assertTrue(identity.startsWith("native-default/selected/"), identity)
+            assertTrue("/oneMKL//mkl/mkl-version/threads=$label/" in identity, identity)
+            assertEquals(1, Regex("/caps\\[onemkl:").findAll(identity).count())
+            assertTrue(identity.contains("/caps[onemkl:Dot]"), identity)
+            assertTrue(identity.contains("/caps[portable:"), identity)
         }
-        val engine = BuiltinEngine("selected", host = source)
-
-        val identity = engineIdentity("native-default", engine)
-
-        assertTrue(identity.startsWith("native-default/selected/"), identity)
-        assertTrue("/oneMKL//mkl/mkl-version/threads=" in identity, identity)
-        assertEquals(1, Regex("/caps\\[onemkl:").findAll(identity).count())
-        assertTrue(identity.contains("/caps[onemkl:Dot]"), identity)
-        assertTrue(identity.contains("/caps[portable:"), identity)
     }
 }

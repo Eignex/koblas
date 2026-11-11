@@ -1,7 +1,9 @@
 @file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 
-package com.eignex.koblas.internal.engine
+package com.eignex.koblas.bench
 
+import com.eignex.koblas.internal.engine.CpuClass
+import com.eignex.koblas.internal.engine.hostPlatform
 import kotlinx.cinterop.CFunction
 import kotlinx.cinterop.invoke
 import kotlinx.cinterop.reinterpret
@@ -11,6 +13,7 @@ import platform.posix.dlopen
 import platform.posix.dlsym
 
 internal actual fun sveVectorBits(): Int? {
+    if (hostPlatform().cpuClass != CpuClass.Sve) return null
     val process = dlopen(null, RTLD_NOW) ?: return null
     try {
         val prctl = dlsym(
