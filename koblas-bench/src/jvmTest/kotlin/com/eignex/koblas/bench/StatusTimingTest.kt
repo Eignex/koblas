@@ -29,6 +29,17 @@ class StatusTimingTest {
         }
     }
 
+    @Test fun `an exact vendor gap remains unsupported without fabricating a timing`() {
+        val case = Cases.parse("spdot-raw+64+sparse-uniform+density=0.125").single()
+        val unsupported = csv(case.id, value = "", status = "unsupported", samples = 0, forks = 0, provider = "")
+
+        val timing = readStatusTiming("accelerate-jvm", case, 3, unsupported)
+
+        assertNull(timing.nanos)
+        assertEquals("median_ns/accelerate-jvm", timing.metric)
+        assertFailsWith<IllegalArgumentException> { readStatusTiming("jvm-simd", case, 3, unsupported) }
+    }
+
     @Test fun `only optional engines may decline known view adapters`() {
         val case = Cases.parse("copy-overlap+17+uniform").single()
         val unsupported = csv(case.id, value = "", status = "unsupported", samples = 0, forks = 0, provider = "")

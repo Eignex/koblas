@@ -137,10 +137,28 @@ class StatusSweepTest {
         }
     }
 
+    @Test fun `JVM comparison sweep rotates exact arms while keeping one paired workload row`() {
+        val targets = listOf("jvm-default", "jvm-simd", "accelerate-jvm", "jvm-scalar")
+
+        val cases = KoblasLabSuite.plan(BenchRequest(parameters + mapOf("targets" to targets.joinToString(","),
+            "vendor" to "accelerate", "platform" to "mac", "arch" to "arm64", "arm-order" to "rotate")))
+
+        assertEquals(136, cases.size)
+        for ((index, case) in cases.withIndex()) {
+            val offset = index % targets.size
+            assertEquals((targets.drop(offset) + targets.take(offset)).joinToString(","), case.parameters["targets"])
+            assertEquals("median_ns,median_ns/jvm-simd,median_ns/accelerate-jvm,median_ns/jvm-scalar",
+                case.attributes["regressionMetrics"])
+            assertTrue(case.inputs.none { it.role == "executable" })
+            assertEquals(setOf("platform:mac", "arch:arm64"), case.resources.requiredTags)
+        }
+    }
+
     @Test fun `status sweep refuses controls that would mix measurement series`() {
         for (override in listOf(mapOf("rounds" to "2"), mapOf("samples" to "1"), mapOf("targets" to "jvm-scalar"),
             mapOf("smoke" to "true"), mapOf("cases" to "koblas-bench/cases.txt"),
-            mapOf("sweep-profile" to "unknown"))) {
+            mapOf("sweep-profile" to "unknown"), mapOf("vendor" to "accelerate"),
+            mapOf("arm-order" to "unknown"), mapOf("vendor" to "openblas"))) {
             assertFailsWith<IllegalArgumentException> { KoblasLabSuite.plan(BenchRequest(parameters + override)) }
         }
         assertFailsWith<IllegalArgumentException> {

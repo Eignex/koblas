@@ -1,0 +1,30 @@
+{
+  "name": "koblas-sweep",
+  "description": "Per-commit default JVM engine status v3: 136 workloads measured in three full inventory passes. Repetitions are separated across the run; confirmation revision arms rotate between passes. Each capture uses three 100ms warmups and samples, one fork/round. Local only; 600s active-time cap including preparation; metric changes beyond 15% and correctness failures get three paired confirmation blocks at priority 99.",
+  "repository": "Eignex/koblas",
+  "tags": [
+    "local"
+  ],
+  "priority": 98,
+  "parallel": 4,
+  "repeats": 3,
+  "repeatOrder": "pass",
+  "bench": {
+    "manifest": "koblas-bench/lab/status-sweep.json",
+    "runTimeoutSec": 600,
+    "request": {
+      "parameters": {
+        "status-sweep": "true",
+        "platform": "mac",
+        "arch": "arm64",
+        "targets": "jvm-default",
+        "samples": "3",
+        "warmups": "3",
+        "target-ms": "100",
+        "forks": "1",
+        "rounds": "1",
+        "sweep-profile": "status-v3"
+      }
+    }
+  }
+}

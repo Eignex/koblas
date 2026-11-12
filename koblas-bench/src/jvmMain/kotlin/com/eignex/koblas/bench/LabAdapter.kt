@@ -31,7 +31,7 @@ internal object KoblasLabSuite : BenchSuite {
     )
     private val vendors = Vendor.entries.associateBy { it.vendorName.lowercase() }
     private val parameters = setOf("vendor", "arch", "platform", "operation", "cases", "samples", "warmups",
-        "target-ms", "forks", "rounds", "case-timeout", "targets", "profile-gc", "jvm-options", "smoke", "status-sweep", "sweep-profile")
+        "target-ms", "forks", "rounds", "case-timeout", "targets", "arm-order", "profile-gc", "jvm-options", "smoke", "status-sweep", "sweep-profile")
     private val owned = setOf("jvm-scalar", "jvm-simd", "jvm-default", "jvm-default-no-simd", "native", "native-default")
 
     override fun describe() = BenchDescriptor("koblas-bench", "Prepared paired JVM and Native workloads")
@@ -75,8 +75,9 @@ internal object KoblasLabSuite : BenchSuite {
             .filter { "default" in it.suites && (p["operation"] == null || p["operation"] == "all" || it.operation == p["operation"]) }
         require(rows.isNotEmpty()) { "No workloads selected" }
         val host = if (vendor == Vendor.OpenBlas) "openblas-$arch" else p["vendor"] ?: "owned-$platform-$arch"
-        return rows.map { case ->
-            LabCase("comparison/$host/${case.operation}/${case.id}", p + mapOf(ROW to case.id, "targets" to targets) +
+        return rows.mapIndexed { index, case ->
+            val order = if (p["arm-order"] == "rotate") selected.drop(index % selected.size) + selected.take(index % selected.size) else selected
+            LabCase("comparison/$host/${case.operation}/${case.id}", p + mapOf(ROW to case.id, "targets" to order.joinToString(",")) +
                     (profile?.let { mapOf("sweep-profile" to it) } ?: emptyMap()),
                 BenchResources(memoryMiB = 2048, timeoutSeconds = p["case-timeout"]?.toLong() ?: if (sweep) 60L else 7200L,
                     requiredTags = setOf("platform:$platform", "arch:$arch")), inputs = inputs,
@@ -175,6 +176,7 @@ internal object KoblasLabSuite : BenchSuite {
             require(p["cases"] == null) { "Choose sweep-profile or cases" }
         }
         p["vendor"]?.let { require(it in vendors) { "Unknown vendor" } }
+        p["arm-order"]?.let { require(it in setOf("fixed", "rotate")) { "Unknown arm ordering" } }
         for (key in listOf("samples", "target-ms", "forks", "rounds", "case-timeout")) {
             p[key]?.let { require(it.toIntOrNull()?.let { value -> value > 0 } == true) { "$key must be positive" } }
         }
@@ -182,9 +184,10 @@ internal object KoblasLabSuite : BenchSuite {
         p["warmups"]?.let { require(it.toIntOrNull()?.let { value -> value >= 0 } == true) }
         for (key in listOf("smoke", "profile-gc", "status-sweep")) p[key]?.toBooleanStrict()
         if (p["status-sweep"] == "true") {
-            require(p["vendor"] == null && p["cases"] == null && p["operation"] == null && p["jvm-options"] == null && p["case-timeout"] == null)
+            require(p["vendor"] in setOf(null, "accelerate") && p["cases"] == null && p["operation"] == null && p["jvm-options"] == null && p["case-timeout"] == null)
+            require(p["vendor"] == null || p["targets"]?.split(',')?.contains("accelerate-jvm") == true)
             p["targets"]?.split(',')?.let { targets ->
-                require("jvm-default" in targets && targets.all { it in owned })
+                require("jvm-default" in targets && targets.all { it in owned || it == "accelerate-jvm" && p["vendor"] == "accelerate" })
             }
             require(p["samples"] == "3" && p["warmups"] == "3" && p["target-ms"] == "100" &&
                 p["forks"] == "1" && p["rounds"] == "1" && p["smoke"] != "true" && p["profile-gc"] != "true") {

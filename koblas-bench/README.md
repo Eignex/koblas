@@ -56,8 +56,8 @@ check their [definitions](REFERENCE.md#cases) before comparing them.
 
 ## Per-commit status sweep
 
-`lab/recipes/status-sweep.json` runs `jvm-default`, `jvm-scalar`, `jvm-simd`, `native` and
-`native-default` together for each workload on the frozen **status-v3** inventory:
+`lab/recipes/status-sweep-jvm.json` runs `jvm-default`, `jvm-simd`, `accelerate-jvm` and
+`jvm-scalar` together for each workload on the frozen **status-v3** inventory:
 136 representative cases, retaining all 82 v2 identities. It covers the engine routine families and samples
 vector crossover neighbors, odd tails, rectangular and transposed products, upper triangles, right-side
 operations, unit diagonals, strided vectors, borrowed GEMM storage and retained scratch. A borrowed product
@@ -73,42 +73,67 @@ profile names are carried into case parameters, regression suite attributes and 
 profile change establishes a fresh baseline. Timing controls remain fixed. Multi-engine rows use a separate `-engines-v1` regression suite and
 export `median_ns` for `jvm-default` plus `median_ns/<target>` for the other engines. Every metric retains
 its requested engine, measured provider and actual kernel; SIMD-arm measurements may reach scalar
-fallbacks. `native` is portable Kotlin/Native, while `native-default` records the platform-selected
-engine including any host vendor. Unsupported exact-engine view adapters retain their unsupported
+fallbacks. The exact Accelerate arm records unsupported operations as untimed gaps, including sparse
+operations and sum; those gaps never acquire portable timings. The optional five-engine recipe,
+`lab/recipes/status-sweep.json`, also covers portable and default Kotlin/Native. Unsupported exact-engine view adapters retain their unsupported
 status and contribute no invented timing or regression coverage.
 
 The recipe matches the local Mac arm64 platform used by Klause's status sweep. It checks `main` every 120
-seconds, runs at priority 98 with four vCPUs (up to three single-thread cases), and has a 600-second active-time
-ceiling including preparation. Queue waits and pauses are outside that ceiling. Each workload's engine arms stay on one machine in one worker attempt. Every JVM arm has one JMH fork,
+seconds, runs at priority 98 with four vCPUs (up to three single-thread cases), and requests an 1800-second
+active-time ceiling including preparation for the four JVM arms. Queue waits and pauses are outside that ceiling. The recipe requests three
+independent repetitions using `repeats=3` and `repeatOrder=pass`: run the full inventory once before
+starting the next repetition.
+Each workload's engine arms stay on one machine in one worker attempt. `arm-order=rotate` rotates the
+first engine across workloads; it does not split arms across workers. Every JVM arm has one JMH fork,
 one round, three 100ms warmup iterations and three 100ms measurement iterations, Serial GC and a fixed
-512MiB heap; Native arms use the same warmup/sample durations through the Native runner. Preparation
-builds and freezes the Mac arm64 Native executable as well as the JVM classes. This is a short change detector; use longer paired captures to measure small differences.
+512MiB heap. The JVM recipe prepares only JVM classes and libraries. The optional five-engine recipe
+also builds and freezes the Mac arm64 Native executable. The trend uses the median
+of the three independent capture medians. Raw captures and failures remain
+available; incomplete repetitions or changed controls cannot establish an aggregate baseline. The JMH
+iterations within one capture remain consecutive; the three independent captures are spread across the run.
+This is a short change detector; use longer paired captures to measure small differences.
 
 Each case validates numerical results against a scalar reference before timing, including complete backing
 buffers for indexed sparse mutations, retains the raw CSV/logs and exports `median_ns` in ns/op.
 A numerical/capture failure, a missing engine report or an unsupported default-engine workload fails its case. The lab's `metric-v1`
 confirmation policy selects correctness transitions and timing changes beyond 15%, reuses both accepted revision
 builds and frozen inputs, and runs three paired blocks at priority 99. Each block runs both revisions on one machine
-in one attempt; other rows may use other compatible local machines. A majority must agree. Changed controls,
+in one attempt; other rows may use other compatible local machines. Confirmation repetitions also run as
+full inventory passes, and revision arm order rotates between passes. A majority must agree. Changed controls,
 missing samples, instrumentation and skipped cases cannot vote. At most 40 affected workloads are confirmed per
 run, prioritizing correctness transitions; the rest stay unconfirmed. Retain failed-attempt costs separately.
 
-The report plots candidate regression counts against each workload's own fixed baseline, with separate
-engine lines and theme panels. Selecting a workload shows absolute ns/op and engine-to-engine relative
-speed. Paired confirmations still compare their recorded neighboring revisions and vote independently
+The report plots JVM SIMD candidate regression counts and performance against each workload's own
+fixed baseline, including theme panels. The case table keeps absolute ns/op and each engine's own
+historical comparison separate. Paired confirmations compare their recorded neighboring revisions and vote independently
 for each exported engine metric; their status is kept distinct from fixed-baseline candidates.
 
-Before migrating the schedule, deploy coordinator support for `regressionMetrics` and the engine-aware
-trend fields. Pilot the five-arm prepared protocol on Mac arm64 and record preparation, active time and
-failures under the unchanged 600-second ceiling. The additional arms and Native preparation have not
-been budgeted by multiplying old timing averages. Until that pilot and deployment complete, keep the
-installed schedule on its existing default-only recipe. The retained `lab/status-sweep.json` manifest
-continues to support that protocol; the new recipe uses `lab/status-sweep-engines.json`.
+The regression charts deliberately show exact `jvm-simd` measurements. `jvm-default` is an automatic
+selection policy and cannot populate that line, even when some of its operations select SIMD. The case
+table shows independently measured JVM SIMD, Accelerate and portable results alongside JVM Default.
+Missing or unsupported exact-engine arms remain explicit gaps.
+
+Before changing the installed schedule, deploy coordinator support for `repeatOrder=pass`, repeated
+workload median aggregation, `regressionMetrics` and engine-aware trend fields. Pilot the actual JVM
+comparison recipe on Mac arm64 and record preparation, active time and failures before installing it.
+Its larger budget is provisional until that pilot measures all four arms. Keep the three inventory passes
+and paired workload rows; the previous 600-second cap was budgeted for one default-engine arm.
+`lab/recipes/status-sweep-default.json` retains that older protocol. The optional five-engine Native recipe
+still requires a separate pilot and is not enabled by the JVM comparison schedule.
+
+The default-only three-pass recipe was piloted on 11 November 2026 on an Apple M4 with JDK 25 in
+[lab run 11830](https://lab.eignex.com/jobs/11830): all 408 captures succeeded in 371.139 seconds of
+active time under the 600-second ceiling. Successful preparation took 15.247 seconds with a verified
+build-cache hit; measured row durations ranged from 1.835 to 4.340 seconds, with a 2.226-second median.
+Two earlier preparation attempts failed because pinned workers rejected the coordinator's new ordering
+field. Those failures remain recorded separately; worker registration now omits that scheduling-only
+field. The accepted plan places 136 rows between repeated captures of each workload. This budgets the
+default-only recipe; the five-engine recipe still needs its own pilot.
 
 After deployment and the pilot, register it with the maintained HTTP client:
 
 ```bash
-lab schedule koblas-sweep main koblas-bench/lab/recipes/status-sweep.json 120
+lab schedule koblas-sweep main koblas-bench/lab/recipes/status-sweep-jvm.json 120
 ```
 
 ## Extended sweep
@@ -137,7 +162,7 @@ koblas-bench/capture-report.sh --targets jvm-default,jvm-scalar,jvm-simd \
 
 Before deploying a changed core recipe, pilot the actual prepared row protocol on its target platform. Record
 preparation time, total active time, row duration spread and failures; capture/JVM startup and reference checks
-are part of the cost beyond the nominal 600ms of iterations per row. Keep the 600-second core ceiling until a
-pilot demonstrates that it needs changing. A local capture of the whole inventory validates cases, but does
+are part of the cost beyond the nominal 600ms of iterations per row. Use the measured budget for the selected engine recipe; a default-only pilot does not budget the
+additional comparison arms. A local capture of the whole inventory validates cases, but does
 not reproduce the lab's per-row startup and placement costs. The documented confirmation cap remains 40 rows;
 a broader change can leave additional affected rows unconfirmed and needs follow-up from the lab owner.
