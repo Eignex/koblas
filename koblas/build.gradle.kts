@@ -146,7 +146,6 @@ tasks.named<Jar>("jvmJar") {
         .withNormalizer(ClasspathNormalizer::class)
     inputs.property("localVectorAssertions", true)
     inputs.property("vectorAssertionJava", desktopJavaLauncher.map { "${it.metadata.vendor} ${it.metadata.javaRuntimeVersion}" })
-    doLast(vectorAssertionAction)
 }
 
 val desktopJvmArguments = listOf("--enable-native-access=ALL-UNNAMED") +
