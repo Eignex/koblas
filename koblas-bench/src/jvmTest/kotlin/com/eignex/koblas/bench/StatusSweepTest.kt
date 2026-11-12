@@ -105,7 +105,7 @@ class StatusSweepTest {
             assertEquals("metric-v1", case.attributes["regressionPolicy"])
             assertEquals("koblas-status-v3", case.attributes["suite"])
             assertEquals(60L, case.resources.timeoutSeconds)
-            assertTrue(case.inputs.none { it.role == "executable" })
+            assertTrue("nativeExecutable" !in case.attributes)
         }
     }
 
@@ -115,9 +115,9 @@ class StatusSweepTest {
             val cases = KoblasLabSuite.plan(BenchRequest(mapOf("sweep-profile" to "extended-v1",
                 "platform" to platform, "arch" to arch, "targets" to targets)))
 
-            assertTrue(cases.all { it.parameters["targets"] == targets && it.attributes.isEmpty() })
+            assertTrue(cases.all { it.parameters["targets"] == targets && (it.attributes - "nativeExecutable").isEmpty() })
             assertTrue(cases.all { it.resources.requiredTags == setOf("platform:$platform", "arch:$arch") })
-            assertEquals(platform == "linux", cases.all { it.inputs.any { input -> input.role == "executable" } })
+            assertEquals(platform == "linux", cases.all { "nativeExecutable" in it.attributes })
         }
     }
 
@@ -133,7 +133,7 @@ class StatusSweepTest {
             assertEquals("median_ns,median_ns/jvm-scalar,median_ns/jvm-simd,median_ns/native,median_ns/native-default",
                 case.attributes["regressionMetrics"])
             assertEquals("koblas-status-v3-engines-v1", case.attributes["suite"])
-            assertTrue(case.inputs.single { it.role == "executable" }.path.contains("macosArm64"))
+            assertTrue(case.attributes.getValue("nativeExecutable").contains("macosArm64"))
         }
     }
 
@@ -149,7 +149,7 @@ class StatusSweepTest {
             assertEquals((targets.drop(offset) + targets.take(offset)).joinToString(","), case.parameters["targets"])
             assertEquals("median_ns,median_ns/jvm-simd,median_ns/accelerate-jvm,median_ns/jvm-scalar",
                 case.attributes["regressionMetrics"])
-            assertTrue(case.inputs.none { it.role == "executable" })
+            assertTrue("nativeExecutable" !in case.attributes)
             assertEquals(setOf("platform:mac", "arch:arm64"), case.resources.requiredTags)
         }
     }

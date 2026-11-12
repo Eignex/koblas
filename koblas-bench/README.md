@@ -48,6 +48,17 @@ case's round medians, inspect the spread, and check unchanged controls. Setup va
 scalar references before timing. Workloads differ in whether reset or allocation is timed;
 check their [definitions](REFERENCE.md#cases) before comparing them.
 
+Prepared Native executables belong to each revision's verified build workspace. Shared lab inputs
+contain workload data and external vendor packages; a revision's executable is recorded as the
+`nativeExecutable` case attribute and its path and SHA-256 are retained in `native-program.txt`.
+This permits paired revisions whose programs differ while keeping workload input bytes identical.
+
+For JVM compiler diagnostics, `lab/cases-jit-policy.txt` samples vector casts, product edges,
+retained scratch and sparse scheduling. Compare assertions on/off separately under normal tiering,
+`-XX:+TieredCompilation -XX:TieredStopAtLevel=1` and `-XX:-TieredCompilation`.
+Use a separate capture with `-XX:+PrintCompilation` and diagnostic `-XX:+PrintInlining` to inspect
+compilation levels and inlining decisions; its instrumented timings are not performance evidence.
+
 ## Details
 
 - [Capture reference](REFERENCE.md): options, workload definitions, attribution, host setup, lab adapter and scoring.
