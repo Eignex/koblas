@@ -4,6 +4,9 @@ import org.gradle.api.tasks.JavaExec
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
+import org.gradle.process.ExecOperations
+import org.gradle.jvm.toolchain.JavaLauncher
+import javax.inject.Inject
 
 plugins {
     id("com.eignex.kmp")
@@ -88,6 +91,37 @@ dokka {
 }
 
 val desktopJavaLauncher = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(25)) }
+
+abstract class InternalAssertionPolicy @Inject constructor(private val execution: ExecOperations) : Action<Task> {
+    lateinit var launcher: Provider<JavaLauncher>
+    lateinit var toolClasspath: FileCollection
+    override fun execute(task: Task) {
+        execution.javaexec {
+            executable = launcher.get().executablePath.asFile.absolutePath
+            classpath = toolClasspath
+            mainClass.set("com.eignex.koblas.bytecode.InternalAssertions")
+            jvmArgs("--add-modules=jdk.incubator.vector")
+            args((task as Jar).archiveFile.get().asFile.absolutePath)
+        }
+    }
+}
+
+val internalAssertionTool = configurations.create("internalAssertionTool")
+dependencies { add(internalAssertionTool.name, project(":jvm-bytecode")) }
+if (providers.gradleProperty("koblas.stripInternalAssertions").orNull == "true") {
+    val action = objects.newInstance<InternalAssertionPolicy>().apply {
+        launcher = desktopJavaLauncher
+        toolClasspath = internalAssertionTool + configurations.getByName("jvmCompileClasspath")
+    }
+    tasks.named<Jar>("jvmJar") {
+        dependsOn(action.toolClasspath)
+        inputs.files(action.toolClasspath).withPropertyName("internalAssertionTool").withNormalizer(ClasspathNormalizer::class)
+        inputs.property("stripInternalAssertions", true)
+        inputs.property("internalAssertionJava", desktopJavaLauncher.map { "${it.metadata.vendor} ${it.metadata.javaRuntimeVersion}" })
+        doLast(action)
+    }
+}
+
 val desktopJvmArguments = listOf("--enable-native-access=ALL-UNNAMED") +
     if (providers.gradleProperty("koblas.noSimd").orNull == "true") emptyList()
     else listOf("--add-modules=jdk.incubator.vector")
