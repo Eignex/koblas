@@ -92,14 +92,15 @@ dokka {
 
 val desktopJavaLauncher = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(25)) }
 
-abstract class InternalAssertionPolicy @Inject constructor(private val execution: ExecOperations) : Action<Task> {
+abstract class JvmAssertionPolicy @Inject constructor(private val execution: ExecOperations) : Action<Task> {
     lateinit var launcher: Provider<JavaLauncher>
     lateinit var toolClasspath: FileCollection
+    lateinit var toolMainClass: String
     override fun execute(task: Task) {
         execution.javaexec {
             executable = launcher.get().executablePath.asFile.absolutePath
             classpath = toolClasspath
-            mainClass.set("com.eignex.koblas.bytecode.InternalAssertions")
+            mainClass.set(toolMainClass)
             jvmArgs("--add-modules=jdk.incubator.vector")
             args((task as Jar).archiveFile.get().asFile.absolutePath)
         }
@@ -108,9 +109,21 @@ abstract class InternalAssertionPolicy @Inject constructor(private val execution
 
 val internalAssertionTool = configurations.create("internalAssertionTool")
 dependencies { add(internalAssertionTool.name, project(":jvm-bytecode")) }
+val verifyKernelBoundaries = tasks.register<JavaExec>("verifyKernelBoundaries") {
+    val artifact = tasks.named<Jar>("jvmJar")
+    dependsOn(artifact)
+    javaLauncher.set(desktopJavaLauncher)
+    classpath = internalAssertionTool
+    mainClass.set("com.eignex.koblas.bytecode.KernelBoundaries")
+    inputs.file(artifact.flatMap { it.archiveFile })
+    args(artifact.get().archiveFile.get().asFile.absolutePath)
+}
+tasks.named("check") { dependsOn(verifyKernelBoundaries) }
+
 if (providers.gradleProperty("koblas.stripInternalAssertions").orNull == "true") {
-    val action = objects.newInstance<InternalAssertionPolicy>().apply {
+    val action = objects.newInstance<JvmAssertionPolicy>().apply {
         launcher = desktopJavaLauncher
+        toolMainClass = "com.eignex.koblas.bytecode.InternalAssertions"
         toolClasspath = internalAssertionTool + configurations.getByName("jvmCompileClasspath")
     }
     tasks.named<Jar>("jvmJar") {
@@ -120,6 +133,20 @@ if (providers.gradleProperty("koblas.stripInternalAssertions").orNull == "true")
         inputs.property("internalAssertionJava", desktopJavaLauncher.map { "${it.metadata.vendor} ${it.metadata.javaRuntimeVersion}" })
         doLast(action)
     }
+}
+
+val vectorAssertionAction = objects.newInstance<JvmAssertionPolicy>().apply {
+    launcher = desktopJavaLauncher
+    toolMainClass = "com.eignex.koblas.bytecode.VectorAssertions"
+    toolClasspath = internalAssertionTool + configurations.getByName("jvmCompileClasspath")
+}
+tasks.named<Jar>("jvmJar") {
+    dependsOn(vectorAssertionAction.toolClasspath)
+    inputs.files(vectorAssertionAction.toolClasspath).withPropertyName("vectorAssertionTool")
+        .withNormalizer(ClasspathNormalizer::class)
+    inputs.property("localVectorAssertions", true)
+    inputs.property("vectorAssertionJava", desktopJavaLauncher.map { "${it.metadata.vendor} ${it.metadata.javaRuntimeVersion}" })
+    doLast(vectorAssertionAction)
 }
 
 val desktopJvmArguments = listOf("--enable-native-access=ALL-UNNAMED") +

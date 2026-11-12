@@ -61,6 +61,19 @@ describe. Scalar leaves depend on storage and kernel contracts. They do not invo
 or shared schedules. Sparse Level 2 preparation and traversal live in ordinary operation functions and
 shared CSC schedules, regardless of which Level 1 engine is selected.
 
+Vector API values, masks and shuffles stay inside a concrete backend entry: project helpers
+that carry them are Kotlin `inline` functions. Ordinary primitive/array kernel boundaries may
+remain outlined. Blanket scalar inlining grows callers and can move compilation cliffs rather
+than remove them.
+
+Vector backend expression and cast null assertions have a local non-null fast path in the
+packaged artifact. Only null reaches the original Kotlin failure helper; argument evaluation,
+exception behavior and casts remain intact. Scalar code and parameter checks are unchanged.
+`verifyKernelBoundaries`, part of `check`, rejects typed project calls carrying Vector values
+and unguarded Vector backend assertions, including method-handle and lambda-bootstrap references.
+It reads baseline and Java 25 bytecode independently of Kotlin metadata. These checks enforce
+representation boundaries; throughput and allocation checks still validate compiled kernels.
+
 ## Platforms
 
 JVM Vector API kernels remain under `jvmJava25/internal/jvm25/simd`. JVM and native host bindings remain
