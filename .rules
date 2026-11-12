@@ -36,4 +36,5 @@ Kotlin Multiplatform BLAS.
 - Prefer clear names/types. Comments explain why, never narrate changes or cite issues; retain `TODO`/`FIXME`.
 - Public APIs get KDoc. Write math as `A(i, j)` and use `[Symbol]` links.
 - Do not edit `.github/` unless asked. Read `koblas-bench/README.md` before benchmarks; cite KDoc performance figures only from its suites.
-- Commits are single-line conventional commits without scopes, bodies, or trailers (for example `fix: handle empty input`). PR bodies follow `.github/pull_request_template.md` with `Closes #NN` first.
+- Commits are single-line conventional commits without scopes, bodies, or trailers (for example `fix: handle empty input`). PR bodies follow `.github/pull_request_template.md`. Issues are optional;
+  put `Closes #NN` first only when the session was created to close that issue.
