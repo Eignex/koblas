@@ -1,4 +1,5 @@
-@file:Suppress("LongParameterList", "TooManyFunctions") // Independent windows and extents.
+// Fold primitive arithmetic into concrete callers; windows carry offsets and extents.
+@file:Suppress("LongParameterList", "TooManyFunctions", "NOTHING_TO_INLINE")
 
 package com.eignex.koblas.internal.kernels.scalar.sparse
 
@@ -6,7 +7,7 @@ import com.eignex.koblas.SparseVector
 import com.eignex.koblas.Vector
 import com.eignex.koblas.internal.storage.sparse.SparseEntries
 
-internal fun indexedDotDense(
+internal inline fun indexedDotDense(
     indices: IntArray,
     indexOffset: Int,
     values: DoubleArray,
@@ -24,7 +25,7 @@ internal fun indexedDotDense(
     return sum
 }
 
-internal fun indexedDotSparse(
+internal inline fun indexedDotSparse(
     xIndices: IntArray,
     xIndexOffset: Int,
     xValues: DoubleArray,
@@ -57,7 +58,7 @@ internal fun indexedDotSparse(
     return sum
 }
 
-internal fun indexedAxpy(
+internal inline fun indexedAxpy(
     indices: IntArray,
     indexOffset: Int,
     values: DoubleArray,
@@ -74,7 +75,7 @@ internal fun indexedAxpy(
     }
 }
 
-internal fun indexedScatter(
+internal inline fun indexedScatter(
     indices: IntArray,
     indexOffset: Int,
     values: DoubleArray,
@@ -90,7 +91,7 @@ internal fun indexedScatter(
     }
 }
 
-internal fun indexedGather(
+internal inline fun indexedGather(
     indices: IntArray,
     indexOffset: Int,
     values: DoubleArray,
@@ -101,7 +102,7 @@ internal fun indexedGather(
     for (k in 0 until count) values[valueOffset + k] = source[indices[indexOffset + k]]
 }
 
-internal fun indexedGatherZero(
+internal inline fun indexedGatherZero(
     indices: IntArray,
     indexOffset: Int,
     values: DoubleArray,

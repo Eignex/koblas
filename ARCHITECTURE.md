@@ -61,6 +61,19 @@ describe. Scalar leaves depend on storage and kernel contracts. They do not invo
 or shared schedules. Sparse Level 2 preparation and traversal live in ordinary operation functions and
 shared CSC schedules, regardless of which Level 1 engine is selected.
 
+Primitive and primitive-array arithmetic helpers under `kernels.scalar.dense` and
+`kernels.scalar.sparse` are Kotlin `inline` functions. Their bodies belong in their concrete backend
+entry or CSC caller before JVM compilation starts. Provider dispatch and algorithms over containers
+remain ordinary calls. This removes an additional helper boundary without depending on C1 or C2
+inlining it, and exposes caller constants such as flags and strides to the arithmetic.
+
+Vector API values, masks and shuffles also stay inside a concrete backend entry: project helpers
+that carry them are source-inlined. `verifyKernelBoundaries`, part of `check`, reads the packaged
+JVM classes and rejects remaining scalar leaf calls and project calls carrying those vector values,
+including method-handle and lambda-bootstrap references. It reads bytecode independently of Kotlin
+metadata and checks both baseline and Java 25 classes. This enforces call boundaries; throughput and
+allocation checks still validate the resulting compiled kernels.
+
 ## Platforms
 
 JVM Vector API kernels remain under `jvmJava25/internal/jvm25/simd`. JVM and native host bindings remain

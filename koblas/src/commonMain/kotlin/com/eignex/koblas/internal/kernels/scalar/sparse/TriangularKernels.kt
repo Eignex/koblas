@@ -1,3 +1,5 @@
+@file:Suppress("NOTHING_TO_INLINE") // Fold scalar leaves into their concrete caller before JIT compilation.
+
 package com.eignex.koblas.internal.kernels.scalar.sparse
 
 import com.eignex.koblas.internal.storage.sparse.*
@@ -11,7 +13,7 @@ import com.eignex.koblas.internal.storage.sparse.*
  * takes when none of its own are masked.
  */
 @Suppress("LongParameterList") // the column slice, its two triangle flags, and the dense window
-internal fun sparseTriangularScatterSingle(
+internal inline fun sparseTriangularScatterSingle(
     solve: Boolean,
     column: Int,
     lower: Boolean,
@@ -50,7 +52,7 @@ internal fun sparseTriangularScatterSingle(
  * of one has to gain over the panel: the pivot is read once, summed into, and written back once.
  */
 @Suppress("LongParameterList") // the column slice, its two triangle flags, and the dense window
-internal fun sparseTriangularGatherSingle(
+internal inline fun sparseTriangularGatherSingle(
     solve: Boolean,
     column: Int,
     lower: Boolean,
@@ -77,7 +79,7 @@ internal fun sparseTriangularGatherSingle(
 
 /** Skip the right-hand sides whose zero pivots were masked by the triangular schedule. */
 @Suppress("LongParameterList") // A CSC column slice and its masked destination panel.
-internal fun sparseMaskedTriangularScatter(
+internal inline fun sparseMaskedTriangularScatter(
     solve: Boolean,
     rowIndices: IntArray,
     values: DoubleArray,

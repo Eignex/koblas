@@ -1,4 +1,5 @@
-@file:Suppress("LongParameterList") // Primitive windows carry arrays, offsets, strides and extents.
+// Fold primitive arithmetic into concrete callers; windows carry offsets and extents.
+@file:Suppress("LongParameterList", "NOTHING_TO_INLINE")
 
 package com.eignex.koblas.internal.kernels.scalar.dense
 
@@ -7,7 +8,7 @@ package com.eignex.koblas.internal.kernels.scalar.dense
  * contiguous in. Untransposed, a column of the block is adjacent in memory, so each finished step is removed
  * from the steps after it; transposed, a row is, so each step reduces the steps before it.
  */
-internal fun scalarDiagonalSolve(
+internal inline fun scalarDiagonalSolve(
     t: DoubleArray,
     n: Int,
     start: Int,
@@ -51,7 +52,7 @@ internal fun scalarDiagonalSolve(
 }
 
 /** The multiply counterpart of [scalarDiagonalSolve], in the order that keeps each input until its last use. */
-internal fun scalarDiagonalMultiply(
+internal inline fun scalarDiagonalMultiply(
     t: DoubleArray,
     n: Int,
     start: Int,
@@ -92,7 +93,7 @@ internal fun scalarDiagonalMultiply(
 }
 
 /** `M(p, q)` for a diagonal block starting at [start], which is the entry a substitution reads. */
-internal fun triangleEntry(
+internal inline fun triangleEntry(
     t: DoubleArray,
     n: Int,
     start: Int,

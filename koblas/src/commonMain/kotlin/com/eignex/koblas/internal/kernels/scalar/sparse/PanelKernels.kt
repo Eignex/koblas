@@ -1,10 +1,11 @@
-@file:Suppress("LongParameterList", "TooManyFunctions") // Primitive windows carry arrays, offsets, strides and extents.
+// Fold primitive arithmetic into concrete callers; windows carry offsets and extents.
+@file:Suppress("LongParameterList", "TooManyFunctions", "NOTHING_TO_INLINE")
 
 package com.eignex.koblas.internal.kernels.scalar.sparse
 
 import com.eignex.koblas.internal.kernels.scalar.dense.PANEL_NARROW_GROUP
 
-internal fun sparseColumnUpdate(
+internal inline fun sparseColumnUpdate(
     alpha: Double,
     a: DoubleArray,
     aOffset: Int,
@@ -44,7 +45,7 @@ internal fun sparseColumnUpdate(
     }
 }
 
-internal fun sparseRankUpdate(
+internal inline fun sparseRankUpdate(
     alpha: Double,
     a: DoubleArray,
     aOffset: Int,
@@ -86,7 +87,7 @@ internal fun sparseRankUpdate(
     }
 }
 
-internal fun sparseCoupledUpdate(
+internal inline fun sparseCoupledUpdate(
     alpha: Double,
     a: DoubleArray,
     b: DoubleArray,

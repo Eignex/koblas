@@ -108,6 +108,17 @@ abstract class InternalAssertionPolicy @Inject constructor(private val execution
 
 val internalAssertionTool = configurations.create("internalAssertionTool")
 dependencies { add(internalAssertionTool.name, project(":jvm-bytecode")) }
+val verifyKernelBoundaries = tasks.register<JavaExec>("verifyKernelBoundaries") {
+    val artifact = tasks.named<Jar>("jvmJar")
+    dependsOn(artifact)
+    javaLauncher.set(desktopJavaLauncher)
+    classpath = internalAssertionTool
+    mainClass.set("com.eignex.koblas.bytecode.KernelBoundaries")
+    inputs.file(artifact.flatMap { it.archiveFile })
+    args(artifact.get().archiveFile.get().asFile.absolutePath)
+}
+tasks.named("check") { dependsOn(verifyKernelBoundaries) }
+
 if (providers.gradleProperty("koblas.stripInternalAssertions").orNull == "true") {
     val action = objects.newInstance<InternalAssertionPolicy>().apply {
         launcher = desktopJavaLauncher

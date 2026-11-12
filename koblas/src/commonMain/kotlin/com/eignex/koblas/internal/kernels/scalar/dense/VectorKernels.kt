@@ -1,4 +1,5 @@
-@file:Suppress("TooManyFunctions") // Independent windows and extents.
+// Fold primitive arithmetic into concrete callers; windows carry offsets and extents.
+@file:Suppress("TooManyFunctions", "NOTHING_TO_INLINE")
 
 package com.eignex.koblas.internal.kernels.scalar.dense
 
@@ -11,7 +12,7 @@ import kotlin.math.abs
  */
 
 /** First index of the largest magnitude in the run, ignoring NaNs and retaining the first tie. */
-internal fun scalarIamax(v: DoubleArray, vOff: Int, vStride: Int, len: Int): Int {
+internal inline fun scalarIamax(v: DoubleArray, vOff: Int, vStride: Int, len: Int): Int {
     if (len == 0) return -1
     var best = 0
     var bestAbs = 0.0
@@ -29,7 +30,7 @@ internal fun scalarIamax(v: DoubleArray, vOff: Int, vStride: Int, len: Int): Int
 
 /** `a · b` over [len] elements of each run. */
 @Suppress("LongParameterList") // two strided runs
-internal fun scalarDot(
+internal inline fun scalarDot(
     a: DoubleArray,
     aOff: Int,
     aStride: Int,
@@ -56,7 +57,15 @@ internal fun scalarDot(
 
 /** Exchange the two runs over [len] elements. */
 @Suppress("LongParameterList") // two strided runs
-internal fun scalarSwap(a: DoubleArray, aOff: Int, aStride: Int, b: DoubleArray, bOff: Int, bStride: Int, len: Int) {
+internal inline fun scalarSwap(
+    a: DoubleArray,
+    aOff: Int,
+    aStride: Int,
+    b: DoubleArray,
+    bOff: Int,
+    bStride: Int,
+    len: Int,
+) {
     var ia = aOff
     var ib = bOff
     for (i in 0 until len) {
@@ -70,7 +79,7 @@ internal fun scalarSwap(a: DoubleArray, aOff: Int, aStride: Int, b: DoubleArray,
 
 /** `y += alpha * x` over [len] elements. A zero [alpha] leaves y alone rather than adding zeroes. */
 @Suppress("LongParameterList") // two strided runs plus the multiplier
-internal fun scalarAxpy(
+internal inline fun scalarAxpy(
     y: DoubleArray,
     yOff: Int,
     yStride: Int,
@@ -91,7 +100,7 @@ internal fun scalarAxpy(
 }
 
 /** `v *= alpha` over [len] elements. A unit [alpha] leaves v alone. */
-internal fun scalarScale(v: DoubleArray, vOff: Int, vStride: Int, alpha: Double, len: Int) {
+internal inline fun scalarScale(v: DoubleArray, vOff: Int, vStride: Int, alpha: Double, len: Int) {
     if (alpha == 1.0) return
     var iv = vOff
     for (i in 0 until len) {
@@ -102,7 +111,7 @@ internal fun scalarScale(v: DoubleArray, vOff: Int, vStride: Int, alpha: Double,
 
 /** Apply the plane rotation `(c, s, -s, c)` to [len] elements of each run, loading each pair before storing. */
 @Suppress("LongParameterList") // two runs plus the rotation
-internal fun scalarRot(
+internal inline fun scalarRot(
     x: DoubleArray,
     xOff: Int,
     y: DoubleArray,
@@ -132,7 +141,15 @@ internal fun scalarRot(
 
 /** Copy a vector window, preserving its logical strides. */
 @Suppress("LongParameterList")
-internal fun scalarCopy(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int) {
+internal inline fun scalarCopy(
+    a: DoubleArray,
+    aOff: Int,
+    b: DoubleArray,
+    bOff: Int,
+    len: Int,
+    aStride: Int,
+    bStride: Int,
+) {
     if (aStride == 1 && bStride == 1) {
         a.copyInto(b, bOff, aOff, aOff + len)
     } else {
@@ -141,13 +158,13 @@ internal fun scalarCopy(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, le
 }
 
 /** Divide directly so triangular solves retain division rounding rather than reciprocal scaling. */
-internal fun scalarDivide(v: DoubleArray, offset: Int, length: Int, divisor: Double) {
+internal inline fun scalarDivide(v: DoubleArray, offset: Int, length: Int, divisor: Double) {
     for (i in 0 until length) v[offset + i] = v[offset + i] / divisor
 }
 
 /** A stored sparse coefficient participates even when it is zero. */
 @Suppress("LongParameterList") // Two contiguous windows and their coefficient.
-internal fun scalarEvaluatedAxpy(
+internal inline fun scalarEvaluatedAxpy(
     y: DoubleArray,
     yOffset: Int,
     alpha: Double,
@@ -159,7 +176,7 @@ internal fun scalarEvaluatedAxpy(
 }
 
 /** Plain sum over the run v(off until off + len). Not a BLAS routine: `dasum` sums absolute values. */
-internal fun scalarSum(v: DoubleArray, off: Int, stride: Int, len: Int): Double {
+internal inline fun scalarSum(v: DoubleArray, off: Int, stride: Int, len: Int): Double {
     var s = 0.0
     var iv = off
     for (i in 0 until len) {
@@ -170,7 +187,7 @@ internal fun scalarSum(v: DoubleArray, off: Int, stride: Int, len: Int): Double 
 }
 
 /** Sum of absolute values over the run v(off until off + len) (BLAS `dasum`). */
-internal fun absoluteSum(v: DoubleArray, off: Int, stride: Int, len: Int): Double {
+internal inline fun absoluteSum(v: DoubleArray, off: Int, stride: Int, len: Int): Double {
     var s = 0.0
     var iv = off
     for (i in 0 until len) {

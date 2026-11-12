@@ -1,10 +1,12 @@
+@file:Suppress("NOTHING_TO_INLINE") // Fold primitive arithmetic into the concrete caller before JIT compilation.
+
 package com.eignex.koblas.internal.kernels.scalar.sparse
 
 import com.eignex.koblas.internal.storage.sparse.*
 
 /** A stored symmetric column updates both halves, counting the diagonal once. */
 @Suppress("LongParameterList") // one CSC column slice, its triangle flag, and the two vectors
-internal fun sparseSymmetricVectorColumn(
+internal inline fun sparseSymmetricVectorColumn(
     alpha: Double,
     column: Int,
     rowIndices: IntArray,
@@ -32,7 +34,7 @@ internal fun sparseSymmetricVectorColumn(
  * so agreement follows the allowed numerical tolerance rather than requiring identical bits.
  */
 @Suppress("LongParameterList") // the column slice, the dense window, and the single output
-internal fun sparseGatherProductColumn(
+internal inline fun sparseGatherProductColumn(
     alpha: Double,
     rowIndices: IntArray,
     values: DoubleArray,
@@ -56,7 +58,7 @@ internal fun sparseGatherProductColumn(
  * `sparseScatterProductPanel` with one right-hand side, for the reason [sparseGatherProductColumn] gives.
  */
 @Suppress("LongParameterList") // the column slice, the dense window, and the single output
-internal fun sparseScatterProductColumn(
+internal inline fun sparseScatterProductColumn(
     alpha: Double,
     rowIndices: IntArray,
     values: DoubleArray,
@@ -76,7 +78,7 @@ internal fun sparseScatterProductColumn(
 
 /** `sparseSymmetricLeftColumn` with one right-hand side, written out for the same reason. */
 @Suppress("LongParameterList") // one CSC column slice, its triangle flag, and both dense windows
-internal fun sparseSymmetricLeftColumnSingle(
+internal inline fun sparseSymmetricLeftColumnSingle(
     alpha: Double,
     column: Int,
     rowIndices: IntArray,

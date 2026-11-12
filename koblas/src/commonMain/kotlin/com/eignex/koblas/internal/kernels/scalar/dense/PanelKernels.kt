@@ -1,8 +1,9 @@
-@file:Suppress("LongParameterList", "TooManyFunctions") // Primitive windows carry arrays, offsets, strides and extents.
+// Primitive windows carry offsets and extents; fold their leaf arithmetic into backend entries.
+@file:Suppress("LongParameterList", "TooManyFunctions", "NOTHING_TO_INLINE")
 
 package com.eignex.koblas.internal.kernels.scalar.dense
 
-internal fun scalarMultiDot(
+internal inline fun scalarMultiDot(
     alpha: Double,
     a: DoubleArray,
     aOffset: Int,
@@ -31,7 +32,7 @@ internal fun scalarMultiDot(
 }
 
 /** One walk of the shared vector feeds four independent sums. */
-private fun panelDotFour(
+private inline fun panelDotFour(
     a: DoubleArray,
     aOffset: Int,
     lda: Int,
@@ -64,7 +65,14 @@ private fun panelDotFour(
     panelStore(y, yOffset + 3 * yStride, alpha, s3, beta)
 }
 
-private fun panelDotOne(a: DoubleArray, aOffset: Int, x: DoubleArray, xOffset: Int, xStride: Int, rows: Int): Double {
+private inline fun panelDotOne(
+    a: DoubleArray,
+    aOffset: Int,
+    x: DoubleArray,
+    xOffset: Int,
+    xStride: Int,
+    rows: Int,
+): Double {
     var sum = 0.0
     var at = xOffset
     for (i in 0 until rows) {
@@ -75,11 +83,11 @@ private fun panelDotOne(a: DoubleArray, aOffset: Int, x: DoubleArray, xOffset: I
 }
 
 /** `y = alpha · sum + beta · y`, where a zero beta overwrites without reading the destination. */
-private fun panelStore(y: DoubleArray, at: Int, alpha: Double, sum: Double, beta: Double) {
+private inline fun panelStore(y: DoubleArray, at: Int, alpha: Double, sum: Double, beta: Double) {
     y[at] = if (beta == 0.0) alpha * sum else alpha * sum + beta * y[at]
 }
 
-internal fun scalarColumnUpdate(
+internal inline fun scalarColumnUpdate(
     alpha: Double,
     a: DoubleArray,
     aOffset: Int,
@@ -120,7 +128,7 @@ internal fun scalarColumnUpdate(
     }
 }
 
-internal fun scalarCoupledUpdateDot(
+internal inline fun scalarCoupledUpdateDot(
     alpha: Double,
     a: DoubleArray,
     aOffset: Int,
@@ -174,7 +182,7 @@ internal fun scalarCoupledUpdateDot(
     }
 }
 
-internal fun scalarRankUpdate(
+internal inline fun scalarRankUpdate(
     alpha: Double,
     a: DoubleArray,
     aOffset: Int,
@@ -215,7 +223,7 @@ internal fun scalarRankUpdate(
     }
 }
 
-internal fun scalarRankTwoUpdate(
+internal inline fun scalarRankTwoUpdate(
     alpha: Double,
     a: DoubleArray,
     aOffset: Int,
