@@ -18,48 +18,48 @@ internal fun sparseIndexedArm(case: BenchCase, engine: KoblasEngine): ArmChoice 
     val mutation = operation in setOf("spaxpy", "spaxpy-raw", "spscatter", "spscatter-raw", "spgather", "spgather-zero")
     val timing = if (mutation) case.option("timing", "reset-and-arithmetic") else "arithmetic"
 
-    fun arithmetic(selected: KoblasEngine, sparse: SparseVector, destination: DoubleArray): () -> Double {
+    fun arithmetic(selected: KoblasEngine, sparse: SparseVector, destination: DoubleArray): BenchmarkOperation {
         val kernels = selected.kernels
         val indices = sparse.copyIndices()
         val initialValues = sparse.values.copyOf()
         val count = sparse.nnz
         return when (operation) {
-            "spdot" -> { { kernels.dot(sparse.indices, 0, sparse.values, 0, count, destination) } }
-            "spdot-raw" -> { { kernels.dot(indices, 0, sparse.values, 0, count, destination) } }
-            "spdot-sparse" -> { { kernels.dot(sparse.indices, 0, sparse.values, 0, count,
-                sparseY.indices, 0, sparseY.values, 0, sparseY.nnz) } }
-            "spnrm2" -> { { kernels.normVector(sparse) } }
-            "spasum" -> { { kernels.absoluteSumVector(sparse) } }
-            "spaxpy" -> { {
+            "spdot" -> BenchmarkOperation { kernels.dot(sparse.indices, 0, sparse.values, 0, count, destination) }
+            "spdot-raw" -> BenchmarkOperation { kernels.dot(indices, 0, sparse.values, 0, count, destination) }
+            "spdot-sparse" -> BenchmarkOperation { kernels.dot(sparse.indices, 0, sparse.values, 0, count,
+                sparseY.indices, 0, sparseY.values, 0, sparseY.nnz) }
+            "spnrm2" -> BenchmarkOperation { kernels.normVector(sparse) }
+            "spasum" -> BenchmarkOperation { kernels.absoluteSumVector(sparse) }
+            "spaxpy" -> BenchmarkOperation {
                 initialDense.copyInto(destination)
                 kernels.axpy(sparse.indices, 0, sparse.values, 0, count, 0.875, destination)
                 destination[0]
-            } }
-            "spaxpy-raw" -> { {
+            }
+            "spaxpy-raw" -> BenchmarkOperation {
                 initialDense.copyInto(destination)
                 kernels.axpy(indices, 0, sparse.values, 0, count, 0.875, destination)
                 destination[0]
-            } }
-            "spscatter" -> { {
+            }
+            "spscatter" -> BenchmarkOperation {
                 initialValues.copyInto(sparse.values); initialDense.copyInto(destination)
                 kernels.scatter(sparse.indices, 0, sparse.values, 0, count, destination)
                 sparse.values[0]
-            } }
-            "spscatter-raw" -> { {
+            }
+            "spscatter-raw" -> BenchmarkOperation {
                 initialDense.copyInto(destination)
                 kernels.scatter(indices, 0, sparse.values, 0, count, destination)
                 destination[0]
-            } }
-            "spgather" -> { {
+            }
+            "spgather" -> BenchmarkOperation {
                 if (timing == "reset-and-arithmetic") initialDense.copyInto(destination)
                 kernels.gather(indices, 0, sparse.values, 0, count, destination)
                 sparse.values[0] + sparse.values[count - 1]
-            } }
-            "spgather-zero" -> { {
+            }
+            "spgather-zero" -> BenchmarkOperation {
                 initialValues.copyInto(sparse.values); initialDense.copyInto(destination)
                 kernels.gatherZero(indices, 0, sparse.values, 0, count, destination)
                 sparse.values[0]
-            } }
+            }
             else -> error("Unsupported indexed workload $operation")
         }
     }

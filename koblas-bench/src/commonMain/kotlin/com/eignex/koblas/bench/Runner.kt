@@ -272,7 +272,7 @@ internal fun engineIdentity(mode: String, engine: KoblasEngine): String {
 
 internal fun printIdentity(implementation: String, harness: String, runtime: EngineRuntime) {
     val platform = hostPlatform()
-    println("resolved implementation=$implementation runtime=${runtimeIdentity()} harness=$harness")
+    println("resolved implementation=$implementation runtime=${runtimeIdentity()} harness=$harness/$BENCHMARK_CALLBACK_ABI")
     println("profile_runtime=${runtime.name.lowercase()}")
     println("profile_os=${platform.operatingSystem}")
     println("profile_arch=${platform.architecture}")

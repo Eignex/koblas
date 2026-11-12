@@ -53,6 +53,14 @@ contain workload data and external vendor packages; a revision's executable is r
 `nativeExecutable` case attribute and its path and SHA-256 are retained in `native-program.txt`.
 This permits paired revisions whose programs differ while keeping workload input bytes identical.
 
+Timed callbacks use `BenchmarkOperation.invoke(): Double`, a primitive JVM signature, including
+nested vector and indexed callbacks. `verifyBenchmarkCallbacks`, run by `check` and benchmark
+preparation, rejects generic function calls and primitive boxing on their visible harness call
+paths. It checks lambda targets, class implementations and virtual helper dispatch; allocations
+inside the measured library operation remain observable. Setup and reporting stay outside this
+rule. Captures identify the format as `primitive-double-v1`, also recorded in lab regression
+controls, so results from the older boxed callback harness do not establish a kernel speedup.
+
 For JVM compiler diagnostics, `lab/cases-jit-policy.txt` samples vector casts, product edges,
 retained scratch and sparse scheduling. Compare assertions on/off separately under normal tiering,
 `-XX:+TieredCompilation -XX:TieredStopAtLevel=1` and `-XX:-TieredCompilation`.

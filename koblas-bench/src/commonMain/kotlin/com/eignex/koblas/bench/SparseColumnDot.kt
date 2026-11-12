@@ -17,9 +17,9 @@ internal fun sparseColumnDotArm(case: BenchCase, engine: KoblasEngine): ArmChoic
     val kernels = engine.kernels
     val raw = case.operation == "spdot-column-raw"
     val run = if (raw) {
-        { kernels.dot(indices, 3, values, 3, count, dense) }
+        BenchmarkOperation { kernels.dot(indices, 3, values, 3, count, dense) }
     } else {
-        { engine.dotColumn(matrix, 3, vector) }
+        BenchmarkOperation { engine.dotColumn(matrix, 3, vector) }
     }
     val expected = KoblasEngine.scalar.kernels.dot(indices, 3, values, 3, count, dense)
     DenseReference.check(doubleArrayOf(expected), doubleArrayOf(run()), case.id)

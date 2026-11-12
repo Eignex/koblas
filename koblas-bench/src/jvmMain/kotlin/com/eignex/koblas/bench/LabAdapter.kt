@@ -143,6 +143,7 @@ internal object KoblasLabSuite : BenchSuite {
         val complete = Files.isRegularFile(metadata) && Files.newBufferedReader(metadata).use { it.readLine() == "status=complete" }
         val controls = buildJsonObject {
             put("policy", "koblas-jmh-status-v1")
+            put("callbackResult", BENCHMARK_CALLBACK_ABI)
             put("sweepProfile", case.parameters["sweep-profile"] ?: "status-v3")
             put("java", runtimeIdentity())
             put("vm", System.getProperty("java.vm.name"))

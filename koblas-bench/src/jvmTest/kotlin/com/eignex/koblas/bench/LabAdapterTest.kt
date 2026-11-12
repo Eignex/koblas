@@ -219,6 +219,8 @@ class LabAdapterTest {
             assertEquals(BenchStatus.SUCCESS, result.status)
             assertEquals(listOf("median_ns", "median_ns/jvm-scalar", "median_ns/jvm-simd"), result.metrics.map { it.name })
             assertTrue(result.metrics.all { it.value == 12.5 && it.unit == "ns/op" })
+            val controls = result.details!!.getValue("benchmarkControls").jsonObject
+            assertEquals("primitive-double-v1", controls.getValue("callbackResult").jsonPrimitive.content)
             val attribution = result.details!!.getValue("metricAttribution").jsonObject.getValue("median_ns/jvm-simd").jsonObject
             assertEquals("jvm-simd", attribution.getValue("engine").jsonPrimitive.content)
             assertEquals("scalar", attribution.getValue("provider").jsonPrimitive.content)

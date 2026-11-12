@@ -121,3 +121,11 @@ six repetitions against either original arm. The identical-revision SpMM control
 varied by up to 74% in one repetition. These confirmations do not establish throughput
 equivalence; they reject treating the initial shifts as established regressions. The intended
 benefit is the reproducible removal of Vector-carrier allocation when null-helper inlining fails.
+
+The benchmark module also runs `verifyBenchmarkCallbacks` before preparation and as part of
+`check`. Timed `BenchmarkOperation` callbacks expose `invoke()D`. The verifier walks their
+harness-side call paths, including nested helpers and virtual dispatch, and rejects erased
+`FunctionN.invoke` calls, primitive box/unbox calls, and boxed method-reference adaptation.
+It handles invokedynamic and class-based SAM implementations. Cold setup/reporting and the
+measured library operation are outside this harness check. Captures and regression controls
+record `primitive-double-v1`; compare numerical changes using the same callback representation.
