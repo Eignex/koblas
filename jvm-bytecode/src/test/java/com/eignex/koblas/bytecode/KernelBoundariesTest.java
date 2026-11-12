@@ -36,6 +36,28 @@ public class KernelBoundariesTest {
         assertTrue(KernelBoundaries.violations(caller).isEmpty());
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"kernels/scalar/dense/ValuesKt", "scheduling/dense/BlocksKt", "operations/PreparationKt"})
+    void arithmeticCallbacksMustBeSourceInlined(String path) {
+        ClassDesc helper = ClassDesc.of("com.eignex.koblas.internal." + path.replace('/', '.'));
+        ClassDesc function = ClassDesc.of("kotlin.jvm.functions.Function1");
+        byte[] caller = fixture(code -> code.aconst_null()
+            .invokestatic(helper, "visit", MethodTypeDesc.of(CD_void, function)).return_());
+        assertEquals(1, KernelBoundaries.violations(caller).size());
+    }
+
+    @Test
+    void startupAndPoolAllocationCallbacksMayRemainOutlined() {
+        ClassDesc engine = ClassDesc.of("com.eignex.koblas.internal.engine.EngineSelectionKt");
+        ClassDesc pool = ClassDesc.of("com.eignex.koblas.internal.storage.PooledBuffers");
+        ClassDesc function = ClassDesc.of("kotlin.jvm.functions.Function1");
+        byte[] caller = fixture(code -> code.aconst_null()
+            .invokestatic(engine, "select", MethodTypeDesc.of(CD_Object, function)).pop()
+            .aconst_null().aconst_null()
+            .invokevirtual(pool, "take", MethodTypeDesc.of(CD_Object, function)).pop().return_());
+        assertTrue(KernelBoundaries.violations(caller).isEmpty());
+    }
+
     @Test
     void primitiveBackendDispatchRemainsABoundary() {
         ClassDesc backend = ClassDesc.of("com.eignex.koblas.internal.kernels.EngineKernels");

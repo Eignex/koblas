@@ -66,6 +66,15 @@ public final class KernelBoundaries {
         if (!owner.startsWith(PROJECT)) return;
         boolean carrier = vector(type.returnType());
         for (var parameter : type.parameterArray()) carrier |= vector(parameter);
+        boolean arithmetic = owner.startsWith(PROJECT + "internal/kernels/")
+            || owner.startsWith(PROJECT + "internal/scheduling/")
+            || owner.startsWith(PROJECT + "internal/operations/");
+        boolean genericCallback = false;
+        for (var parameter : type.parameterArray()) {
+            genericCallback |= parameter.descriptorString().startsWith("Lkotlin/jvm/functions/Function");
+        }
+        if (arithmetic && genericCallback) failures.add(caller + " -> " + owner + "." + name + type.descriptorString()
+            + " carries an erased callback into arithmetic; source-inline the helper or use a primitive callback signature");
         if (carrier) failures.add(caller + " -> " + owner + "." + name + type.descriptorString()
             + " carries a Vector API value across a project call; source-inline the helper into its concrete caller");
     }

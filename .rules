@@ -32,6 +32,8 @@ Kotlin Multiplatform BLAS.
 - A helper returning a `DoubleVector` must be `inline`. A vector returned from a call the JIT declines to inline becomes a heap object, so the loop allocates per operation and runs twenty to forty times slower, silently and only sometimes: the refusal depends on how close the whole compilation sits to its node budget, so a caller's size decides it. Suppress `NOTHING_TO_INLINE` and say why.
 - Project helpers carrying Vector API values, masks or shuffles must be source-inlined. Vector backend expression and cast null checks must have an explicit local fast path; ordinary array/parameter checks remain intact. `verifyKernelBoundaries` checks the packaged bytecode, independently of Kotlin metadata. Primitive/array kernel boundaries may remain outlined; do not replace this rule with JIT size thresholds or blanket scalar inlining.
 
+- Higher-order helpers in kernels, schedules and operation preparation must be source-inlined, or accept a callback interface with primitive numeric parameters/results. `verifyKernelBoundaries` rejects surviving `FunctionN` arguments at these arithmetic seams. Startup factories and allocation-on-miss buffer factories may stay outlined.
+
 ## Style and contributions
 
 - Prefer clear names/types. Comments explain why, never narrate changes or cite issues; retain `TODO`/`FIXME`.

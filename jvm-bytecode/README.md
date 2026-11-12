@@ -20,6 +20,12 @@ at lengths 17, 129, 4097 and 65537. The original artifact fails this probe at 51
 on the first absolute-sum case; the local-fast-path artifact records zero in every case. This
 reproduces an opaque-call failure without depending on a particular caller's JIT budget.
 
+At arithmetic seams in `internal.kernels`, `internal.scheduling` and `internal.operations`,
+the same verifier rejects surviving project calls that accept generic `FunctionN` arguments.
+Source-inline these higher-order helpers or use a primitive callback interface when work must
+be retained. Startup and allocation-on-miss factories, and generated public facade bridges,
+remain ordinary calls. This rule does not require inlining ordinary primitive/array helpers.
+
 Source inlining removes a typed helper call before C1 or C2 compiles the caller. It does not
 guarantee that a larger caller compiles faster or that dispatch inlines. The checker cannot infer
 Vector values hidden by erased `Object` signatures. Allocation profiles remain necessary, and

@@ -66,6 +66,11 @@ that carry them are Kotlin `inline` functions. Ordinary primitive/array kernel b
 remain outlined. Blanket scalar inlining grows callers and can move compilation cliffs rather
 than remove them.
 
+Higher-order arithmetic helpers are source-inlined, or accept primitive callback interfaces.
+The packaged boundary check rejects generic `FunctionN` arguments entering kernels, schedules
+or operation preparation. Startup factories, buffer factories used only on pool misses and
+compiler-generated public facade bridges may remain outlined.
+
 Vector backend expression and cast null assertions have a local non-null fast path in the
 packaged artifact. Only null reaches the original Kotlin failure helper; argument evaluation,
 exception behavior and casts remain intact. Scalar code and parameter checks are unchanged.
