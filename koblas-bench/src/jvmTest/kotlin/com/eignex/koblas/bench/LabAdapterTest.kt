@@ -37,6 +37,29 @@ class LabAdapterTest {
         }
     }
 
+    @Test fun `isolated policies require the requested vendor and no native executable`() {
+        val parameters = mapOf("vendor" to "openblas", "targets" to "jvm-scalar,jvm-auto-openblas-no-simd")
+        val cases = KoblasLabSuite.plan(BenchRequest(parameters))
+
+        assertTrue(cases.all { case -> case.inputs.none { it.role == "executable" } })
+        for (invalid in listOf(parameters - "vendor", parameters + ("vendor" to "onemkl"),
+            mapOf("targets" to "unknown"))) {
+            assertFailsWith<IllegalArgumentException> { KoblasLabSuite.plan(BenchRequest(invalid)) }
+        }
+    }
+
+    @Test fun `calibration rows can bound their case deadline`() {
+        val parameters = mapOf("targets" to "jvm-scalar", "operation" to "dot", "case-timeout" to "600")
+        val cases = KoblasLabSuite.plan(BenchRequest(parameters))
+
+        assertTrue(cases.all { it.resources.timeoutSeconds == 600L })
+        for (invalid in listOf("0", "-1", "7201", "unknown")) {
+            assertFailsWith<IllegalArgumentException> {
+                KoblasLabSuite.plan(BenchRequest(parameters + ("case-timeout" to invalid)))
+            }
+        }
+    }
+
     @Test fun `vendor placement rejects incompatible hosts`() {
         for (parameters in listOf(mapOf("vendor" to "onemkl", "arch" to "arm64"),
             mapOf("vendor" to "openblas", "platform" to "mac"))) {
@@ -71,7 +94,7 @@ class LabAdapterTest {
     }
 
     @Test fun `owned captures need no vendor and windows keeps compatible library architectures`() {
-        val owned = KoblasLabSuite.plan(BenchRequest(mapOf("targets" to "jvm-scalar,jvm-simd")))
+        val owned = KoblasLabSuite.plan(BenchRequest(mapOf("targets" to "jvm-scalar,jvm-simd,jvm-default-no-simd")))
         assertTrue(owned.all { it.inputs.none { input -> input.role in setOf("vendor", "executable") } })
         for ((vendor, arch) in mapOf("onemkl" to "x86_64", "aocl" to "x86_64", "armpl" to "arm64")) {
             val cases = KoblasLabSuite.plan(BenchRequest(mapOf("vendor" to vendor, "arch" to arch,

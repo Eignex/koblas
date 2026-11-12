@@ -41,12 +41,33 @@ class CalibrationCaptureTest {
         assertFailsWith<IllegalArgumentException> { readTimingCsv(csv + "\"gemm,quoted\",host\n") }
     }
 
+    @Test fun `scalar baseline does not require or compare the SIMD arm`() = fixture { root ->
+        rounds(root, jvm = true)
+        val owned = readCalibration(listOf(root), "jvm-owned", "onemkl-jvm", "onemkl")
+        for (round in 1..3) Files.delete(root.resolve("pass-$round/jvm-simd.csv"))
+
+        val scalar = readCalibration(listOf(root), "jvm-scalar", "onemkl-jvm", "onemkl")
+
+        assertEquals(listOf(2.5, 2.5, 2.5), owned.timings.map { it.ratio })
+        assertEquals(listOf(0.5, 0.5, 0.5), scalar.timings.map { it.ratio })
+    }
+
+    @Test fun `a scalar baseline rejects vendor capabilities`() = fixture { root ->
+        rounds(root, jvm = true)
+        rewrite(root.resolve("pass-2/metadata.txt"), "caps[portable:Dot]", "caps[openblas:Dot]")
+
+        assertFailsWith<IllegalArgumentException> {
+            readCalibration(listOf(root), "jvm-scalar", "onemkl-jvm", "onemkl")
+        }
+    }
+
     private fun rewrite(path: Path, before: String, after: String) = Files.writeString(path, Files.readString(path).replace(before, after))
     private fun fixture(block: (Path) -> Unit) {
         val root = Files.createTempDirectory("koblas-tuning")
         try { block(root) } finally { root.toFile().deleteRecursively() }
     }
-    private fun rounds(root: Path) {
+    private fun rounds(root: Path, jvm: Boolean = false) {
+        val times = if (jvm) mapOf("jvm-scalar" to 10, "jvm-simd" to 2, "onemkl-jvm" to 5) else mapOf("native" to 10, "onemkl" to 5)
         Files.writeString(root.resolve("source-hashes.txt"), "${"a".repeat(64)} koblas/src/commonMain/kernel.kt\n")
         for (round in 1..3) {
             val pass = Files.createDirectory(root.resolve("pass-$round"))
@@ -64,14 +85,14 @@ class CalibrationCaptureTest {
                 cpu_policy=unbound
                 koblas_threads=1
                 platform=Linux fixture kernel
-            """.trimIndent() + listOf("native", "onemkl").joinToString("") { target -> """
+            """.trimIndent() + times.keys.joinToString("") { target -> """
 
                 [$target]
                 runtime=Native
                 harness=native
                 warmup_target_ns=50000000
-                implementation=$target/fixture${if (target == "onemkl") "/oneMKL/libmkl.so/test/threads=1" else ""}/caps[$target:Dot]
-                profile_runtime=native
+                implementation=$target/fixture${if (target.startsWith("onemkl")) "/oneMKL/libmkl.so/test/threads=1" else ""}/caps[${if (target == "jvm-scalar") "portable" else if (target == "onemkl-jvm") "onemkl" else target}:Dot]
+                profile_runtime=${if (jvm) "jvm" else "native"}
                 profile_os=Linux
                 profile_arch=X86_64
                 profile_cpu_model=A
@@ -79,9 +100,9 @@ class CalibrationCaptureTest {
                 profile_sve_vector_bits=*
             """.trimIndent().let { "\n$it\n" } }
             Files.writeString(pass.resolve("metadata.txt"), metadata)
-            for ((name, time) in mapOf("native" to 10, "onemkl" to 5)) Files.writeString(pass.resolve("$name.csv"),
+            for ((name, time) in times) Files.writeString(pass.resolve("$name.csv"),
                 "case,status,samples,median_ns,provider,routing_key,timing_mode\n" +
-                    "dot+32+uniform,ok,3,$time,$name,Dot:32:1:1:false:1:true,arithmetic\n")
+                    "dot+32+uniform,ok,3,${time},${if (name == "onemkl-jvm") "onemkl" else name},Dot:32:1:1:false:1:true,arithmetic\n")
         }
     }
 }

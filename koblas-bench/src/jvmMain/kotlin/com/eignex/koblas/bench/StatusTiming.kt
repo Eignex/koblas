@@ -15,7 +15,7 @@ internal fun readStatusTiming(engine: String, case: BenchCase, samples: Int, csv
     val unsupported = row.getValue("status") == "unsupported"
     if (unsupported) {
         require(case.operation in setOf("copy-overlap", "axpy-views", "spdot-view") &&
-            engine !in setOf("jvm-default", "native-default")) { "$engine declined a sweep workload" }
+            engine !in setOf("jvm-default", "jvm-default-no-simd", "native-default")) { "$engine declined a sweep workload" }
         require(row.getValue("samples") == "0" && row.getValue("forks") == "0" && row.getValue("median_ns").isEmpty())
         return StatusTiming(engine, null, "", row.getValue("actual_kernel"))
     }

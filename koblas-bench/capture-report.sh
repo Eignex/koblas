@@ -128,11 +128,14 @@ done
 available_targets=()
 if ! $vendors_only; then
   available_targets+=(jvm-scalar jvm-simd jvm-default)
+  [[ ,$selected_targets, != *,jvm-default-no-simd,* ]] || available_targets+=(jvm-default-no-simd)
   if $native_capable; then available_targets+=(native native-default); fi
 fi
 for vendor in "${vendors[@]}"; do
   if $native_capable; then available_targets+=("$vendor"); fi
   available_targets+=("$vendor-jvm")
+  policy_target="jvm-auto-$vendor-no-simd"
+  [[ ,$selected_targets, != *,$policy_target,* ]] || available_targets+=("$policy_target")
 done
 targets=("${available_targets[@]}")
 if [[ -n $selected_targets ]]; then
@@ -399,13 +402,18 @@ run_jvm() {
 # JVM binding, which copies operands into native memory and reports that transfer as part of its route.
 for target in "${targets[@]}"; do
   case "$target" in
-    jvm-scalar|jvm-simd|jvm-default)
+    jvm-scalar|jvm-simd|jvm-default|jvm-default-no-simd)
       case "$target" in
         jvm-scalar) task=jvmScalarBenchmark ;;
         jvm-simd) task=jvmSimdBenchmark ;;
         jvm-default) task=jvmDefaultBenchmark ;;
+        jvm-default-no-simd) task=jvmDefaultNoSimdBenchmark ;;
       esac
       run_jvm "$target" "$target" "$task"
+      ;;
+    jvm-auto-*-no-simd)
+      vendor=${target#jvm-auto-}; vendor=${vendor%-no-simd}
+      run_jvm "$target" "$target" jvmAutoVendorNoSimdBenchmark "-Pbench.vendor=$vendor"
       ;;
     native) run_native native native nativeBenchmark ;;
     native-default) run_native native-default native-default nativeDefaultBenchmark ;;

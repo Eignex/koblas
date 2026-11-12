@@ -47,6 +47,9 @@ internal class BuiltinEngine(
     }
     private val hostAdjacent = IntArray(owned.size) { hostMinimum(EngineImplementation.entries[it], true) }
     private val hostStrided = IntArray(owned.size) { hostMinimum(EngineImplementation.entries[it], false) }
+    private val hostMaximums = IntArray(
+        owned.size,
+    ) { tuning?.hostMaximum(EngineImplementation.entries[it]) ?: Int.MAX_VALUE }
 
     private fun hostMinimum(operation: EngineImplementation, contiguous: Boolean): Int =
         if (host == null || operation !in host.implementations) {
@@ -58,7 +61,7 @@ internal class BuiltinEngine(
     internal fun vectorProvider(operation: EngineImplementation, length: Int, contiguous: Boolean): KernelProvider {
         val i = operation.ordinal
         val limit = (if (contiguous) hostAdjacent else hostStrided)[i]
-        if (limit >= 0 && length >= limit) return requireNotNull(host)
+        if (limit >= 0 && length >= limit && length <= hostMaximums[i]) return requireNotNull(host)
         val leaf = owned[i]
         return if (length >= minimums[i] && (contiguous || !leaf.requiresUnitStride(operation))) leaf else ScalarEngine
     }

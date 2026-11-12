@@ -41,7 +41,7 @@ internal fun readCalibration(
     arm: String? = null, cpuClass: String? = null, sveBits: String? = null, engineName: String? = null,
 ): CalibrationCapture {
     require(directories.isNotEmpty() && directories.map { it.toRealPath() }.distinct().size == directories.size)
-    val targets = (if (baseline == "jvm-owned") listOf("jvm-scalar", "jvm-simd") else listOf(baseline)) + candidate
+    val targets = calibrationTargets(baseline) + candidate
     val hashes = linkedMapOf<String, String>()
     val provenance = mutableListOf<Any>()
     val timings = mutableListOf<PairedTiming>()
@@ -112,7 +112,12 @@ internal fun readCalibration(
                 val vendorNames = setOf("onemkl", "openblas", "aocl", "armpl", "accelerate")
                 val declared = identities.map { identity -> Regex("""/caps\[([^:]+):""")
                     .findAll(identity.getValue("implementation")).map { it.groupValues[1] }.toSet() }
-                if (baseline == "jvm-owned") require(declared.dropLast(1).all { it.isNotEmpty() && it.all { source -> source in setOf("portable", "jvm-simd") } })
+                if (baseline.startsWith("jvm-")) {
+                    val allowed = if (baseline == "jvm-scalar") setOf("portable") else setOf("portable", "jvm-simd")
+                    require(declared.dropLast(1).all { it.isNotEmpty() && it.all(allowed::contains) }) {
+                        "Baseline includes a provider outside its owned fallback"
+                    }
+                }
                 identities.forEachIndexed { index, identity ->
                     val implementation = identity.getValue("implementation")
                     require(declared[index].none { it in vendorNames } || "/threads=" in implementation) { "Missing vendor version or thread evidence" }
