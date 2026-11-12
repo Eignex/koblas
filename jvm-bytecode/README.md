@@ -135,3 +135,11 @@ harness-side call paths, including nested helpers and virtual dispatch, and reje
 It handles invokedynamic and class-based SAM implementations. Cold setup/reporting and the
 measured library operation are outside this harness check. Captures and regression controls
 record `primitive-double-v1`; compare numerical changes using the same callback representation.
+
+After converting the harness, [job 11968](https://lab.eignex.com/jobs/11968) compared both numerical
+policies with the same primitive benchmark bytecode on 13 selected workloads across normal,
+C1-only and C2-only compilation. All 234 captures completed. Normal-tiered SIMD timing remained
+flat; selected forced-compiler aggregates looked more favorable but retained substantial variation
+in unchanged controls. The benchmark README records the results and their limits. The structural
+rule removes a specific source of JIT-dependent allocation, rather than promising that every
+larger compiled caller runs faster.
