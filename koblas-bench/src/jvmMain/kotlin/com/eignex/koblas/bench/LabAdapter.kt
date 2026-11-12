@@ -7,8 +7,11 @@ import com.eignex.koblas.koblas
 import com.eignex.lab.bench.*
 import com.eignex.lab.bench.BenchCase as LabCase
 import java.io.File
+import java.io.OutputStream
 import java.nio.file.Files
 import java.nio.file.Path
+import java.security.DigestInputStream
+import java.security.MessageDigest
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
@@ -24,6 +27,7 @@ public object LabAdapter {
 internal object KoblasLabSuite : BenchSuite {
     private const val CASES = "koblas-bench/lab/cases-vendor-comparison.txt"
     private const val ROW = "row"
+    private const val NATIVE_EXECUTABLE = "nativeExecutable"
     private val sweepProfiles = mapOf(
         "status-v2" to "koblas-bench/lab/cases-status-sweep-v2.txt",
         "status-v3" to "koblas-bench/lab/cases-status-sweep-v3.txt",
@@ -58,7 +62,7 @@ internal object KoblasLabSuite : BenchSuite {
         val profile = p["sweep-profile"] ?: if (sweep) "status-v3" else null
         val cases = p["cases"] ?: profile?.let(sweepProfiles::getValue) ?: CASES
         val inputs = mutableListOf(BenchInput(cases, role = "cases"))
-        if (selected.any { !it.startsWith("jvm-") && !it.endsWith("-jvm") }) {
+        val executable = if (selected.any { !it.startsWith("jvm-") && !it.endsWith("-jvm") }) {
             val target = when {
                 platform == "linux" -> if (arch == "arm64") "linuxArm64" else "linuxX64"
                 platform == "mac" && arch == "arm64" -> "macosArm64"
@@ -66,8 +70,8 @@ internal object KoblasLabSuite : BenchSuite {
                 else -> error("No prepared Native target for $platform/$arch")
             }
             val binary = if (platform == "windows") "koblas-bench.exe" else "koblas-bench.kexe"
-            inputs += BenchInput("koblas-bench/build/bin/$target/releaseExecutable/$binary", role = "executable")
-        }
+            "koblas-bench/build/bin/$target/releaseExecutable/$binary"
+        } else null
         if (vendor == Vendor.OneMkl && platform == "linux") {
             inputs += BenchInput("koblas-bench/build/vendor-reference", role = "vendor")
         }
@@ -81,10 +85,12 @@ internal object KoblasLabSuite : BenchSuite {
                     (profile?.let { mapOf("sweep-profile" to it) } ?: emptyMap()),
                 BenchResources(memoryMiB = 2048, timeoutSeconds = p["case-timeout"]?.toLong() ?: if (sweep) 60L else 7200L,
                     requiredTags = setOf("platform:$platform", "arch:$arch")), inputs = inputs,
-                attributes = if (sweep) mapOf("regressionPolicy" to "metric-v1", "regressionMetric" to "median_ns",
+                attributes = (if (sweep) mapOf("regressionPolicy" to "metric-v1", "regressionMetric" to "median_ns",
                     "regressionThreshold" to "0.15", "suite" to (if (profile == "status-v2") "koblas-status-v1" else "koblas-$profile") +
                         (if (selected.size > 1) "-engines-v1" else "")) +
-                    (if (selected.size > 1) mapOf("regressionMetrics" to selected.joinToString(",", transform = ::statusMetric)) else emptyMap()) else emptyMap())
+                        (if (selected.size > 1) mapOf("regressionMetrics" to selected.joinToString(",", transform = ::statusMetric)) else emptyMap()) else emptyMap()) +
+                    // The program belongs to its revision's verified workspace; only workload data is shared across revisions.
+                    (executable?.let { mapOf(NATIVE_EXECUTABLE to it) } ?: emptyMap()))
         }
     }
 
@@ -104,11 +110,15 @@ internal object KoblasLabSuite : BenchSuite {
         if (case.parameters["smoke"] == "true") argv += "--smoke"
         val vendor = case.parameters["vendor"]
         if (vendor != null) argv += listOf("--libraries", if (vendor == "onemkl") "onemkl,openblas" else vendor)
-        val executable = case.inputs.singleOrNull { it.role == "executable" }
+        val executable = case.attributes[NATIVE_EXECUTABLE]
         require(executable != null || case.parameters.getValue("targets").split(',').all { it.startsWith("jvm-") || it.endsWith("-jvm") })
-        executable?.let { input ->
-            require(input.root == BenchInputRoot.SOURCE)
-            argv += listOf("--native-executable", root.resolve(input.path).toString())
+        executable?.let { path ->
+            val program = root.resolve(path)
+            val digest = MessageDigest.getInstance("SHA-256")
+            DigestInputStream(Files.newInputStream(program), digest).use { it.transferTo(OutputStream.nullOutputStream()) }
+            Files.writeString(context.outputDirectory.resolve("native-program.txt"),
+                "path=$path\nsha256=${digest.digest().joinToString("") { "%02x".format(it) }}\n")
+            argv += listOf("--native-executable", program.toString())
         }
         val environment = mutableMapOf(
             "TMPDIR" to context.outputDirectory.toString(),
@@ -151,6 +161,7 @@ internal object KoblasLabSuite : BenchSuite {
         val success = exit == 0 && complete && (!sweep || timing?.isSuccess == true)
         return BenchResult(case.id, if (success) BenchStatus.SUCCESS else BenchStatus.FAILED,
             artifacts = context.artifacts() + context.artifact("capture.log", "text/plain") +
+                (if (executable != null) listOf(context.artifact("native-program.txt", "text/plain")) else emptyList()) +
                 if (case.inputs.any { it.role == "vendor" }) listOf(context.artifact("vendor-package.txt", "text/plain")) else emptyList(),
             metrics = timing?.getOrNull().orEmpty().mapNotNull { arm -> arm.nanos?.let {
                 BenchMetric(arm.metric, it, "ns/op", MetricDirection.LOWER)

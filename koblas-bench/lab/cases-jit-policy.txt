@@ -1,0 +1,8 @@
+# Compilation diagnostics sample vector casts, packed edges, retained scratch and sparse scheduling.
+dot+4096+uniform
+iamax+257+uniform
+gemm+33x33x33+uniform
+gemm+129x257x129+uniform+workspace=retained+layout=borrowed
+trsm+65x3+triangular+side=L+uplo=L+transA=N+diag=N
+sptrsm+65x3+sparse-triangular+density=0.01+support=skewed+mode=oneshot+side=R+uplo=U+transA=T+diag=U
+sptrmm+65x9+sparse-triangular+density=0.5+support=banded+mode=oneshot+side=L+uplo=U+transA=N+diag=U
