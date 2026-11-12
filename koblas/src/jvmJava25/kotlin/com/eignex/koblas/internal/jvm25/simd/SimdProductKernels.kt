@@ -14,8 +14,9 @@ import jdk.incubator.vector.DoubleVector
  * packers obtain it through [tileRows] and [tileColumns].
  *
  * Packed column groups have positive-zero padding, so partial columns use the full tile body with
- * fewer stores. Partial rows use the scalar edge because masked stores allocate on this
- * implementation. [implementationsFor] reports both bodies when needed.
+ * fewer stores. Partial rows reuse padded vector loads and store individual live lanes, avoiding masked
+ * access checks at the destination boundary. Wider species keep a scalar edge.
+ * [implementationsFor] reports both bodies when needed.
  *
  * Species initialization requires the Vector API module. [KoblasEngine] checks
  * availability before constructing an engine with this backend.
@@ -145,12 +146,58 @@ internal object SimdProductKernels : KernelProvider {
     }
 
     /**
-     * Scalar row edge, bounded by [tileRows] minus one rows.
-     *
-     * Packed inputs are padded, but destination columns end inside a lane block. Masked stores allocate
-     * per vector on this implementation, so [implementationsFor] reports a scalar edge instead.
+     * Padded inputs permit whole vector loads. Scalar lane stores avoid masked-access allocation at
+     * the destination boundary and do not require padding the caller's destination.
      */
     private fun edgeTile(
+        depth: Int,
+        a: DoubleArray,
+        aOffset: Int,
+        b: DoubleArray,
+        bOffset: Int,
+        alpha: Double,
+        c: DoubleArray,
+        cOffset: Int,
+        ldc: Int,
+        presentRows: Int,
+        presentColumns: Int,
+    ) {
+        if (LANE > MAX_EDGE_LANES) {
+            scalarEdgeTile(depth, a, aOffset, b, bOffset, alpha, c, cOffset, ldc, presentRows, presentColumns)
+            return
+        }
+        for (column in 0 until presentColumns) {
+            val target = cOffset + column * ldc
+            var row = 0
+            while (row < presentRows) {
+                var sum = DoubleVector.zero(SPECIES)
+                var ap = aOffset + row
+                var bp = bOffset + column
+                var step = 0
+                while (step < depth) {
+                    sum = multiplyAdd(
+                        DoubleVector.fromArray(SPECIES, a, ap),
+                        DoubleVector.broadcast(SPECIES, b[bp]),
+                        sum,
+                    )
+                    ap += ROWS
+                    bp += TILE_COLUMNS
+                    step++
+                }
+                val at = target + row
+                c[at] += alpha * sum.lane(0)
+                if (row + 1 < presentRows) c[at + 1] += alpha * sum.lane(1)
+                if (LANE > 2) {
+                    if (row + 2 < presentRows) c[at + 2] += alpha * sum.lane(2)
+                    if (row + 3 < presentRows) c[at + 3] += alpha * sum.lane(3)
+                }
+                row += LANE
+            }
+        }
+    }
+
+    /** Wider species keep the scalar edge to avoid dynamic lane extraction. */
+    private fun scalarEdgeTile(
         depth: Int,
         a: DoubleArray,
         aOffset: Int,
@@ -205,6 +252,9 @@ internal object SimdProductKernels : KernelProvider {
     /** Destination columns one tile holds, which is a register budget and not a lane count. */
     private const val TILE_COLUMNS = 4
 
-    /** What the scalar last row block reports, so a vector body's name never stands for it. */
-    private const val EDGE_NAME = "scalar-tile-edge"
+    /** Fixed lane indices let the JIT extract scalar values without materializing the vector. */
+    private const val MAX_EDGE_LANES = 4
+
+    /** Which edge body this species can use. */
+    private val EDGE_NAME = if (LANE <= MAX_EDGE_LANES) "simd-tile-edge" else "scalar-tile-edge"
 }
