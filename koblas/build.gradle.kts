@@ -231,6 +231,17 @@ val profiles = buildList {
             ))
         }
     }
+    for ((suffix, flags) in listOf(
+        "" to emptyList(),
+        "NarrowNoFma" to listOf("-XX:MaxVectorSize=16", "-XX:-UseFMA"),
+    )) {
+        add(JvmCheckProfile(
+            "simdVectorBoundaryAllocationCheck$suffix",
+            "com.eignex.koblas.internal.jvm25.simd.VectorBoundaryAllocationCheck",
+            vmArguments = allocationArguments + flags +
+                "-XX:CompileCommand=dontinline,kotlin.jvm.internal.Intrinsics::checkNotNull",
+        ))
+    }
     for ((name, args, flags) in listOf(
         Triple("simdNarrowSpeciesCheck", listOf("2"), listOf("-XX:MaxVectorSize=16")),
         Triple("simdNoFmaCheck", listOf("", "false"), listOf("-XX:-UseFMA")),
@@ -276,6 +287,11 @@ val isolatedChecks = profiles.map { profile ->
     }
 }
 if (fullTargets) tasks.named("check") { dependsOn(isolatedChecks) }
+if (providers.gradleProperty("koblas.noSimd").orNull != "true") {
+    tasks.named("check") {
+        dependsOn(isolatedChecks.filter { it.name.startsWith("simdVectorBoundaryAllocationCheck") })
+    }
+}
 
 // Kotlin emits a `$DefaultImpls` holder for every interface with a body, and a bridge for every method with
 // a default argument. Neither is reachable from Kotlin call sites, so both count as permanently uncovered and

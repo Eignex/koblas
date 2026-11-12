@@ -13,6 +13,13 @@ and all other namespaces remain byte-for-byte intact. The pass is idempotent; th
 rejects unguarded backend assertions. Every output class is verified before replacing the JAR.
 The tool classpath and JDK runtime version participate in Gradle cache inputs.
 
+`check` also runs `simdVectorBoundaryAllocationCheck` in normal and narrow/no-FMA JVMs
+(unless SIMD is withheld with `koblas.noSimd`). These focused probes forbid HotSpot from inlining
+`Intrinsics.checkNotNull`: absolute sum and both maximum-index paths must remain allocation-free
+at lengths 17, 129, 4097 and 65537. The original artifact fails this probe at 512 bytes per call
+on the first absolute-sum case; the local-fast-path artifact records zero in every case. This
+reproduces an opaque-call failure without depending on a particular caller's JIT budget.
+
 Source inlining removes a typed helper call before C1 or C2 compiles the caller. It does not
 guarantee that a larger caller compiles faster or that dispatch inlines. The checker cannot infer
 Vector values hidden by erased `Object` signatures. Allocation profiles remain necessary, and
