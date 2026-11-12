@@ -33,3 +33,28 @@ three SIMD runtime profiles: normal, FMA disabled, and narrow vectors with FMA d
 This is a performance experiment. Compare identical numerical sources with the property
 disabled and enabled, using the benchmark suite's paired protocol and unchanged Native
 arms as controls. A smaller assertion count alone is not performance evidence.
+
+The initial Linux x86_64 experiment used 136 workloads and three paired passes on JDK 25,
+with an Intel Xeon Platinum 8488C. [Normal tiering](https://lab.eignex.com/jobs/11925)
+showed less than 0.6% improvement in each JVM arm's geometric mean, with individual gains
+and regressions. [C1-only and C2-only](https://lab.eignex.com/jobs/11928) showed roughly
+2–3% and 2% improvement respectively. These results do not justify enabling the policy
+by default. Native source was unchanged; each revision's built executable hash is retained,
+and per-case control variation must be considered.
+
+The more general rules are:
+
+- Keep normal tiering as the primary deployment comparison. C1 profiles can help C2 optimize;
+  forcing C2 alone changes more than the compiler that eventually runs a hot method.
+- Keep outlined numerical kernels on primitive and array signatures. A large primitive-only
+  method does not have to inline into its caller to avoid vector allocation.
+- Source-inline small helpers that carry Vector API values across a call boundary.
+- Source-inline generic numeric callbacks, or use a primitive signature when the callback
+  must remain outlined. The benchmark's generic callback can box a `Double` even under C2.
+- Inspect the measured fork's compilation log and attribute allocation to its stack before
+  changing kernels. Expected scratch allocation and benchmark boxing are separate costs.
+
+[Structured diagnostics](https://lab.eignex.com/jobs/11930) retain 84 measured-fork XML logs
+and allocation profiles. C1-only Vector API execution allocated heavily in both policy arms;
+removing assertions did not give it C2's vector optimizations. This is a separate issue from
+the cost of generated assertions.
