@@ -35,7 +35,8 @@ internal object KoblasLabSuite : BenchSuite {
     )
     private val vendors = Vendor.entries.associateBy { it.vendorName.lowercase() }
     private val parameters = setOf("vendor", "arch", "platform", "operation", "cases", "samples", "warmups",
-        "target-ms", "forks", "rounds", "case-timeout", "targets", "arm-order", "profile-gc", "jvm-options", "smoke", "status-sweep", "sweep-profile")
+        "target-ms", "forks", "rounds", "case-timeout", "targets", "arm-order", "profile-gc", "profile-compilation",
+        "jvm-options", "smoke", "status-sweep", "sweep-profile")
     private val owned = setOf("jvm-scalar", "jvm-simd", "jvm-default", "jvm-default-no-simd", "native", "native-default")
 
     override fun describe() = BenchDescriptor("koblas-bench", "Prepared paired JVM and Native workloads")
@@ -125,6 +126,7 @@ internal object KoblasLabSuite : BenchSuite {
             "KOBLAS_BENCH_JAVA" to Path.of(System.getProperty("java.home"), "bin", "java").toString(),
             "KOBLAS_BENCH_CLASSPATH" to System.getProperty("java.class.path"),
             "KOBLAS_BENCH_PROFILE_GC" to (case.parameters["profile-gc"] ?: "false"),
+            "KOBLAS_BENCH_PROFILE_COMPILATION" to (case.parameters["profile-compilation"] ?: "false"),
         )
         case.parameters["jvm-options"]?.let { environment["JAVA_TOOL_OPTIONS"] = it }
         case.inputs.singleOrNull { it.role == "vendor" }?.let { input ->
@@ -193,7 +195,7 @@ internal object KoblasLabSuite : BenchSuite {
         }
         p["case-timeout"]?.let { require(it.toInt() <= 7200) { "case-timeout must not exceed 7200 seconds" } }
         p["warmups"]?.let { require(it.toIntOrNull()?.let { value -> value >= 0 } == true) }
-        for (key in listOf("smoke", "profile-gc", "status-sweep")) p[key]?.toBooleanStrict()
+        for (key in listOf("smoke", "profile-gc", "profile-compilation", "status-sweep")) p[key]?.toBooleanStrict()
         if (p["status-sweep"] == "true") {
             require(p["vendor"] in setOf(null, "accelerate") && p["cases"] == null && p["operation"] == null && p["jvm-options"] == null && p["case-timeout"] == null)
             require(p["vendor"] == null || p["targets"]?.split(',')?.contains("accelerate-jvm") == true)
@@ -201,7 +203,8 @@ internal object KoblasLabSuite : BenchSuite {
                 require("jvm-default" in targets && targets.all { it in owned || it == "accelerate-jvm" && p["vendor"] == "accelerate" })
             }
             require(p["samples"] == "3" && p["warmups"] == "3" && p["target-ms"] == "100" &&
-                p["forks"] == "1" && p["rounds"] == "1" && p["smoke"] != "true" && p["profile-gc"] != "true") {
+                p["forks"] == "1" && p["rounds"] == "1" && p["smoke"] != "true" && p["profile-gc"] != "true" &&
+                p["profile-compilation"] != "true") {
                 "Status sweeps require 3 warmups, 3 samples, 100ms, one fork and one round"
             }
         }

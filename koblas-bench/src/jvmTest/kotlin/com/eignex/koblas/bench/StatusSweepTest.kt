@@ -156,7 +156,8 @@ class StatusSweepTest {
 
     @Test fun `status sweep refuses controls that would mix measurement series`() {
         for (override in listOf(mapOf("rounds" to "2"), mapOf("samples" to "1"), mapOf("targets" to "jvm-scalar"),
-            mapOf("smoke" to "true"), mapOf("cases" to "koblas-bench/cases.txt"),
+            mapOf("smoke" to "true"), mapOf("profile-gc" to "true"), mapOf("profile-compilation" to "true"),
+            mapOf("cases" to "koblas-bench/cases.txt"),
             mapOf("sweep-profile" to "unknown"), mapOf("vendor" to "accelerate"),
             mapOf("arm-order" to "unknown"), mapOf("vendor" to "openblas"))) {
             assertFailsWith<IllegalArgumentException> { KoblasLabSuite.plan(BenchRequest(parameters + override)) }
