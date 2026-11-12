@@ -30,6 +30,7 @@ Kotlin Multiplatform BLAS.
 - Portable dense and sparse Levels 1–3 are the availability floor. JVM kernels are owned Kotlin/Vector API implementations; installed host bindings are optional. Where the standard leaves something open, such as which index `idamax` returns on a tie or a NaN, the answer is the selected implementation's and the KDoc says so rather than promising one.
 - `*Into` destinations may alias inputs; test the backing buffer.
 - A helper returning a `DoubleVector` must be `inline`. A vector returned from a call the JIT declines to inline becomes a heap object, so the loop allocates per operation and runs twenty to forty times slower, silently and only sometimes: the refusal depends on how close the whole compilation sits to its node budget, so a caller's size decides it. Suppress `NOTHING_TO_INLINE` and say why.
+- Primitive/array arithmetic helpers under `kernels.scalar.dense` and `kernels.scalar.sparse` must be Kotlin `inline`; backend dispatch and container algorithms remain ordinary calls. Project helpers carrying Vector API values, masks or shuffles must also be source-inlined. `verifyKernelBoundaries` checks the packaged bytecode for surviving calls, independently of Kotlin metadata; do not replace this rule with JIT size thresholds or per-method compiler directives.
 
 ## Style and contributions
 
