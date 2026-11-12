@@ -7,15 +7,15 @@ internal data class StatusTiming(val engine: String, val nanos: Double?, val pro
 
 internal fun statusMetric(engine: String): String = if (engine == "jvm-default") "median_ns" else "median_ns/$engine"
 
-/** Only known view adapters may decline exact engines; a missing or malformed timing fails the row. */
+/** Vendor gaps and known view adapters stay untimed; missing or malformed measurements fail the row. */
 internal fun readStatusTiming(engine: String, case: BenchCase, samples: Int, csv: String): StatusTiming {
     val rows = readTimingCsv(csv)
     require(rows.size == 1 && rows.keys.single() == case.id) { "Sweep needs exactly its requested workload" }
     val row = rows.values.single()
     val unsupported = row.getValue("status") == "unsupported"
     if (unsupported) {
-        require(case.operation in setOf("copy-overlap", "axpy-views", "spdot-view") &&
-            engine !in setOf("jvm-default", "jvm-default-no-simd", "native-default")) { "$engine declined a sweep workload" }
+        require(engine == "accelerate-jvm" || (case.operation in setOf("copy-overlap", "axpy-views", "spdot-view") &&
+            engine !in setOf("jvm-default", "jvm-default-no-simd", "native-default"))) { "$engine declined a sweep workload" }
         require(row.getValue("samples") == "0" && row.getValue("forks") == "0" && row.getValue("median_ns").isEmpty())
         return StatusTiming(engine, null, "", row.getValue("actual_kernel"))
     }
