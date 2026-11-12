@@ -15,7 +15,7 @@ import kotlin.test.assertTrue
  * scalar arm on the same case means the two arms computed the same thing from the same fixtures.
  */
 class VendorArmTest {
-    private fun vendor(): KoblasEngine? = Vendor.entries.firstNotNullOfOrNull { KoblasEngine.vendor(it) }
+    private fun vendor(): KoblasEngine? = Vendor.entries.firstNotNullOfOrNull { KoblasEngine.exactVendor(it) }
 
     private val dense = listOf(
         "dot+512+uniform",

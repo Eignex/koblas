@@ -24,11 +24,18 @@ internal fun engineFromSetting(
                 "Unknown Koblas engine '$setting'; expected auto, scalar, simd, " +
                     Vendor.entries.joinToString { it.vendorName.lowercase() }
             }
-            val engine = checkNotNull(openVendor(vendor)) { "Koblas engine '$name' is unavailable on this platform" }
-            BuiltinEngine(name, host = engine)
+            checkNotNull(
+                configuredVendorEngine(vendor, openVendor),
+            ) { "Koblas engine '$name' is unavailable on this platform" }
         }
     }
 }
+
+/** Named selection keeps exactly one host, with portable coverage for operations it does not export. */
+internal fun configuredVendorEngine(
+    vendor: Vendor,
+    openVendor: (Vendor) -> KernelProvider? = ::vendorEngine,
+): KernelProvider? = openVendor(vendor)?.let { BuiltinEngine(vendor.vendorName.lowercase(), host = it) }
 
 /** Try compatible libraries in order and keep the first available one for the life of the engine. */
 internal fun standardEngine(

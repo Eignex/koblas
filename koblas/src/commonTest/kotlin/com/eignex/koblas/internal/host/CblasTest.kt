@@ -436,7 +436,7 @@ class CblasTest {
 
     /** Each installed vendor behind the portable composition, admitted at every size. */
     private inline fun withHost(what: String, block: (KoblasEngine) -> Unit) {
-        val hosts = Vendor.entries.mapNotNull { KoblasEngine.vendor(it) }
+        val hosts = Vendor.entries.mapNotNull { KoblasEngine.exactVendor(it) }
         if (hosts.isEmpty()) {
             println("SKIPPED: no CBLAS library installed; $what was not verified on this host")
             return
@@ -493,10 +493,10 @@ class CblasTest {
 
     private companion object {
         // Some vendors special-case singletons and hide a negative increment; prefer the affected binding.
-        val vendor = KoblasEngine.vendor(
+        val vendor = KoblasEngine.exactVendor(
             Vendor.OpenBlas,
         ) ?: Vendor.entries.firstNotNullOfOrNull {
-            KoblasEngine.vendor(
+            KoblasEngine.exactVendor(
                 it,
             )
         }

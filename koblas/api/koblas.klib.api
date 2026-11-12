@@ -120,8 +120,12 @@ abstract interface com.eignex.koblas/KoblasEngine { // com.eignex.koblas/KoblasE
     open fun axpy(kotlin/Double, com.eignex.koblas/DenseVector, com.eignex.koblas/SparseVector) // com.eignex.koblas/KoblasEngine.axpy|axpy(kotlin.Double;com.eignex.koblas.DenseVector;com.eignex.koblas.SparseVector){}[0]
     open fun axpy(kotlin/Double, com.eignex.koblas/SparseVector, com.eignex.koblas/DenseVector) // com.eignex.koblas/KoblasEngine.axpy|axpy(kotlin.Double;com.eignex.koblas.SparseVector;com.eignex.koblas.DenseVector){}[0]
     open fun axpy(kotlin/Double, com.eignex.koblas/SparseVector, com.eignex.koblas/SparseVector) // com.eignex.koblas/KoblasEngine.axpy|axpy(kotlin.Double;com.eignex.koblas.SparseVector;com.eignex.koblas.SparseVector){}[0]
+    open fun copy(com.eignex.koblas/DenseMatrix, com.eignex.koblas/DenseMatrix) // com.eignex.koblas/KoblasEngine.copy|copy(com.eignex.koblas.DenseMatrix;com.eignex.koblas.DenseMatrix){}[0]
+    open fun copy(com.eignex.koblas/DenseMatrix, com.eignex.koblas/SparseMatrix) // com.eignex.koblas/KoblasEngine.copy|copy(com.eignex.koblas.DenseMatrix;com.eignex.koblas.SparseMatrix){}[0]
     open fun copy(com.eignex.koblas/DenseVector, com.eignex.koblas/DenseVector) // com.eignex.koblas/KoblasEngine.copy|copy(com.eignex.koblas.DenseVector;com.eignex.koblas.DenseVector){}[0]
     open fun copy(com.eignex.koblas/DenseVector, com.eignex.koblas/SparseVector) // com.eignex.koblas/KoblasEngine.copy|copy(com.eignex.koblas.DenseVector;com.eignex.koblas.SparseVector){}[0]
+    open fun copy(com.eignex.koblas/SparseMatrix, com.eignex.koblas/DenseMatrix) // com.eignex.koblas/KoblasEngine.copy|copy(com.eignex.koblas.SparseMatrix;com.eignex.koblas.DenseMatrix){}[0]
+    open fun copy(com.eignex.koblas/SparseMatrix, com.eignex.koblas/SparseMatrix) // com.eignex.koblas/KoblasEngine.copy|copy(com.eignex.koblas.SparseMatrix;com.eignex.koblas.SparseMatrix){}[0]
     open fun copy(com.eignex.koblas/SparseVector, com.eignex.koblas/DenseVector) // com.eignex.koblas/KoblasEngine.copy|copy(com.eignex.koblas.SparseVector;com.eignex.koblas.DenseVector){}[0]
     open fun copy(com.eignex.koblas/SparseVector, com.eignex.koblas/SparseVector) // com.eignex.koblas/KoblasEngine.copy|copy(com.eignex.koblas.SparseVector;com.eignex.koblas.SparseVector){}[0]
     open fun dot(com.eignex.koblas/DenseVector, com.eignex.koblas/DenseVector): kotlin/Double // com.eignex.koblas/KoblasEngine.dot|dot(com.eignex.koblas.DenseVector;com.eignex.koblas.DenseVector){}[0]
@@ -171,6 +175,8 @@ abstract interface com.eignex.koblas/KoblasEngine { // com.eignex.koblas/KoblasE
         final val simd // com.eignex.koblas/KoblasEngine.Companion.simd|{}simd[0]
             final fun <get-simd>(): com.eignex.koblas/KoblasEngine? // com.eignex.koblas/KoblasEngine.Companion.simd.<get-simd>|<get-simd>(){}[0]
 
+        final fun exactVendor(com.eignex.koblas/Vendor): com.eignex.koblas/KoblasEngine? // com.eignex.koblas/KoblasEngine.Companion.exactVendor|exactVendor(com.eignex.koblas.Vendor){}[0]
+        final fun select(kotlin/String): com.eignex.koblas/KoblasEngine // com.eignex.koblas/KoblasEngine.Companion.select|select(kotlin.String){}[0]
         final fun vendor(com.eignex.koblas/Vendor): com.eignex.koblas/KoblasEngine? // com.eignex.koblas/KoblasEngine.Companion.vendor|vendor(com.eignex.koblas.Vendor){}[0]
     }
 }

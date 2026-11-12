@@ -65,7 +65,7 @@ internal fun withRegionEngines(body: (KoblasEngine) -> Unit) {
 }
 
 private val installedHost: KoblasEngine? by lazy {
-    Vendor.entries.firstNotNullOfOrNull { KoblasEngine.vendor(it) }?.let {
+    Vendor.entries.firstNotNullOfOrNull { KoblasEngine.exactVendor(it) }?.let {
         engineWithHost(engineWithKernels(ScalarEngine, ScalarEngine), it)
     }
 }

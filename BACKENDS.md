@@ -65,7 +65,10 @@ for tuning and measurement details.
 
 ## Exact engines for comparisons
 
-`KoblasEngine.scalar`, `KoblasEngine.simd` and `KoblasEngine.vendor(Vendor.OneMkl)` select exact
+`KoblasEngine.scalar`, `KoblasEngine.simd` and `KoblasEngine.exactVendor(Vendor.OneMkl)` select exact
 engines for tests and benchmarks. Optional engines return null when unavailable. An exact vendor engine
-supports only its exported operations; launch selection by name includes portable coverage.
+supports only its exported operations. Ordinary `KoblasEngine.vendor(Vendor.OneMkl)` selection includes
+portable coverage, matching launch selection by name. `KoblasEngine.select("auto")`, `select("scalar")`,
+`select("simd")` and `select("onemkl")` use the same selection implementation as launch settings;
+unknown or unavailable names fail in both routes.
 Calls through an explicit engine instance are independent of the shared default.
