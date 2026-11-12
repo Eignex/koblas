@@ -18,9 +18,9 @@ import com.eignex.koblas.internal.storage.dense.*
  *
  * BLAS routines are typed members. The portable engine runs the shared schedule over its own kernels; a
  * built-in engine such as [koblas] uses one optional host library above its cutoffs and otherwise runs the
- * same schedule over its owned kernels; a vendor engine from [KoblasEngine.vendor] calls its library for the
- * routines it exports and fails for the rest. The companion names exact engines, while [koblas] selects its
- * platform default unless startup configuration overrides it.
+ * same schedule over its owned kernels; a named vendor engine from [KoblasEngine.vendor] uses portable
+ * coverage for routines its library does not export. [KoblasEngine.exactVendor] exposes only the vendor
+ * for comparisons. [koblas] selects its platform default unless startup configuration overrides it.
  *
  * Operands are typed containers; dense views retain their offsets and strides. Routines validate logical
  * dimensions and preserve BLAS no-read rules. Copies, AXPY and matrix operations stage destructive aliases,
@@ -30,11 +30,26 @@ import com.eignex.koblas.internal.storage.dense.*
  */
 public interface KoblasEngine {
 
-    /** Exact engines for tests and comparisons, also assignable to [koblas] during startup. */
+    /** Engine selection for startup configuration, tests and comparisons. */
     public companion object {
-        /** Opens exactly [vendor] when available. Unsupported operations remain unsupported. */
+        /**
+         * Selects the same engine as the `koblas.engine` property or `KOBLAS_ENGINE` environment setting.
+         * Accepts auto, scalar, simd or a [Vendor.vendorName], ignoring case and surrounding whitespace.
+         * Assign the result to [koblas] during ordered startup to configure convenience operations.
+         *
+         * @throws IllegalArgumentException for an unknown name.
+         * @throws IllegalStateException when the requested engine is unavailable.
+         */
         @kotlin.jvm.JvmStatic
-        public fun vendor(vendor: Vendor): KoblasEngine? = vendorEngine(vendor)
+        public fun select(setting: String): KoblasEngine = engineFromSetting(setting)
+
+        /** Opens [vendor] with portable coverage, just as selecting its name through [select]; null if unavailable. */
+        @kotlin.jvm.JvmStatic
+        public fun vendor(vendor: Vendor): KoblasEngine? = configuredVendorEngine(vendor)
+
+        /** Opens exactly [vendor] for tests and comparisons; null if unavailable. Missing operations remain unsupported. */
+        @kotlin.jvm.JvmStatic
+        public fun exactVendor(vendor: Vendor): KoblasEngine? = vendorEngine(vendor)
 
         /** Portable Kotlin across all three levels. */
         @get:kotlin.jvm.JvmStatic
@@ -79,7 +94,7 @@ public interface KoblasEngine {
     // Typed vector and matrix operations.
 
     /** Dot product of equally sized vectors; sparse operands evaluate only stored positions. */
-    public fun dot(a: DenseVector, b: DenseVector): Double = dotVector(a, b)
+    public fun dot(a: DenseVector, b: DenseVector): Double = dotVectorStorage(a, b)
 
     /** Copies [a] into equally sized [b], preserving sparse source structure and staging destructive aliases. */
     public fun copy(a: DenseVector, b: DenseVector): Unit = copyIntoVector(a, b)
@@ -88,7 +103,7 @@ public interface KoblasEngine {
     public fun axpy(alpha: Double, x: DenseVector, y: DenseVector): Unit = axpyVector(alpha, x, y)
 
     /** Dot product of equally sized vectors; sparse operands evaluate only stored positions. */
-    public fun dot(a: DenseVector, b: SparseVector): Double = dotVector(a, b)
+    public fun dot(a: DenseVector, b: SparseVector): Double = dotVectorStorage(a, b)
 
     /** Copies [a] into equally sized [b], preserving sparse source structure and staging destructive aliases. */
     public fun copy(a: DenseVector, b: SparseVector): Unit = copyIntoVector(a, b)
@@ -97,7 +112,7 @@ public interface KoblasEngine {
     public fun axpy(alpha: Double, x: DenseVector, y: SparseVector): Unit = axpyVector(alpha, x, y)
 
     /** Dot product of equally sized vectors; sparse operands evaluate only stored positions. */
-    public fun dot(a: SparseVector, b: DenseVector): Double = dotVector(a, b)
+    public fun dot(a: SparseVector, b: DenseVector): Double = dotVectorStorage(a, b)
 
     /** Copies [a] into equally sized [b], preserving sparse source structure and staging destructive aliases. */
     public fun copy(a: SparseVector, b: DenseVector): Unit = copyIntoVector(a, b)
@@ -106,7 +121,7 @@ public interface KoblasEngine {
     public fun axpy(alpha: Double, x: SparseVector, y: DenseVector): Unit = axpyVector(alpha, x, y)
 
     /** Dot product of equally sized vectors; sparse operands evaluate only stored positions. */
-    public fun dot(a: SparseVector, b: SparseVector): Double = dotVector(a, b)
+    public fun dot(a: SparseVector, b: SparseVector): Double = dotVectorStorage(a, b)
 
     /** Copies [a] into equally sized [b], preserving sparse source structure and staging destructive aliases. */
     public fun copy(a: SparseVector, b: SparseVector): Unit = copyIntoVector(a, b)
@@ -118,10 +133,10 @@ public interface KoblasEngine {
     public fun scale(v: DenseVector, alpha: Double): Unit = scaleVector(alpha, v)
 
     /** Rescaled Euclidean norm; sparse storage reduces only its stored values. An empty vector has norm zero. */
-    public fun nrm2(v: DenseVector): Double = normVector(v, Norm.Two)
+    public fun nrm2(v: DenseVector): Double = kernels.nrm2(v.values, v.offset, v.size, v.stride)
 
     /** Sum of absolute values of stored entries, or zero for an empty vector. */
-    public fun asum(v: DenseVector): Double = absoluteSumVector(v)
+    public fun asum(v: DenseVector): Double = kernels.asum(v.values, v.offset, v.size, v.stride)
 
     /** Plain sum of stored entries. Reduction order and rounding follow the selected kernel. */
     public fun sum(v: DenseVector): Double = kernels.sum(v.values, v.offset, v.size, v.stride)
@@ -130,10 +145,10 @@ public interface KoblasEngine {
     public fun scale(v: SparseVector, alpha: Double): Unit = scaleVector(alpha, v)
 
     /** Rescaled Euclidean norm; sparse storage reduces only its stored values. An empty vector has norm zero. */
-    public fun nrm2(v: SparseVector): Double = normVector(v, Norm.Two)
+    public fun nrm2(v: SparseVector): Double = kernels.nrm2(v.values, v.offset, v.nnz)
 
     /** Sum of absolute values of stored entries, or zero for an empty vector. */
-    public fun asum(v: SparseVector): Double = absoluteSumVector(v)
+    public fun asum(v: SparseVector): Double = kernels.asum(v.values, v.offset, v.nnz)
 
     /** Plain sum of stored entries. Reduction order and rounding follow the selected kernel. */
     public fun sum(v: SparseVector): Double = kernels.sum(v.values, v.offset, v.nnz)
@@ -341,6 +356,18 @@ public interface KoblasEngine {
             )
         }
     }
+
+    /** Copies equally shaped matrices, staging destructive aliases and leaving destination padding untouched. */
+    public fun copy(a: DenseMatrix, b: DenseMatrix): Unit = copyIntoMatrix(a, b)
+
+    /** Copies equally shaped matrices into CSC storage, retaining stored nonzero entries and negative zeros. */
+    public fun copy(a: DenseMatrix, b: SparseMatrix): Unit = copyIntoMatrix(a, b)
+
+    /** Copies equally shaped matrices, preserving stored zeros and overwriting absent positions with zero. */
+    public fun copy(a: SparseMatrix, b: DenseMatrix): Unit = copyIntoMatrix(a, b)
+
+    /** Copies equally shaped matrices, preserving the source pattern and stored zeros and staging destructive aliases. */
+    public fun copy(a: SparseMatrix, b: SparseMatrix): Unit = copyIntoMatrix(a, b)
 
     // Dense matrix products and triangular operations.
 

@@ -27,7 +27,7 @@ multiplatform module; platform source sets supply their own runtime and arithmet
   including vector scaling and scaled addition, stay on the engine.
 - Applications may assign `koblas` during startup; launch settings initialize its first value. Callers own
   startup order and safe publication. Reads and writes have no lazy delegate or synchronization.
-- `KoblasEngine.scalar`, `KoblasEngine.simd` and `KoblasEngine.vendor` expose exact engines;
+- `KoblasEngine.scalar`, `KoblasEngine.simd` and `KoblasEngine.exactVendor` expose exact engines;
   `Vendor`, `EngineImplementation` and `ThreadEvidence` describe their capabilities and provenance.
 
 ## Internal ownership

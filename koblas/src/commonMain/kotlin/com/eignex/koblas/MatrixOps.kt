@@ -3,7 +3,7 @@
 
 package com.eignex.koblas
 
-import com.eignex.koblas.internal.operations.copyIntoMatrix
+import com.eignex.koblas.internal.operations.copyMatrix
 import com.eignex.koblas.internal.operations.normMatrix
 import com.eignex.koblas.internal.operations.sumMatrix
 import com.eignex.koblas.internal.storage.MatrixColumnVector
@@ -71,13 +71,14 @@ public fun Matrix.transpose(): Matrix = transposeMatrixStorage(this)
 public fun Matrix.copy(): Matrix = copyMatrixStorage(this)
 
 /**
- * Copies [source] into this matrix, requiring equal shapes before writing. Inputs may share storage;
- * overlapping or opaque sources are snapshotted first. Entries outside a destination view are untouched.
+ * Copies [source] into this matrix. Built-in containers use the default [koblas] engine's [KoblasEngine.copy].
+ * Requires equal shapes before writing. Inputs may share storage; overlapping or opaque sources are
+ * snapshotted first. Entries outside a destination view are untouched.
  *
  * Sparse destinations retain a sparse source's pattern and stored zeros. Other sources store nonzero
  * entries and negative zeros. Structural changes replace sparse buffers; equal patterns reuse them.
  */
-public fun Matrix.copyFrom(source: Matrix): Unit = copyIntoMatrix(source, this)
+public fun Matrix.copyFrom(source: Matrix): Unit = koblas.copyMatrix(source, this)
 
 /**
  * Matrix norm of [type]: [Norm.Frobenius] is the rescaled square root of the sum of squared entries,

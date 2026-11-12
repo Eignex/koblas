@@ -25,7 +25,7 @@ class JvmBackendTest {
 
         assertSame(KoblasEngine.scalar, koblas)
         assertNull(KoblasEngine.simd)
-        assertNull(Vendor.entries.firstNotNullOfOrNull { KoblasEngine.vendor(it) })
+        assertNull(Vendor.entries.firstNotNullOfOrNull { KoblasEngine.exactVendor(it) })
     }
 
     // An installed host takes whole products from the default, which must not change the tile the owned

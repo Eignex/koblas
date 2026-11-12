@@ -10,7 +10,7 @@ object ConsumerCheck {
         check((KoblasEngine.simd != null) == expectSimd)
         if (!expectSimd) {
             check(koblas.providers.none { it.vendor != null })
-            check(Vendor.entries.firstNotNullOfOrNull { KoblasEngine.vendor(it) } == null)
+            check(Vendor.entries.firstNotNullOfOrNull { KoblasEngine.exactVendor(it) } == null)
         }
         val portable = KoblasEngine.scalar
         check(portable.vendor == null)
@@ -63,7 +63,7 @@ object ConsumerCheck {
             assertAgreesWithReference(doubleArrayOf(-99.0, expectedStrided[1], -99.0, expectedStrided[0], -99.0), output)
         }
         if (expectSimd) {
-            Vendor.entries.firstNotNullOfOrNull { KoblasEngine.vendor(it) }?.let { host ->
+            Vendor.entries.firstNotNullOfOrNull { KoblasEngine.exactVendor(it) }?.let { host ->
                 val actual = DenseMatrix.zero(2, 2)
                 val matrix = DenseMatrix.wrap(2, 2, doubleArrayOf(2.0, 3.0, 5.0, 7.0))
                 val expectedProduct = referenceProduct(matrix, matrix)

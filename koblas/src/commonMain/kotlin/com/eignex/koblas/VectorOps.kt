@@ -33,7 +33,10 @@ public inline fun Vector.forEachStored(block: (i: Int, v: Double) -> Unit) {
     }
 }
 
-/** `aT * b`. Sparse operands walk their stored entries only. */
+/**
+ * `aT * b` through the default [koblas] engine's typed [KoblasEngine.dot].
+ * Sparse operands visit stored entries only; custom vectors use portable readers.
+ */
 public infix fun Vector.dot(other: Vector): Double = koblas.dotVector(this, other)
 
 /**
@@ -57,7 +60,10 @@ public fun Vector.norm(type: Norm = Norm.Two): Double = koblas.normVector(this, 
  */
 public fun Vector.sum(): Double = koblas.sumVector(this)
 
-/** Sum of absolute values (BLAS `dasum`). Sparse vectors sum over stored entries only. */
+/**
+ * Sum of absolute values (BLAS `dasum`) through the default [koblas] engine's [KoblasEngine.asum].
+ * Sparse vectors sum over stored entries only; custom vectors use portable readers.
+ */
 public fun Vector.asum(): Double = koblas.absoluteSumVector(this)
 
 /**
@@ -67,10 +73,11 @@ public fun Vector.asum(): Double = koblas.absoluteSumVector(this)
 public fun Vector.copy(): Vector = copyVectorStorage(this)
 
 /**
- * Copies [source] into this vector, requiring equal sizes before writing. Inputs may share storage;
- * overlapping or opaque sources are snapshotted first. Dense views retain their offsets and strides.
+ * Copies [source] into this vector. Built-in containers use the default [koblas] engine's [KoblasEngine.copy].
+ * Requires equal sizes before writing. Inputs may share storage; overlapping or opaque sources are
+ * snapshotted first. Dense views retain their offsets and strides.
  *
  * Sparse destinations retain a sparse source's pattern and stored zeros. Other sources store nonzero
  * entries and negative zeros. Structural changes replace sparse buffers; equal patterns reuse them.
  */
-public fun Vector.copyFrom(source: Vector): Unit = koblas.copyIntoVector(source, this)
+public fun Vector.copyFrom(source: Vector): Unit = koblas.copyVector(source, this)

@@ -8,6 +8,43 @@ import kotlin.test.*
 
 class VectorOperationsTest {
     @Test
+    fun `public engine wrappers support vector convenience adapters`() {
+        val engine = object : KoblasEngine by KoblasEngine.scalar {}
+        val operands = listOf<Vector>(dense(1.0, -2.0, 3.0), sparse(3, 0 to 1.0, 2 to 3.0))
+
+        for (source in operands) {
+            for (other in operands) {
+                assertWrapperAgreesWithReference(
+                    KoblasEngine.scalar.dotVector(source, other),
+                    engine.dotVector(source, other),
+                )
+            }
+            for (norm in listOf(Norm.One, Norm.Two, Norm.Infinity, Norm.MaxAbs)) {
+                assertWrapperAgreesWithReference(
+                    KoblasEngine.scalar.normVector(source, norm),
+                    engine.normVector(source, norm),
+                )
+            }
+            assertEquals(KoblasEngine.scalar.sumVector(source), engine.sumVector(source))
+            assertEquals(KoblasEngine.scalar.absoluteSumVector(source), engine.absoluteSumVector(source))
+        }
+    }
+
+    @Test
+    fun `public engine wrappers copy opaque aliases through staged typed operations`() {
+        val engine = object : KoblasEngine by KoblasEngine.scalar {}
+        val backing = doubleArrayOf(1.0, -2.0, 3.0, 4.0, 5.0)
+        val source = ForeignVector(DenseVector.wrap(backing, 0, 3))
+        val destination = DenseVector.wrap(backing, 2, 3)
+        val expected = backing.copyOf()
+        KoblasEngine.scalar.copy(DenseVector.wrap(expected, 0, 3), DenseVector.wrap(expected, 2, 3))
+
+        engine.copyVector(source, destination)
+
+        assertContentEquals(expected, backing)
+    }
+
+    @Test
     fun `scale agrees with the scalar reference across storage`() {
         val values = doubleArrayOf(1.5, 0.0, -2.0, 3.25)
         for (alpha in doubleArrayOf(-2.0, 0.0, 1.0)) {
@@ -362,6 +399,9 @@ class VectorOperationsTest {
 
         assertContentEquals(expected, backing)
     }
+
+    private fun assertWrapperAgreesWithReference(expected: Double, actual: Double) =
+        assertClose(expected, actual, "public wrapper reduction")
 
     private class ForeignVector(private val backing: DenseVector) : Vector {
         override val size: Int get() = backing.size

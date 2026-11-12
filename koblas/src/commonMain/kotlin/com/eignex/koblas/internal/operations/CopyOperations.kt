@@ -8,6 +8,17 @@ import com.eignex.koblas.internal.storage.*
 import com.eignex.koblas.internal.storage.dense.*
 import com.eignex.koblas.internal.storage.sparse.*
 
+/** Dispatch concrete conveniences through public operations before entering storage-specific leaves. */
+internal fun KoblasEngine.copyVector(source: Vector, destination: Vector) {
+    when {
+        source is DenseVector && destination is DenseVector -> copy(source, destination)
+        source is DenseVector && destination is SparseVector -> copy(source, destination)
+        source is SparseVector && destination is DenseVector -> copy(source, destination)
+        source is SparseVector && destination is SparseVector -> copy(source, destination)
+        else -> copyIntoVector(source, destination)
+    }
+}
+
 internal fun KoblasEngine.copyIntoVector(source: Vector, destination: Vector) {
     requireSameSize(source.size, destination.size, "copyFrom")
     if (source === destination || source.size == 0) return
@@ -77,15 +88,18 @@ private fun KoblasEngine.copyIntoDenseVector(source: Vector, destination: DenseV
             scatterStored(stable, destination)
         }
 
-        is DenseVector -> kernels.copy(
-            stable.values,
-            stable.offset,
-            destination.values,
-            destination.offset,
-            stable.size,
-            stable.stride,
-            destination.stride,
-        )
+        is DenseVector -> copy(stable, destination)
+    }
+}
+
+/** Matrix copying has public typed dispatch while structural adaptation stays independent of kernels. */
+internal fun KoblasEngine.copyMatrix(source: Matrix, destination: Matrix) {
+    when {
+        source is DenseMatrix && destination is DenseMatrix -> copy(source, destination)
+        source is DenseMatrix && destination is SparseMatrix -> copy(source, destination)
+        source is SparseMatrix && destination is DenseMatrix -> copy(source, destination)
+        source is SparseMatrix && destination is SparseMatrix -> copy(source, destination)
+        else -> copyIntoMatrix(source, destination)
     }
 }
 
