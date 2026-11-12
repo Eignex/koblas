@@ -107,3 +107,17 @@ looked more favorable, but does not establish a whole-codebase benefit. The
 [four-arm assertion interaction](https://lab.eignex.com/jobs/11953) still showed a repeatable
 empty sparse-solve slowdown from stripping after source inlining. These results reject blanket
 scalar inlining and blanket assertion removal as enforceable performance policies.
+
+The Vector-local fast-path candidate was compared separately in a
+[136-workload, three-pass sweep](https://lab.eignex.com/jobs/11962), with 816 accepted captures
+and 133 supported workloads per exact engine. Its normal-tiered timing geometric mean was
++1.78% for SIMD and +0.04% for the unchanged scalar control. This is not evidence of a general
+throughput improvement. Five sparse cases were over 5% slower in all three passes, despite
+unchanged numerical bytecode; absolute sum also had large shifts in both directions.
+[Five-case A/A/B confirmation](https://lab.eignex.com/jobs/11966) and a separate
+[skewed SpMM confirmation](https://lab.eignex.com/jobs/11967) used two identical original
+revision arms and six complete repetitions. No candidate case remained over 5% slower in all
+six repetitions against either original arm. The identical-revision SpMM controls themselves
+varied by up to 74% in one repetition. These confirmations do not establish throughput
+equivalence; they reject treating the initial shifts as established regressions. The intended
+benefit is the reproducible removal of Vector-carrier allocation when null-helper inlining fails.
