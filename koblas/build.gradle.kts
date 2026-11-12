@@ -109,7 +109,13 @@ val packagedDesktopClasspath = with(kotlin.targets.getByName("jvm") as KotlinJvm
     compilations.matching { it.name == "java25" }.all {
         productionOutputs.from(output.allOutputs)
         compileTaskProvider.configure {
-            compilerOptions.freeCompilerArgs.add("-Xadd-modules=jdk.incubator.vector")
+            // Opaque null assertions can force Vector API values onto the heap when C2 exhausts its inlining budget.
+            compilerOptions.freeCompilerArgs.addAll(
+                "-Xadd-modules=jdk.incubator.vector",
+                "-Xno-param-assertions",
+                "-Xno-call-assertions",
+                "-Xno-receiver-assertions",
+            )
         }
         desktopTest.associateWith(this)
         val versionedOutput = output.classesDirs
