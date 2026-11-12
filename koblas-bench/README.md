@@ -116,10 +116,19 @@ Missing or unsupported exact-engine arms remain explicit gaps.
 Before changing the installed schedule, deploy coordinator support for `repeatOrder=pass`, repeated
 workload median aggregation, `regressionMetrics` and engine-aware trend fields. Pilot the actual JVM
 comparison recipe on Mac arm64 and record preparation, active time and failures before installing it.
-Its larger budget is provisional until that pilot measures all four arms. Keep the three inventory passes
-and paired workload rows; the previous 600-second cap was budgeted for one default-engine arm.
+Keep the three inventory passes and paired workload rows; the previous 600-second cap was budgeted
+for one default-engine arm.
 `lab/recipes/status-sweep-default.json` retains that older protocol. The optional five-engine Native recipe
 still requires a separate pilot and is not enabled by the JVM comparison schedule.
+
+The four-arm JVM recipe was piloted on 12 November 2026 on Mac arm64 with JDK 25 in
+[lab run 11869](https://lab.eignex.com/jobs/11869): all 408 paired captures succeeded in 981.031 seconds
+of active time under the 1800-second ceiling. Preparation took 14.590 seconds with a build-cache miss;
+row durations ranged from 2.530 to 9.260 seconds, with a 7.128-second median. No preparation or
+measurement attempt failed. The captures provide three measurements each for 136 default-engine,
+133 exact SIMD, 133 portable and 77 Accelerate workloads. Unsupported exact-engine view adapters
+and vendor gaps retain their status without a timing. The accepted plan separates repeated captures
+of each workload by 136 rows and rotates engine order across workloads.
 
 The default-only three-pass recipe was piloted on 11 November 2026 on an Apple M4 with JDK 25 in
 [lab run 11830](https://lab.eignex.com/jobs/11830): all 408 captures succeeded in 371.139 seconds of
