@@ -1,4 +1,4 @@
-# JVM arithmetic boundaries and assertion experiment
+# JVM arithmetic boundaries
 
 `./gradlew check` runs `:koblas:verifyKernelBoundaries` against the packaged JVM artifact.
 Project calls carrying Vector API values, masks or shuffles must be source-inlined. The verifier
@@ -31,46 +31,17 @@ guarantee that a larger caller compiles faster or that dispatch inlines. The che
 Vector values hidden by erased `Object` signatures. Allocation profiles remain necessary, and
 C1 alone does not supply C2's Vector API intrinsics.
 
-Build the experimental packaged JVM artifact with:
+The build-time tools use JDK 25's Class-File API. Baseline classes still target Java 17,
+and the tools add no runtime dependency. Packaged tests exercise Java 17 and Java 25.
 
-```bash
-./gradlew check lintDocs -Pkoblas.stripInternalAssertions=true
-```
-
-The default build retains null failures. This separate opt-in removal policy runs on `jvmJar`, so publication,
-packaged tests and benchmark preparation consume the same transformed artifact. It uses
-JDK 25's Class-File API at build time; the baseline classes still target Java 17 and the
-tool adds no runtime dependency. The policy and tool classpath participate in the JAR's
-Gradle cache inputs.
-
-Inside `com.eignex.koblas.internal`, it removes generated parameter and expression null
-assertion calls, trusting Kotlin's declared non-null contracts. It also removes a cast
-null assertion immediately after a Vector API `reinterpretShape` result, whose contract
-guarantees a non-null vector. Both the stack and local-variable compiler forms are
-recognized, with no alternate control-flow entry into the sequence. Unknown producers
-retain their assertions. Argument evaluation remains intact.
-
-Public API classes remain byte-for-byte intact. Kotlin metadata, explicit validation,
-other `checkNotNull` calls, JVM casts, array bounds checks and numerical instructions
-are retained. Kotlin `internal` declarations are public in JVM bytecode; Java callers
-of implementation packages must obey the implementation's non-null contracts.
-
-Every output class is verified before the JAR is replaced. The fixture suite checks
-public assertions, argument side effects, explicit null failures, vector producer
-provenance, alternate entries, wrong-type casts and packaged metadata. Repository tests
-exercise the packaged artifact on Java 17 and Java 25. Allocation checks also need the
-three SIMD runtime profiles: normal, FMA disabled, and narrow vectors with FMA disabled.
-
-This is a performance experiment. Compare identical numerical sources with the property
-disabled and enabled, using the benchmark suite's paired protocol and unchanged Native
-arms as controls. A smaller assertion count alone is not performance evidence.
+An earlier experiment removed internal null assertions broadly. That policy is not included:
+its results below explain why ordinary array and parameter checks are retained.
 
 The initial Linux x86_64 experiment used 136 workloads and three paired passes on JDK 25,
 with an Intel Xeon Platinum 8488C. [Normal tiering](https://lab.eignex.com/jobs/11925)
 showed less than 0.6% improvement in each JVM arm's geometric mean, with workload timing
 shifts in both directions. [C1-only and C2-only](https://lab.eignex.com/jobs/11928) showed roughly
-2–3% and 2% improvement respectively. These results do not justify enabling the policy
-by default. Native source was unchanged; each revision's built executable hash is retained,
+2–3% and 2% improvement respectively. These results did not justify adopting the policy. Native source was unchanged; each revision's built executable hash is retained,
 and per-case control variation must be considered.
 
 Follow-up comparisons added two arms of the exact same retained revision as an A/A control.

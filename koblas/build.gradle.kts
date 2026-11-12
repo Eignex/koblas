@@ -107,38 +107,23 @@ abstract class JvmAssertionPolicy @Inject constructor(private val execution: Exe
     }
 }
 
-val internalAssertionTool = configurations.create("internalAssertionTool")
-dependencies { add(internalAssertionTool.name, project(":jvm-bytecode")) }
+val arithmeticBytecodeTool = configurations.create("arithmeticBytecodeTool")
+dependencies { add(arithmeticBytecodeTool.name, project(":jvm-bytecode")) }
 val verifyKernelBoundaries = tasks.register<JavaExec>("verifyKernelBoundaries") {
     val artifact = tasks.named<Jar>("jvmJar")
     dependsOn(artifact)
     javaLauncher.set(desktopJavaLauncher)
-    classpath = internalAssertionTool
+    classpath = arithmeticBytecodeTool
     mainClass.set("com.eignex.koblas.bytecode.KernelBoundaries")
     inputs.file(artifact.flatMap { it.archiveFile })
     args(artifact.get().archiveFile.get().asFile.absolutePath)
 }
 tasks.named("check") { dependsOn(verifyKernelBoundaries) }
 
-if (providers.gradleProperty("koblas.stripInternalAssertions").orNull == "true") {
-    val action = objects.newInstance<JvmAssertionPolicy>().apply {
-        launcher = desktopJavaLauncher
-        toolMainClass = "com.eignex.koblas.bytecode.InternalAssertions"
-        toolClasspath = internalAssertionTool + configurations.getByName("jvmCompileClasspath")
-    }
-    tasks.named<Jar>("jvmJar") {
-        dependsOn(action.toolClasspath)
-        inputs.files(action.toolClasspath).withPropertyName("internalAssertionTool").withNormalizer(ClasspathNormalizer::class)
-        inputs.property("stripInternalAssertions", true)
-        inputs.property("internalAssertionJava", desktopJavaLauncher.map { "${it.metadata.vendor} ${it.metadata.javaRuntimeVersion}" })
-        doLast(action)
-    }
-}
-
 val vectorAssertionAction = objects.newInstance<JvmAssertionPolicy>().apply {
     launcher = desktopJavaLauncher
     toolMainClass = "com.eignex.koblas.bytecode.VectorAssertions"
-    toolClasspath = internalAssertionTool + configurations.getByName("jvmCompileClasspath")
+    toolClasspath = arithmeticBytecodeTool + configurations.getByName("jvmCompileClasspath")
 }
 tasks.named<Jar>("jvmJar") {
     dependsOn(vectorAssertionAction.toolClasspath)
