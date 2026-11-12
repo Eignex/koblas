@@ -109,7 +109,8 @@ public class KernelBoundariesTest {
         var signature = MethodTypeDesc.of(CD_double, VECTOR);
         var handle = MethodHandleDesc.ofMethod(STATIC, VECTOR_HELPER, "sum", signature);
         var dynamic = DynamicCallSiteDesc.of(bootstrap, "apply",
-            MethodTypeDesc.of(ClassDesc.of("java.util.function.ToDoubleFunction")), signature, handle, signature);
+            MethodTypeDesc.of(ClassDesc.of("java.util.function.ToDoubleFunction")),
+            MethodTypeDesc.of(CD_double, CD_Object), handle, signature);
         byte[] caller = fixture(code -> code.invokedynamic(dynamic).pop().return_());
         assertEquals(1, KernelBoundaries.violations(caller).size());
     }
