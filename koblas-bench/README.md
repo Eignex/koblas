@@ -56,8 +56,12 @@ This permits paired revisions whose programs differ while keeping workload input
 For JVM compiler diagnostics, `lab/cases-jit-policy.txt` samples vector casts, product edges,
 retained scratch and sparse scheduling. Compare assertions on/off separately under normal tiering,
 `-XX:+TieredCompilation -XX:TieredStopAtLevel=1` and `-XX:-TieredCompilation`.
-Use a separate capture with `-XX:+PrintCompilation` and diagnostic `-XX:+PrintInlining` to inspect
-compilation levels and inlining decisions; its instrumented timings are not performance evidence.
+For logs attributed to the measured JMH fork, the lab parameter `profile-compilation=true`
+(`KOBLAS_BENCH_PROFILE_COMPILATION=true` locally) retains `*-jit-*.xml` files beside each target's
+CSV. These HotSpot logs record the compiler, compilation level and inlining decisions separately
+for every fork. Instrumented timings are not performance evidence, and this instrumentation is
+refused in the fixed status-regression protocol. Compare policy changes within each compiler regime;
+non-tiered C2 collects profiles differently from normal tiering.
 
 ## Details
 

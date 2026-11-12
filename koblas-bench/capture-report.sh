@@ -315,6 +315,7 @@ cp "$cases" "$results/cases.txt"
   echo "requested_jvm_forks=$forks"
   printf 'JAVA_TOOL_OPTIONS=%s\nJDK_JAVA_OPTIONS=%s\nKOBLAS_BENCH_PROFILE_GC=%s\n' \
     "${JAVA_TOOL_OPTIONS:-}" "${JDK_JAVA_OPTIONS:-}" "${KOBLAS_BENCH_PROFILE_GC:-false}"
+  printf 'KOBLAS_BENCH_PROFILE_COMPILATION=%s\n' "${KOBLAS_BENCH_PROFILE_COMPILATION:-false}"
   echo "cpu_policy=${KOBLAS_BENCH_CPU_POLICY:-unbound}"
   if [[ $platform == Linux ]]; then awk '/^Cpus_allowed_list:/ { print "cpu_affinity=" $2 }' /proc/self/status; fi
   echo "targets=$(IFS=,; echo "${targets[*]}")"
