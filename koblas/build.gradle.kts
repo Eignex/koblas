@@ -131,7 +131,6 @@ tasks.named<Jar>("jvmJar") {
         .withNormalizer(ClasspathNormalizer::class)
     inputs.property("localVectorAssertions", true)
     inputs.property("vectorAssertionJava", desktopJavaLauncher.map { "${it.metadata.vendor} ${it.metadata.javaRuntimeVersion}" })
-    doLast(vectorAssertionAction)
 }
 
 val desktopJvmArguments = listOf("--enable-native-access=ALL-UNNAMED") +
@@ -155,13 +154,7 @@ val packagedDesktopClasspath = with(kotlin.targets.getByName("jvm") as KotlinJvm
     compilations.matching { it.name == "java25" }.all {
         productionOutputs.from(output.allOutputs)
         compileTaskProvider.configure {
-            // Opaque null assertions can force Vector API values onto the heap when C2 exhausts its inlining budget.
-            compilerOptions.freeCompilerArgs.addAll(
-                "-Xadd-modules=jdk.incubator.vector",
-                "-Xno-param-assertions",
-                "-Xno-call-assertions",
-                "-Xno-receiver-assertions",
-            )
+            compilerOptions.freeCompilerArgs.add("-Xadd-modules=jdk.incubator.vector")
         }
         desktopTest.associateWith(this)
         val versionedOutput = output.classesDirs

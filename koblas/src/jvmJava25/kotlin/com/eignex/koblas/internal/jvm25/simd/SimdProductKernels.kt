@@ -95,8 +95,80 @@ internal object SimdProductKernels : KernelProvider {
         }
     }
 
-    /** Each left vector serves all four columns in one pass over the depth. */
+    /**
+     * Uses eight accumulators with hardware FMA, or two passes of four without it.
+     *
+     * The unfused eight-accumulator body allocates on the measured runtime; [columnPair] avoids that
+     * allocation at the cost of reading the left panel twice. Both use the same packed geometry and
+     * accumulate each entry in depth order. Fused arithmetic can round differently.
+     */
     private fun tile(
+        depth: Int,
+        a: DoubleArray,
+        aOffset: Int,
+        b: DoubleArray,
+        bOffset: Int,
+        alpha: Double,
+        c: DoubleArray,
+        cOffset: Int,
+        ldc: Int,
+        presentColumns: Int,
+    ) {
+        if (!hardwareFusedMultiplyAdd) {
+            columnPair(depth, a, aOffset, b, bOffset, 0, alpha, c, cOffset, ldc, presentColumns)
+            if (presentColumns > COLUMN_PAIR) {
+                columnPair(
+                    depth, a, aOffset, b, bOffset, COLUMN_PAIR, alpha, c, cOffset + COLUMN_PAIR * ldc, ldc,
+                    presentColumns - COLUMN_PAIR,
+                )
+            }
+            return
+        }
+        fusedTile(depth, a, aOffset, b, bOffset, alpha, c, cOffset, ldc, presentColumns)
+    }
+
+    /**
+     * Four accumulators avoid allocation in the unfused configuration. Each loaded left vector serves
+     * both columns; partial columns accumulate padding without storing it.
+     */
+    private fun columnPair(
+        depth: Int,
+        a: DoubleArray,
+        aOffset: Int,
+        b: DoubleArray,
+        bOffset: Int,
+        firstColumn: Int,
+        alpha: Double,
+        c: DoubleArray,
+        cOffset: Int,
+        ldc: Int,
+        presentColumns: Int,
+    ) {
+        var c00 = DoubleVector.zero(SPECIES)
+        var c10 = DoubleVector.zero(SPECIES)
+        var c01 = DoubleVector.zero(SPECIES)
+        var c11 = DoubleVector.zero(SPECIES)
+        var ap = aOffset
+        var bp = bOffset + firstColumn
+        var step = 0
+        while (step < depth) {
+            val a0 = DoubleVector.fromArray(SPECIES, a, ap)
+            val a1 = DoubleVector.fromArray(SPECIES, a, ap + LANE)
+            var coefficient = DoubleVector.broadcast(SPECIES, b[bp])
+            c00 = multiplyAdd(a0, coefficient, c00)
+            c10 = multiplyAdd(a1, coefficient, c10)
+            coefficient = DoubleVector.broadcast(SPECIES, b[bp + 1])
+            c01 = multiplyAdd(a0, coefficient, c01)
+            c11 = multiplyAdd(a1, coefficient, c11)
+            ap += ROWS
+            bp += TILE_COLUMNS
+            step++
+        }
+        storeColumn(c, cOffset, alpha, c00, c10)
+        if (presentColumns > 1) storeColumn(c, cOffset + ldc, alpha, c01, c11)
+    }
+
+    private fun fusedTile(
         depth: Int,
         a: DoubleArray,
         aOffset: Int,
@@ -204,6 +276,9 @@ internal object SimdProductKernels : KernelProvider {
 
     /** Destination columns one tile holds, which is a register budget and not a lane count. */
     private const val TILE_COLUMNS = 4
+
+    /** Destination columns one pass covers where a step takes two instructions instead of one. */
+    private const val COLUMN_PAIR = 2
 
     /** What the scalar last row block reports, so a vector body's name never stands for it. */
     private const val EDGE_NAME = "scalar-tile-edge"
