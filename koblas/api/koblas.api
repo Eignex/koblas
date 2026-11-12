@@ -156,8 +156,12 @@ public abstract interface class com/eignex/koblas/KoblasEngine {
 	public fun axpy (DLcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/SparseVector;)V
 	public fun axpy (DLcom/eignex/koblas/SparseVector;Lcom/eignex/koblas/DenseVector;)V
 	public fun axpy (DLcom/eignex/koblas/SparseVector;Lcom/eignex/koblas/SparseVector;)V
+	public fun copy (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseMatrix;)V
+	public fun copy (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/SparseMatrix;)V
 	public fun copy (Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;)V
 	public fun copy (Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/SparseVector;)V
+	public fun copy (Lcom/eignex/koblas/SparseMatrix;Lcom/eignex/koblas/DenseMatrix;)V
+	public fun copy (Lcom/eignex/koblas/SparseMatrix;Lcom/eignex/koblas/SparseMatrix;)V
 	public fun copy (Lcom/eignex/koblas/SparseVector;Lcom/eignex/koblas/DenseVector;)V
 	public fun copy (Lcom/eignex/koblas/SparseVector;Lcom/eignex/koblas/SparseVector;)V
 	public fun dot (Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;)D
@@ -165,6 +169,7 @@ public abstract interface class com/eignex/koblas/KoblasEngine {
 	public fun dot (Lcom/eignex/koblas/SparseVector;Lcom/eignex/koblas/DenseVector;)D
 	public fun dot (Lcom/eignex/koblas/SparseVector;Lcom/eignex/koblas/SparseVector;)D
 	public fun dotColumn (Lcom/eignex/koblas/SparseMatrix;ILcom/eignex/koblas/DenseVector;)D
+	public static fun exactVendor (Lcom/eignex/koblas/Vendor;)Lcom/eignex/koblas/KoblasEngine;
 	public fun gather (Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/SparseVector;)V
 	public fun gatherZero (Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/SparseVector;)V
 	public fun gemm (DLcom/eignex/koblas/DenseMatrix;ZLcom/eignex/koblas/DenseMatrix;ZDLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/Scratch;)V
@@ -196,6 +201,7 @@ public abstract interface class com/eignex/koblas/KoblasEngine {
 	public fun scale (Lcom/eignex/koblas/DenseVector;D)V
 	public fun scale (Lcom/eignex/koblas/SparseVector;D)V
 	public fun scatter (Lcom/eignex/koblas/SparseVector;Lcom/eignex/koblas/DenseVector;)V
+	public static fun select (Ljava/lang/String;)Lcom/eignex/koblas/KoblasEngine;
 	public fun sum (Lcom/eignex/koblas/DenseVector;)D
 	public fun sum (Lcom/eignex/koblas/SparseVector;)D
 	public fun swap (Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;)V
@@ -237,8 +243,10 @@ public abstract interface class com/eignex/koblas/KoblasEngine {
 }
 
 public final class com/eignex/koblas/KoblasEngine$Companion {
+	public final fun exactVendor (Lcom/eignex/koblas/Vendor;)Lcom/eignex/koblas/KoblasEngine;
 	public final fun getScalar ()Lcom/eignex/koblas/KoblasEngine;
 	public final fun getSimd ()Lcom/eignex/koblas/KoblasEngine;
+	public final fun select (Ljava/lang/String;)Lcom/eignex/koblas/KoblasEngine;
 	public final fun vendor (Lcom/eignex/koblas/Vendor;)Lcom/eignex/koblas/KoblasEngine;
 }
 
@@ -249,8 +257,12 @@ public final class com/eignex/koblas/KoblasEngine$DefaultImpls {
 	public static fun axpy (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/SparseVector;)V
 	public static fun axpy (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/SparseVector;Lcom/eignex/koblas/DenseVector;)V
 	public static fun axpy (Lcom/eignex/koblas/KoblasEngine;DLcom/eignex/koblas/SparseVector;Lcom/eignex/koblas/SparseVector;)V
+	public static fun copy (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseMatrix;)V
+	public static fun copy (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/SparseMatrix;)V
 	public static fun copy (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;)V
 	public static fun copy (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/SparseVector;)V
+	public static fun copy (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/SparseMatrix;Lcom/eignex/koblas/DenseMatrix;)V
+	public static fun copy (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/SparseMatrix;Lcom/eignex/koblas/SparseMatrix;)V
 	public static fun copy (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/SparseVector;Lcom/eignex/koblas/DenseVector;)V
 	public static fun copy (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/SparseVector;Lcom/eignex/koblas/SparseVector;)V
 	public static fun dot (Lcom/eignex/koblas/KoblasEngine;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;)D

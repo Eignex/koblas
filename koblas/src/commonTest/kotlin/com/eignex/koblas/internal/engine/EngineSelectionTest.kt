@@ -7,6 +7,7 @@ import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
 import kotlin.test.assertSame
 
 class EngineSelectionTest {
@@ -74,6 +75,55 @@ class EngineSelectionTest {
     }
 
     @Test
+    fun `named selections share whole call routing and portable product coverage`() {
+        var hostCalls = 0
+        val host = object : KernelProvider {
+            override val name = "test host"
+            override val vendor = Vendor.OpenBlas
+            override val implementations = setOf(EngineImplementation.Gemv)
+
+            override fun gemv(
+                alpha: Double,
+                a: DenseMatrix,
+                x: DenseVector,
+                beta: Double,
+                y: DenseVector,
+                transpose: Boolean,
+                scratch: Scratch?,
+            ) {
+                hostCalls++
+                KoblasEngine.scalar.gemv(alpha, a, x, beta, y, transpose, scratch)
+            }
+        }
+        val launch = engineFromSetting("openblas", openVendor = { host })
+        val programmatic = requireNotNull(configuredVendorEngine(Vendor.OpenBlas) { host })
+        val a = DenseMatrix.wrap(2, 2, doubleArrayOf(1.0, -2.0, 3.0, 4.0))
+        val x = DenseVector.wrap(doubleArrayOf(2.0, -1.0))
+        val expectedVector = DenseVector.zero(2)
+        val expectedProduct = DenseMatrix.zero(2, 2)
+        KoblasEngine.scalar.gemv(1.5, a, x, 0.0, expectedVector)
+        KoblasEngine.scalar.gemm(1.5, a, false, a, false, 0.0, expectedProduct)
+
+        for (engine in listOf(launch, programmatic)) {
+            val vector = DenseVector.zero(2)
+            val product = DenseMatrix.zero(2, 2)
+
+            engine.gemv(1.5, a, x, 0.0, vector)
+            engine.gemm(1.5, a, false, a, false, 0.0, product)
+
+            assertSame(host, engine.wholeCallFor(EngineImplementation.Gemv, 2, 2))
+            assertNull(engine.wholeCallFor(EngineImplementation.Gemm, 2, 2, 2))
+            assertProductAgreesWithReference(expectedVector.values, vector.values)
+            assertProductAgreesWithReference(expectedProduct.values, product.values)
+        }
+        assertEquals(2, hostCalls)
+        assertFailsWith<UnsupportedOperationException> { host.sum(x) }
+        assertFailsWith<UnsupportedOperationException> {
+            host.gemm(1.5, a, false, a, false, 0.0, DenseMatrix.zero(2, 2))
+        }
+    }
+
+    @Test
     fun `vendor settings retain portable coverage for missing operations`() {
         for (vendor in Vendor.entries) {
             val provider = object : KernelProvider {
@@ -103,10 +153,25 @@ class EngineSelectionTest {
                 },
             )
 
+            val programmatic = configuredVendorEngine(vendor) { provider }!!
+
             assertEquals(listOf(vendor), opened)
+            for (operation in EngineImplementation.entries.filter { it.vector }) {
+                for (length in listOf(1, 16, 4096)) {
+                    for (contiguous in listOf(false, true)) {
+                        assertEquals(
+                            engine.implementationFor(operation, length, contiguous),
+                            programmatic.implementationFor(operation, length, contiguous),
+                        )
+                    }
+                }
+            }
+            assertLevel1KernelsAgreeWithReference(programmatic)
             assertEquals(provider.name, engine.implementationFor(EngineImplementation.Copy, 16))
             assertEquals(ScalarEngine.name, engine.implementationFor(EngineImplementation.Sum, 16))
             assertLevel1KernelsAgreeWithReference(engine)
         }
     }
+    private fun assertProductAgreesWithReference(expected: DoubleArray, actual: DoubleArray) =
+        assertClose(expected, actual, "named engine product")
 }

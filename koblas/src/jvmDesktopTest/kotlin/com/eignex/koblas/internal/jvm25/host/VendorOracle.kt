@@ -8,7 +8,7 @@ import kotlin.test.fail
 /** A vendor to test against through production selection, or null when this host has none installed. */
 private val testVendor: KoblasEngine? by lazy {
     Vendor.entries.firstNotNullOfOrNull {
-        KoblasEngine.vendor(
+        KoblasEngine.exactVendor(
             it,
         )
     }

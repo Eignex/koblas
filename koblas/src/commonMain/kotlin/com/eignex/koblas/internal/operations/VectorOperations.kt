@@ -10,8 +10,17 @@ import com.eignex.koblas.internal.storage.copyVectorStorage
 import com.eignex.koblas.internal.storage.dense.*
 import kotlin.math.abs
 
-/** Storage adapters use selected array kernels where possible and portable readers for opaque storage. */
-internal fun KoblasEngine.dotVector(x: Vector, y: Vector): Double {
+/** Concrete operands reach public typed operations; opaque storage uses portable readers. */
+internal fun KoblasEngine.dotVector(x: Vector, y: Vector): Double = when {
+    x is DenseVector && y is DenseVector -> dot(x, y)
+    x is DenseVector && y is SparseVector -> dot(x, y)
+    x is SparseVector && y is DenseVector -> dot(x, y)
+    x is SparseVector && y is SparseVector -> dot(x, y)
+    else -> dotVectorStorage(x, y)
+}
+
+/** Primitive storage leaves for the built-in typed operations, without reentering public dispatch. */
+internal fun KoblasEngine.dotVectorStorage(x: Vector, y: Vector): Double {
     requireSameSize(x.size, y.size, "dot")
     return when {
         x is DenseVector && y is DenseVector -> kernels.dot(
@@ -34,7 +43,7 @@ internal fun KoblasEngine.dotVector(x: Vector, y: Vector): Double {
             indexedDotDense(x.indices, x.offset, x.values, x.offset, x.nnz, y.values, y.offset, y.stride)
         }
 
-        y is SparseVector -> dotVector(y, x)
+        y is SparseVector -> dotVectorStorage(y, x)
 
         else -> scalarVectorDot(x, y)
     }
@@ -48,24 +57,26 @@ internal fun KoblasEngine.normVector(x: Vector, type: Norm = Norm.Two): Double =
 }
 
 private fun KoblasEngine.euclideanNormVector(x: Vector): Double = when (x) {
-    is DenseVector -> kernels.nrm2(x.values, x.offset, x.size, x.stride)
+    is DenseVector -> nrm2(x)
 
-    is SparseVector -> kernels.nrm2(x.values, x.offset, x.nnz)
+    is SparseVector -> nrm2(x)
 
     // Opaque storage needs the portable rescaling path and an owned snapshot.
     else -> ScalarEngine.nrm2(x.toDoubleArray(), 0, x.size)
 }
 
 private fun KoblasEngine.maximumMagnitudeVector(x: Vector): Double = when (x) {
-    is DenseVector -> maximumMagnitude(x.values, x.offset, x.size, x.stride)
+    is DenseVector -> maximumMagnitude(x)
     is SparseVector -> maximumMagnitude(x.values, x.offset, x.nnz, 1)
     else -> scalarVectorMaximumMagnitude(x)
 }
 
-internal fun KoblasEngine.maximumMagnitude(values: DoubleArray, offset: Int, size: Int, stride: Int): Double {
-    if (size == 0) return 0.0
-    val index = kernels.iamax(values, offset, size, stride)
-    return abs(values[offset + index * stride])
+internal fun KoblasEngine.maximumMagnitude(values: DoubleArray, offset: Int, size: Int, stride: Int): Double =
+    maximumMagnitude(DenseVector.wrap(values, offset, size, stride))
+
+private fun KoblasEngine.maximumMagnitude(vector: DenseVector): Double {
+    if (vector.size == 0) return 0.0
+    return abs(vector[iamax(vector)])
 }
 
 internal fun KoblasEngine.sumVector(x: Vector): Double = when (x) {
@@ -75,8 +86,8 @@ internal fun KoblasEngine.sumVector(x: Vector): Double = when (x) {
 }
 
 internal fun KoblasEngine.absoluteSumVector(x: Vector): Double = when (x) {
-    is DenseVector -> kernels.asum(x.values, x.offset, x.size, x.stride)
-    is SparseVector -> kernels.asum(x.values, x.offset, x.nnz)
+    is DenseVector -> asum(x)
+    is SparseVector -> asum(x)
     else -> scalarVectorAbsoluteSum(x)
 }
 

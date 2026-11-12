@@ -377,7 +377,7 @@ class KoblasEngineTest {
             )
 
             assertNotNull(
-                KoblasEngine.vendor(vendor),
+                KoblasEngine.exactVendor(vendor),
                 "Required ${vendor.vendorName} failed to load or pass ABI and thread checks",
             )
         }
@@ -397,7 +397,7 @@ class KoblasEngineTest {
     fun `two instances of one vendor are independent of each other`() {
         val first = installed() ?: return skipped("independent instances")
         val second = assertNotNull(
-            KoblasEngine.vendor(requireNotNull(first.vendor)),
+            KoblasEngine.exactVendor(requireNotNull(first.vendor)),
             "the same vendor failed to open twice",
         )
 
@@ -414,7 +414,7 @@ class KoblasEngineTest {
         )
     }
 
-    private fun installed(): KoblasEngine? = Vendor.entries.firstNotNullOfOrNull { KoblasEngine.vendor(it) }
+    private fun installed(): KoblasEngine? = Vendor.entries.firstNotNullOfOrNull { KoblasEngine.exactVendor(it) }
 
     private fun skipped(what: String) {
         println("SKIPPED: no CBLAS library installed; $what was not verified on this host")

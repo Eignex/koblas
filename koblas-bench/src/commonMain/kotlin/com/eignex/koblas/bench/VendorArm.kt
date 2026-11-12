@@ -59,7 +59,7 @@ internal fun automaticVendorFromMode(mode: String): Vendor? {
  */
 internal fun openVendorForMode(mode: String): Pair<KoblasEngine, String> {
     val vendor = vendorFromMode(mode) ?: error("$mode is not a vendor mode")
-    val blas = KoblasEngine.vendor(vendor)
+    val blas = KoblasEngine.exactVendor(vendor)
         ?: error("requested vendor ${vendor.vendorName} is not installed; it cannot be benchmarked on this host")
     return blas to engineIdentity(mode, blas)
 }

@@ -30,7 +30,7 @@ internal actual fun resolveEngine(mode: String): Pair<KoblasEngine, String> {
         }
         else -> automaticVendorFromMode(mode)?.let { vendor ->
             check(KoblasEngine.simd == null) { "$mode must launch without jdk.incubator.vector" }
-            val host = requireNotNull(KoblasEngine.vendor(vendor)) { "Requested ${vendor.vendorName} is unavailable" }
+            val host = requireNotNull(KoblasEngine.exactVendor(vendor)) { "Requested ${vendor.vendorName} is unavailable" }
             val selected = standardEngine(EngineRuntime.Jvm, nativeAccess = KoblasEngine::class.java.module.isNativeAccessEnabled, owned = null) { candidate ->
                 (host as KernelProvider).takeIf { candidate == vendor }
             }
