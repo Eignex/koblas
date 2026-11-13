@@ -108,6 +108,11 @@ measured library operation are outside this harness check. Captures and regressi
 record `primitive-double-v1`; compare numerical changes using the same callback representation.
 Inherited callback and helper bodies are resolved through their superclass and interface declarations,
 including an implementation inherited from a superclass that does not itself implement the callback interface.
+Nested lambda targets are followed from timed code, including callbacks constructed during setup and
+later invoked through JDK interfaces. Class-based implementations of those interfaces are checked too.
+Dispatch conservatively includes every packaged implementation of a reachable interface signature;
+it does not infer which callback instance a field or parameter holds. Lambda result adaptation and
+explicit wrapper constructors count as boxing, while widening between primitive results remains allowed.
 
 After converting the harness, [job 11968](https://lab.eignex.com/jobs/11968) compared both numerical
 policies with the same primitive benchmark bytecode on 13 selected workloads across normal,
