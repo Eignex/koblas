@@ -23,7 +23,7 @@ class SparseOpsAllocationTest internal constructor(private val case: AllocationC
         @JvmStatic
         @Parameterized.Parameters(name = "{0}")
         fun cases(): Collection<Array<Any>> = parameterRows(
-            indexedCases() + levelThreeCases(),
+            indexedCases() + reductionCases() + levelThreeCases(),
         )
 
         // These indexed operations have no vector body, so the test task measures them rather than the
@@ -99,6 +99,17 @@ class SparseOpsAllocationTest internal constructor(private val case: AllocationC
                 }
             },
         )
+
+        private fun reductionCases(): List<AllocationCase> = listOf(8, 256).map { columns ->
+            val matrix = SparseMatrix.ofColumns(
+                Int.MAX_VALUE,
+                columns,
+                List(columns) { listOf(257 to 1.0, Int.MAX_VALUE - 1 to -0.5) },
+            )
+            AllocationCase("sparse infinity norm retains two row sums across $columns columns", 100, budget = 1024.0) {
+                matrix.norm(Norm.Infinity)
+            }
+        }
 
         private const val ENTRIES = 512
         private const val INDEX_OFFSET = 3
