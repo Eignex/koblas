@@ -7,7 +7,7 @@ import com.eignex.koblas.KoblasEngine
 internal data class CaseWork(
     val comparisonKind: String,
     val timingMode: String,
-    val run: () -> Double,
+    val run: BenchmarkOperation,
     val close: () -> Unit = {},
     val result: DoubleArray? = null,
     /**
@@ -30,7 +30,7 @@ internal fun engineWork(
     engine: KoblasEngine,
     operation: String,
     timing: String,
-    run: () -> Double,
+    run: BenchmarkOperation,
     result: DoubleArray? = null,
 ): CaseWork = CaseWork(ENGINE_COMPARISON, timing, run, result = result, kernel = engineKernel(engine, operation))
 
@@ -48,7 +48,7 @@ internal fun level23(
     case: BenchCase,
     timing: String,
     verify: () -> Unit,
-    run: () -> Double,
+    run: BenchmarkOperation,
 ): CaseWork? {
     if (case.dimensions.any { it == 0 }) return null
     verify()
@@ -67,7 +67,7 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
             val fixture = UnitAxpy(length)
             val x = fixture.x
             val y = fixture.y
-            val run = {
+            val run = BenchmarkOperation {
                 engine.kernels.axpy(y, 0, 1.0, x, 0, length)
                 y[0]
             }
@@ -192,22 +192,22 @@ private fun vectorWork(case: BenchCase, engine: KoblasEngine): CaseWork {
     val mutation = case.operation in setOf("axpy", "scal", "swap", "rot")
     val reset = mutation && case.option("timing", "reset-and-arithmetic") != "arithmetic"
     val timing = if (reset) "reset-and-arithmetic" else "arithmetic"
-    fun arithmetic(provider: KoblasEngine, a: DenseVector, b: DenseVector): () -> Double {
+    fun arithmetic(provider: KoblasEngine, a: DenseVector, b: DenseVector): BenchmarkOperation {
         val kernels = provider.kernels
         var alpha = 0.875
-        val apply: () -> Double = when (case.operation) {
-            "dot" -> { { kernels.dot(a.values, a.offset, b.values, b.offset, size, a.stride, b.stride) } }
-            "nrm2" -> { { kernels.nrm2(a.values, a.offset, size, a.stride) } }
-            "asum" -> { { kernels.asum(a.values, a.offset, size, a.stride) } }
-            "sum" -> { { kernels.sum(a.values, a.offset, size, stride) } }
-            "iamax" -> { { kernels.iamax(a.values, a.offset, a.size, a.stride).toDouble() } }
-            "copy" -> { { kernels.copy(a.values, a.offset, b.values, b.offset, size, a.stride, b.stride); b[0] } }
-            "axpy" -> { { if (!reset) alpha = -alpha; kernels.axpy(b.values, b.offset, alpha, a.values, a.offset, size, b.stride, a.stride); b[0] } }
-            "scal" -> { { kernels.scale(a.values, a.offset, if (reset) 0.875 else -1.0, a.size, a.stride); a[0] + a[size - 1] } }
-            "swap" -> { { kernels.swap(a.values, a.offset, b.values, b.offset, a.size, a.stride, b.stride); a[0] + b[0] } }
-            else -> { { kernels.rot(a.values, a.offset, b.values, b.offset, a.size, 0.8, 0.6, a.stride, b.stride); a[0] + b[0] } }
+        val apply: BenchmarkOperation = when (case.operation) {
+            "dot" -> BenchmarkOperation { kernels.dot(a.values, a.offset, b.values, b.offset, size, a.stride, b.stride) }
+            "nrm2" -> BenchmarkOperation { kernels.nrm2(a.values, a.offset, size, a.stride) }
+            "asum" -> BenchmarkOperation { kernels.asum(a.values, a.offset, size, a.stride) }
+            "sum" -> BenchmarkOperation { kernels.sum(a.values, a.offset, size, stride) }
+            "iamax" -> BenchmarkOperation { kernels.iamax(a.values, a.offset, a.size, a.stride).toDouble() }
+            "copy" -> BenchmarkOperation { kernels.copy(a.values, a.offset, b.values, b.offset, size, a.stride, b.stride); b[0] }
+            "axpy" -> BenchmarkOperation { if (!reset) alpha = -alpha; kernels.axpy(b.values, b.offset, alpha, a.values, a.offset, size, b.stride, a.stride); b[0] }
+            "scal" -> BenchmarkOperation { kernels.scale(a.values, a.offset, if (reset) 0.875 else -1.0, a.size, a.stride); a[0] + a[size - 1] }
+            "swap" -> BenchmarkOperation { kernels.swap(a.values, a.offset, b.values, b.offset, a.size, a.stride, b.stride); a[0] + b[0] }
+            else -> BenchmarkOperation { kernels.rot(a.values, a.offset, b.values, b.offset, a.size, 0.8, 0.6, a.stride, b.stride); a[0] + b[0] }
         }
-        return { if (reset) { initialX.copyInto(a.values); initialY.copyInto(b.values) }; apply() }
+        return BenchmarkOperation { if (reset) { initialX.copyInto(a.values); initialY.copyInto(b.values) }; apply() }
     }
     val referenceX = operand(1)
     val referenceY = operand(2)

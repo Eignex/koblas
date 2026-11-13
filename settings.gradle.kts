@@ -25,6 +25,7 @@ plugins {
 }
 
 include(
+    ":jvm-bytecode",
     ":koblas",
     ":koblas-bench",
     ":koblas-bench:jmh",

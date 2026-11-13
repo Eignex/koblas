@@ -4,6 +4,9 @@ import org.gradle.api.tasks.JavaExec
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
+import org.gradle.process.ExecOperations
+import org.gradle.jvm.toolchain.JavaLauncher
+import javax.inject.Inject
 
 plugins {
     id("com.eignex.kmp")
@@ -88,6 +91,49 @@ dokka {
 }
 
 val desktopJavaLauncher = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(25)) }
+
+abstract class JvmAssertionPolicy @Inject constructor(private val execution: ExecOperations) : Action<Task> {
+    lateinit var launcher: Provider<JavaLauncher>
+    lateinit var toolClasspath: FileCollection
+    lateinit var toolMainClass: String
+    override fun execute(task: Task) {
+        execution.javaexec {
+            executable = launcher.get().executablePath.asFile.absolutePath
+            classpath = toolClasspath
+            mainClass.set(toolMainClass)
+            jvmArgs("--add-modules=jdk.incubator.vector")
+            args((task as Jar).archiveFile.get().asFile.absolutePath)
+        }
+    }
+}
+
+val arithmeticBytecodeTool = configurations.create("arithmeticBytecodeTool")
+dependencies { add(arithmeticBytecodeTool.name, project(":jvm-bytecode")) }
+val verifyKernelBoundaries = tasks.register<JavaExec>("verifyKernelBoundaries") {
+    val artifact = tasks.named<Jar>("jvmJar")
+    dependsOn(artifact)
+    javaLauncher.set(desktopJavaLauncher)
+    classpath = arithmeticBytecodeTool
+    mainClass.set("com.eignex.koblas.bytecode.KernelBoundaries")
+    inputs.file(artifact.flatMap { it.archiveFile })
+    args(artifact.get().archiveFile.get().asFile.absolutePath)
+}
+tasks.named("check") { dependsOn(verifyKernelBoundaries) }
+
+val vectorAssertionAction = objects.newInstance<JvmAssertionPolicy>().apply {
+    launcher = desktopJavaLauncher
+    toolMainClass = "com.eignex.koblas.bytecode.VectorAssertions"
+    toolClasspath = arithmeticBytecodeTool + configurations.getByName("jvmCompileClasspath")
+}
+tasks.named<Jar>("jvmJar") {
+    dependsOn(vectorAssertionAction.toolClasspath)
+    inputs.files(vectorAssertionAction.toolClasspath).withPropertyName("vectorAssertionTool")
+        .withNormalizer(ClasspathNormalizer::class)
+    inputs.property("localVectorAssertions", true)
+    inputs.property("vectorAssertionJava", desktopJavaLauncher.map { "${it.metadata.vendor} ${it.metadata.javaRuntimeVersion}" })
+    doLast(vectorAssertionAction)
+}
+
 val desktopJvmArguments = listOf("--enable-native-access=ALL-UNNAMED") +
     if (providers.gradleProperty("koblas.noSimd").orNull == "true") emptyList()
     else listOf("--add-modules=jdk.incubator.vector")
@@ -109,7 +155,13 @@ val packagedDesktopClasspath = with(kotlin.targets.getByName("jvm") as KotlinJvm
     compilations.matching { it.name == "java25" }.all {
         productionOutputs.from(output.allOutputs)
         compileTaskProvider.configure {
-            compilerOptions.freeCompilerArgs.add("-Xadd-modules=jdk.incubator.vector")
+            // Opaque null assertions can force Vector API values onto the heap when C2 exhausts its inlining budget.
+            compilerOptions.freeCompilerArgs.addAll(
+                "-Xadd-modules=jdk.incubator.vector",
+                "-Xno-param-assertions",
+                "-Xno-call-assertions",
+                "-Xno-receiver-assertions",
+            )
         }
         desktopTest.associateWith(this)
         val versionedOutput = output.classesDirs
@@ -164,6 +216,17 @@ val profiles = buildList {
             ))
         }
     }
+    for ((suffix, flags) in listOf(
+        "" to emptyList(),
+        "NarrowNoFma" to listOf("-XX:MaxVectorSize=16", "-XX:-UseFMA"),
+    )) {
+        add(JvmCheckProfile(
+            "simdVectorBoundaryAllocationCheck$suffix",
+            "com.eignex.koblas.internal.jvm25.simd.VectorBoundaryAllocationCheck",
+            vmArguments = allocationArguments + flags +
+                "-XX:CompileCommand=dontinline,kotlin.jvm.internal.Intrinsics::checkNotNull",
+        ))
+    }
     for ((name, args, flags) in listOf(
         Triple("simdNarrowSpeciesCheck", listOf("2"), listOf("-XX:MaxVectorSize=16")),
         Triple("simdNoFmaCheck", listOf("", "false"), listOf("-XX:-UseFMA")),
@@ -209,6 +272,11 @@ val isolatedChecks = profiles.map { profile ->
     }
 }
 if (fullTargets) tasks.named("check") { dependsOn(isolatedChecks) }
+if (providers.gradleProperty("koblas.noSimd").orNull != "true") {
+    tasks.named("check") {
+        dependsOn(isolatedChecks.filter { it.name.startsWith("simdVectorBoundaryAllocationCheck") })
+    }
+}
 
 // Kotlin emits a `$DefaultImpls` holder for every interface with a body, and a bridge for every method with
 // a default argument. Neither is reachable from Kotlin call sites, so both count as permanently uncovered and

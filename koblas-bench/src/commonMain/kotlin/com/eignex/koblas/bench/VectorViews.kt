@@ -43,7 +43,7 @@ internal fun vectorViewsArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
         if (!overlap) expected[i * stride] = x[i]
         expected[1 + i * stride] = y[i]
     }
-    val run = {
+    val run = BenchmarkOperation {
         initial.copyInto(backing)
         when (case.operation) {
             "copy-overlap" -> destination.copyFrom(source)

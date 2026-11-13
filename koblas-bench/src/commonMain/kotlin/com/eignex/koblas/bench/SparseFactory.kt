@@ -37,6 +37,7 @@ internal fun sparseFactoryWork(case: BenchCase): CaseWork {
     return CaseWork("composed", "construction", {
         // Keep the whole result observable, including structural arrays a numerical sink would not read.
         result = build()
-        result.values.firstOrNull() ?: result.nnz.toDouble()
+        val values = result.values
+        if (values.isEmpty()) result.nnz.toDouble() else values[0]
     }, kernel = "portable-csc/ofTriplets")
 }

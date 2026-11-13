@@ -22,7 +22,7 @@ internal class ShrinkingRankUpdate(val order: Int) {
     }
 
     /** Restores the initial matrix outside timing, after checking the entire update sequence. */
-    fun verify(what: String, run: () -> Double) {
+    fun verify(what: String, run: BenchmarkOperation) {
         var expected = initial.copyOf()
         for (step in x.indices) {
             expected = DenseReference.ger(-1.0, x[step], y[step], DenseMatrix.wrap(order, order, expected))
@@ -39,8 +39,8 @@ internal fun shrinkingRankUpdateWork(case: BenchCase, engine: KoblasEngine): Cas
     val fixture = ShrinkingRankUpdate(case.dimension(0))
     val n = fixture.order
     val publicWindows = case.operation == "ger-window-shrinking"
-    val run: () -> Double = if (publicWindows) {
-        {
+    val run: BenchmarkOperation = if (publicWindows) {
+        BenchmarkOperation {
             for (step in fixture.x.indices) {
                 val start = step + 1
                 val extent = n - start
@@ -54,7 +54,7 @@ internal fun shrinkingRankUpdateWork(case: BenchCase, engine: KoblasEngine): Cas
     } else {
         val x = fixture.x.map { DenseVector.wrap(it) }
         val y = fixture.y.map { DenseVector.wrap(it) }
-        val full: () -> Double = {
+        val full = BenchmarkOperation {
             for (step in x.indices) engine.ger(-1.0, x[step], y[step], fixture.matrix)
             fixture.matrix.values.last()
         }

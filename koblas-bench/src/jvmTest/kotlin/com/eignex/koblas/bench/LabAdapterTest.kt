@@ -22,7 +22,7 @@ class LabAdapterTest {
             assertEquals(2, cases.map { it.id }.distinct().size)
             assertEquals(setOf("dot+64+uniform", "copy+17+uniform+stride=2"), cases.map { it.parameters.getValue("row") }.toSet())
             assertTrue(cases.all { it.resources.memoryMiB == 2048L })
-            assertTrue(cases.all { it.inputs.any { input -> input.role == "executable" && "/linuxX64/" in input.path } })
+            assertTrue(cases.all { it.attributes["nativeExecutable"]?.contains("/linuxX64/") == true })
             assertTrue(cases.all { case -> case.inputs.any { it.path.endsWith("calibration/plan-fixture.txt") } })
         } finally { Files.delete(file) }
     }
@@ -41,7 +41,7 @@ class LabAdapterTest {
         val parameters = mapOf("vendor" to "openblas", "targets" to "jvm-scalar,jvm-auto-openblas-no-simd")
         val cases = KoblasLabSuite.plan(BenchRequest(parameters))
 
-        assertTrue(cases.all { case -> case.inputs.none { it.role == "executable" } })
+        assertTrue(cases.all { case -> "nativeExecutable" !in case.attributes })
         for (invalid in listOf(parameters - "vendor", parameters + ("vendor" to "onemkl"),
             mapOf("targets" to "unknown"))) {
             assertFailsWith<IllegalArgumentException> { KoblasLabSuite.plan(BenchRequest(invalid)) }
@@ -95,14 +95,14 @@ class LabAdapterTest {
 
     @Test fun `owned captures need no vendor and windows keeps compatible library architectures`() {
         val owned = KoblasLabSuite.plan(BenchRequest(mapOf("targets" to "jvm-scalar,jvm-simd,jvm-default-no-simd")))
-        assertTrue(owned.all { it.inputs.none { input -> input.role in setOf("vendor", "executable") } })
+        assertTrue(owned.all { it.inputs.none { input -> input.role == "vendor" } && "nativeExecutable" !in it.attributes })
         for ((vendor, arch) in mapOf("onemkl" to "x86_64", "aocl" to "x86_64", "armpl" to "arm64")) {
             val cases = KoblasLabSuite.plan(BenchRequest(mapOf("vendor" to vendor, "arch" to arch,
                 "platform" to "windows", "targets" to "$vendor-jvm")))
             assertTrue(cases.all { it.resources.requiredTags == setOf("platform:windows", "arch:$arch") })
         }
         val native = KoblasLabSuite.plan(BenchRequest(mapOf("platform" to "windows", "targets" to "native")))
-        assertTrue(native.all { case -> case.inputs.any { it.path.endsWith("mingwX64/releaseExecutable/koblas-bench.exe") } })
+        assertTrue(native.all { case -> case.attributes["nativeExecutable"]?.endsWith("mingwX64/releaseExecutable/koblas-bench.exe") == true })
     }
 
     @Test fun `prepared capture retains partial outputs`() {
@@ -144,6 +144,49 @@ class LabAdapterTest {
         }
     }
 
+    @Test fun `native captures keep each revision program outside shared workload inputs`() {
+        val case = KoblasLabSuite.plan(BenchRequest(mapOf("targets" to "native", "operation" to "dot"))).first()
+        val root = Files.createTempDirectory("koblas-native-revisions")
+        val hashes = mutableSetOf<String>()
+        try {
+            assertEquals(listOf("cases"), case.inputs.map { it.role })
+            for (revision in listOf("control", "candidate")) {
+                val repository = Files.createDirectories(root.resolve("$revision/koblas-bench")).parent
+                val program = repository.resolve(case.attributes.getValue("nativeExecutable"))
+                Files.createDirectories(program.parent)
+                Files.writeString(program, revision)
+                Files.writeString(repository.resolve("koblas-bench/capture-report.sh"), """
+                    #!/usr/bin/env bash
+                    set -eu
+                    original=("${'$'}@")
+                    while ((${ '$'}#)); do
+                      case "${'$'}1" in
+                        --prepared|--retain-incomplete) shift ;;
+                        --output) output=${'$'}2; shift 2 ;;
+                        *) shift 2 ;;
+                      esac
+                    done
+                    mkdir "${'$'}output"
+                    printf '%s\n' "${'$'}{original[@]}" > "${'$'}output/arguments.txt"
+                    printf 'status=complete\n' > "${'$'}output/metadata.txt"
+                """.trimIndent() + "\n")
+                val output = root.resolve("$revision-out")
+
+                val result = KoblasLabSuite.run(case, BenchContext(output, worktree = repository))
+
+                assertEquals(BenchStatus.SUCCESS, result.status)
+                val arguments = Files.readAllLines(output.resolve("report/arguments.txt"))
+                assertEquals(program.toString(), arguments[arguments.indexOf("--native-executable") + 1])
+                assertTrue(result.artifacts.any { it.path == "native-program.txt" })
+                val identity = Files.readAllLines(output.resolve("native-program.txt"))
+                assertEquals("path=${case.attributes.getValue("nativeExecutable")}", identity[0])
+                assertTrue(identity[1].matches(Regex("sha256=[a-f0-9]{64}")))
+                hashes += identity[1]
+            }
+            assertEquals(2, hashes.size)
+        } finally { root.toFile().deleteRecursively() }
+    }
+
     @Test fun `status capture exports each engine metric with its measured attribution`() {
         val root = Files.createTempDirectory("koblas-engine-status")
         try {
@@ -176,6 +219,8 @@ class LabAdapterTest {
             assertEquals(BenchStatus.SUCCESS, result.status)
             assertEquals(listOf("median_ns", "median_ns/jvm-scalar", "median_ns/jvm-simd"), result.metrics.map { it.name })
             assertTrue(result.metrics.all { it.value == 12.5 && it.unit == "ns/op" })
+            val controls = result.details!!.getValue("benchmarkControls").jsonObject
+            assertEquals("primitive-double-v1", controls.getValue("callbackResult").jsonPrimitive.content)
             val attribution = result.details!!.getValue("metricAttribution").jsonObject.getValue("median_ns/jvm-simd").jsonObject
             assertEquals("jvm-simd", attribution.getValue("engine").jsonPrimitive.content)
             assertEquals("scalar", attribution.getValue("provider").jsonPrimitive.content)

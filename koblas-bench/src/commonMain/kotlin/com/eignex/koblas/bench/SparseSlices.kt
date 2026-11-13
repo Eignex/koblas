@@ -19,7 +19,7 @@ internal fun sparseSlicesArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
     val kernels = engine.kernels
     val operation = case.operation
     val mutation = operation == "spaxpy-slice" || operation == "spscatter-slice"
-    val run = {
+    val run = BenchmarkOperation {
         when (operation) {
             "spdot-slice" -> kernels.dot(indices, INDEX_OFFSET, values, VALUE_OFFSET, count, initial)
             else -> {

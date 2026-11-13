@@ -90,8 +90,16 @@ private fun jmhOptions(settings: Settings, caseIds: Collection<String>) = Option
     .forks(settings.forks)
     .threads(1)
     .shouldFailOnError(true)
-    .jvmArgsAppend("-Dkoblas.bench.cases=${File(settings.casesPath).absolutePath}")
-    .apply { if (System.getenv("KOBLAS_BENCH_PROFILE_GC") == "true") addProfiler("gc") }
+    .apply {
+        val forkArguments = mutableListOf("-Dkoblas.bench.cases=${File(settings.casesPath).absolutePath}")
+        if (System.getenv("KOBLAS_BENCH_PROFILE_GC") == "true") addProfiler("gc")
+        if (System.getenv("KOBLAS_BENCH_PROFILE_COMPILATION") == "true") {
+            val output = File(settings.outputPath).absoluteFile
+            val log = output.parentFile.resolve("${output.nameWithoutExtension}-jit-%p.xml")
+            forkArguments += listOf("-XX:+UnlockDiagnosticVMOptions", "-XX:+LogCompilation", "-XX:LogFile=$log")
+        }
+        jvmArgsAppend(*forkArguments.toTypedArray())
+    }
     .build()
 
 private fun appendJmhRows(

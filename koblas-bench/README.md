@@ -48,6 +48,29 @@ case's round medians, inspect the spread, and check unchanged controls. Setup va
 scalar references before timing. Workloads differ in whether reset or allocation is timed;
 check their [definitions](REFERENCE.md#cases) before comparing them.
 
+Prepared Native executables belong to each revision's verified build workspace. Shared lab inputs
+contain workload data and external vendor packages; a revision's executable is recorded as the
+`nativeExecutable` case attribute and its path and SHA-256 are retained in `native-program.txt`.
+This permits paired revisions whose programs differ while keeping workload input bytes identical.
+
+Timed callbacks use `BenchmarkOperation.invoke(): Double`, a primitive JVM signature, including
+nested vector and indexed callbacks. `verifyBenchmarkCallbacks`, run by `check` and benchmark
+preparation, rejects generic function calls and primitive boxing on their visible harness call
+paths. It checks lambda targets, class implementations and virtual helper dispatch; allocations
+inside the measured library operation remain observable. Setup and reporting stay outside this
+rule. Captures identify the format as `primitive-double-v1`, also recorded in lab regression
+controls, so results from the older boxed callback harness do not establish a kernel speedup.
+
+For JVM compiler diagnostics, `lab/cases-jit-policy.txt` samples vector casts, product edges,
+retained scratch and sparse scheduling. Compare assertions on/off separately under normal tiering,
+`-XX:+TieredCompilation -XX:TieredStopAtLevel=1` and `-XX:-TieredCompilation`.
+For logs attributed to the measured JMH fork, the lab parameter `profile-compilation=true`
+(`KOBLAS_BENCH_PROFILE_COMPILATION=true` locally) retains `*-jit-*.xml` files beside each target's
+CSV. These HotSpot logs record the compiler, compilation level and inlining decisions separately
+for every fork. Instrumented timings are not performance evidence, and this instrumentation is
+refused in the fixed status-regression protocol. Compare policy changes within each compiler regime;
+non-tiered C2 collects profiles differently from normal tiering.
+
 ## Details
 
 - [Capture reference](REFERENCE.md): options, workload definitions, attribution, host setup, lab adapter and scoring.
@@ -175,3 +198,20 @@ are part of the cost beyond the nominal 600ms of iterations per row. Use the mea
 additional comparison arms. A local capture of the whole inventory validates cases, but does
 not reproduce the lab's per-row startup and placement costs. The documented confirmation cap remains 40 rows;
 a broader change can leave additional affected rows unconfirmed and needs follow-up from the lab owner.
+
+The primitive callback conversion was checked with two-fork C2 allocation diagnostics on absolute
+sum and sparse dot at length 64. The generic harness allocated about 24 B/op in both ordinary
+C2-only probes; the primitive harness recorded the profiler floor (about 0.001 B/op). Forbidding
+inlining of callback `invoke` methods raised the generic absolute-sum path to 48 B/op and left
+sparse dot at 24 B/op; both primitive paths remained at the profiler floor. These instrumented
+captures establish callback allocation behavior, not a throughput benefit.
+
+A [paired 13-workload comparison](https://lab.eignex.com/jobs/11968) then used the same primitive
+benchmark JAR for original Vector casts and local Vector null fast paths. All 234 captures,
+covering three repetitions under normal tiering, C1-only and C2-only, completed. Normal-tiered
+SIMD timing was essentially flat (−0.10% geometric mean), while the selected C1-only and C2-only
+SIMD subsets were −5.89% and −5.06%. Their unchanged scalar controls shifted +1.85%, +4.03% and
++1.31% respectively, and individual paired timings varied substantially. An unchanged dot workload
+was also slower in all three normal-tiered repetitions. These selected results establish neither
+a whole-codebase speedup nor throughput equivalence. Compare compiler regimes separately and
+keep normal tiering primary.

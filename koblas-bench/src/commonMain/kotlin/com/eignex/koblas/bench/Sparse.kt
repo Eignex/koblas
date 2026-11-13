@@ -59,7 +59,7 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
     val beta = -0.25
     val scratch = Scratch()
 
-    fun arm(verify: () -> Unit, run: () -> Double) = publish(engine, case, "oneshot", verify, run)
+    fun arm(verify: () -> Unit, run: BenchmarkOperation) = publish(engine, case, "oneshot", verify, run)
 
     return when (case.operation) {
         "spgemv" -> {
@@ -256,5 +256,5 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
 }
 
 /** A timed row for a sparse matrix call on [engine], refused when one of the case's extents is empty. */
-private fun publish(engine: KoblasEngine, case: BenchCase, timing: String, verify: () -> Unit, run: () -> Double) =
+private fun publish(engine: KoblasEngine, case: BenchCase, timing: String, verify: () -> Unit, run: BenchmarkOperation) =
     level23(engine, case, timing, verify, run)?.let { ArmChoice.Accepted(it) } ?: declined()

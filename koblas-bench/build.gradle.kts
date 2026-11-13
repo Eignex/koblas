@@ -284,7 +284,21 @@ tasks.withType<Test>().configureEach {
     if (providers.gradleProperty("koblas.noSimd").orNull != "true") jvmArgs("--add-modules=jdk.incubator.vector")
 }
 
+val benchmarkBytecodeTool = configurations.create("benchmarkBytecodeTool")
+dependencies { add(benchmarkBytecodeTool.name, project(":jvm-bytecode")) }
+val verifyBenchmarkCallbacks = tasks.register<JavaExec>("verifyBenchmarkCallbacks") {
+    val artifact = tasks.named<Jar>("jvmJar")
+    dependsOn(artifact)
+    javaLauncher.set(javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(25)) })
+    classpath = benchmarkBytecodeTool
+    mainClass.set("com.eignex.koblas.bytecode.BenchmarkCallbacks")
+    inputs.file(artifact.flatMap { it.archiveFile })
+    args(artifact.get().archiveFile.get().asFile.absolutePath)
+}
+tasks.named("check") { dependsOn(verifyBenchmarkCallbacks) }
+
 tasks.register<Sync>("prepareLabBenchmark") {
+    dependsOn(verifyBenchmarkCallbacks)
     group = "benchmark"
     from(jvmCompilation.output.allOutputs) { into("classes") }
     from(configurations.named("jvmRuntimeClasspath")) { into("lib") }
