@@ -106,6 +106,8 @@ harness-side call paths, including nested helpers and virtual dispatch, and reje
 It handles invokedynamic and class-based SAM implementations. Cold setup/reporting and the
 measured library operation are outside this harness check. Captures and regression controls
 record `primitive-double-v1`; compare numerical changes using the same callback representation.
+Inherited callback and helper bodies are resolved through their superclass and interface declarations,
+including an implementation inherited from a superclass that does not itself implement the callback interface.
 
 After converting the harness, [job 11968](https://lab.eignex.com/jobs/11968) compared both numerical
 policies with the same primitive benchmark bytecode on 13 selected workloads across normal,

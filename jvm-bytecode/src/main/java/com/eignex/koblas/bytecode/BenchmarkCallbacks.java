@@ -41,13 +41,12 @@ public final class BenchmarkCallbacks {
             if (owner.startsWith(BENCH)) models.put(owner, model);
         }
         Set<String> operationTypes = subtypes(models, OPERATION);
+        for (String type : operationTypes) roots.add(new Method(type, "invoke", "()D"));
         for (var model : models.values()) {
             String owner = model.thisClass().asInternalName();
-            boolean implementation = operationTypes.contains(owner);
             for (var method : model.methods()) {
                 var key = new Method(owner, method.methodName().stringValue(), method.methodType().stringValue());
                 methods.put(key, method);
-                if (implementation && key.name().equals("invoke") && key.type().equals("()D")) roots.add(key);
                 if (method.code().isEmpty()) continue;
                 for (var item : method.code().get()) {
                     if (!(item instanceof InvokeDynamicInstruction factory)
@@ -84,7 +83,19 @@ public final class BenchmarkCallbacks {
             var key = pending.removeFirst();
             if (!visited.add(key)) continue;
             var method = methods.get(key);
-            if (method == null || method.code().isEmpty()) continue;
+            if (method == null) {
+                // A receiver can implement an interface with a body inherited from a non-implementing superclass.
+                var model = models.get(key.owner());
+                if (model != null) {
+                    model.superclass().ifPresent(parent ->
+                        pending.addLast(new Method(parent.asInternalName(), key.name(), key.type())));
+                    for (var parent : model.interfaces()) {
+                        pending.addLast(new Method(parent.asInternalName(), key.name(), key.type()));
+                    }
+                }
+                continue;
+            }
+            if (method.code().isEmpty()) continue;
             for (var item : method.code().get()) {
                 if (!(item instanceof InvokeInstruction call)) continue;
                 String owner = call.owner().asInternalName();

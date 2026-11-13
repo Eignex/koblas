@@ -72,6 +72,48 @@ public class BenchmarkCallbacksTest {
     }
 
     @Test
+    void inheritedVirtualHelpersCannotHideGenericCallbacks() {
+        ClassDesc step = ClassDesc.of("com.eignex.koblas.bench.NumericStep");
+        ClassDesc base = ClassDesc.of("com.eignex.koblas.bench.BaseStep");
+        var classes = fixture(NUMERIC, code -> code.aconst_null().invokeinterface(step, "compute", NUMERIC).dreturn(), false);
+        classes.put("NumericStep", CLASS_FILE.build(step, builder -> builder
+            .withFlags(ClassFile.ACC_PUBLIC | ClassFile.ACC_INTERFACE | ClassFile.ACC_ABSTRACT)
+            .withMethod("compute", NUMERIC, ClassFile.ACC_PUBLIC | ClassFile.ACC_ABSTRACT, method -> {})));
+        classes.put("BaseStep", CLASS_FILE.build(base, builder -> builder
+            .withMethodBody("compute", NUMERIC, ClassFile.ACC_PUBLIC,
+                code -> code.invokestatic(FIXTURE, "helper", NUMERIC).dreturn())));
+        classes.put("StepImpl", CLASS_FILE.build(ClassDesc.of("com.eignex.koblas.bench.StepImpl"), builder -> builder
+            .withSuperclass(base).withInterfaceSymbols(step)));
+        assertTrue(BenchmarkCallbacks.violations(classes).stream().anyMatch(message -> message.contains("Function0.invoke")));
+    }
+
+    @Test
+    void inheritedInterfaceDefaultsCannotHideGenericCallbacks() {
+        ClassDesc base = ClassDesc.of("com.eignex.koblas.bench.BaseStep");
+        ClassDesc step = ClassDesc.of("com.eignex.koblas.bench.NumericStep");
+        var classes = fixture(NUMERIC, code -> code.aconst_null().invokeinterface(step, "compute", NUMERIC).dreturn(), false);
+        classes.put("BaseStep", CLASS_FILE.build(base, builder -> builder
+            .withFlags(ClassFile.ACC_PUBLIC | ClassFile.ACC_INTERFACE | ClassFile.ACC_ABSTRACT)
+            .withMethodBody("compute", NUMERIC, ClassFile.ACC_PUBLIC,
+                code -> code.invokestatic(FIXTURE, "helper", NUMERIC).dreturn())));
+        classes.put("NumericStep", CLASS_FILE.build(step, builder -> builder
+            .withFlags(ClassFile.ACC_PUBLIC | ClassFile.ACC_INTERFACE | ClassFile.ACC_ABSTRACT)
+            .withInterfaceSymbols(base)));
+        assertTrue(BenchmarkCallbacks.violations(classes).stream().anyMatch(message -> message.contains("Function0.invoke")));
+    }
+
+    @Test
+    void inheritedSamImplementationsCannotHideGenericCallbacks() {
+        var classes = inheritedSam(code -> code.invokestatic(FIXTURE, "helper", NUMERIC).dreturn());
+        assertTrue(BenchmarkCallbacks.violations(classes).stream().anyMatch(message -> message.contains("Function0.invoke")));
+    }
+
+    @Test
+    void inheritedPrimitiveSamImplementationsAreAllowed() {
+        assertTrue(BenchmarkCallbacks.violations(inheritedSam(code -> code.dconst_1().dreturn())).isEmpty());
+    }
+
+    @Test
     void legacyCallbackStorageIsRejected() {
         var classes = fixture(NUMERIC, code -> code.dconst_1().dreturn(), false);
         classes.put("CaseWork", CLASS_FILE.build(ClassDesc.of("com.eignex.koblas.bench.CaseWork"), builder ->
@@ -101,6 +143,16 @@ public class BenchmarkCallbacksTest {
             if (!classBased) builder.withMethodBody("factory", MethodTypeDesc.of(OPERATION),
                 ClassFile.ACC_PUBLIC | ClassFile.ACC_STATIC, code -> code.invokedynamic(factory(signature)).areturn());
         }));
+        return classes;
+    }
+
+    private static Map<String, byte[]> inheritedSam(Consumer<CodeBuilder> body) {
+        var classes = fixture(NUMERIC, code -> code.dconst_1().dreturn(), false);
+        ClassDesc base = ClassDesc.of("com.eignex.koblas.bench.BaseOperation");
+        classes.put("BaseOperation", CLASS_FILE.build(base, builder -> builder
+            .withMethodBody("invoke", NUMERIC, ClassFile.ACC_PUBLIC, body)));
+        classes.put("OperationImpl", CLASS_FILE.build(ClassDesc.of("com.eignex.koblas.bench.OperationImpl"), builder -> builder
+            .withSuperclass(base).withInterfaceSymbols(OPERATION)));
         return classes;
     }
 
