@@ -10,9 +10,9 @@ class SparseIndexedTest {
         for (operation in listOf("spdot", "spdot-raw", "spdot-sparse", "spaxpy", "spaxpy-raw",
             "spnrm2", "spasum", "spscatter", "spscatter-raw", "spgather", "spgather-zero")) {
             val case = Cases.parse("$operation+65+sparse-uniform+density=0.25").single()
-            val reference = assertNotNull(sparseIndexedArm(case, KoblasEngine.scalar).work)
+            val reference = assertNotNull(sparseIndexedWork(case, KoblasEngine.scalar))
             for (engine in listOfNotNull(KoblasEngine.scalar, KoblasEngine.simd)) {
-                val work = assertNotNull(sparseIndexedArm(case, engine).work)
+                val work = assertNotNull(sparseIndexedWork(case, engine))
 
                 repeat(3) {
                     DenseReference.check(doubleArrayOf(reference.run()), doubleArrayOf(work.run()), case.id)
@@ -29,7 +29,7 @@ class SparseIndexedTest {
         }
         val case = Cases.parse("spdot-raw+65+sparse-uniform+density=0.25").single()
 
-        assertFailsWith<IllegalStateException> { sparseIndexedArm(case, broken) }
+        assertFailsWith<IllegalStateException> { sparseIndexedWork(case, broken) }
     }
 
     @Test
@@ -44,7 +44,7 @@ class SparseIndexedTest {
         }
         val case = Cases.parse("spgather+65+sparse-uniform+density=0.25").single()
 
-        assertFailsWith<IllegalStateException> { sparseIndexedArm(case, broken) }
+        assertFailsWith<IllegalStateException> { sparseIndexedWork(case, broken) }
     }
 
     @Test
@@ -59,6 +59,6 @@ class SparseIndexedTest {
         }
         val case = Cases.parse("spgather-zero+65+sparse-uniform+density=0.25").single()
 
-        assertFailsWith<IllegalStateException> { sparseIndexedArm(case, broken) }
+        assertFailsWith<IllegalStateException> { sparseIndexedWork(case, broken) }
     }
 }

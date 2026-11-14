@@ -1,4 +1,4 @@
-# Copy crossover, streaming lengths, strided fallback and shared-buffer adaptation.
+# Copy crossover, streaming lengths, strided fallback.
 copy+16+uniform
 copy+64+uniform
 copy+128+uniform
@@ -13,6 +13,4 @@ copy+65536+uniform
 copy+1048576+uniform
 copy+4096+uniform+stride=2
 copy+4096+uniform+stride=-2
-copy-overlap+64+uniform
-copy-overlap+4096+uniform
 dot+4096+uniform

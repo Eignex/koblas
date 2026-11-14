@@ -12,7 +12,7 @@ class StatusSweepTest {
     private val parameters = mapOf("status-sweep" to "true", "samples" to "3", "warmups" to "3",
         "target-ms" to "100", "forks" to "1", "rounds" to "1")
 
-    private fun workloads(profile: String = "status-v3"): List<BenchCase> =
+    private fun workloads(profile: String = "status-v4"): List<BenchCase> =
         KoblasLabSuite.plan(BenchRequest(parameters + ("sweep-profile" to profile)))
             .map { Cases.parse(it.parameters.getValue("row")).single() }
 
@@ -75,7 +75,7 @@ class StatusSweepTest {
     }
 
     @Test fun `extended profile retains core cases and adds larger working sets`() {
-        val cases = workloads("extended-v1")
+        val cases = workloads("extended-v2")
 
         assertTrue(cases.size <= 200)
         assertTrue(cases.map { it.id }.containsAll(workloads().map { it.id }))
@@ -86,8 +86,8 @@ class StatusSweepTest {
     @Test fun `versioned inventories have frozen canonical membership`() {
         for ((profile, digest) in mapOf(
             "status-v2" to "3981114dc3cef318040af672fdd0e3b0cba1d65e81a2b9ad33f505165db4605e",
-            "status-v3" to "c4428dd54bf3b022e18550e48cd3a8426c9816fd82e4c9d50be78e8edfc22982",
-            "extended-v1" to "7ca7cbe4f085166c69cfc1303c491c37058bc2eb4ca53b5fd3641a942c8a5be8",
+            "status-v4" to "96e473342b0ea5bb7f08d10d43b1c4ac8d01596a5ae1c1c96467fc04525f5d98",
+            "extended-v2" to "7d262588e7b043cddbf50587e561cf091bbed79cb0741af8ea8fe478644ef163",
         )) {
             val cases = workloads(profile)
             val bytes = cases.joinToString("\n") { it.id }.toByteArray()
@@ -101,9 +101,9 @@ class StatusSweepTest {
 
         for (case in cases) {
             assertEquals("jvm-default", case.parameters["targets"])
-            assertEquals("status-v3", case.parameters["sweep-profile"])
+            assertEquals("status-v4", case.parameters["sweep-profile"])
             assertEquals("metric-v1", case.attributes["regressionPolicy"])
-            assertEquals("koblas-status-v3", case.attributes["suite"])
+            assertEquals("koblas-status-v4", case.attributes["suite"])
             assertEquals(60L, case.resources.timeoutSeconds)
             assertTrue("nativeExecutable" !in case.attributes)
         }
@@ -112,7 +112,7 @@ class StatusSweepTest {
     @Test fun `extended comparisons keep all requested arms on each workload`() {
         for ((platform, arch, targets) in listOf(Triple("mac", "arm64", "jvm-default,jvm-scalar,jvm-simd"),
             Triple("linux", "x86_64", "jvm-default,jvm-scalar,jvm-simd,native,native-default"))) {
-            val cases = KoblasLabSuite.plan(BenchRequest(mapOf("sweep-profile" to "extended-v1",
+            val cases = KoblasLabSuite.plan(BenchRequest(mapOf("sweep-profile" to "extended-v2",
                 "platform" to platform, "arch" to arch, "targets" to targets)))
 
             assertTrue(cases.all { it.parameters["targets"] == targets && (it.attributes - "nativeExecutable").isEmpty() })
@@ -127,12 +127,12 @@ class StatusSweepTest {
         val cases = KoblasLabSuite.plan(BenchRequest(parameters + mapOf("targets" to targets,
             "platform" to "mac", "arch" to "arm64")))
 
-        assertEquals(136, cases.size)
+        assertEquals(133, cases.size)
         for (case in cases) {
             assertEquals(targets, case.parameters["targets"])
             assertEquals("median_ns,median_ns/jvm-scalar,median_ns/jvm-simd,median_ns/native,median_ns/native-default",
                 case.attributes["regressionMetrics"])
-            assertEquals("koblas-status-v3-engines-v1", case.attributes["suite"])
+            assertEquals("koblas-status-v4-engines-v1", case.attributes["suite"])
             assertTrue(case.attributes.getValue("nativeExecutable").contains("macosArm64"))
         }
     }
@@ -143,7 +143,7 @@ class StatusSweepTest {
         val cases = KoblasLabSuite.plan(BenchRequest(parameters + mapOf("targets" to targets.joinToString(","),
             "vendor" to "accelerate", "platform" to "mac", "arch" to "arm64", "arm-order" to "rotate")))
 
-        assertEquals(136, cases.size)
+        assertEquals(133, cases.size)
         for ((index, case) in cases.withIndex()) {
             val offset = index % targets.size
             assertEquals((targets.drop(offset) + targets.take(offset)).joinToString(","), case.parameters["targets"])
@@ -158,12 +158,13 @@ class StatusSweepTest {
         for (override in listOf(mapOf("rounds" to "2"), mapOf("samples" to "1"), mapOf("targets" to "jvm-scalar"),
             mapOf("smoke" to "true"), mapOf("profile-gc" to "true"), mapOf("profile-compilation" to "true"),
             mapOf("cases" to "koblas-bench/cases.txt"),
-            mapOf("sweep-profile" to "unknown"), mapOf("vendor" to "accelerate"),
+            mapOf("sweep-profile" to "unknown"), mapOf("sweep-profile" to "status-v3"),
+            mapOf("sweep-profile" to "extended-v1"), mapOf("vendor" to "accelerate"),
             mapOf("arm-order" to "unknown"), mapOf("vendor" to "openblas"))) {
             assertFailsWith<IllegalArgumentException> { KoblasLabSuite.plan(BenchRequest(parameters + override)) }
         }
         assertFailsWith<IllegalArgumentException> {
-            KoblasLabSuite.plan(BenchRequest(mapOf("sweep-profile" to "status-v3", "cases" to "koblas-bench/cases.txt")))
+            KoblasLabSuite.plan(BenchRequest(mapOf("sweep-profile" to "status-v4", "cases" to "koblas-bench/cases.txt")))
         }
     }
 }

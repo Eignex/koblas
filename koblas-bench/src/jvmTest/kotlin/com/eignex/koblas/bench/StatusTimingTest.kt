@@ -40,19 +40,12 @@ class StatusTimingTest {
         assertFailsWith<IllegalArgumentException> { readStatusTiming("jvm-simd", case, 3, unsupported) }
     }
 
-    @Test fun `only optional engines may decline known view adapters`() {
-        val case = Cases.parse("copy-overlap+17+uniform").single()
-        val unsupported = csv(case.id, value = "", status = "unsupported", samples = 0, forks = 0, provider = "")
+    @Test fun `owned engines must implement every engine workload`() {
+        val case = Cases.parse("dot+64+uniform").single()
+        val unsupported = csv(value = "", status = "unsupported", samples = 0, forks = 0)
 
-        for (engine in listOf("jvm-scalar", "jvm-simd", "native")) {
-            assertNull(readStatusTiming(engine, case, 3, unsupported).nanos)
-        }
-        for (engine in listOf("jvm-default", "native-default")) {
+        for (engine in listOf("jvm-default", "jvm-default-no-simd", "jvm-scalar", "jvm-simd", "native", "native-default")) {
             assertFailsWith<IllegalArgumentException> { readStatusTiming(engine, case, 3, unsupported) }
-        }
-        assertFailsWith<IllegalArgumentException> {
-            readStatusTiming("jvm-simd", Cases.parse("dot+64+uniform").single(), 3,
-                csv(value = "", status = "unsupported", samples = 0, forks = 0))
         }
     }
 }

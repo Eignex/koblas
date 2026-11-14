@@ -330,24 +330,6 @@ trsm+64x256+triangular+side=R+uplo=L+transA=N+diag=N
 trsm+256x64+triangular+side=L+uplo=U+transA=T+diag=U
 trmm+256x64+triangular+side=L+uplo=U+transA=T+diag=N
 
-# Sparse addition over identical banded patterns and a larger mixed union.
-
-# Level 1 vector entry points over shared or strided buffers
-copy-overlap+64+uniform
-copy-overlap+4096+uniform
-axpy-views+64+uniform
-axpy-views+4096+uniform
-spdot-view+64+sparse-uniform+density=0.01
-spdot-view+4096+sparse-uniform+density=0.01
-spdot-view+64+sparse-uniform+density=1.0
-spdot-view+4096+sparse-uniform+density=1.0
-
-# Sparse construction used by LP columns and basis factors
-spbuild-triplets+129x65+sparse-uniform+density=0.1
-spbuild-triplets+257x129+sparse-uniform+density=0.05+support=empty
-spbuild-triplets+512x512+sparse-uniform+density=0.01+support=banded
-spbuild-duplicates+129x65+sparse-uniform+density=0.1
-
 # Raw indexed windows used by sparse solvers, including the selected engine fallback.
 spdot-slice+64+sparse-uniform+density=0.0625
 spdot-slice+128+sparse-uniform+density=0.125
