@@ -29,7 +29,6 @@ internal object KoblasLabSuite : BenchSuite {
     private const val ROW = "row"
     private const val NATIVE_EXECUTABLE = "nativeExecutable"
     private val sweepProfiles = mapOf(
-        "status-v2" to "koblas-bench/lab/cases-status-sweep-v2.txt",
         "status-v4" to "koblas-bench/lab/cases-status-sweep-v4.txt",
         "extended-v2" to "koblas-bench/lab/cases-sweep-extended-v2.txt",
     )
@@ -87,7 +86,7 @@ internal object KoblasLabSuite : BenchSuite {
                 BenchResources(memoryMiB = 2048, timeoutSeconds = p["case-timeout"]?.toLong() ?: if (sweep) 60L else 7200L,
                     requiredTags = setOf("platform:$platform", "arch:$arch")), inputs = inputs,
                 attributes = (if (sweep) mapOf("regressionPolicy" to "metric-v1", "regressionMetric" to "median_ns",
-                    "regressionThreshold" to "0.15", "suite" to (if (profile == "status-v2") "koblas-status-v1" else "koblas-$profile") +
+                    "regressionThreshold" to "0.15", "suite" to "koblas-$profile" +
                         (if (selected.size > 1) "-engines-v1" else "")) +
                         (if (selected.size > 1) mapOf("regressionMetrics" to selected.joinToString(",", transform = ::statusMetric)) else emptyMap()) else emptyMap()) +
                     // The program belongs to its revision's verified workspace; only workload data is shared across revisions.
