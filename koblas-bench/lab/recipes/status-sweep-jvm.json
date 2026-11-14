@@ -1,6 +1,6 @@
 {
   "name": "koblas-sweep",
-  "description": "Per-commit status v3: default JVM, exact JVM SIMD, Accelerate JVM and portable JVM, paired within each workload. Three full inventory passes; rotate engine order across workloads. Three 100ms warmups and samples, one fork/round. Local only; 1800s active-time cap including preparation; timing changes beyond 15% and correctness failures get paired confirmation.",
+  "description": "Per-commit status v4: default JVM, exact JVM SIMD, Accelerate JVM and portable JVM, paired within each workload. Three full inventory passes; rotate engine order across workloads. Three 100ms warmups and samples, one fork/round. Local only; 1800s active-time cap including preparation; timing changes beyond 15% and correctness failures get paired confirmation.",
   "repository": "Eignex/koblas",
   "tags": [
     "local"
@@ -23,7 +23,7 @@
         "target-ms": "100",
         "forks": "1",
         "rounds": "1",
-        "sweep-profile": "status-v3",
+        "sweep-profile": "status-v4",
         "vendor": "accelerate",
         "arm-order": "rotate"
       }

@@ -63,7 +63,6 @@ class DenseTest {
                 val work = assertNotNull(denseWork(case, engine), "$line on ${engine.name}")
                 assertEquals("${engine.name}/${case.operation}", work.kernel)
                 assertTrue(work.run().isFinite(), "$line on ${engine.name} produced no finite sink")
-                work.close()
             }
         }
     }
@@ -86,7 +85,7 @@ class DenseTest {
             for (stride in listOf(2, -1, -2, 256, -257)) {
                 val case = Cases.parse("$operation+17+uniform+stride=$stride").single()
                 for (engine in listOfNotNull(KoblasEngine.scalar, KoblasEngine.simd, koblas)) {
-                    val work = assertNotNull(engineArm(case, engine)?.work)
+                    val work = assertNotNull(engineArm(case, engine).work)
                     assertTrue(work.run().isFinite())
                     assertNotNull(work.provider)
                 }

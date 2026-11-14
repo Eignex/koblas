@@ -5,7 +5,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.KoblasEngine
 
 /** Raw CSC windows through the selected engine, including validation and any indexed fallback. */
-internal fun sparseSlicesArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
+internal fun sparseSlicesWork(case: BenchCase, engine: KoblasEngine): CaseWork {
     val size = case.dimension(0)
     val sparse = Fixtures.sparseVector(size, case.option("density", "0.01").toDouble(), 1)
     val count = sparse.nnz
@@ -52,7 +52,7 @@ internal fun sparseSlicesArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
         DenseReference.check(doubleArrayOf(expected), doubleArrayOf(run()), case.id)
     }
     val timing = if (mutation) "reset-and-arithmetic" else "arithmetic"
-    return ArmChoice.Accepted(engineWork(engine, operation, timing, run, if (mutation) destination else null))
+    return engineWork(engine, operation, timing, run, if (mutation) destination else null)
 }
 
 private const val INDEX_OFFSET = 3

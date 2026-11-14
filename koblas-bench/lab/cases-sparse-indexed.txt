@@ -20,10 +20,6 @@ spgather+4096+sparse-uniform+density=0.01+timing=arithmetic
 spgather+4096+sparse-uniform+density=0.25+timing=arithmetic
 spgather+65536+sparse-uniform+density=0.01+timing=arithmetic
 spgather+65536+sparse-uniform+density=0.25+timing=arithmetic
-spdot-view+64+sparse-uniform+density=0.01
-spdot-view+4096+sparse-uniform+density=0.01
-spdot-view+64+sparse-uniform+density=1.0
-spdot-view+4096+sparse-uniform+density=1.0
 spdot-slice+64+sparse-uniform+density=0.0625
 spdot-slice+128+sparse-uniform+density=0.125
 spdot-slice+512+sparse-uniform+density=0.125

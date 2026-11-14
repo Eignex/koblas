@@ -7,7 +7,7 @@ import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.operations.*
 
 /** Indexed workloads check their complete buffers against the scalar engine before timing. */
-internal fun sparseIndexedArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
+internal fun sparseIndexedWork(case: BenchCase, engine: KoblasEngine): CaseWork {
     val size = case.dimension(0)
     val density = case.option("density", "0.01").toDouble()
     val x = Fixtures.sparseVector(size, density, 1)
@@ -72,6 +72,6 @@ internal fun sparseIndexedArm(case: BenchCase, engine: KoblasEngine): ArmChoice 
     DenseReference.check(reference.values, x.values, "${case.id} sparse backing storage")
     DenseReference.check(referenceDense, dense, "${case.id} dense backing storage")
     initialDense.copyInto(dense)
-    return ArmChoice.Accepted(engineWork(engine, operation, timing, run,
-        if (operation == "spgather") x.values else null))
+    return engineWork(engine, operation, timing, run,
+        if (operation == "spgather") x.values else null)
 }

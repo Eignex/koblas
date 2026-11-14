@@ -8,6 +8,18 @@ import kotlin.test.assertTrue
 
 class CasesTest {
     @Test
+    fun `parser rejects workloads outside the engine surface`() {
+        for (id in listOf(
+            "copy-overlap+17+uniform", "axpy-views+17+uniform",
+            "spdot-view+64+sparse-uniform+density=0.125",
+            "spbuild-triplets+17x9+sparse-uniform+density=0.1",
+            "spbuild-duplicates+17x9+sparse-uniform+density=0.1",
+        )) {
+            assertFailsWith<IllegalArgumentException> { Cases.parse(id) }
+        }
+    }
+
+    @Test
     fun `retained workspace is an explicit gemm workload option`() {
         val id = "gemm+16x16x4096+uniform+transA=T+workspace=retained"
 

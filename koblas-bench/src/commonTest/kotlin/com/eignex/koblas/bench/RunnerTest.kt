@@ -27,7 +27,7 @@ class RunnerTest {
         for ((id, expected) in listOf("dot+63+uniform" to "portable", "dot+64+uniform" to leaf.id,
             "dot+64+uniform+stride=2" to "portable")) {
             calls = 0
-            val work = engineArm(Cases.parse(id).single(), engine)!!.work!!
+            val work = engineArm(Cases.parse(id).single(), engine).work
             work.run()
             assertEquals(expected, work.provider)
             assertEquals(expected == leaf.id, calls > 0)

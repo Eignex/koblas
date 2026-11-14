@@ -38,55 +38,31 @@ public fun main(args: Array<String>) {
     var sink = 0.0
     for (case in selected) {
         val arm = benchmarkArm(case, engine, vendorMode)
-        val work = arm?.work
+        val work = arm.work
         if (work == null) {
             rows += measurement(
                 case, settings, 0, null, "unsupported", "unsupported",
-                case.option("timing", "arithmetic"), arm?.reason,
+                case.option("timing", "arithmetic"), arm.reason,
             )
             continue
         }
-        try {
-            val calibration = warmAndCalibrate(work, settings.targetNanos, settings.warmups)
-            sink += calibration.sink
-            val operations = calibration.operations
-            for (sample in 1..settings.samples) {
-                val start = nanoTime()
-                repeat(operations) { sink += work.run() }
-                val elapsed = max(1L, nanoTime() - start)
-                rows += measurement(
-                    case, settings, sample, elapsed.toDouble() / operations, "ok",
-                    work.comparisonKind, work.timingMode, work.kernel, work.provider,
-                )
-            }
-        } finally {
-            work.close()
+        val calibration = warmAndCalibrate(work, settings.targetNanos, settings.warmups)
+        sink += calibration.sink
+        val operations = calibration.operations
+        for (sample in 1..settings.samples) {
+            val start = nanoTime()
+            repeat(operations) { sink += work.run() }
+            val elapsed = max(1L, nanoTime() - start)
+            rows += measurement(
+                case, settings, sample, elapsed.toDouble() / operations, "ok",
+                work.comparisonKind, work.timingMode, work.kernel, work.provider,
+            )
         }
     }
     if (sink == Double.POSITIVE_INFINITY) throw IllegalStateException("unreachable result sink")
     writeTextFile(settings.outputPath, reportCsv(rows))
     println("wrote ${selected.size} case summaries from ${rows.count { it.nanos != null }} measurements to ${settings.outputPath}")
     printIdentity(implementation, "native-calibrated", EngineRuntime.Native)
-    println("last retained result=${Retained.describe()}")
-}
-
-/**
- * Keeps timed objects observable so escape analysis cannot eliminate their construction.
- *
- * One sparse result value does not require retaining its arrays. Storing the object and reading it at the
- * end of the run ensures result allocation remains measured.
- */
-internal object Retained {
-    private var value: Any? = null
-
-    /** Keeps [produced] observable and returns a number the timed loop consumes. */
-    fun retain(produced: Any?): Double {
-        value = produced
-        return 1.0
-    }
-
-    /** What the last timed body produced, which a runner reads so the field is not written for nothing. */
-    fun describe(): String = value?.let { it::class.simpleName } ?: "nothing"
 }
 
 private data class Calibration(val operations: Int, val sink: Double)

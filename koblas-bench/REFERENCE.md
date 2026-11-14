@@ -34,8 +34,7 @@ the whole call.
 - `axpy-unit` accumulates with alpha one without a timed reset; ordinary `axpy` uses a nonunit multiplier and includes reset.
 - `ger-shrinking` and `ger-window-shrinking` report a batch of `n - 1` updates, excluding matrix reset and factorization work.
 - GEMM's `workspace=retained` reuses scratch; `layout=borrowed` uses offsets and padded storage.
-- Sparse construction cases include allocation; view cases include adapter validation and dispatch, while raw
-  indexed cases call the internal kernel windows.
+- Indexed cases call the selected engine's kernel windows; column-dot cases also cover its validated CSC entry point.
 - Dense vector cases accept `stride=2`, `stride=-1` and `stride=-2`; omitted stride means contiguous owned arrays.
 
 Kernel timings do not establish an end-to-end solver speedup. For exact boundaries, see
@@ -67,8 +66,8 @@ A request identifies `repository: "Eignex/koblas"` and passes this object as `be
 ```
 
 Each selected workload becomes one paired case. [LabAdapter.kt](src/jvmMain/kotlin/com/eignex/koblas/bench/LabAdapter.kt)
-lists the accepted parameters. `sweep-profile=status-v3` selects the bounded status inventory;
-`extended-v1` selects its broader superset, and `status-v2` retains the legacy inventory. Profiles also work
+lists the accepted parameters. `sweep-profile=status-v4` selects the bounded status inventory;
+`extended-v2` selects its broader superset, and `status-v2` retains the legacy inventory. Profiles also work
 without `status-sweep=true` for ordinary paired captures with explicit engines and timing settings. Keep the
 status flag for fixed-control `jvm-default` regression metrics. Do not combine a profile with `cases`.
 Windows workers need Git Bash or an absolute `KOBLAS_BASH`.

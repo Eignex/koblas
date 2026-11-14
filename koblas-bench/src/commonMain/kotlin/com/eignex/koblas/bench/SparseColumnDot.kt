@@ -5,7 +5,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.KoblasEngine
 
 /** Matched CSC column windows, including public validation, through the selected engine. */
-internal fun sparseColumnDotArm(case: BenchCase, engine: KoblasEngine): ArmChoice {
+internal fun sparseColumnDotWork(case: BenchCase, engine: KoblasEngine): CaseWork {
     val rows = case.dimension(0)
     val column = Fixtures.sparseVector(rows, case.option("density", "0.01").toDouble(), 1)
     val count = column.nnz
@@ -23,5 +23,5 @@ internal fun sparseColumnDotArm(case: BenchCase, engine: KoblasEngine): ArmChoic
     }
     val expected = KoblasEngine.scalar.kernels.dot(indices, 3, values, 3, count, dense)
     DenseReference.check(doubleArrayOf(expected), doubleArrayOf(run()), case.id)
-    return ArmChoice.Accepted(engineWork(engine, case.operation, "arithmetic", run))
+    return engineWork(engine, case.operation, "arithmetic", run)
 }

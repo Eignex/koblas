@@ -13,8 +13,7 @@ class SparseSlicesTest {
         for (operation in listOf("spdot-slice", "spaxpy-slice", "spscatter-slice")) {
             val case = Cases.parse("$operation+37+sparse-uniform+density=0.5").single()
             for (engine in listOfNotNull(KoblasEngine.scalar, KoblasEngine.simd, koblas).distinct()) {
-                val arm = assertNotNull(sparseArm(case, engine))
-                val work = assertNotNull(arm.work)
+                val work = sparseWork(case, engine)
                 assertEquals(ENGINE_COMPARISON, work.comparisonKind)
                 assertEquals("${engine.name}/$operation", work.kernel)
                 val reduction = operation == "spdot-slice"

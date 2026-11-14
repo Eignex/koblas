@@ -1,5 +1,5 @@
-# Status v3: representative change detection, not an exhaustive conformance or tuning grid.
-# Existing v2 identities stay comparable; the sections below add selected independent risk factors.
+# Status v4: representative change detection, not an exhaustive conformance or tuning grid.
+# Engine workloads only; convenience adapters are outside the measured surface.
 dot+64+uniform
 axpy+64+uniform
 scal+64+uniform
@@ -136,64 +136,7 @@ sptrmv+129+sparse-triangular+density=0.5+support=mixed+mode=oneshot+uplo=U+trans
 sptrsm+65x3+sparse-triangular+density=0.01+support=skewed+mode=oneshot+side=R+uplo=U+transA=T+diag=U
 sptrmm+65x9+sparse-triangular+density=0.5+support=banded+mode=oneshot+side=L+uplo=U+transA=N+diag=U
 spsyrk-dense+65x33+sparse-uniform+density=0.01+support=empty+uplo=U
-# Public view and raw window adapters share kernels but have their own overhead and alias work.
-copy-overlap+17+uniform
-axpy-views+65+uniform
-spdot-view+136+sparse-uniform+density=0.125
+# Indexed windows exercise offsets on the selected engine.
 spdot-slice+136+sparse-uniform+density=0.125
 spaxpy-slice+136+sparse-uniform+density=0.125
 spscatter-slice+136+sparse-uniform+density=0.125
-
-# Extended v1: status v3 plus selected larger working sets and additional variants.
-# Larger working sets and a few additional crossover and storage cases.
-dot+1048577+uniform
-copy+1048577+uniform
-sum+1048577+uniform
-nrm2+1048577+uniform
-asum+1048577+uniform
-iamax+1048577+uniform
-axpy+1048577+uniform
-scal+1048577+uniform
-swap+1048577+uniform
-rot+1048577+uniform
-axpy+1048575+uniform
-axpy+1048576+uniform
-dot+1048577+uniform+stride=2
-axpy+1048577+uniform+stride=-2
-copy+1048577+uniform+stride=-1
-dot+4194305+uniform
-copy+4194305+uniform
-axpy+4194305+uniform
-nrm2+15+uniform
-nrm2+16+uniform
-nrm2+17+uniform
-nrm2+31+uniform
-nrm2+32+uniform
-nrm2+33+uniform
-asum+15+uniform
-asum+16+uniform
-asum+17+uniform
-asum+31+uniform
-asum+32+uniform
-asum+33+uniform
-iamax+1023+uniform
-iamax+1024+uniform
-iamax+1025+uniform
-spdot-raw+65537+sparse-uniform+density=0.01
-spdot-sparse+65537+sparse-uniform+density=0.01
-spaxpy-raw+65537+sparse-uniform+density=0.01
-spscatter-raw+65537+sparse-uniform+density=0.01
-spgather+65537+sparse-uniform+density=0.01
-spgather-zero+65537+sparse-uniform+density=0.01
-gemm+16x16x4096+uniform+workspace=retained
-gemm+16x16x4096+uniform+transA=T+transB=T+workspace=retained+layout=borrowed
-gemm+257x129x193+uniform+workspace=retained
-gemm+257x129x193+uniform+transA=T+transB=T+workspace=retained+layout=borrowed
-gemm+129x257x193+uniform+workspace=retained
-gemm+129x257x193+uniform+transA=T+transB=T+workspace=retained+layout=borrowed
-symm+129x257+uniform+side=R+uplo=U
-trsm+129x257+triangular+side=R+uplo=U+transA=T+diag=N
-trmm+129x257+triangular+side=R+uplo=U+transA=T+diag=N
-spgemv+257x129+sparse-uniform+density=0.01+support=mixed+mode=oneshot+transA=T
-spmm+257x17x129+sparse-uniform+density=0.01+support=mixed+mode=oneshot+transA=T
-spmm-right+257x17x129+sparse-uniform+density=0.01+support=mixed+mode=oneshot+transA=T
