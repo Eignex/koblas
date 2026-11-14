@@ -12,7 +12,6 @@ import org.openjdk.jmh.util.Version
 
 public class JvmCaseWork internal constructor(private val delegate: CaseWork) {
     public fun run(): Double = delegate.run()
-    public fun close(): Unit = delegate.close()
 
     /** The comparison category published for this work. */
     internal val comparisonKind: String get() = delegate.comparisonKind
@@ -31,7 +30,7 @@ public object JvmBenchmarkBridge {
         }
         val arm = benchmarkArm(case, benchmarkEngine(mode).first, vendorMode)
         // A rejection after admission means the route changed between the scan and the fork.
-        return JvmCaseWork(arm?.work ?: error("arm declined $caseId in the measured fork: ${arm?.reason}"))
+        return JvmCaseWork(arm.work ?: error("arm declined $caseId in the measured fork: ${arm.reason}"))
     }
 }
 
@@ -51,17 +50,16 @@ public fun main(args: Array<String>) {
     for (case in selected) {
         // Build and verify work outside timing and decline unsupported arms before starting JMH.
         val arm = benchmarkArm(case, engine, vendorMode)
-        val work = arm?.work
+        val work = arm.work
         if (work == null) {
             rowsByCase.getOrPut(case.id, ::arrayListOf) += measurement(
                 case, settings, 0, null, "unsupported", "unsupported",
-                case.option("timing", "arithmetic"), arm?.reason,
+                case.option("timing", "arithmetic"), arm.reason,
             )
         } else {
             supported[case.id] = work.comparisonKind to work.timingMode
             work.kernel?.let { kernels[case.id] = it }
             work.provider?.let { providers[case.id] = it }
-            work.close()
         }
     }
     if (supported.isNotEmpty()) {

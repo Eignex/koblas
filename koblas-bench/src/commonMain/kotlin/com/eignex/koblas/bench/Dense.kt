@@ -8,7 +8,6 @@ internal data class CaseWork(
     val comparisonKind: String,
     val timingMode: String,
     val run: BenchmarkOperation,
-    val close: () -> Unit = {},
     val result: DoubleArray? = null,
     /**
      * What the row was timed on. Declined cases have no call to describe; [measurement] requires one for every
@@ -34,12 +33,8 @@ internal fun engineWork(
     result: DoubleArray? = null,
 ): CaseWork = CaseWork(ENGINE_COMPARISON, timing, run, result = result, kernel = engineKernel(engine, operation))
 
-/** The reason a case with an empty extent is not timed. */
-internal fun declined(): ArmChoice =
-    ArmChoice.Declined("this case's own contract stops before the arithmetic, so there is nothing to time")
-
 /**
- * Built-in Level 2 or 3 work, declined when one of the case's extents is empty.
+ * Built-in Level 2 or 3 work on the selected engine.
  *
  * [verify] runs before anything is timed and compares the whole destination buffer against [DenseReference].
  */
@@ -49,14 +44,13 @@ internal fun level23(
     timing: String,
     verify: () -> Unit,
     run: BenchmarkOperation,
-): CaseWork? {
-    if (case.dimensions.any { it == 0 }) return null
+): CaseWork {
     verify()
     return engineWork(engine, case.operation, timing, run)
 }
 
 @Suppress("LongMethod", "CyclomaticComplexMethod") // one branch per benchmarked operation
-internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
+internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork {
     val d = case.dimensions
     if (case.operation in VECTOR_OPERATIONS) return vectorWork(case, engine)
     val alpha = 0.875
@@ -165,7 +159,7 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
             }
         }
         "trsm", "trmm" -> triangularMatrixWork(case, engine)
-        else -> null
+        else -> error("No dense engine workload for ${case.id}")
     }
 }
 
@@ -222,28 +216,13 @@ private fun vectorWork(case: BenchCase, engine: KoblasEngine): CaseWork {
     return engineWork(engine, case.operation, timing, arithmetic(engine, x, y), result)
 }
 
-/**
- * The dense work for [case], or a reason this arm may not measure it.
- *
- * Raw cases run on the engine the arm pinned. Vector convenience entry points select their
- * engine themselves, so those cases are published as default-policy rows.
- */
-internal fun engineArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
-    val arm = sparseArm(case, engine) ?: denseArm(case, engine)
-    return when (arm) {
-        is ArmChoice.Accepted -> ArmChoice.Accepted(
-            arm.work.copy(provider = case.routingKey()?.provider(engine) ?: "scheduled"),
-        )
-        else -> arm
-    }
+/** All admitted workloads run on the engine the arm pinned. */
+internal fun engineArm(case: BenchCase, engine: KoblasEngine): ArmChoice.Accepted {
+    val work = if (case.operation.startsWith("sp")) sparseWork(case, engine) else denseWork(case, engine)
+    return ArmChoice.Accepted(work.copy(provider = case.routingKey()?.provider(engine) ?: "scheduled"))
 }
 
-internal fun denseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? = when (case.operation) {
-    "copy-overlap", "axpy-views" -> vectorViewsArm(case, engine)
-    else -> denseWork(case, engine)?.let { ArmChoice.Accepted(it) }
-}
-
-private fun rankUpdateWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
+private fun rankUpdateWork(case: BenchCase, engine: KoblasEngine): CaseWork {
     val alpha = 0.875
     val lower = case.option("uplo", "L") == "L"
     val rows = case.dimension(0)
@@ -278,7 +257,7 @@ private fun rankUpdateWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
     }
 }
 
-private fun triangularVectorWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
+private fun triangularVectorWork(case: BenchCase, engine: KoblasEngine): CaseWork {
     val n = case.dimension(0)
     val lower = case.option("uplo", "L") == "L"
     val trans = case.flag("transA")
@@ -301,7 +280,7 @@ private fun triangularVectorWork(case: BenchCase, engine: KoblasEngine): CaseWor
     ) { x0.copyInto(x); apply(); x[0] }
 }
 
-private fun gemmWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
+private fun gemmWork(case: BenchCase, engine: KoblasEngine): CaseWork {
     if (case.options["layout"] == "borrowed") return borrowedProductWork(case, engine)
     val (m, n, k) = case.dimensions; val ta = case.flag("transA"); val tb = case.flag("transB")
     val alpha = 0.875; val beta = -0.25
@@ -320,7 +299,7 @@ private fun gemmWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
     ) { original.values.copyInto(c.values); engine.gemm(alpha, a, ta, b, tb, beta, c, scratch = scratch); c.values[0] }
 }
 
-private fun triangularMatrixWork(case: BenchCase, engine: KoblasEngine): CaseWork? {
+private fun triangularMatrixWork(case: BenchCase, engine: KoblasEngine): CaseWork {
     val (m, n) = case.dimensions; val right = case.option("side", "L") == "R"; val lower = case.option(
         "uplo",
         "L",

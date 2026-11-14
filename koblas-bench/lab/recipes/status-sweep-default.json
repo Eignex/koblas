@@ -1,6 +1,6 @@
 {
   "name": "koblas-sweep",
-  "description": "Per-commit default JVM engine status v3: 136 workloads measured in three full inventory passes. Repetitions are separated across the run; confirmation revision arms rotate between passes. Each capture uses three 100ms warmups and samples, one fork/round. Local only; 600s active-time cap including preparation; metric changes beyond 15% and correctness failures get three paired confirmation blocks at priority 99.",
+  "description": "Per-commit default JVM engine status v4: 133 workloads measured in three full inventory passes. Repetitions are separated across the run; confirmation revision arms rotate between passes. Each capture uses three 100ms warmups and samples, one fork/round. Local only; 600s active-time cap including preparation; metric changes beyond 15% and correctness failures get three paired confirmation blocks at priority 99.",
   "repository": "Eignex/koblas",
   "tags": [
     "local"
@@ -23,7 +23,7 @@
         "target-ms": "100",
         "forks": "1",
         "rounds": "1",
-        "sweep-profile": "status-v3"
+        "sweep-profile": "status-v4"
       }
     }
   }

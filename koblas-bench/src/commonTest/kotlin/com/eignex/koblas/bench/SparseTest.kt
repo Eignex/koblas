@@ -13,8 +13,8 @@ class SparseTest {
     fun `gather timing variants return the same values across repeated calls`() {
         val resetCase = Cases.parse("spgather+64+sparse-uniform+density=0.25").single()
         val arithmeticCase = Cases.parse("${resetCase.id}+timing=arithmetic").single()
-        val reset = assertNotNull(sparseArm(resetCase, KoblasEngine.scalar)?.work)
-        val arithmetic = assertNotNull(sparseArm(arithmeticCase, KoblasEngine.scalar)?.work)
+        val reset = assertNotNull(sparseWork(resetCase, KoblasEngine.scalar))
+        val arithmetic = assertNotNull(sparseWork(arithmeticCase, KoblasEngine.scalar))
 
         repeat(3) {
             reset.run()
@@ -31,7 +31,7 @@ class SparseTest {
                 "spsymv+65+sparse-triangular+density=0.05+mode=oneshot+uplo=L",
             )) {
                 val case = Cases.parse(id).single()
-                val work = assertNotNull(sparseArm(case, engine)?.work, "$id on ${engine.name}")
+                val work = assertNotNull(sparseWork(case, engine), "$id on ${engine.name}")
                 assertEquals("${engine.name}/${case.operation}", work.kernel, id)
             }
         }
@@ -64,7 +64,7 @@ class SparseTest {
             "spsyrk-dense+9x5+sparse-uniform+density=0.3+uplo=L",
         )) {
             val case = Cases.parse(id).single()
-            val work = assertNotNull(sparseArm(case, KoblasEngine.scalar)?.work, id)
+            val work = assertNotNull(sparseWork(case, KoblasEngine.scalar), id)
             assertTrue(work.run().isFinite(), id)
         }
     }

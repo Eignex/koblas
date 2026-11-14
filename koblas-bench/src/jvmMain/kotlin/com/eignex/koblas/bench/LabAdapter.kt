@@ -30,8 +30,8 @@ internal object KoblasLabSuite : BenchSuite {
     private const val NATIVE_EXECUTABLE = "nativeExecutable"
     private val sweepProfiles = mapOf(
         "status-v2" to "koblas-bench/lab/cases-status-sweep-v2.txt",
-        "status-v3" to "koblas-bench/lab/cases-status-sweep-v3.txt",
-        "extended-v1" to "koblas-bench/lab/cases-sweep-extended-v1.txt",
+        "status-v4" to "koblas-bench/lab/cases-status-sweep-v4.txt",
+        "extended-v2" to "koblas-bench/lab/cases-sweep-extended-v2.txt",
     )
     private val vendors = Vendor.entries.associateBy { it.vendorName.lowercase() }
     private val parameters = setOf("vendor", "arch", "platform", "operation", "cases", "samples", "warmups",
@@ -60,7 +60,7 @@ internal object KoblasLabSuite : BenchSuite {
                 (vendor == Vendor.OneMkl && it.removeSuffix("-jvm") == "openblas")
         }) { "Invalid capture targets" }
         val sweep = p["status-sweep"] == "true"
-        val profile = p["sweep-profile"] ?: if (sweep) "status-v3" else null
+        val profile = p["sweep-profile"] ?: if (sweep) "status-v4" else null
         val cases = p["cases"] ?: profile?.let(sweepProfiles::getValue) ?: CASES
         val inputs = mutableListOf(BenchInput(cases, role = "cases"))
         val executable = if (selected.any { !it.startsWith("jvm-") && !it.endsWith("-jvm") }) {
@@ -144,7 +144,7 @@ internal object KoblasLabSuite : BenchSuite {
         val controls = buildJsonObject {
             put("policy", "koblas-jmh-status-v1")
             put("callbackResult", BENCHMARK_CALLBACK_ABI)
-            put("sweepProfile", case.parameters["sweep-profile"] ?: "status-v3")
+            put("sweepProfile", case.parameters["sweep-profile"] ?: "status-v4")
             put("java", runtimeIdentity())
             put("vm", System.getProperty("java.vm.name"))
             put("os", System.getProperty("os.name"))

@@ -71,12 +71,12 @@ internal fun vendorArm(case: BenchCase, blas: KoblasEngine): ArmChoice {
         return ArmChoice.Declined("${case.operation} has no vendor entry point in the bound CBLAS surface")
     }
     exactArmRejection(blas, operation)?.let { return ArmChoice.Declined(it) }
-    val work = denseWork(case, blas) ?: return declined()
+    val work = denseWork(case, blas)
     return ArmChoice.Accepted(work.copy(comparisonKind = "direct", kernel = "${blas.vendor!!.vendorName}/$operation", provider = blas.id))
 }
 
-/** Admission and measured forks resolve the same exact or default-policy workload. */
-internal fun benchmarkArm(case: BenchCase, engine: KoblasEngine, vendor: Boolean): ArmChoice? =
+/** Admission and measured forks resolve the same engine workload. */
+internal fun benchmarkArm(case: BenchCase, engine: KoblasEngine, vendor: Boolean): ArmChoice =
     if (vendor) vendorArm(case, engine) else engineArm(case, engine)
 
 /** Both runners resolve an exact vendor separately from the platform's owned engines. */

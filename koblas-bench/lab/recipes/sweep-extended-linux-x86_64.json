@@ -1,6 +1,6 @@
 {
   "name": "koblas-sweep-extended-linux-x86_64",
-  "description": "Opt-in extended v1: 187 representative workloads with larger working sets and paired exact-engine arms. View adapter cases are supported only on the default JVM arm. This recipe does not register a schedule.",
+  "description": "Opt-in extended v2: 184 representative workloads with larger working sets and paired exact-engine arms. This recipe does not register a schedule.",
   "repository": "Eignex/koblas",
   "tags": [
     "local"
@@ -13,7 +13,7 @@
     "runTimeoutSec": 21600,
     "request": {
       "parameters": {
-        "sweep-profile": "extended-v1",
+        "sweep-profile": "extended-v2",
         "platform": "linux",
         "arch": "x86_64",
         "targets": "jvm-default,jvm-scalar,jvm-simd,native,native-default",

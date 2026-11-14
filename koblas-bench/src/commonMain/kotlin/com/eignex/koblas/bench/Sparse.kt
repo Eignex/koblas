@@ -8,35 +8,25 @@ import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.internal.operations.*
 
 /**
- * The sparse work for one case on [engine], or the reason this engine cannot measure it, or null when the case
- * is not a sparse one.
+ * Sparse work on the selected [engine].
  *
  * The engine-dispatched arms are exact because each runs on the engine its arm pinned through
  * [KoblasEngine]. A row records that selection, not the body a given width reached: a
  * Vector API selection still runs scalar loops below its crossover.
  */
 @Suppress("LongMethod", "CyclomaticComplexMethod") // one branch per benchmarked operation
-internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
-    if (!case.operation.startsWith("sp")) return null
+internal fun sparseWork(case: BenchCase, engine: KoblasEngine): CaseWork {
     return when (case.operation) {
-        "spbuild-triplets", "spbuild-duplicates" -> {
-            if (engine !== KoblasEngine.scalar) {
-                ArmChoice.Declined("the sparse factory is portable construction, timed on the scalar arm")
-            } else {
-                ArmChoice.Accepted(sparseFactoryWork(case))
-            }
-        }
-        "spdot-view" -> vectorViewsArm(case, engine)
-        "spdot-column", "spdot-column-raw" -> sparseColumnDotArm(case, engine)
-        "spdot-slice", "spaxpy-slice", "spscatter-slice" -> sparseSlicesArm(case, engine)
+        "spdot-column", "spdot-column-raw" -> sparseColumnDotWork(case, engine)
+        "spdot-slice", "spaxpy-slice", "spscatter-slice" -> sparseSlicesWork(case, engine)
         "spdot", "spdot-raw", "spdot-sparse", "spaxpy", "spaxpy-raw", "spnrm2", "spasum",
-        "spscatter", "spscatter-raw", "spgather", "spgather-zero" -> sparseIndexedArm(case, engine)
-        else -> sparseMatrixArm(case, engine)
+        "spscatter", "spscatter-raw", "spgather", "spgather-zero" -> sparseIndexedWork(case, engine)
+        else -> sparseMatrixWork(case, engine)
     }
 }
 
 /**
- * Sparse Level 2 and 3 work, published under the engine the arm pinned.
+ * Sparse Level 2 and 3 work on the selected engine.
  *
  * The scheduling is this library's portable CSC code on every engine, so a row never shows that a sparse
  * product vectorised: the engine name records the Level 1 kernels a unit of work may be handed to, not which
@@ -46,7 +36,7 @@ internal fun sparseArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
  * and a case that computes the wrong thing fails the run.
  */
 @Suppress("LongMethod", "CyclomaticComplexMethod") // one branch per benchmarked operation
-internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? {
+internal fun sparseMatrixWork(case: BenchCase, engine: KoblasEngine): CaseWork {
     val density = case.option("density", "0.01").toDouble()
     val support = case.option("support", "uniform")
     val d = case.dimensions
@@ -59,7 +49,7 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
     val beta = -0.25
     val scratch = Scratch()
 
-    fun arm(verify: () -> Unit, run: BenchmarkOperation) = publish(engine, case, "oneshot", verify, run)
+    fun arm(verify: () -> Unit, run: BenchmarkOperation) = level23(engine, case, "oneshot", verify, run)
 
     return when (case.operation) {
         "spgemv" -> {
@@ -251,10 +241,6 @@ internal fun sparseMatrixArm(case: BenchCase, engine: KoblasEngine): ArmChoice? 
             }
         }
 
-        else -> null
+        else -> error("No sparse engine workload for ${case.id}")
     }
 }
-
-/** A timed row for a sparse matrix call on [engine], refused when one of the case's extents is empty. */
-private fun publish(engine: KoblasEngine, case: BenchCase, timing: String, verify: () -> Unit, run: BenchmarkOperation) =
-    level23(engine, case, timing, verify, run)?.let { ArmChoice.Accepted(it) } ?: declined()

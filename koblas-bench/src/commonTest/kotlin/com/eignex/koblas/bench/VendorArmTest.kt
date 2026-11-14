@@ -94,8 +94,6 @@ class VendorArmTest {
                 abs(actual - expected) <= 1e-9 * maxOf(1.0, abs(expected)),
                 "${case.id} produced $actual against the scalar arm's $expected",
             )
-            work.close()
-            reference.close()
         }
     }
 
@@ -125,7 +123,6 @@ class VendorArmTest {
             work.kernel,
             "a vendor arm must identify the implementation it calls",
         )
-        work.close()
     }
 
     @Test
