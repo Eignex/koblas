@@ -47,8 +47,7 @@ internal enum class OutputTriangle {
  * Executes the path selected by this window's extents, including strips passed by structured routines.
  * Packing must amortize both operand copies; other windows use panels over the original storage.
  */
-@Suppress("NOTHING_TO_INLINE") // Keep transient region views inside their caller for JVM escape analysis.
-internal inline fun productWindow(
+internal fun productWindow(
     engine: KoblasEngine,
     alpha: Double,
     a: DenseMatrix,
@@ -59,16 +58,41 @@ internal inline fun productWindow(
     c: DenseMatrix,
     selected: OutputTriangle,
     arrays: Scratch?,
+): Unit = productWindow(
+    engine, alpha, a.values, a.offset, a.leadingDimension, transposeA,
+    b.values, b.offset, b.leadingDimension, transposeB,
+    beta, c.values, c.offset, c.leadingDimension, c.rows, c.cols,
+    if (transposeA) a.rows else a.cols, selected, arrays,
+)
+
+/** Primitive windows keep structured schedules independent of temporary view escape analysis. */
+internal fun productWindow(
+    engine: KoblasEngine,
+    alpha: Double,
+    a: DoubleArray,
+    aOffset: Int,
+    lda: Int,
+    transposeA: Boolean,
+    b: DoubleArray,
+    bOffset: Int,
+    ldb: Int,
+    transposeB: Boolean,
+    beta: Double,
+    c: DoubleArray,
+    cOffset: Int,
+    ldc: Int,
+    m: Int,
+    n: Int,
+    k: Int,
+    selected: OutputTriangle,
+    arrays: Scratch?,
 ) {
-    val m = c.rows
-    val n = c.cols
-    val k = if (transposeA) a.rows else a.cols
     if (m <= 0 || n <= 0) return
     if (k <= 0) {
         // Neither path has a depth step to apply beta on, so an empty product scales the selected entries here.
         for (j in 0 until n) {
-            val at = c.offset + selectedRow(j, m, selected) + j * c.leadingDimension
-            applyBeta(engine, c.values, at, selectedRows(j, m, selected), beta)
+            val at = cOffset + selectedRow(j, m, selected) + j * ldc
+            applyBeta(engine, c, at, selectedRows(j, m, selected), beta)
         }
         return
     }
@@ -77,15 +101,15 @@ internal inline fun productWindow(
     val kernels = engine.productProvider
     if (kernels.packsProduct(m, n, k)) {
         blockedProduct(
-            kernels, alpha, a.values, a.offset, a.leadingDimension, transposeA,
-            b.values, b.offset, b.leadingDimension, transposeB,
-            beta, c.values, c.offset, c.leadingDimension, m, n, k, selected, arrays,
+            kernels, alpha, a, aOffset, lda, transposeA,
+            b, bOffset, ldb, transposeB,
+            beta, c, cOffset, ldc, m, n, k, selected, arrays,
         )
     } else {
         directProduct(
-            engine.panelProvider, alpha, a.values, a.offset, a.leadingDimension, transposeA,
-            b.values, b.offset, b.leadingDimension, transposeB,
-            beta, c.values, c.offset, c.leadingDimension, m, n, k, selected, arrays,
+            engine.panelProvider, alpha, a, aOffset, lda, transposeA,
+            b, bOffset, ldb, transposeB,
+            beta, c, cOffset, ldc, m, n, k, selected, arrays,
         )
     }
 }

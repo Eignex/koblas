@@ -92,6 +92,18 @@ dokka {
 
 val desktopJavaLauncher = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(25)) }
 
+class RetainJvmAssertions : Action<Task> {
+    override fun execute(task: Task) {
+        val suppressed = (task as KotlinJvmCompile).compilerOptions.freeCompilerArgs.get().filter {
+            it.substringBefore('=') in setOf("-Xno-param-assertions", "-Xno-call-assertions", "-Xno-receiver-assertions") &&
+                it.substringAfter('=', "true") != "false"
+        }
+        check(suppressed.isEmpty()) {
+            "${task.path} must retain ordinary null assertions: $suppressed; use the local Vector assertion policy"
+        }
+    }
+}
+
 abstract class JvmAssertionPolicy @Inject constructor(private val execution: ExecOperations) : Action<Task> {
     lateinit var launcher: Provider<JavaLauncher>
     lateinit var toolClasspath: FileCollection
@@ -140,6 +152,7 @@ val desktopJvmArguments = listOf("--enable-native-access=ALL-UNNAMED") +
 
 val packagedDesktopClasspath = with(kotlin.targets.getByName("jvm") as KotlinJvmTarget) {
     val main = compilations.getByName("main")
+    main.compileTaskProvider.configure { doFirst(RetainJvmAssertions()) }
     val baselineTest = compilations.getByName("test")
     val productionOutputs = files(main.output.allOutputs)
     val desktopTest = compilations.create("desktopTest") {
@@ -155,13 +168,9 @@ val packagedDesktopClasspath = with(kotlin.targets.getByName("jvm") as KotlinJvm
     compilations.matching { it.name == "java25" }.all {
         productionOutputs.from(output.allOutputs)
         compileTaskProvider.configure {
-            // Opaque null assertions can force Vector API values onto the heap when C2 exhausts its inlining budget.
-            compilerOptions.freeCompilerArgs.addAll(
-                "-Xadd-modules=jdk.incubator.vector",
-                "-Xno-param-assertions",
-                "-Xno-call-assertions",
-                "-Xno-receiver-assertions",
-            )
+            doFirst(RetainJvmAssertions())
+            // Ordinary null checks supply JIT facts; the packaged pass localizes only backend expression and cast checks.
+            compilerOptions.freeCompilerArgs.add("-Xadd-modules=jdk.incubator.vector")
         }
         desktopTest.associateWith(this)
         val versionedOutput = output.classesDirs
@@ -198,6 +207,7 @@ data class JvmCheckProfile(
     val environment: Map<String, String> = emptyMap(),
     val oneMkl: Boolean = false,
     val runtimeHome: String? = null,
+    val standardCheck: Boolean = false,
 )
 
 val vectorArguments = listOf("--add-modules=jdk.incubator.vector", "--enable-native-access=ALL-UNNAMED")
@@ -213,6 +223,7 @@ val profiles = buildList {
                 "simd${family}AllocationCheck$suffix",
                 "com.eignex.koblas.${family.lowercase()}.Simd${family}AllocationCheck",
                 vmArguments = allocationArguments + flags,
+                standardCheck = true,
             ))
         }
     }
@@ -225,6 +236,7 @@ val profiles = buildList {
             "com.eignex.koblas.internal.jvm25.simd.VectorBoundaryAllocationCheck",
             vmArguments = allocationArguments + flags +
                 "-XX:CompileCommand=dontinline,kotlin.jvm.internal.Intrinsics::checkNotNull",
+            standardCheck = true,
         ))
     }
     for ((name, args, flags) in listOf(
@@ -274,7 +286,7 @@ val isolatedChecks = profiles.map { profile ->
 if (fullTargets) tasks.named("check") { dependsOn(isolatedChecks) }
 if (providers.gradleProperty("koblas.noSimd").orNull != "true") {
     tasks.named("check") {
-        dependsOn(isolatedChecks.filter { it.name.startsWith("simdVectorBoundaryAllocationCheck") })
+        dependsOn(profiles.filter { it.standardCheck }.map { tasks.named(it.name) })
     }
 }
 

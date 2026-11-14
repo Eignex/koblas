@@ -6,24 +6,34 @@ checks typed direct invocations, method handles and lambda bootstrap references 
 on Kotlin metadata. Primitive/array kernels may remain outlined. The tool is a build dependency
 and is not shipped with the library.
 
-`jvmJar` gives expression and cast null assertions inside `internal.jvm25.simd` an explicit local
+Production JVM compilations reject blanket null-assertion suppression flags. `jvmJar` gives expression and cast
+null assertions inside `internal.jvm25.simd` an explicit local
 non-null fast path. Null still reaches the original Kotlin failure helper. Both one- and two-argument
 forms retain argument evaluation, failure messages, caller frames and casts. Parameter assertions
 and all other namespaces remain byte-for-byte intact. The pass is idempotent; the boundary verifier
 rejects unguarded backend assertions. Every output class is verified before replacing the JAR.
 The tool classpath and JDK runtime version participate in Gradle cache inputs.
 
-`check` also runs `simdVectorBoundaryAllocationCheck` in normal and narrow/no-FMA JVMs
-(unless SIMD is withheld with `koblas.noSimd`). These focused probes forbid HotSpot from inlining
-`Intrinsics.checkNotNull`: absolute sum and both maximum-index paths must remain allocation-free
-at lengths 17, 129, 4097 and 65537. These probes exercise an opaque-call boundary without
-depending on a particular caller's JIT budget.
+`check` also runs the isolated dense and sparse SIMD allocation profiles, each in ordinary,
+no-FMA and narrow/no-FMA JVMs, unless SIMD is withheld with `koblas.noSimd`. They cover raw
+panels and whole operations with retained scratch. These JVMs run without coverage instrumentation
+because instrumentation itself can prevent Vector carrier elimination.
+
+The two focused `simdVectorBoundaryAllocationCheck` profiles additionally forbid HotSpot from
+inlining `Intrinsics.checkNotNull`: absolute sum and both maximum-index paths must remain
+allocation-free at lengths 17, 129, 4097 and 65537. These probes exercise an opaque-call boundary
+without depending on a particular caller's JIT budget. Runtime alignment and vendor checks remain
+part of the full target gate.
 
 At arithmetic seams in `internal.kernels`, `internal.scheduling` and `internal.operations`,
 the same verifier rejects surviving project calls that accept generic `FunctionN` arguments.
 Source-inline these higher-order helpers or use a primitive callback interface when work must
 be retained. Startup and allocation-on-miss factories, and generated public facade bridges,
 remain ordinary calls. This rule does not require inlining ordinary primitive/array helpers.
+
+Dense schedules pass product regions as arrays, offsets, strides and extents. They do not construct
+transient matrix views between blocks: those views allocate when their factory is not inlined.
+The packaged verifier rejects dense matrix construction and view factories inside dense scheduling.
 
 Source inlining removes a typed helper call before C1 or C2 compiles the caller. It does not
 guarantee that a larger caller compiles faster or that dispatch inlines. The checker cannot infer

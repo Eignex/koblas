@@ -5,7 +5,6 @@ package com.eignex.koblas.internal.scheduling.dense
 import com.eignex.koblas.*
 import com.eignex.koblas.internal.engine.triangularProvider
 import com.eignex.koblas.internal.kernels.*
-import com.eignex.koblas.internal.operations.triangle
 import com.eignex.koblas.internal.scheduling.forEachPanel
 import com.eignex.koblas.internal.storage.borrowOptional
 import com.eignex.koblas.internal.storage.dense.*
@@ -243,25 +242,19 @@ private fun triangularUpdate(
     sourceCount: Int,
     arrays: Scratch?,
 ) {
-    val triangle = DenseMatrix.wrap(
-        if (transposed) sourceCount else targetCount,
-        if (transposed) targetCount else sourceCount,
-        t,
-        tOffset + triangleWindow(order, transposed, targetStart, sourceStart),
-        order,
-    )
+    val triangleOffset = tOffset + triangleWindow(order, transposed, targetStart, sourceStart)
     if (right) {
         productWindow(
-            engine, coefficient, DenseMatrix.wrap(sides, sourceCount, b, bOffset + sourceStart * ldb, ldb), false,
-            triangle, !transposed, 1.0,
-            DenseMatrix.wrap(sides, targetCount, b, bOffset + targetStart * ldb, ldb),
+            engine, coefficient, b, bOffset + sourceStart * ldb, ldb, false,
+            t, triangleOffset, order, !transposed, 1.0,
+            b, bOffset + targetStart * ldb, ldb, sides, targetCount, sourceCount,
             OutputTriangle.Full, arrays,
         )
     } else {
         productWindow(
-            engine, coefficient, triangle, transposed,
-            DenseMatrix.wrap(sourceCount, sides, b, bOffset + sourceStart, ldb), false, 1.0,
-            DenseMatrix.wrap(targetCount, sides, b, bOffset + targetStart, ldb),
+            engine, coefficient, t, triangleOffset, order, transposed,
+            b, bOffset + sourceStart, ldb, false, 1.0,
+            b, bOffset + targetStart, ldb, targetCount, sides, sourceCount,
             OutputTriangle.Full, arrays,
         )
     }

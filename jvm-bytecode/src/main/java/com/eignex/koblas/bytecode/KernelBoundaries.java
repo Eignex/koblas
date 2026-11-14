@@ -64,6 +64,13 @@ public final class KernelBoundaries {
     private static void check(String caller, String owner, String name, MethodTypeDesc type,
             List<String> failures) {
         if (!owner.startsWith(PROJECT)) return;
+        boolean denseSchedule = caller.startsWith(PROJECT + "internal/scheduling/dense/");
+        boolean matrixView = owner.equals(PROJECT + "DenseMatrix$Companion")
+            && (name.equals("wrap") || name.equals("wrap$default"))
+            || owner.equals(PROJECT + "DenseMatrix")
+            && (name.equals("<init>") || name.equals("view") || name.equals("view$default"));
+        if (denseSchedule && matrixView) failures.add(caller + " -> " + owner + "." + name
+            + " constructs a temporary matrix region inside scheduling; pass arrays, offsets, strides and extents");
         boolean carrier = vector(type.returnType());
         for (var parameter : type.parameterArray()) carrier |= vector(parameter);
         boolean arithmetic = owner.startsWith(PROJECT + "internal/kernels/")

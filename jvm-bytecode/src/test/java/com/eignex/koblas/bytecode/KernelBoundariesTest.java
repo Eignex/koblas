@@ -21,6 +21,43 @@ public class KernelBoundariesTest {
     private static final ClassDesc VECTOR = ClassDesc.of("jdk.incubator.vector.DoubleVector");
     private static final ClassDesc VECTOR_HELPER = ClassDesc.of("com.eignex.koblas.internal.VectorHelper");
 
+    private static final ClassDesc DENSE_SCHEDULE =
+        ClassDesc.of("com.eignex.koblas.internal.scheduling.dense.WindowFixture");
+    private static final ClassDesc MATRIX = ClassDesc.of("com.eignex.koblas.DenseMatrix");
+
+    @ParameterizedTest
+    @ValueSource(strings = {"wrap", "wrap$default"})
+    void denseSchedulesRejectTemporaryMatrixFactories(String name) {
+        ClassDesc companion = ClassDesc.of("com.eignex.koblas.DenseMatrix$Companion");
+        byte[] caller = fixture(DENSE_SCHEDULE, code -> code.aconst_null()
+            .invokevirtual(companion, name, MethodTypeDesc.of(MATRIX)).pop().return_());
+        assertEquals(1, KernelBoundaries.violations(caller).size());
+    }
+
+    @Test
+    void denseSchedulesRejectDirectMatrixConstruction() {
+        byte[] caller = fixture(DENSE_SCHEDULE, code -> code.new_(MATRIX).dup()
+            .invokespecial(MATRIX, "<init>", MethodTypeDesc.of(CD_void)).pop().return_());
+        assertEquals(1, KernelBoundaries.violations(caller).size());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"view", "view$default"})
+    void denseSchedulesRejectTemporaryMatrixViews(String name) {
+        byte[] caller = fixture(DENSE_SCHEDULE, code -> code.aconst_null()
+            .invokevirtual(MATRIX, name, MethodTypeDesc.of(MATRIX)).pop().return_());
+        assertEquals(1, KernelBoundaries.violations(caller).size());
+    }
+
+    @Test
+    void operationPreparationMayConstructOwnedMatrices() {
+        ClassDesc companion = ClassDesc.of("com.eignex.koblas.DenseMatrix$Companion");
+        byte[] caller = fixture(ClassDesc.of("com.eignex.koblas.internal.operations.PreparationFixture"),
+            code -> code.aconst_null()
+                .invokevirtual(companion, "wrap", MethodTypeDesc.of(MATRIX)).pop().return_());
+        assertTrue(KernelBoundaries.violations(caller).isEmpty());
+    }
+
     @Test
     void primitiveArithmeticCallsRemainAllowed() {
         byte[] caller = fixture(code -> code.aconst_null().iconst_0()
@@ -138,7 +175,11 @@ public class KernelBoundariesTest {
     }
 
     private static byte[] fixture(Consumer<CodeBuilder> body) {
-        return ClassFile.of().build(ClassDesc.of("com.eignex.koblas.internal.KernelFixture"), builder ->
+        return fixture(ClassDesc.of("com.eignex.koblas.internal.KernelFixture"), body);
+    }
+
+    private static byte[] fixture(ClassDesc owner, Consumer<CodeBuilder> body) {
+        return ClassFile.of().build(owner, builder ->
             builder.withMethodBody("run", MethodTypeDesc.of(CD_void),
                 ClassFile.ACC_PUBLIC | ClassFile.ACC_STATIC, body));
     }
