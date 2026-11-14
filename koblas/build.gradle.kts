@@ -92,6 +92,18 @@ dokka {
 
 val desktopJavaLauncher = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(25)) }
 
+class RetainJvmAssertions : Action<Task> {
+    override fun execute(task: Task) {
+        val suppressed = (task as KotlinJvmCompile).compilerOptions.freeCompilerArgs.get().filter {
+            it.substringBefore('=') in setOf("-Xno-param-assertions", "-Xno-call-assertions", "-Xno-receiver-assertions") &&
+                it.substringAfter('=', "true") != "false"
+        }
+        check(suppressed.isEmpty()) {
+            "${task.path} must retain ordinary null assertions: $suppressed; use the local Vector assertion policy"
+        }
+    }
+}
+
 abstract class JvmAssertionPolicy @Inject constructor(private val execution: ExecOperations) : Action<Task> {
     lateinit var launcher: Provider<JavaLauncher>
     lateinit var toolClasspath: FileCollection
@@ -140,6 +152,7 @@ val desktopJvmArguments = listOf("--enable-native-access=ALL-UNNAMED") +
 
 val packagedDesktopClasspath = with(kotlin.targets.getByName("jvm") as KotlinJvmTarget) {
     val main = compilations.getByName("main")
+    main.compileTaskProvider.configure { doFirst(RetainJvmAssertions()) }
     val baselineTest = compilations.getByName("test")
     val productionOutputs = files(main.output.allOutputs)
     val desktopTest = compilations.create("desktopTest") {
@@ -155,6 +168,7 @@ val packagedDesktopClasspath = with(kotlin.targets.getByName("jvm") as KotlinJvm
     compilations.matching { it.name == "java25" }.all {
         productionOutputs.from(output.allOutputs)
         compileTaskProvider.configure {
+            doFirst(RetainJvmAssertions())
             // Ordinary null checks supply JIT facts; the packaged pass localizes only backend expression and cast checks.
             compilerOptions.freeCompilerArgs.add("-Xadd-modules=jdk.incubator.vector")
         }

@@ -6,7 +6,7 @@ checks typed direct invocations, method handles and lambda bootstrap references 
 on Kotlin metadata. Primitive/array kernels may remain outlined. The tool is a build dependency
 and is not shipped with the library.
 
-The Java 25 compilation retains ordinary Kotlin null assertions. `jvmJar` gives expression and cast
+Production JVM compilations reject blanket null-assertion suppression flags. `jvmJar` gives expression and cast
 null assertions inside `internal.jvm25.simd` an explicit local
 non-null fast path. Null still reaches the original Kotlin failure helper. Both one- and two-argument
 forms retain argument evaluation, failure messages, caller frames and casts. Parameter assertions
