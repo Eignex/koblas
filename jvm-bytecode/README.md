@@ -31,6 +31,10 @@ Source-inline these higher-order helpers or use a primitive callback interface w
 be retained. Startup and allocation-on-miss factories, and generated public facade bridges,
 remain ordinary calls. This rule does not require inlining ordinary primitive/array helpers.
 
+Dense schedules pass product regions as arrays, offsets, strides and extents. They do not construct
+transient matrix views between blocks: those views allocate when their factory is not inlined.
+The packaged verifier rejects dense matrix construction and view factories inside dense scheduling.
+
 Source inlining removes a typed helper call before C1 or C2 compiles the caller. It does not
 guarantee that a larger caller compiles faster or that dispatch inlines. The checker cannot infer
 Vector values hidden by erased `Object` signatures. Allocation profiles remain necessary, and
