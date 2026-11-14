@@ -16,7 +16,7 @@ class StatusSweepTest {
         KoblasLabSuite.plan(BenchRequest(parameters + ("sweep-profile" to profile)))
             .map { Cases.parse(it.parameters.getValue("row")).single() }
 
-    @Test fun `core sweep retains routine families and existing case identities within a bounded inventory`() {
+    @Test fun `core sweep retains routine families within a bounded inventory`() {
         val routines = KoblasEngine::class.java.declaredMethods
             .filter { !Modifier.isStatic(it.modifiers) && !it.name.startsWith("get") && '$' !in it.name }.map { it.name }.toSet()
         val cases = workloads()
@@ -27,7 +27,6 @@ class StatusSweepTest {
         assertTrue(routines.all { names.getOrElse(it) { it } in covered },
             "Review representative sweep membership when the engine adds a routine family")
         assertTrue(cases.size <= 150, "Keep the per commit change detector bounded")
-        assertTrue(cases.map { it.id }.containsAll(workloads("status-v2").map { it.id }))
     }
 
     @Test fun `core sweep samples vector boundaries and different storage traversals`() {
@@ -85,7 +84,6 @@ class StatusSweepTest {
 
     @Test fun `versioned inventories have frozen canonical membership`() {
         for ((profile, digest) in mapOf(
-            "status-v2" to "3981114dc3cef318040af672fdd0e3b0cba1d65e81a2b9ad33f505165db4605e",
             "status-v4" to "96e473342b0ea5bb7f08d10d43b1c4ac8d01596a5ae1c1c96467fc04525f5d98",
             "extended-v2" to "7d262588e7b043cddbf50587e561cf091bbed79cb0741af8ea8fe478644ef163",
         )) {
@@ -158,7 +156,8 @@ class StatusSweepTest {
         for (override in listOf(mapOf("rounds" to "2"), mapOf("samples" to "1"), mapOf("targets" to "jvm-scalar"),
             mapOf("smoke" to "true"), mapOf("profile-gc" to "true"), mapOf("profile-compilation" to "true"),
             mapOf("cases" to "koblas-bench/cases.txt"),
-            mapOf("sweep-profile" to "unknown"), mapOf("sweep-profile" to "status-v3"),
+            mapOf("sweep-profile" to "unknown"), mapOf("sweep-profile" to "status-v2"),
+            mapOf("sweep-profile" to "status-v3"),
             mapOf("sweep-profile" to "extended-v1"), mapOf("vendor" to "accelerate"),
             mapOf("arm-order" to "unknown"), mapOf("vendor" to "openblas"))) {
             assertFailsWith<IllegalArgumentException> { KoblasLabSuite.plan(BenchRequest(parameters + override)) }

@@ -81,21 +81,16 @@ non-tiered C2 collects profiles differently from normal tiering.
 
 `lab/recipes/status-sweep-jvm.json` runs `jvm-default`, `jvm-simd`, `accelerate-jvm` and
 `jvm-scalar` together for each workload on the frozen **status-v4** inventory:
-133 engine workloads, retaining all 82 v2 identities. It covers the engine routine families and samples
+133 engine workloads. It covers the engine routine families and samples
 vector crossover neighbors, odd tails, rectangular and transposed products, upper triangles, right-side
 operations, unit diagonals, strided vectors, borrowed GEMM storage and retained scratch. A borrowed product
 crosses all three product cache block extents, and triangular cases cross the diagonal block with few right-hand
 sides. Sparse cases sample three densities and uniform, banded, skewed, empty-column and mixed support.
 
-Status v4 removes the three convenience-vector workloads from v3. Extended v2 makes the same
-removal from extended v1. The retired profiles are rejected; the new names establish fresh regression
-series without reinterpreting old captures. Installed schedules must be updated explicitly when the lab returns.
-
 This is a bounded change detector. It deliberately samples independent risk factors rather than taking their
 Cartesian product or counting every public overload. [The v4 inventory](lab/cases-status-sweep-v4.txt) records
 membership and intent; tests protect representative coverage and frozen identities. The lab parameter
-`sweep-profile=status-v2` retains the old inventory, `status-v4` selects the core, and `extended-v2` selects the
-broader inventory. A profile and a custom `cases` path are mutually exclusive. Status requests default to v4;
+`sweep-profile=status-v4` selects the core, and `extended-v2` selects the broader inventory. A profile and a custom `cases` path are mutually exclusive. Status requests default to v4;
 profile names are carried into case parameters, regression suite attributes and measurement controls so a
 profile change establishes a fresh baseline. Timing controls remain fixed. Multi-engine rows use a separate `-engines-v1` regression suite and
 export `median_ns` for `jvm-default` plus `median_ns/<target>` for the other engines. Every metric retains
@@ -147,24 +142,6 @@ for one default-engine arm.
 `lab/recipes/status-sweep-default.json` retains that older protocol. The optional five-engine Native recipe
 still requires a separate pilot and is not enabled by the JVM comparison schedule.
 
-The previous status-v3 four-arm JVM recipe was piloted on 12 November 2026 on Mac arm64 with JDK 25 in
-[lab run 11869](https://lab.eignex.com/jobs/11869): all 408 paired captures succeeded in 981.031 seconds
-of active time under the 1800-second ceiling. Preparation took 14.590 seconds with a build-cache miss;
-row durations ranged from 2.530 to 9.260 seconds, with a 7.128-second median. No preparation or
-measurement attempt failed. The captures provide three measurements each for 136 default-engine,
-133 exact SIMD, 133 portable and 77 Accelerate workloads. Unsupported exact-engine view adapters
-and vendor gaps retain their status without a timing. The accepted plan separates repeated captures
-of each workload by 136 rows and rotates engine order across workloads.
-
-The previous status-v3 default-only three-pass recipe was piloted on 11 November 2026 on an Apple M4 with JDK 25 in
-[lab run 11830](https://lab.eignex.com/jobs/11830): all 408 captures succeeded in 371.139 seconds of
-active time under the 600-second ceiling. Successful preparation took 15.247 seconds with a verified
-build-cache hit; measured row durations ranged from 1.835 to 4.340 seconds, with a 2.226-second median.
-Two earlier preparation attempts failed because pinned workers rejected the coordinator's new ordering
-field. Those failures remain recorded separately; worker registration now omits that scheduling-only
-field. The accepted plan places 136 rows between repeated captures of each workload. This budgets the
-default-only recipe; the five-engine recipe still needs its own pilot.
-
 After deployment and the pilot, register it with the maintained HTTP client:
 
 ```bash
@@ -200,20 +177,3 @@ are part of the cost beyond the nominal 600ms of iterations per row. Use the mea
 additional comparison arms. A local capture of the whole inventory validates cases, but does
 not reproduce the lab's per-row startup and placement costs. The documented confirmation cap remains 40 rows;
 a broader change can leave additional affected rows unconfirmed and needs follow-up from the lab owner.
-
-The primitive callback conversion was checked with two-fork C2 allocation diagnostics on absolute
-sum and sparse dot at length 64. The generic harness allocated about 24 B/op in both ordinary
-C2-only probes; the primitive harness recorded the profiler floor (about 0.001 B/op). Forbidding
-inlining of callback `invoke` methods raised the generic absolute-sum path to 48 B/op and left
-sparse dot at 24 B/op; both primitive paths remained at the profiler floor. These instrumented
-captures establish callback allocation behavior, not a throughput benefit.
-
-A [paired 13-workload comparison](https://lab.eignex.com/jobs/11968) then used the same primitive
-benchmark JAR for original Vector casts and local Vector null fast paths. All 234 captures,
-covering three repetitions under normal tiering, C1-only and C2-only, completed. Normal-tiered
-SIMD timing was essentially flat (−0.10% geometric mean), while the selected C1-only and C2-only
-SIMD subsets were −5.89% and −5.06%. Their unchanged scalar controls shifted +1.85%, +4.03% and
-+1.31% respectively, and individual paired timings varied substantially. An unchanged dot workload
-was also slower in all three normal-tiered repetitions. These selected results establish neither
-a whole-codebase speedup nor throughput equivalence. Compare compiler regimes separately and
-keep normal tiering primary.
