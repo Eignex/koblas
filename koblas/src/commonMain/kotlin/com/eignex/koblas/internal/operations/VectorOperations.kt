@@ -71,9 +71,6 @@ private fun KoblasEngine.maximumMagnitudeVector(x: Vector): Double = when (x) {
     else -> scalarVectorMaximumMagnitude(x)
 }
 
-internal fun KoblasEngine.maximumMagnitude(values: DoubleArray, offset: Int, size: Int, stride: Int): Double =
-    maximumMagnitude(DenseVector.wrap(values, offset, size, stride))
-
 private fun KoblasEngine.maximumMagnitude(vector: DenseVector): Double {
     if (vector.size == 0) return 0.0
     return abs(vector[iamax(vector)])
