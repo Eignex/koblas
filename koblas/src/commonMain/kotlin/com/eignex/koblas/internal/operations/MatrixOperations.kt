@@ -13,19 +13,19 @@ internal fun KoblasEngine.sumMatrix(a: Matrix): Double = when (a) {
         when {
             a.rows == 0 || a.cols == 0 -> 0.0
 
-            a.leadingDimension == a.rows -> sum(DenseVector.wrap(a.values, a.offset, a.rows * a.cols))
+            a.leadingDimension == a.rows -> sumWindow(a.values, a.offset, a.rows * a.cols)
 
             else -> {
                 var total = 0.0
                 for (j in 0 until a.cols) {
-                    total += sum(a.columnView(j))
+                    total += sumWindow(a.values, a.offset + j * a.leadingDimension, a.rows)
                 }
                 total
             }
         }
     }
 
-    is SparseMatrix -> sum(DenseVector.wrap(a.values, 0, a.values.size))
+    is SparseMatrix -> sumWindow(a.values, 0, a.values.size)
 
     else -> scalarMatrixSum(a)
 }
@@ -35,14 +35,14 @@ internal fun KoblasEngine.sumMatrix(a: Matrix, axis: Int): DoubleArray {
     if (a.rows == 0 || a.cols == 0) return DoubleArray(if (axis == 0) a.cols else a.rows)
     return when {
         a is DenseMatrix -> if (axis == 0) {
-            DoubleArray(a.cols) { j -> sum(DenseVector.wrap(a.values, a.offset + j * a.leadingDimension, a.rows)) }
+            DoubleArray(a.cols) { j -> sumWindow(a.values, a.offset + j * a.leadingDimension, a.rows) }
         } else {
-            DoubleArray(a.rows) { i -> sum(DenseVector.wrap(a.values, a.offset + i, a.cols, a.leadingDimension)) }
+            DoubleArray(a.rows) { i -> sumWindow(a.values, a.offset + i, a.cols, a.leadingDimension) }
         }
 
         a is SparseMatrix && axis == 0 -> DoubleArray(a.cols) { j ->
             val start = a.colPointers[j]
-            sum(DenseVector.wrap(a.values, start, a.colPointers[j + 1] - start))
+            sumWindow(a.values, start, a.colPointers[j + 1] - start)
         }
 
         else -> scalarMatrixSums(a, axis)
@@ -61,7 +61,7 @@ internal fun KoblasEngine.normMatrix(a: Matrix, type: Norm = Norm.Frobenius): Do
 
 private fun KoblasEngine.denseMatrixNorm(a: DenseMatrix, type: Norm): Double {
     if (type == Norm.Frobenius && a.leadingDimension == a.rows) {
-        return nrm2(DenseVector.wrap(a.values, a.offset, a.rows * a.cols))
+        return euclideanNormWindow(a.values, a.offset, a.rows * a.cols)
     }
     val rows = type == Norm.Infinity
     val count = if (rows) a.rows else a.cols
@@ -71,9 +71,9 @@ private fun KoblasEngine.denseMatrixNorm(a: DenseMatrix, type: Norm): Double {
     for (i in 0 until count) {
         val offset = a.offset + if (rows) i else i * a.leadingDimension
         result = when (type) {
-            Norm.Frobenius -> hypot(result, nrm2(DenseVector.wrap(a.values, offset, length, stride)))
+            Norm.Frobenius -> hypot(result, euclideanNormWindow(a.values, offset, length, stride))
             Norm.MaxAbs -> maxOf(result, maximumMagnitude(a.values, offset, length, stride))
-            Norm.One, Norm.Infinity -> maxOf(result, asum(DenseVector.wrap(a.values, offset, length, stride)))
+            Norm.One, Norm.Infinity -> maxOf(result, absoluteSumWindow(a.values, offset, length, stride))
             Norm.Two -> error("Spectral matrix norm is not supported")
         }
     }
@@ -81,7 +81,7 @@ private fun KoblasEngine.denseMatrixNorm(a: DenseMatrix, type: Norm): Double {
 }
 
 private fun KoblasEngine.sparseMatrixNorm(a: SparseMatrix, type: Norm): Double = when (type) {
-    Norm.Frobenius -> nrm2(DenseVector.wrap(a.values, 0, a.values.size))
+    Norm.Frobenius -> euclideanNormWindow(a.values, 0, a.values.size)
 
     Norm.MaxAbs -> maximumMagnitude(a.values, 0, a.values.size, 1)
 
@@ -91,7 +91,7 @@ private fun KoblasEngine.sparseMatrixNorm(a: SparseMatrix, type: Norm): Double =
         var result = 0.0
         for (j in 0 until a.cols) {
             val start = a.colPointers[j]
-            result = maxOf(result, asum(DenseVector.wrap(a.values, start, a.colPointers[j + 1] - start)))
+            result = maxOf(result, absoluteSumWindow(a.values, start, a.colPointers[j + 1] - start))
         }
         result
     }

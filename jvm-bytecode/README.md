@@ -35,6 +35,13 @@ Dense schedules pass product regions as arrays, offsets, strides and extents. Th
 transient matrix views between blocks: those views allocate when their factory is not inlined.
 The packaged verifier rejects dense matrix construction and view factories inside dense scheduling.
 
+Reduction adapters likewise pass primitive windows directly to built-in kernels. Custom public engines
+retain typed vector calls, since they need a view to receive the original offset, length and stride.
+`simdReductionAllocationCheck` keeps vector factories and matrix column-view factories out of line;
+`scalarReductionAllocationCheckC1` exercises the same adapters without C2 escape analysis, including
+when SIMD is withheld. Scalar-returning reductions must allocate no temporary containers, and axis
+sums may allocate only their returned arrays. The adapters themselves remain ordinary outlined calls.
+
 Source inlining removes a typed helper call before C1 or C2 compiles the caller. It does not
 guarantee that a larger caller compiles faster or that dispatch inlines. The checker cannot infer
 Vector values hidden by erased `Object` signatures. Allocation profiles remain necessary, and

@@ -208,11 +208,26 @@ data class JvmCheckProfile(
     val oneMkl: Boolean = false,
     val runtimeHome: String? = null,
     val standardCheck: Boolean = false,
+    val requiresSimd: Boolean = true,
 )
 
 val vectorArguments = listOf("--add-modules=jdk.incubator.vector", "--enable-native-access=ALL-UNNAMED")
 val allocationArguments = vectorArguments + listOf("-XX:-TieredCompilation", "-XX:CompileThreshold=1000")
 val profiles = buildList {
+    val reductionBoundaries = listOf(
+        "-XX:CompileCommand=dontinline,com.eignex.koblas.DenseVector\$Companion::wrap",
+        "-XX:CompileCommand=dontinline,com.eignex.koblas.DenseMatrix::columnView",
+    )
+    for (scalarOnly in listOf(false, true)) {
+        add(JvmCheckProfile(
+            if (scalarOnly) "scalarReductionAllocationCheckC1" else "simdReductionAllocationCheck",
+            "com.eignex.koblas.internal.operations.ReductionAllocationCheck",
+            arguments = listOf(if (scalarOnly) "scalar" else "simd"),
+            vmArguments = reductionBoundaries + if (scalarOnly) listOf("-XX:TieredStopAtLevel=1") else allocationArguments,
+            standardCheck = true,
+            requiresSimd = !scalarOnly,
+        ))
+    }
     for (family in listOf("Dense", "Sparse")) {
         for ((suffix, flags) in listOf(
             "" to emptyList(),
@@ -284,10 +299,9 @@ val isolatedChecks = profiles.map { profile ->
     }
 }
 if (fullTargets) tasks.named("check") { dependsOn(isolatedChecks) }
-if (providers.gradleProperty("koblas.noSimd").orNull != "true") {
-    tasks.named("check") {
-        dependsOn(profiles.filter { it.standardCheck }.map { tasks.named(it.name) })
-    }
+tasks.named("check") {
+    val noSimd = providers.gradleProperty("koblas.noSimd").orNull == "true"
+    dependsOn(profiles.filter { it.standardCheck && (!noSimd || !it.requiresSimd) }.map { tasks.named(it.name) })
 }
 
 // Kotlin emits a `$DefaultImpls` holder for every interface with a body, and a bridge for every method with
