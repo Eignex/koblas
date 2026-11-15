@@ -42,6 +42,14 @@ retain typed vector calls, since they need a view to receive the original offset
 when SIMD is withheld. Scalar-returning reductions must allocate no temporary containers, and axis
 sums may allocate only their returned arrays. The adapters themselves remain ordinary outlined calls.
 
+Dense Level 2 vector snapshots also pass primitive windows into the shared schedules. Identical mappings
+share one loan; disjoint windows retain their original offsets and strides. Host bindings adapt those
+windows back to typed callbacks, keeping the original vector when no snapshot is needed. Rectangular
+GER checks overlap against primitive destination geometry rather than constructing a matrix view.
+`simdAliasStagingAllocationCheck` and `scalarAliasStagingAllocationCheckC1` enforce allocation-free
+vector staging with retained scratch while vector and matrix-view factories remain outlined. They cover
+aliased GEMV/SYMV, rank updates, shared snapshots and both overlapping and disjoint GER regions.
+
 Source inlining removes a typed helper call before C1 or C2 compiles the caller. It does not
 guarantee that a larger caller compiles faster or that dispatch inlines. The checker cannot infer
 Vector values hidden by erased `Object` signatures. Allocation profiles remain necessary, and

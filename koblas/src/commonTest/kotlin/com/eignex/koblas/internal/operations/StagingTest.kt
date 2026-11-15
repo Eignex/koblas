@@ -8,6 +8,7 @@ import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -275,11 +276,16 @@ class StagingTest {
 
             stagedWindow(
                 scratch,
-                DenseVector.wrap(backing, offset, count, stride),
+                backing,
+                offset,
+                count,
+                stride,
                 aliased = true,
-            ) { copy ->
+            ) { copy, copyOffset, copyStride ->
                 assertEquals(count, copy.size, "$offset/$count/$stride staged its buffer rather than its entries")
-                assertContentEquals(expected, copy.toDoubleArray())
+                assertEquals(0, copyOffset)
+                assertEquals(1, copyStride)
+                assertContentEquals(expected, copy)
             }
 
             assertEquals(1, scratch.available(count), "$offset/$count/$stride did not hand its loan back")
@@ -292,9 +298,10 @@ class StagingTest {
         val backing = DoubleArray(64)
         val scratch = Scratch()
 
-        val view = DenseVector.wrap(backing, 33, 4, -8)
-        stagedWindow(scratch, view, aliased = false) { stable ->
-            assertSame(view, stable)
+        stagedWindow(scratch, backing, 33, 4, -8, aliased = false) { stable, offset, stride ->
+            assertSame(backing, stable)
+            assertEquals(33, offset)
+            assertEquals(-8, stride)
         }
 
         assertEquals(0, scratch.idleLengths())
@@ -304,19 +311,62 @@ class StagingTest {
     fun `identical mappings share one snapshot`() {
         for ((offset, count, stride) in listOf(Triple(0, 4, 1), Triple(7, 4, -2), Triple(2, 1, 3))) {
             val backing = DoubleArray(8) { it.toDouble() }
-            val destination = DenseMatrix.wrap(4, 2, backing)
-            val x = DenseVector.wrap(backing, offset, count, stride)
-            val y = DenseVector.wrap(backing, offset, count, if (count == 1) 1 else stride)
-            val expected = x.toDoubleArray()
+            val expected = DoubleArray(count) { backing[offset + it * stride] }
             val scratch = Scratch()
 
-            stagedWindows(scratch, x, y, destination) { sx, sy ->
+            stagedWindows(
+                scratch, backing, offset, count, stride, true,
+                backing, offset, count, if (count == 1) 1 else stride, true,
+            ) { sx, xo, xs, sy, yo, ys ->
                 backing.fill(-1.0)
                 assertSame(sx, sy)
-                assertContentEquals(expected, sx.toDoubleArray())
+                assertEquals(xo, yo)
+                assertEquals(xs, ys)
+                assertContentEquals(expected, sx)
             }
 
             assertEquals(1, scratch.available(count))
+        }
+    }
+
+    @Test
+    fun `typed rank preparation shares a snapshot for equal mappings`() {
+        val values = DoubleArray(16) { it.toDouble() }
+        val a = DenseMatrix.wrap(4, 4, values)
+        val x = DenseVector.wrap(values, 3, 4, -1)
+        val y = DenseVector.wrap(values, 3, 4, -1)
+        val expected = x.toDoubleArray()
+        val scratch = Scratch()
+
+        prepareRankUpdate(0.5, x, y, a, "ger", scratch) { sx, sy ->
+            values.fill(-1.0)
+            assertSame(sx, sy)
+            assertContentEquals(expected, sx.toDoubleArray())
+        }
+
+        assertEquals(1, scratch.available(4))
+    }
+
+    @Test
+    fun `primitive snapshots are returned when arithmetic throws`() {
+        for (sameMapping in booleanArrayOf(false, true)) {
+            val scratch = Scratch()
+            val values = DoubleArray(8) { it.toDouble() }
+
+            assertFailsWith<IllegalStateException> {
+                stagedWindows(scratch, values, 0, 4, 1, true, values, if (sameMapping) 0 else 1, 4, 1, true) {
+                        _,
+                        _,
+                        _,
+                        _,
+                        _,
+                        _,
+                    ->
+                    error("arithmetic failed")
+                }
+            }
+
+            assertEquals(if (sameMapping) 1 else 2, scratch.available(4))
         }
     }
 

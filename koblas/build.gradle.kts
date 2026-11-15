@@ -214,19 +214,22 @@ data class JvmCheckProfile(
 val vectorArguments = listOf("--add-modules=jdk.incubator.vector", "--enable-native-access=ALL-UNNAMED")
 val allocationArguments = vectorArguments + listOf("-XX:-TieredCompilation", "-XX:CompileThreshold=1000")
 val profiles = buildList {
-    val reductionBoundaries = listOf(
+    val windowBoundaries = listOf(
         "-XX:CompileCommand=dontinline,com.eignex.koblas.DenseVector\$Companion::wrap",
         "-XX:CompileCommand=dontinline,com.eignex.koblas.DenseMatrix::columnView",
+        "-XX:CompileCommand=dontinline,com.eignex.koblas.DenseMatrix::view",
     )
-    for (scalarOnly in listOf(false, true)) {
-        add(JvmCheckProfile(
-            if (scalarOnly) "scalarReductionAllocationCheckC1" else "simdReductionAllocationCheck",
-            "com.eignex.koblas.internal.operations.ReductionAllocationCheck",
-            arguments = listOf(if (scalarOnly) "scalar" else "simd"),
-            vmArguments = reductionBoundaries + if (scalarOnly) listOf("-XX:TieredStopAtLevel=1") else allocationArguments,
-            standardCheck = true,
-            requiresSimd = !scalarOnly,
-        ))
+    for (family in listOf("Reduction", "AliasStaging")) {
+        for (scalarOnly in listOf(false, true)) {
+            add(JvmCheckProfile(
+                if (scalarOnly) "scalar${family}AllocationCheckC1" else "simd${family}AllocationCheck",
+                "com.eignex.koblas.internal.operations.${family}AllocationCheck",
+                arguments = listOf(if (scalarOnly) "scalar" else "simd"),
+                vmArguments = windowBoundaries + if (scalarOnly) listOf("-XX:TieredStopAtLevel=1") else allocationArguments,
+                standardCheck = true,
+                requiresSimd = !scalarOnly,
+            ))
+        }
     }
     for (family in listOf("Dense", "Sparse")) {
         for ((suffix, flags) in listOf(
