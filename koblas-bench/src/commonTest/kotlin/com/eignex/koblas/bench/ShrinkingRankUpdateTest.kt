@@ -1,8 +1,8 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.*
 import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.internal.kernels.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -28,25 +28,28 @@ class ShrinkingRankUpdateTest {
     @Test
     fun `timed batches agree with the reference across repeated calls`() {
         val engines = listOfNotNull<KoblasEngine>(KoblasEngine.scalar, KoblasEngine.simd)
-        for (n in listOf(5, 6, 7)) for (operation in listOf("ger-shrinking", "ger-window-shrinking")) {
-            val fixture = ShrinkingRankUpdate(n)
-            for (engine in engines) {
-                val work = assertNotNull(denseWork(Cases.parse("$operation+$n+uniform").single(), engine))
-                var expected = fixture.matrix.values.copyOf()
+        for (n in listOf(5, 6, 7)) {
+            for (operation in listOf("ger-shrinking", "ger-window-shrinking")) {
+                val fixture = ShrinkingRankUpdate(n)
+                for (engine in engines) {
+                    val work = assertNotNull(denseWork(Cases.parse("$operation+$n+uniform").single(), engine))
+                    var expected = fixture.matrix.values.copyOf()
 
-                repeat(3) {
-                    for (step in fixture.x.indices) {
-                        expected = DenseReference.ger(-1.0, fixture.x[step], fixture.y[step], DenseMatrix.wrap(
-                            n,
-                            n,
-                            expected,
-                        ))
+                    repeat(3) {
+                        for (step in fixture.x.indices) {
+                            expected = DenseReference.ger(-1.0, fixture.x[step], fixture.y[step], DenseMatrix.wrap(
+                                n,
+                                n,
+                                expected,
+                            ))
+                        }
+                        work.run()
+                        assertRankUpdateAgreesWithReference(expected, assertNotNull(work.result),
+                            "$operation n=$n ${engine.name}")
                     }
-                    work.run()
-                    assertRankUpdateAgreesWithReference(expected, assertNotNull(work.result), "$operation n=$n ${engine.name}")
-                }
 
-                assertEquals("arithmetic", work.timingMode)
+                    assertEquals("arithmetic", work.timingMode)
+                }
             }
         }
     }

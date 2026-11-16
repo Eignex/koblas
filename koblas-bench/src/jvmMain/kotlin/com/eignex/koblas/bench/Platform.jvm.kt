@@ -30,10 +30,14 @@ internal actual fun resolveEngine(mode: String): Pair<KoblasEngine, String> {
         }
         else -> automaticVendorFromMode(mode)?.let { vendor ->
             check(KoblasEngine.simd == null) { "$mode must launch without jdk.incubator.vector" }
-            val host = requireNotNull(KoblasEngine.exactVendor(vendor)) { "Requested ${vendor.vendorName} is unavailable" }
-            val selected = standardEngine(EngineRuntime.Jvm, nativeAccess = KoblasEngine::class.java.module.isNativeAccessEnabled, owned = null) { candidate ->
-                host.kernels.takeIf { candidate == vendor }
+            val host = requireNotNull(KoblasEngine.exactVendor(vendor)) {
+                "Requested ${vendor.vendorName} is unavailable"
             }
+            val selected =
+                standardEngine(EngineRuntime.Jvm,
+                    nativeAccess = KoblasEngine::class.java.module.isNativeAccessEnabled, owned = null) { candidate ->
+                    host.kernels.takeIf { candidate == vendor }
+                }
             check(selected.providers.any { it.vendor == vendor }) { "Requested vendor is incompatible with this host" }
             selected.asEngine()
         } ?: error("unknown JVM mode $mode")
@@ -41,7 +45,9 @@ internal actual fun resolveEngine(mode: String): Pair<KoblasEngine, String> {
     return engine to engineIdentity(mode, engine)
 }
 
-internal actual fun runtimeIdentity(): String = "kotlin-${KotlinVersion.CURRENT}/jvm/${System.getProperty("java.vendor")}/${System.getProperty("java.version")}".replace(',', '_')
+internal actual fun runtimeIdentity(): String =
+    ("kotlin-${KotlinVersion.CURRENT}/jvm/${System.getProperty("java.vendor")}/" +
+        System.getProperty("java.version")).replace(',', '_')
 
 internal actual fun RoutingKey.provider(engine: KoblasEngine): String =
     engine.providerFor(operation, rows, columns, depth, contiguous, borrowed)

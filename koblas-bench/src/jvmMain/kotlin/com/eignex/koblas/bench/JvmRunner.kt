@@ -2,13 +2,13 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.engine.EngineRuntime
-import java.io.File
-import java.util.concurrent.TimeUnit
 import org.openjdk.jmh.results.RunResult
 import org.openjdk.jmh.runner.Runner
 import org.openjdk.jmh.runner.options.OptionsBuilder
 import org.openjdk.jmh.runner.options.TimeValue
 import org.openjdk.jmh.util.Version
+import java.io.File
+import java.util.concurrent.TimeUnit
 
 public class JvmCaseWork internal constructor(private val delegate: CaseWork) {
     public fun run(): Double = delegate.run()
@@ -25,7 +25,9 @@ public object JvmBenchmarkBridge {
     public fun create(mode: String, caseId: String, casesPath: String): JvmCaseWork {
         val case = Cases.parse(readTextFile(casesPath)).single { it.id == caseId }
         val vendorMode = vendorForRuntime(mode, JVM_VENDOR_PREFIX) != null
-        require(mode in setOf("jvm-simd", "jvm-default", "jvm-default-no-simd", "jvm-scalar") || vendorMode || automaticVendorFromMode(mode) != null) {
+        require(
+            mode in setOf("jvm-simd", "jvm-default", "jvm-default-no-simd", "jvm-scalar") || vendorMode ||
+                automaticVendorFromMode(mode) != null) {
             "JMH supports only JVM benchmark modes"
         }
         val arm = benchmarkArm(case, benchmarkEngine(mode).first, vendorMode)
@@ -38,7 +40,8 @@ public fun main(args: Array<String>) {
     val settings = parseArguments(args)
     val vendorMode = vendorForRuntime(settings.mode, JVM_VENDOR_PREFIX) != null
     require(
-        settings.mode in setOf("jvm-simd", "jvm-default", "jvm-default-no-simd", "jvm-scalar") || vendorMode || automaticVendorFromMode(settings.mode) != null,
+        settings.mode in setOf("jvm-simd", "jvm-default", "jvm-default-no-simd", "jvm-scalar") || vendorMode ||
+            automaticVendorFromMode(settings.mode) != null,
     ) { "JMH supports only JVM benchmark modes" }
     val allCases = Cases.parse(readTextFile(settings.casesPath))
     val selected = Cases.select(allCases, settings.suite, settings.operation)
@@ -67,7 +70,9 @@ public fun main(args: Array<String>) {
         appendJmhRows(rowsByCase, results, allCases.associateBy { it.id }, supported, settings, kernels, providers)
     }
     writeRows(settings, selected, rowsByCase)
-    println("wrote ${selected.size} case summaries from ${rowsByCase.values.sumOf { rows -> rows.count { it.nanos != null } }} measurements to ${settings.outputPath}")
+    println("wrote ${selected.size} case summaries from ${rowsByCase.values.sumOf { rows ->
+        rows.count { it.nanos != null }
+    }} measurements to ${settings.outputPath}")
     printIdentity(implementation, "jmh-average-time/JMH-${Version.getPlainVersion()}", EngineRuntime.Jvm)
 }
 
@@ -114,15 +119,18 @@ private fun appendJmhRows(
         val case = requireNotNull(cases[caseId])
         val (comparison, timing) = requireNotNull(supported[caseId])
         var sample = 0
-        for (fork in result.benchmarkResults) for (iteration in fork.iterationResults) {
-            val operations = iteration.metadata.measuredOps
-            val nanosPerOperation = iteration.primaryResult.score
-            require(operations > 0 && nanosPerOperation.isFinite() && nanosPerOperation > 0) {
-                "invalid JMH result for $caseId"
+        for (fork in result.benchmarkResults) {
+            for (iteration in fork.iterationResults) {
+                val operations = iteration.metadata.measuredOps
+                val nanosPerOperation = iteration.primaryResult.score
+                require(operations > 0 && nanosPerOperation.isFinite() && nanosPerOperation > 0) {
+                    "invalid JMH result for $caseId"
+                }
+                rowsByCase.getOrPut(caseId, ::arrayListOf) += measurement(
+                    case, settings, ++sample, nanosPerOperation, "ok", comparison, timing, kernels[caseId],
+                    providers[caseId],
+                )
             }
-            rowsByCase.getOrPut(caseId, ::arrayListOf) += measurement(
-                case, settings, ++sample, nanosPerOperation, "ok", comparison, timing, kernels[caseId], providers[caseId],
-            )
         }
         require(sample == settings.samples * settings.forks) { "JMH returned $sample samples for $caseId" }
     }

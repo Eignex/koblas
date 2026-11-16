@@ -3,8 +3,8 @@ package com.eignex.koblas.bench
 import com.eignex.koblas.*
 import kotlin.math.abs
 import kotlin.test.Test
-import kotlin.test.assertFailsWith
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue

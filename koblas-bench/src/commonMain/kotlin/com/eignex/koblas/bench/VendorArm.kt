@@ -1,7 +1,7 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.*
+import com.eignex.koblas.internal.kernels.*
 
 /**
  * The work for one benchmark case on one arm, or the reason there is none to time.
@@ -67,12 +67,17 @@ internal fun openVendorForMode(mode: String): Pair<KoblasEngine, String> {
 /** Exact vendor calls use the same fixtures, validation and timed bodies as the other engine arms. */
 internal fun vendorArm(case: BenchCase, blas: KoblasEngine): ArmChoice {
     val operation = if (case.operation == "ger-shrinking") EngineImplementation.Ger else case.implementation
-    if (case.operation.startsWith("sp") || operation == null || operation in setOf(EngineImplementation.Panels, EngineImplementation.Products, EngineImplementation.Triangular) || operation.name.startsWith("Indexed") || operation == EngineImplementation.Sum) {
+    if (case.operation.startsWith("sp") || operation == null ||
+        operation in setOf(EngineImplementation.Panels, EngineImplementation.Products,
+            EngineImplementation.Triangular) ||
+        operation.name.startsWith("Indexed") ||
+        operation == EngineImplementation.Sum) {
         return ArmChoice.Declined("${case.operation} has no vendor entry point in the bound CBLAS surface")
     }
     exactArmRejection(blas, operation)?.let { return ArmChoice.Declined(it) }
     val work = denseWork(case, blas)
-    return ArmChoice.Accepted(work.copy(comparisonKind = "direct", kernel = "${blas.vendor!!.vendorName}/$operation", provider = blas.id))
+    return ArmChoice.Accepted(work.copy(comparisonKind = "direct",
+        kernel = "${blas.vendor!!.vendorName}/$operation", provider = blas.id))
 }
 
 /** Admission and measured forks resolve the same engine workload. */

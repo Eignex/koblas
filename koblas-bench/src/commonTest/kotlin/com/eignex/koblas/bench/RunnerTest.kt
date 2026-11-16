@@ -1,7 +1,7 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.*
+import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.koblas
 import kotlin.test.Test
@@ -18,7 +18,8 @@ class RunnerTest {
             override fun minimumLength(implementation: EngineImplementation): Int = 64
             override fun requiresUnitStride(implementation: EngineImplementation): Boolean = true
             override val implementations = setOf(EngineImplementation.Dot)
-            override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int, bStride: Int): Double {
+            override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int,
+                bStride: Int): Double {
                 calls++
                 return KoblasEngine.scalar.kernels.dot(a, aOff, b, bOff, len, aStride, bStride)
             }
@@ -65,7 +66,8 @@ class RunnerTest {
 
     @Test
     fun `runner rejects invalid suite selections`() {
-        for (args in listOf(arrayOf("--suite=sweep"), arrayOf("--suite=other"), arrayOf("--suite=default", "--suite=sweep"))) {
+        for (args in listOf(arrayOf("--suite=sweep"), arrayOf("--suite=other"), arrayOf("--suite=default",
+            "--suite=sweep"))) {
             assertFailsWith<IllegalArgumentException> { parseArguments(arrayOf("--mode=native") + args) }
         }
     }
@@ -77,7 +79,8 @@ class RunnerTest {
                 val original = Cases.parse(id).single()
                 val shared = Cases.parse("$id+suite=default,sweep").single()
                 val settings = settings().copy(mode = mode)
-                val before = measurement(original, settings, 1, 2.5, "ok", "direct", "arithmetic", "scalar/dot", "portable")
+                val before =
+                    measurement(original, settings, 1, 2.5, "ok", "direct", "arithmetic", "scalar/dot", "portable")
                 val after = measurement(
                     shared,
                     settings.copy(suite = "sweep"),
@@ -104,7 +107,8 @@ class RunnerTest {
 
         val records = reportCsv(measurements).trim().lines()
 
-        assertEquals(listOf(CSV_HEADER, "dot+4+uniform,ok,direct,arithmetic,scalar/dot,portable,Dot:4:1:1:false:1:true,2,2,3.0,2.5,3.5"), records)
+        assertEquals(listOf(CSV_HEADER,
+            "dot+4+uniform,ok,direct,arithmetic,scalar/dot,portable,Dot:4:1:1:false:1:true,2,2,3.0,2.5,3.5"), records)
     }
 
     @Test
@@ -114,7 +118,8 @@ class RunnerTest {
 
         val records = reportCsv(listOf(measurement)).trim().lines()
 
-        assertEquals(listOf(CSV_HEADER, "dot+4+uniform,unsupported,unsupported,arithmetic,unavailable,,Dot:4:1:1:false:1:true,0,0,,,"), records)
+        assertEquals(listOf(CSV_HEADER,
+            "dot+4+uniform,unsupported,unsupported,arithmetic,unavailable,,Dot:4:1:1:false:1:true,0,0,,,"), records)
     }
 
     /** A timed row that cannot say which call produced it is a bug, not a row with a missing field. */
@@ -142,7 +147,8 @@ class RunnerTest {
             "syrk+16x32+uniform+uplo=L+transA=T" to "Syrk:16:16:32:false:3:true",
             "gemm+16x32x64+uniform+layout=borrowed" to "Gemm:16:32:64:true:3:true",
         )) {
-            val row = measurement(Cases.parse(id).single(), settings(), 0, null, "unsupported", "unsupported", "arithmetic")
+            val row =
+                measurement(Cases.parse(id).single(), settings(), 0, null, "unsupported", "unsupported", "arithmetic")
 
             assertEquals(key, row.case.last())
         }

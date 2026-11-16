@@ -4,7 +4,7 @@ import kotlin.test.*
 
 class StatusTimingTest {
     private fun csv(case: String = "dot+64+uniform", value: String = "12.5", status: String = "ok",
-                    samples: Int = 3, forks: Int = 1, provider: String = "scalar") =
+        samples: Int = 3, forks: Int = 1, provider: String = "scalar") =
         "$CSV_HEADER\n$case,$status,direct,arithmetic,scalar/dot,$provider,key,$samples,$forks,$value,$value,$value\n"
 
     @Test fun `status timings retain requested engines independently of scalar fallbacks`() {
@@ -44,7 +44,8 @@ class StatusTimingTest {
         val case = Cases.parse("dot+64+uniform").single()
         val unsupported = csv(value = "", status = "unsupported", samples = 0, forks = 0)
 
-        for (engine in listOf("jvm-default", "jvm-default-no-simd", "jvm-scalar", "jvm-simd", "native", "native-default")) {
+        for (engine in listOf("jvm-default", "jvm-default-no-simd", "jvm-scalar", "jvm-simd", "native",
+            "native-default")) {
             assertFailsWith<IllegalArgumentException> { readStatusTiming(engine, case, 3, unsupported) }
         }
     }

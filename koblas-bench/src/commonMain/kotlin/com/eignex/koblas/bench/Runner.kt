@@ -1,7 +1,7 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.*
+import com.eignex.koblas.internal.engine.*
 import kotlin.math.max
 import kotlin.time.TimeSource
 
@@ -61,7 +61,9 @@ public fun main(args: Array<String>) {
     }
     if (sink == Double.POSITIVE_INFINITY) throw IllegalStateException("unreachable result sink")
     writeTextFile(settings.outputPath, reportCsv(rows))
-    println("wrote ${selected.size} case summaries from ${rows.count { it.nanos != null }} measurements to ${settings.outputPath}")
+    println("wrote ${selected.size} case summaries from ${rows.count {
+        it.nanos != null
+    }} measurements to ${settings.outputPath}")
     printIdentity(implementation, "native-calibrated", EngineRuntime.Native)
 }
 
@@ -86,7 +88,7 @@ private fun warmAndCalibrate(work: CaseWork, targetNanos: Long, warmupBatches: I
         sink += batch.sink
         val acceptable = batch.elapsed in (targetNanos / 2)..(targetNanos * 2)
         stableBatches = if (acceptable) stableBatches + 1 else 0
-        if (stableBatches == 2 || operations == MAX_OPERATIONS && batch.elapsed >= targetNanos / 2) {
+        if (stableBatches == 2 || (operations == MAX_OPERATIONS && batch.elapsed >= targetNanos / 2)) {
             return Calibration(operations, sink)
         }
         operations = adjustedOperations(operations, batch.elapsed, targetNanos)
@@ -104,7 +106,8 @@ private fun runBatch(work: CaseWork, operations: Int): Batch {
 private fun adjustedOperations(operations: Int, elapsed: Long, targetNanos: Long): Int {
     val ratio = (targetNanos.toDouble() / elapsed).coerceIn(0.25, 4.0)
     val adjusted = (operations * ratio).toInt().coerceIn(1, MAX_OPERATIONS)
-    return if (adjusted == operations && elapsed < targetNanos) (operations + 1).coerceAtMost(MAX_OPERATIONS) else adjusted
+    return if (adjusted == operations &&
+        elapsed < targetNanos) (operations + 1).coerceAtMost(MAX_OPERATIONS) else adjusted
 }
 
 internal fun parseArguments(args: Array<String>): Settings {
@@ -186,7 +189,8 @@ internal fun BenchCase.routingKey(): RoutingKey? {
             if (option("side", "L") == "R") columns else rows
         else -> 1
     }
-    return RoutingKey(selected, rows, columns, depth, option("layout", "owned") == "borrowed", spec.level, option("stride", "1") == "1")
+    return RoutingKey(selected, rows, columns, depth, option("layout", "owned") == "borrowed", spec.level,
+        option("stride", "1") == "1")
 }
 
 internal data class RoutingKey(
@@ -199,7 +203,6 @@ internal data class RoutingKey(
     val contiguous: Boolean,
 ) {
     override fun toString(): String = "$operation:$rows:$columns:$depth:$borrowed:$level:$contiguous"
-
 }
 
 internal expect fun RoutingKey.provider(engine: KoblasEngine): String
@@ -228,7 +231,8 @@ private fun csv(value: String): String = if (value.any { it == ',' || it == '"' 
     "\"${value.replace("\"", "\"\"")}\""
 } else value
 
-internal const val CSV_HEADER = "case,status,comparison_kind,timing_mode,actual_kernel,provider,routing_key,samples,forks,median_ns,min_ns,max_ns"
+internal const val CSV_HEADER =
+    "case,status,comparison_kind,timing_mode,actual_kernel,provider,routing_key,samples,forks,median_ns,min_ns,max_ns"
 private const val MAX_OPERATIONS = 1_000_000
 
 private val ThreadEvidence.label: String
@@ -248,7 +252,8 @@ internal fun engineIdentity(mode: String, engine: KoblasEngine): String {
 
 internal fun printIdentity(implementation: String, harness: String, runtime: EngineRuntime) {
     val platform = hostPlatform()
-    println("resolved implementation=$implementation runtime=${runtimeIdentity()} harness=$harness/$BENCHMARK_CALLBACK_ABI")
+    println("resolved implementation=$implementation runtime=${runtimeIdentity(
+    )} harness=$harness/$BENCHMARK_CALLBACK_ABI")
     println("profile_runtime=${runtime.name.lowercase()}")
     println("profile_os=${platform.operatingSystem}")
     println("profile_arch=${platform.architecture}")

@@ -109,6 +109,10 @@ class FingerprintScriptTest {
     private fun fixture(block: (Path) -> Unit) {
         if (System.getProperty("os.name").startsWith("Windows")) return
         val root = Files.createTempDirectory("koblas-script-fingerprint")
-        try { block(root) } finally { root.toFile().deleteRecursively() }
+        try {
+            block(root)
+        } finally {
+            root.toFile().deleteRecursively()
+        }
     }
 }

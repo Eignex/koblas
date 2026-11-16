@@ -16,7 +16,8 @@ internal data class BenchCase(
 internal object Cases {
     private val fixtures = operationSpecs.values.mapTo(mutableSetOf()) { it.fixture }
     private val optionOrder =
-        listOf("density", "support", "mode", "side", "uplo", "transA", "transB", "diag", "timing", "workspace", "layout", "stride")
+        listOf("density", "support", "mode", "side", "uplo", "transA", "transB", "diag", "timing",
+            "workspace", "layout", "stride")
 
     fun parse(text: String): List<BenchCase> {
         val cases = text.lineSequence().mapIndexedNotNull { index, raw ->
@@ -76,13 +77,16 @@ internal object Cases {
         }
         validateCompatibility(operation, spec, fixture, options, invalid = ::invalid)
         val ordered = optionOrder.filter { it in options }.associateWith { options.getValue(it) }
-        val id = (listOf(operation, dimensions.joinToString("x"), fixture) + ordered.map { "${it.key}=${it.value}" }).joinToString("+")
+        val id = (listOf(operation, dimensions.joinToString("x"), fixture) + ordered.map {
+            "${it.key}=${it.value}"
+        }).joinToString("+")
         return BenchCase(operation, dimensions, fixture, ordered, id, suites ?: setOf("default"))
     }
 
     private fun validateOption(name: String, value: String, invalid: (String) -> Nothing) {
         when (name) {
-            "density" -> if (value.toDoubleOrNull()?.let { it > 0.0 && it <= 1.0 } != true) invalid("invalid density '$value'")
+            "density" -> if (value.toDoubleOrNull()?.let { it > 0.0 && it <= 1.0 } != true)
+                invalid("invalid density '$value'")
             "support" -> if (value !in SUPPORTS) invalid("invalid support '$value'")
             "mode" -> if (value != "oneshot") invalid("invalid mode '$value'")
             "side" -> if (value !in setOf("L", "R")) invalid("invalid side '$value'")
@@ -91,7 +95,8 @@ internal object Cases {
             "diag" -> if (value !in setOf("N", "U")) invalid("invalid diag '$value'")
             "workspace" -> if (value != "retained") invalid("workspace must be retained")
             "layout" -> if (value != "borrowed") invalid("layout must be borrowed")
-            "stride" -> if (value.toIntOrNull()?.let { it != 0 && it != Int.MIN_VALUE } != true) invalid("invalid stride '$value'")
+            "stride" -> if (value.toIntOrNull()?.let { it != 0 && it != Int.MIN_VALUE } != true)
+                invalid("invalid stride '$value'")
         }
     }
 
@@ -108,7 +113,9 @@ internal object Cases {
         val missing = spec.required.firstOrNull { it !in options }
         if (missing != null) invalid("$operation requires option '$missing'")
         val defaults = mapOf("side" to "L", "uplo" to "L", "transA" to "N", "transB" to "N", "diag" to "N")
-        val redundant = options.entries.firstOrNull { (name, value) -> name !in spec.required && defaults[name] == value }
+        val redundant = options.entries.firstOrNull { (name, value) ->
+            name !in spec.required && defaults[name] == value
+        }
         if (redundant != null) invalid("redundant default option '${redundant.key}=${redundant.value}'")
         if ("timing" in options && options["timing"] != "arithmetic") {
             invalid("$operation supports only timing=arithmetic as an explicit override")

@@ -22,7 +22,8 @@ internal fun readStatusTiming(engine: String, case: BenchCase, samples: Int, csv
     require(row.getValue("samples").toInt() == samples && row.getValue("forks") == "1")
     val nanos = row.getValue("median_ns").toDouble()
     require(nanos.isFinite() && nanos > 0)
-    val provider = row.getValue("provider"); val kernel = row.getValue("actual_kernel")
+    val provider = row.getValue("provider")
+    val kernel = row.getValue("actual_kernel")
     require(provider.isNotBlank() && kernel.isNotBlank()) { "$engine timing needs kernel attribution" }
     return StatusTiming(engine, nanos, provider, kernel)
 }

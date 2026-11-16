@@ -1,7 +1,7 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.*
+import com.eignex.koblas.internal.kernels.*
 import kotlin.test.*
 
 class EngineTuningTest {
@@ -60,7 +60,9 @@ class EngineTuningTest {
     @Test fun `cutoff report includes operation and layout bounds`() {
         val report = renderCutoffs(listOf(FittedCutoff(EngineImplementation.Dot, rows = 128, contiguous = true)))
 
-        assertEquals("operation\trows\tcolumns\tdepth\twork\tcontiguous\tborrowed\tmaximum_rows\nDot\t128\t0\t0\t0\ttrue\t*\t*\n", report)
+        assertEquals(
+            "operation\trows\tcolumns\tdepth\twork\tcontiguous\tborrowed\tmaximum_rows\n" +
+                "Dot\t128\t0\t0\t0\ttrue\t*\t*\n", report)
     }
 
     @Test fun `calibration baselines select the actual fallback`() {

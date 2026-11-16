@@ -55,8 +55,10 @@ internal val operationSpecs: Map<String, OperationSpec> = mapOf(
     "gemmt" to OperationSpec(2, Gemmt, required = setOf("uplo", "transA", "transB"), level = 3),
     "syrk" to OperationSpec(2, Syrk, required = setOf("uplo", "transA"), level = 3),
     "syr2k" to OperationSpec(2, Syr2k, required = setOf("uplo", "transA"), level = 3),
-    "trsm" to OperationSpec(2, Trsm, fixture = "triangular", required = setOf("side", "uplo", "transA", "diag"), level = 3),
-    "trmm" to OperationSpec(2, Trmm, fixture = "triangular", required = setOf("side", "uplo", "transA", "diag"), level = 3),
+    "trsm" to
+        OperationSpec(2, Trsm, fixture = "triangular", required = setOf("side", "uplo", "transA", "diag"), level = 3),
+    "trmm" to
+        OperationSpec(2, Trmm, fixture = "triangular", required = setOf("side", "uplo", "transA", "diag"), level = 3),
     "spdot" to sparseVector(IndexedDot),
     "spdot-raw" to sparseVector(IndexedDot),
     "spdot-sparse" to sparseVector(IndexedSparseDot),
