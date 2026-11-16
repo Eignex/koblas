@@ -89,6 +89,14 @@ measured library operation are outside this harness check. Captures and regressi
 record `primitive-double-v1`; compare numerical changes using the same callback representation.
 Inherited callback and helper bodies are resolved through their superclass and interface declarations,
 including an implementation inherited from a superclass that does not itself implement the callback interface.
+Nested lambda targets are followed from timed code, including callbacks constructed during setup and
+later invoked through JDK interfaces. Class-based implementations of those interfaces are checked too.
+Dispatch conservatively includes every packaged implementation of a reachable interface signature;
+it does not infer which callback instance a field or parameter holds. Opaque `MethodHandle.invoke`,
+`invokeExact` and `invokeWithArguments` calls are rejected on timed harness paths because their
+runtime targets cannot be inspected. External numerical-library bytecode remains outside this check.
+Lambda argument and result adaptation and
+explicit wrapper constructors count as boxing, while widening between primitive results remains allowed.
 
 Backend implementations are separate from the public typed `KoblasEngine` API. The shared
 `BackendEngine` adapter validates and stages operands before passing primitive windows to

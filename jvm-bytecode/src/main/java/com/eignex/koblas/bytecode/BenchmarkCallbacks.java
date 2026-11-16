@@ -5,6 +5,7 @@ import java.lang.classfile.ClassModel;
 import java.lang.classfile.MethodModel;
 import java.lang.classfile.instruction.InvokeDynamicInstruction;
 import java.lang.classfile.instruction.InvokeInstruction;
+import java.lang.constant.ClassDesc;
 import java.lang.constant.DirectMethodHandleDesc;
 import java.lang.constant.MethodTypeDesc;
 import java.nio.file.Path;
@@ -15,6 +16,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.zip.ZipFile;
 
 /** Checks primitive callback signatures and their benchmark-side call paths before measuring kernels. */
@@ -27,6 +29,7 @@ public final class BenchmarkCallbacks {
         "java/lang/Short", "java/lang/Byte", "java/lang/Character", "java/lang/Boolean"
     );
     private record Method(String owner, String name, String type) {}
+    private record LambdaTarget(Method method, boolean boxedAdaptation, boolean virtual) {}
 
     private BenchmarkCallbacks() {}
 
@@ -34,6 +37,8 @@ public final class BenchmarkCallbacks {
         var models = new HashMap<String, ClassModel>();
         var methods = new HashMap<Method, MethodModel>();
         var roots = new HashSet<Method>();
+        var callbacks = new HashMap<Method, Set<LambdaTarget>>();
+        var virtualReferences = new HashSet<Method>();
         var failures = new ArrayList<String>();
         for (var bytes : classes.values()) {
             var model = ClassFile.of().parse(bytes);
@@ -49,19 +54,21 @@ public final class BenchmarkCallbacks {
                 methods.put(key, method);
                 if (method.code().isEmpty()) continue;
                 for (var item : method.code().get()) {
-                    if (!(item instanceof InvokeDynamicInstruction factory)
-                            || !operationTypes.contains(factory.typeSymbol().returnType().descriptorString()
-                                .replaceFirst("^L", "").replaceFirst(";$", ""))) continue;
+                    if (!(item instanceof InvokeDynamicInstruction factory)) continue;
+                    var targets = lambdaTargets(factory);
+                    for (var target : targets) if (target.virtual()) virtualReferences.add(target.method());
+                    String descriptor = factory.typeSymbol().returnType().descriptorString();
+                    if (!descriptor.startsWith("L")) continue;
+                    String callback = descriptor.substring(1, descriptor.length() - 1);
                     for (var argument : factory.bootstrapArgs()) {
-                        if (!(argument instanceof DirectMethodHandleDesc target)
-                                || !target.lookupDescriptor().startsWith("(")) continue;
-                        var type = MethodTypeDesc.ofDescriptor(target.lookupDescriptor());
-                        if (!type.returnType().descriptorString().equals("D")) {
-                            failures.add(key + " adapts a boxed callback result from " + target);
+                        if (argument instanceof MethodTypeDesc signature) {
+                            callbacks.computeIfAbsent(new Method(callback, factory.name().stringValue(),
+                                signature.descriptorString()), unused -> new HashSet<>()).addAll(targets);
                         }
-                        String descriptor = target.owner().descriptorString();
-                        roots.add(new Method(descriptor.substring(1, descriptor.length() - 1),
-                            target.methodName(), target.lookupDescriptor()));
+                    }
+                    if (operationTypes.contains(callback)) {
+                        if (targets.isEmpty()) failures.add(key + " has no inspectable BenchmarkOperation lambda target");
+                        follow(key, targets, roots::add, failures);
                     }
                 }
             }
@@ -83,6 +90,12 @@ public final class BenchmarkCallbacks {
             var key = pending.removeFirst();
             if (!visited.add(key)) continue;
             var method = methods.get(key);
+            if (!key.owner().startsWith(BENCH) || virtualReferences.contains(key)) {
+                follow(key, callbacks.getOrDefault(key, Set.of()), pending::addLast, failures);
+                for (String target : dispatch.computeIfAbsent(key.owner(), type -> subtypes(models, type))) {
+                    if (target.startsWith(BENCH)) pending.addLast(new Method(target, key.name(), key.type()));
+                }
+            }
             if (method == null) {
                 // A receiver can implement an interface with a body inherited from a non-implementing superclass.
                 var model = models.get(key.owner());
@@ -97,25 +110,81 @@ public final class BenchmarkCallbacks {
             }
             if (method.code().isEmpty()) continue;
             for (var item : method.code().get()) {
+                if (item instanceof InvokeDynamicInstruction factory) {
+                    follow(key, lambdaTargets(factory), pending::addLast, failures);
+                }
                 if (!(item instanceof InvokeInstruction call)) continue;
                 String owner = call.owner().asInternalName();
                 String name = call.name().stringValue();
-                if (owner.startsWith("kotlin/jvm/functions/Function") && name.equals("invoke")
-                        || BOXES.contains(owner) && name.equals("valueOf")
-                        || (BOXES.contains(owner) || owner.equals("java/lang/Number"))
-                            && name.endsWith("Value") && call.typeSymbol().parameterCount() == 0) {
+                if (owner.equals("java/lang/invoke/MethodHandle")
+                        && (name.equals("invoke") || name.equals("invokeExact") || name.equals("invokeWithArguments"))) {
+                    failures.add(key + " crosses an opaque callback boundary through " + owner + "." + name);
+                }
+                if (boxedCall(owner, name, call.typeSymbol())) {
                     failures.add(key + " crosses a boxed callback boundary through " + owner + "." + name);
                 }
                 // Only the harness is checked here. Allocations inside the measured operation remain observable.
-                if (owner.startsWith(BENCH)) {
-                    Set<String> targets = call.opcode() == java.lang.classfile.Opcode.INVOKEINTERFACE
-                            || call.opcode() == java.lang.classfile.Opcode.INVOKEVIRTUAL
+                boolean virtual = call.opcode() == java.lang.classfile.Opcode.INVOKEINTERFACE
+                    || call.opcode() == java.lang.classfile.Opcode.INVOKEVIRTUAL;
+                if (owner.startsWith(BENCH) || virtual) {
+                    Set<String> targets = virtual
                         ? dispatch.computeIfAbsent(owner, type -> subtypes(models, type)) : Set.of(owner);
-                    for (String target : targets) pending.addLast(new Method(target, name, call.type().stringValue()));
+                    for (String target : targets) {
+                        var invoked = new Method(target, name, call.type().stringValue());
+                        if (target.startsWith(BENCH)) pending.addLast(invoked);
+                        follow(key, callbacks.getOrDefault(invoked, Set.of()), pending::addLast, failures);
+                    }
                 }
             }
         }
         return failures;
+    }
+
+    private static List<LambdaTarget> lambdaTargets(InvokeDynamicInstruction factory) {
+        if (!factory.bootstrapMethod().owner().equals(ClassDesc.of("java.lang.invoke.LambdaMetafactory"))
+                || factory.bootstrapArgs().isEmpty()
+                || !(factory.bootstrapArgs().getFirst() instanceof MethodTypeDesc signature)) return List.of();
+        var targets = new ArrayList<LambdaTarget>();
+        ClassDesc result = signature.returnType();
+        for (var argument : factory.bootstrapArgs()) {
+            if (!(argument instanceof DirectMethodHandleDesc target)
+                    || !target.lookupDescriptor().startsWith("(")) continue;
+            var invocation = target.invocationType();
+            ClassDesc produced = invocation.returnType();
+            boolean boxed = !result.descriptorString().equals("V") && !produced.descriptorString().equals("V")
+                && result.isPrimitive() != produced.isPrimitive();
+            int captures = factory.typeSymbol().parameterCount();
+            for (int parameter = 0; parameter < signature.parameterCount(); parameter++) {
+                int argumentIndex = captures + parameter;
+                if (argumentIndex < invocation.parameterCount()) {
+                    boxed |= signature.parameterType(parameter).isPrimitive()
+                        != invocation.parameterType(argumentIndex).isPrimitive();
+                }
+            }
+            String descriptor = target.owner().descriptorString();
+            String owner = descriptor.substring(1, descriptor.length() - 1);
+            boxed |= boxedCall(owner, target.methodName(), MethodTypeDesc.ofDescriptor(target.lookupDescriptor()));
+            boolean virtual = target.kind() == DirectMethodHandleDesc.Kind.VIRTUAL
+                || target.kind() == DirectMethodHandleDesc.Kind.INTERFACE_VIRTUAL;
+            targets.add(new LambdaTarget(new Method(owner, target.methodName(), target.lookupDescriptor()), boxed, virtual));
+        }
+        return targets;
+    }
+
+    private static boolean boxedCall(String owner, String name, MethodTypeDesc type) {
+        return owner.startsWith("kotlin/jvm/functions/Function") && name.equals("invoke")
+            || BOXES.contains(owner) && (name.equals("valueOf") || name.equals("<init>"))
+            || (BOXES.contains(owner) || owner.equals("java/lang/Number"))
+                && name.endsWith("Value") && type.parameterCount() == 0;
+    }
+
+    private static void follow(Method caller, Iterable<LambdaTarget> targets, Consumer<Method> pending,
+            List<String> failures) {
+        for (var target : targets) {
+            if (target.boxedAdaptation()) failures.add(caller + " adapts a boxed callback boundary through " + target.method());
+            // External signatures still resolve packaged callback bodies; external numerical bytecode is not loaded.
+            pending.accept(target.method());
+        }
     }
 
     private static Set<String> subtypes(Map<String, ClassModel> models, String parent) {
