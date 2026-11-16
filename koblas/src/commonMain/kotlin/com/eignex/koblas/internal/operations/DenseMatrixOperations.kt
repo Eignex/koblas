@@ -173,8 +173,8 @@ internal fun KoblasEngine.updateSymmetricRankTwoK(
     }
 }
 
-/** Shared triangular matrix solve preparation and arithmetic dispatch. */
-internal fun KoblasEngine.solveDenseTriangularMatrix(
+/** Shared triangular solve and multiply preparation and arithmetic dispatch. */
+internal fun KoblasEngine.applyDenseTriangularMatrix(
     a: DenseMatrix,
     b: DenseMatrix,
     lower: Boolean,
@@ -182,62 +182,32 @@ internal fun KoblasEngine.solveDenseTriangularMatrix(
     unitDiag: Boolean,
     right: Boolean,
     alpha: Double,
+    solve: Boolean,
     scratch: Scratch?,
 ) {
+    val operation = if (solve) EngineImplementation.Trsm else EngineImplementation.Trmm
     val backend = kernels
     val routed = backend.hostForCall(
-        EngineImplementation.Trsm,
+        operation,
         b.rows,
         b.cols,
         a.rows,
         !a.isWholeBuffer || !b.isWholeBuffer,
     )
-    prepareTriangularMatrix(a, b, lower, unitDiag, right, alpha, "trsm", scratch) { values, offset, lda ->
+    prepareTriangularMatrix(
+        a, b, lower, unitDiag, right, alpha, if (solve) "trsm" else "trmm", scratch,
+    ) { values, offset, lda ->
+        val structure = triangle(lower, unitDiag)
         if (routed != null) {
             routed.cblasTriangularMatrix(
-                EngineImplementation.Trsm, alpha,
-                values, offset, a.rows, a.cols, lda, triangle(lower, unitDiag), transpose,
+                operation, alpha,
+                values, offset, a.rows, a.cols, lda, structure, transpose,
                 b.values, b.offset, b.rows, b.cols, b.leadingDimension, right,
             )
         } else {
             backend.scheduleTriangularMatrix(
-                alpha, values, offset, lda, a.rows, triangle(lower, unitDiag), transpose,
-                b.values, b.offset, b.leadingDimension, b.rows, b.cols, right, true, scratch,
-            )
-        }
-    }
-}
-
-/** Shared triangular matrix multiply preparation and arithmetic dispatch. */
-internal fun KoblasEngine.multiplyDenseTriangularMatrix(
-    a: DenseMatrix,
-    b: DenseMatrix,
-    lower: Boolean,
-    transpose: Boolean,
-    unitDiag: Boolean,
-    right: Boolean,
-    alpha: Double,
-    scratch: Scratch?,
-) {
-    val backend = kernels
-    val routed = backend.hostForCall(
-        EngineImplementation.Trmm,
-        b.rows,
-        b.cols,
-        a.rows,
-        !a.isWholeBuffer || !b.isWholeBuffer,
-    )
-    prepareTriangularMatrix(a, b, lower, unitDiag, right, alpha, "trmm", scratch) { values, offset, lda ->
-        if (routed != null) {
-            routed.cblasTriangularMatrix(
-                EngineImplementation.Trmm, alpha,
-                values, offset, a.rows, a.cols, lda, triangle(lower, unitDiag), transpose,
-                b.values, b.offset, b.rows, b.cols, b.leadingDimension, right,
-            )
-        } else {
-            backend.scheduleTriangularMatrix(
-                alpha, values, offset, lda, a.rows, triangle(lower, unitDiag), transpose,
-                b.values, b.offset, b.leadingDimension, b.rows, b.cols, right, false, scratch,
+                alpha, values, offset, lda, a.rows, structure, transpose,
+                b.values, b.offset, b.leadingDimension, b.rows, b.cols, right, solve, scratch,
             )
         }
     }

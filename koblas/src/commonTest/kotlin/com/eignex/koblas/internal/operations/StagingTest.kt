@@ -180,16 +180,33 @@ class StagingTest {
     fun `borrowed triangular operands snapshot overlapping destinations`() = withRegionEngines { blas ->
         for (lower in booleanArrayOf(false, true)) {
             for (right in booleanArrayOf(false, true)) {
-                val parent = paddedRegion(7, 7)
-                val a = parent.view(0, 0, 4, 4)
-                val b = parent.view(1, 1, 4, 4)
-                val expected = contiguousCopy(b)
-                val before = parent.values.copyOf()
-                ReferenceBlas.trsm(contiguousCopy(a), expected, lower, right = right)
+                for (transpose in booleanArrayOf(false, true)) {
+                    for (unit in booleanArrayOf(false, true)) {
+                        for (solve in booleanArrayOf(false, true)) {
+                            val parent = paddedRegion(7, 7)
+                            val a = parent.view(0, 0, 4, 4)
+                            val b = parent.view(1, 1, 4, 4)
+                            val expected = contiguousCopy(b)
+                            val before = parent.values.copyOf()
+                            if (solve) {
+                                ReferenceBlas.trsm(contiguousCopy(a), expected, lower, transpose, unit, right, -0.75)
+                            } else {
+                                ReferenceBlas.trmm(contiguousCopy(a), expected, lower, transpose, unit, right, -0.75)
+                            }
 
-                blas.trsm(a, b, lower, right = right, scratch = Scratch())
+                            if (solve) {
+                                blas.trsm(a, b, lower, transpose, unit, right, -0.75, Scratch())
+                            } else {
+                                blas.trmm(a, b, lower, transpose, unit, right, -0.75, Scratch())
+                            }
 
-                assertRegionAgreesWithReference(expected, b, before, "lower=$lower right=$right")
+                            assertRegionAgreesWithReference(
+                                expected, b, before,
+                                "lower=$lower right=$right transpose=$transpose unit=$unit solve=$solve",
+                            )
+                        }
+                    }
+                }
             }
         }
     }
