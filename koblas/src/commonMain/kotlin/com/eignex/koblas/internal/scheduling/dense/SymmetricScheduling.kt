@@ -3,6 +3,7 @@
 package com.eignex.koblas.internal.scheduling.dense
 
 import com.eignex.koblas.*
+import com.eignex.koblas.internal.kernels.KernelProvider
 import com.eignex.koblas.internal.storage.borrowOptional
 
 /*
@@ -47,7 +48,7 @@ internal inline fun forEachSymmetricBlock(
  * both already staged against an overlap with [c].
  */
 internal fun symmetricProduct(
-    engine: KoblasEngine,
+    engine: KernelProvider,
     alpha: Double,
     a: DoubleArray,
     order: Int,

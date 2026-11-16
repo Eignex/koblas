@@ -46,28 +46,10 @@ internal enum class OutputTriangle {
 /**
  * Executes the path selected by this window's extents, including strips passed by structured routines.
  * Packing must amortize both operand copies; other windows use panels over the original storage.
+ * Primitive windows keep structured schedules independent of temporary view escape analysis.
  */
 internal fun productWindow(
-    engine: KoblasEngine,
-    alpha: Double,
-    a: DenseMatrix,
-    transposeA: Boolean,
-    b: DenseMatrix,
-    transposeB: Boolean,
-    beta: Double,
-    c: DenseMatrix,
-    selected: OutputTriangle,
-    arrays: Scratch?,
-): Unit = productWindow(
-    engine, alpha, a.values, a.offset, a.leadingDimension, transposeA,
-    b.values, b.offset, b.leadingDimension, transposeB,
-    beta, c.values, c.offset, c.leadingDimension, c.rows, c.cols,
-    if (transposeA) a.rows else a.cols, selected, arrays,
-)
-
-/** Primitive windows keep structured schedules independent of temporary view escape analysis. */
-internal fun productWindow(
-    engine: KoblasEngine,
+    engine: KernelProvider,
     alpha: Double,
     a: DoubleArray,
     aOffset: Int,

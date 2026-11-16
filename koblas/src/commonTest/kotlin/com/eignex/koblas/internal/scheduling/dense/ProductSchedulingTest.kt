@@ -6,6 +6,7 @@ import com.eignex.koblas.dense.*
 import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.engine.asEngine
 import com.eignex.koblas.internal.kernels.*
+import com.eignex.koblas.internal.kernels.kernels
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import com.eignex.koblas.internal.operations.staged
 import kotlin.random.Random
@@ -398,9 +399,9 @@ class ProductSchedulingTest {
             }
 
             productWindow(
-                engineWithKernels(products = products, panels = panelsFor(products)),
-                ALPHA, DenseMatrix.zero(order, 0), false, DenseMatrix.zero(0, order), false,
-                BETA, DenseMatrix.wrap(order, order, destination, C_ORIGIN, leading), selected, null,
+                engineWithKernels(products = products, panels = panelsFor(products)).kernels,
+                ALPHA, doubleArrayOf(), 0, order, false, doubleArrayOf(), 0, 1, false,
+                BETA, destination, C_ORIGIN, leading, order, order, 0, selected, null,
             )
 
             for (column in 0 until order) {
@@ -465,10 +466,10 @@ class ProductSchedulingTest {
             engineWithKernels(
                 products = products,
                 panels = panelsFor(products),
-            ),
-            ALPHA, DenseMatrix.wrap(a.rows, a.cols, left, A_ORIGIN, a.rows + 3), transposeA,
-            DenseMatrix.wrap(b.rows, b.cols, right, B_ORIGIN, b.rows + 5), transposeB,
-            BETA, DenseMatrix.wrap(order, order, destination, C_ORIGIN, order + 7), selected, Scratch(),
+            ).kernels,
+            ALPHA, left, A_ORIGIN, a.rows + 3, transposeA, right, B_ORIGIN, b.rows + 5, transposeB,
+            BETA, destination, C_ORIGIN, order + 7, order, order, if (transposeA) a.rows else a.cols,
+            selected, Scratch(),
         )
 
         assertContentEquals(leftBefore, left, "$context: the left operand was written")
