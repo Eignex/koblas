@@ -136,39 +136,39 @@ public interface KoblasEngine {
     public fun scale(v: DenseVector, alpha: Double): Unit = scaleVector(alpha, v)
 
     /** Rescaled Euclidean norm; sparse storage reduces only its stored values. An empty vector has norm zero. */
-    public fun nrm2(v: DenseVector): Double = kernels.nrm2(v.values, v.offset, v.size, v.stride)
+    public fun nrm2(v: DenseVector): Double = kernels.vectorKernels.nrm2(v.values, v.offset, v.size, v.stride)
 
     /** Sum of absolute values of stored entries, or zero for an empty vector. */
-    public fun asum(v: DenseVector): Double = kernels.asum(v.values, v.offset, v.size, v.stride)
+    public fun asum(v: DenseVector): Double = kernels.vectorKernels.asum(v.values, v.offset, v.size, v.stride)
 
     /** Plain sum of stored entries. Reduction order and rounding follow the selected kernel. */
-    public fun sum(v: DenseVector): Double = kernels.sum(v.values, v.offset, v.size, v.stride)
+    public fun sum(v: DenseVector): Double = kernels.vectorKernels.sum(v.values, v.offset, v.size, v.stride)
 
     /** Scales stored entries in place, preserving views and sparse structure. Non-finite behavior follows the selected kernel. */
     public fun scale(v: SparseVector, alpha: Double): Unit = scaleVector(alpha, v)
 
     /** Rescaled Euclidean norm; sparse storage reduces only its stored values. An empty vector has norm zero. */
-    public fun nrm2(v: SparseVector): Double = kernels.nrm2(v.values, v.offset, v.nnz)
+    public fun nrm2(v: SparseVector): Double = kernels.vectorKernels.nrm2(v.values, v.offset, v.nnz)
 
     /** Sum of absolute values of stored entries, or zero for an empty vector. */
-    public fun asum(v: SparseVector): Double = kernels.asum(v.values, v.offset, v.nnz)
+    public fun asum(v: SparseVector): Double = kernels.vectorKernels.asum(v.values, v.offset, v.nnz)
 
     /** Plain sum of stored entries. Reduction order and rounding follow the selected kernel. */
-    public fun sum(v: SparseVector): Double = kernels.sum(v.values, v.offset, v.nnz)
+    public fun sum(v: SparseVector): Double = kernels.vectorKernels.sum(v.values, v.offset, v.nnz)
 
     /** Logical index of a maximum-magnitude entry, or minus one when empty. Ties and NaNs follow the selected kernel. */
-    public fun iamax(v: DenseVector): Int = kernels.iamax(v.values, v.offset, v.size, v.stride)
+    public fun iamax(v: DenseVector): Int = kernels.vectorKernels.iamax(v.values, v.offset, v.size, v.stride)
 
     /** Plane rotation of equally sized vectors. Equal mappings are safe; callers must stage other destructive overlaps. */
     public fun rot(x: DenseVector, y: DenseVector, c: Double, s: Double) {
         requireSameSize(x.size, y.size, "rot")
-        kernels.rot(x.values, x.offset, y.values, y.offset, x.size, c, s, x.stride, y.stride)
+        kernels.vectorKernels.rot(x.values, x.offset, y.values, y.offset, x.size, c, s, x.stride, y.stride)
     }
 
     /** Exchanges equally sized vectors. Callers must stage destructive overlaps, as for [rot]. */
     public fun swap(a: DenseVector, b: DenseVector) {
         requireSameSize(a.size, b.size, "swap")
-        kernels.swap(a.values, a.offset, b.values, b.offset, a.size, a.stride, b.stride)
+        kernels.vectorKernels.swap(a.values, a.offset, b.values, b.offset, a.size, a.stride, b.stride)
     }
 
     /** Writes stored [source] entries into [destination], leaving absent positions untouched. Aliased sources are staged. */
@@ -345,7 +345,7 @@ public interface KoblasEngine {
         val start = matrix.colPointers[column]
         val count = matrix.colPointers[column + 1] - start
         return if (dense.isWholeBuffer) {
-            kernels.dot(matrix.rowIndices, start, matrix.values, start, count, dense.values)
+            kernels.indexedKernels.dot(matrix.rowIndices, start, matrix.values, start, count, dense.values)
         } else {
             com.eignex.koblas.internal.kernels.scalar.sparse.indexedDotDense(
                 matrix.rowIndices,

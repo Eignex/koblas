@@ -9,7 +9,7 @@ import com.eignex.koblas.internal.kernels.scalar.dense.*
 import com.eignex.koblas.internal.kernels.scalar.sparse.*
 
 /** Complete portable arithmetic, independent of every accelerated provider. */
-internal object ScalarEngine : KernelProvider {
+internal object ScalarEngine : EngineKernels {
     override val name: String = "scalar"
     override val id: String = "portable"
     override val implementations = EngineImplementation.entries.toSet()

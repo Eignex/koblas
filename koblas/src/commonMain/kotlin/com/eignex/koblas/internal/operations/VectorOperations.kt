@@ -23,7 +23,7 @@ internal fun KoblasEngine.dotVector(x: Vector, y: Vector): Double = when {
 internal fun KoblasEngine.dotVectorStorage(x: Vector, y: Vector): Double {
     requireSameSize(x.size, y.size, "dot")
     return when {
-        x is DenseVector && y is DenseVector -> kernels.dot(
+        x is DenseVector && y is DenseVector -> kernels.vectorKernels.dot(
             x.values,
             x.offset,
             y.values,
@@ -33,12 +33,12 @@ internal fun KoblasEngine.dotVectorStorage(x: Vector, y: Vector): Double {
             y.stride,
         )
 
-        x is SparseVector && y is SparseVector -> kernels.dot(
+        x is SparseVector && y is SparseVector -> kernels.indexedKernels.dot(
             x.indices, x.offset, x.values, x.offset, x.nnz, y.indices, y.offset, y.values, y.offset, y.nnz,
         )
 
         x is SparseVector && y is DenseVector -> if (y.isWholeBuffer) {
-            kernels.dot(x.indices, x.offset, x.values, x.offset, x.nnz, y.values)
+            kernels.indexedKernels.dot(x.indices, x.offset, x.values, x.offset, x.nnz, y.values)
         } else {
             indexedDotDense(x.indices, x.offset, x.values, x.offset, x.nnz, y.values, y.offset, y.stride)
         }
@@ -91,8 +91,8 @@ internal fun KoblasEngine.absoluteSumVector(x: Vector): Double = when (x) {
 internal fun KoblasEngine.scaleVector(alpha: Double, x: Vector) {
     if (alpha == 1.0) return
     when (x) {
-        is DenseVector -> kernels.scale(x.values, x.offset, alpha, x.size, x.stride)
-        is SparseVector -> kernels.scale(x.values, x.offset, alpha, x.nnz)
+        is DenseVector -> kernels.vectorKernels.scale(x.values, x.offset, alpha, x.size, x.stride)
+        is SparseVector -> kernels.vectorKernels.scale(x.values, x.offset, alpha, x.nnz)
         else -> scalarVectorScale(alpha, x)
     }
 }
@@ -116,7 +116,9 @@ internal fun KoblasEngine.axpyVector(alpha: Double, x: Vector, y: Vector) {
 private fun KoblasEngine.axpyDenseVector(alpha: Double, x: Vector, y: DenseVector) {
     when (val source = x.stableFor(y)) {
         is SparseVector -> if (y.isWholeBuffer) {
-            kernels.axpy(source.indices, source.offset, source.values, source.offset, source.nnz, alpha, y.values)
+            kernels.indexedKernels.axpy(
+                source.indices, source.offset, source.values, source.offset, source.nnz, alpha, y.values,
+            )
         } else {
             indexedAxpy(
                 source.indices, source.offset, source.values, source.offset, source.nnz,
@@ -126,7 +128,9 @@ private fun KoblasEngine.axpyDenseVector(alpha: Double, x: Vector, y: DenseVecto
 
         is DenseVector -> {
             requireSameSize(source.size, y.size, "axpy")
-            kernels.axpy(y.values, y.offset, alpha, source.values, source.offset, source.size, y.stride, source.stride)
+            kernels.vectorKernels.axpy(
+                y.values, y.offset, alpha, source.values, source.offset, source.size, y.stride, source.stride,
+            )
         }
     }
 }
@@ -146,7 +150,9 @@ internal fun KoblasEngine.scatterStored(
     valueOffset: Int = source.offset,
 ) {
     if (destination.isWholeBuffer) {
-        kernels.scatter(source.indices, source.offset, values, valueOffset, source.nnz, destination.values)
+        kernels.indexedKernels.scatter(
+            source.indices, source.offset, values, valueOffset, source.nnz, destination.values,
+        )
     } else {
         indexedScatter(
             source.indices,
@@ -166,7 +172,7 @@ internal fun KoblasEngine.gatherVector(source: DenseVector, destination: SparseV
     require(source.values !== destination.values) { "gather requires distinct coefficient buffers" }
     if (source.isWholeBuffer) {
         if (zero) {
-            kernels.gatherZero(
+            kernels.indexedKernels.gatherZero(
                 destination.indices,
                 destination.offset,
                 destination.values,
@@ -175,7 +181,7 @@ internal fun KoblasEngine.gatherVector(source: DenseVector, destination: SparseV
                 source.values,
             )
         } else {
-            kernels.gather(
+            kernels.indexedKernels.gather(
                 destination.indices,
                 destination.offset,
                 destination.values,

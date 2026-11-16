@@ -1,7 +1,7 @@
 package com.eignex.koblas.internal.operations
 
 import com.eignex.koblas.*
-import com.eignex.koblas.internal.kernels.kernels
+import com.eignex.koblas.internal.kernels.*
 import kotlin.math.abs
 import kotlin.test.*
 
@@ -9,7 +9,7 @@ class ReductionWindowsTest {
     @Test
     fun `built in reduction windows agree with the scalar oracle`() {
         val values = doubleArrayOf(99.0, -2.0, 99.0, 3.0, 99.0, -4.0, 99.0)
-        val oracle = KoblasEngine.scalar.kernels
+        val oracle = KoblasEngine.scalar.kernels.vectorKernels
         for (engine in listOfNotNull(KoblasEngine.scalar, KoblasEngine.simd)) {
             for (stride in intArrayOf(2, -2)) {
                 val offset = if (stride > 0) 1 else 5

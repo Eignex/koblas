@@ -5,19 +5,19 @@ import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 
 internal fun engineWithKernels(
-    vectors: KernelProvider = ScalarEngine,
-    panels: KernelProvider = ScalarEngine,
-    products: KernelProvider = ScalarEngine,
-    triangles: KernelProvider = ScalarEngine,
-    indexed: KernelProvider = ScalarEngine,
+    vectors: VectorKernels = ScalarEngine,
+    panels: PanelKernels = ScalarEngine,
+    products: PackedProductKernels = ScalarEngine,
+    triangles: TriangularKernels = ScalarEngine,
+    indexed: IndexedKernels = ScalarEngine,
 ): KoblasEngine = BuiltinEngine(
     "test",
     KernelSet(
         (vectors as? BuiltinEngine)?.roles?.vectors ?: vectors,
         (indexed as? BuiltinEngine)?.roles?.indexed ?: indexed,
-        panels.panelProvider,
-        products.productProvider,
-        triangles.triangularProvider,
+        panels,
+        products,
+        triangles,
     ),
 ).asEngine()
 

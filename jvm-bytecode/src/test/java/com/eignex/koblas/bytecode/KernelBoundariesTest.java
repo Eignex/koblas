@@ -342,6 +342,17 @@ public class KernelBoundariesTest {
         assertEquals(1, KernelBoundaries.violations(declaration).size());
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"VectorKernels", "IndexedKernels", "PanelKernels", "PackedProductKernels", "TriangularKernels"})
+    void roleImplementationsRejectTypedResultsWithoutTheirParentBytecode(String role) {
+        ClassDesc provider = ClassDesc.of("com.eignex.koblas.internal.kernels." + role);
+        byte[] declaration = ClassFile.of().build(ClassDesc.of("com.eignex.koblas.internal.RoleBackend"), builder -> builder
+            .withFlags(ClassFile.ACC_PUBLIC | ClassFile.ACC_ABSTRACT)
+            .withInterfaceSymbols(provider)
+            .withMethod("window", MethodTypeDesc.of(MATRIX), ClassFile.ACC_PUBLIC | ClassFile.ACC_ABSTRACT, method -> {}));
+        assertEquals(1, KernelBoundaries.violations(declaration).size());
+    }
+
     @Test
     void backendInterfacesRejectInheritingTheTypedPublicApi() {
         ClassDesc backend = ClassDesc.of("com.eignex.koblas.internal.kernels.KernelProvider");

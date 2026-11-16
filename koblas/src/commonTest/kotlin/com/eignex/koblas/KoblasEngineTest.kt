@@ -6,7 +6,6 @@ import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.engine.asEngine
 import com.eignex.koblas.internal.host.environmentVariableOrNull
 import com.eignex.koblas.internal.kernels.*
-import com.eignex.koblas.internal.kernels.KernelProvider
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import kotlin.test.*
 import kotlin.test.Test
@@ -44,7 +43,7 @@ class KoblasEngineTest {
 
     @Test
     fun `typed vector calls use the chosen engine primitives`() {
-        val engine = object : KernelProvider {
+        val engine = object : VectorKernels {
             override val name = "recording"
             override fun sum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
                 assertEquals(3, len)
@@ -67,22 +66,26 @@ class KoblasEngineTest {
                 val scalar = KoblasEngine.scalar
 
                 assertReductionAgreesWithReference(
-                    scalar.kernels.dot(source.values, source.offset, other.values, other.offset, 3, stride, -stride),
+                    scalar.kernels.vectorKernels.dot(
+                        source.values, source.offset, other.values, other.offset, 3, stride, -stride,
+                    ),
                     engine.dot(source, other),
                 )
                 assertReductionAgreesWithReference(
-                    scalar.kernels.nrm2(source.values, source.offset, 3, stride),
+                    scalar.kernels.vectorKernels.nrm2(source.values, source.offset, 3, stride),
                     engine.nrm2(source),
                 )
                 assertReductionAgreesWithReference(
-                    scalar.kernels.asum(source.values, source.offset, 3, stride),
+                    scalar.kernels.vectorKernels.asum(source.values, source.offset, 3, stride),
                     engine.asum(source),
                 )
                 assertReductionAgreesWithReference(
-                    scalar.kernels.sum(source.values, source.offset, 3, stride),
+                    scalar.kernels.vectorKernels.sum(source.values, source.offset, 3, stride),
                     engine.sum(source),
                 )
-                assertEquals(scalar.kernels.iamax(source.values, source.offset, 3, stride), engine.iamax(source))
+                assertEquals(scalar.kernels.vectorKernels.iamax(
+                    source.values, source.offset, 3, stride,
+                ), engine.iamax(source))
             }
         }
     }
@@ -97,11 +100,19 @@ class KoblasEngineTest {
                 val expectedY = y.values.copyOf()
                 val scalar = KoblasEngine.scalar
                 when (operation) {
-                    "scale" -> scalar.kernels.scale(expectedX, x.offset, -2.0, 3, stride)
-                    "axpy" -> scalar.kernels.axpy(expectedY, y.offset, 0.75, expectedX, x.offset, 3, -stride, stride)
-                    "copy" -> scalar.kernels.copy(expectedX, x.offset, expectedY, y.offset, 3, stride, -stride)
-                    "rot" -> scalar.kernels.rot(expectedX, x.offset, expectedY, y.offset, 3, 0.6, 0.8, stride, -stride)
-                    "swap" -> scalar.kernels.swap(expectedX, x.offset, expectedY, y.offset, 3, stride, -stride)
+                    "scale" -> scalar.kernels.vectorKernels.scale(expectedX, x.offset, -2.0, 3, stride)
+                    "axpy" -> scalar.kernels.vectorKernels.axpy(
+                        expectedY, y.offset, 0.75, expectedX, x.offset, 3, -stride, stride,
+                    )
+                    "copy" -> scalar.kernels.vectorKernels.copy(
+                        expectedX, x.offset, expectedY, y.offset, 3, stride, -stride,
+                    )
+                    "rot" -> scalar.kernels.vectorKernels.rot(
+                        expectedX, x.offset, expectedY, y.offset, 3, 0.6, 0.8, stride, -stride,
+                    )
+                    "swap" -> scalar.kernels.vectorKernels.swap(
+                        expectedX, x.offset, expectedY, y.offset, 3, stride, -stride,
+                    )
                 }
 
                 when (operation) {
@@ -324,7 +335,7 @@ class KoblasEngineTest {
         assertClose(expected, actual, "typed engine reduction")
     }
 
-    private val partial = object : KernelProvider {
+    private val partial = object : VectorKernels {
         override val name = "partial"
         override val implementations = setOf(EngineImplementation.Dot)
         override fun dot(
@@ -346,7 +357,7 @@ class KoblasEngineTest {
     fun `a partial provider never inherits portable arithmetic`() {
         assertFailsWith<UnsupportedOperationException> { partial.sum(doubleArrayOf(1.0), 0, 1) }
         assertFailsWith<UnsupportedOperationException> {
-            partial.dot(
+            partial.indexedKernels.dot(
                 intArrayOf(0),
                 0,
                 doubleArrayOf(1.0),
@@ -355,7 +366,7 @@ class KoblasEngineTest {
                 doubleArrayOf(1.0),
             )
         }
-        assertFailsWith<UnsupportedOperationException> { partial.tileRows }
+        assertFailsWith<UnsupportedOperationException> { partial.productProvider.tileRows }
         assertNull(partial.implementationFor(EngineImplementation.Sum, 1))
     }
 
@@ -415,7 +426,7 @@ class KoblasEngineTest {
 
         assertEquals(setOf(engine.id), engine.providers.map { it.id }.toSet())
         assertTrue(EngineImplementation.Sum !in engine.implementations)
-        assertFailsWith<UnsupportedOperationException> { engine.kernels.sum(doubleArrayOf(1.0), 0, 1) }
+        assertFailsWith<UnsupportedOperationException> { engine.kernels.vectorKernels.sum(doubleArrayOf(1.0), 0, 1) }
         assertEquals(null, engine.implementationFor(EngineImplementation.Sum, 1))
     }
 
@@ -435,8 +446,8 @@ class KoblasEngineTest {
         // Using one must not disturb the other: both compute the same answer from the same operands.
         val x = DenseVector.wrap(doubleArrayOf(1.0, 2.0, 3.0, 4.0))
         assertEquals(
-            first.kernels.dot(x.values, 0, x.values, 0, x.size),
-            second.kernels.dot(x.values, 0, x.values, 0, x.size),
+            first.kernels.vectorKernels.dot(x.values, 0, x.values, 0, x.size),
+            second.kernels.vectorKernels.dot(x.values, 0, x.values, 0, x.size),
         )
     }
 
@@ -484,7 +495,7 @@ class KoblasEngineTest {
         val x = DoubleArray(64) { Double.POSITIVE_INFINITY }
         val y = DoubleArray(64)
 
-        koblas.kernels.axpy(y, 0, 0.0, x, 0, 64)
+        koblas.kernels.vectorKernels.axpy(y, 0, 0.0, x, 0, 64)
 
         assertContentEquals(DoubleArray(64), y, "zero axpy evaluated infinity times zero")
     }
@@ -497,14 +508,14 @@ class KoblasEngineTest {
     fun `every default kernel accepts a zero length run`() {
         val v = doubleArrayOf(1.0, 2.0, 3.0)
 
-        val dot = koblas.kernels.dot(v, 3, v, 3, 0)
-        val nrm2 = koblas.kernels.nrm2(v, 3, 0)
-        val asum = koblas.kernels.asum(v, 3, 0)
-        val sum = koblas.kernels.sum(v, 3, 0)
-        val iamax = koblas.kernels.iamax(v, 3, 0)
-        koblas.kernels.axpy(v, 3, 2.0, v, 3, 0)
-        koblas.kernels.scale(v, 3, 2.0, 0)
-        koblas.kernels.swap(v, 3, v, 3, 0)
+        val dot = koblas.kernels.vectorKernels.dot(v, 3, v, 3, 0)
+        val nrm2 = koblas.kernels.vectorKernels.nrm2(v, 3, 0)
+        val asum = koblas.kernels.vectorKernels.asum(v, 3, 0)
+        val sum = koblas.kernels.vectorKernels.sum(v, 3, 0)
+        val iamax = koblas.kernels.vectorKernels.iamax(v, 3, 0)
+        koblas.kernels.vectorKernels.axpy(v, 3, 2.0, v, 3, 0)
+        koblas.kernels.vectorKernels.scale(v, 3, 2.0, 0)
+        koblas.kernels.vectorKernels.swap(v, 3, v, 3, 0)
 
         assertEquals(0.0, dot, "dot over nothing")
         assertEquals(0.0, nrm2, "nrm2 over nothing")
@@ -524,9 +535,9 @@ class KoblasEngineTest {
         }
         val values = DoubleArray(LONG_COLUMN) { (it - 17) / 13.0 }
         val expected = values.copyOf()
-        KoblasEngine.scalar.kernels.rot(expected, 0, expected, 0, LONG_COLUMN, 0.75, -0.25)
+        KoblasEngine.scalar.kernels.vectorKernels.rot(expected, 0, expected, 0, LONG_COLUMN, 0.75, -0.25)
 
-        koblas.kernels.rot(values, 0, values, 0, LONG_COLUMN, 0.75, -0.25)
+        koblas.kernels.vectorKernels.rot(values, 0, values, 0, LONG_COLUMN, 0.75, -0.25)
 
         assertEquals(arm, koblas.implementationFor(EngineImplementation.Rot, LONG_COLUMN))
         assertClose(expected, values, "aliased vendor rotation")

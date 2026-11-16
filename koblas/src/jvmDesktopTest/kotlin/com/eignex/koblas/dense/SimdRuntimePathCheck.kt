@@ -97,7 +97,7 @@ internal object SimdRuntimePathCheck {
      * At least two steps are needed to reach multiply-subtract in a solve and multiply-add in a product.
      * Lane boundaries distinguish the vector body, its portable tail and the wholly portable fallback.
      */
-    private fun assertTriangularKernelsAgreeWithReference(kernels: KernelProvider, lanes: Int) {
+    private fun assertTriangularKernelsAgreeWithReference(kernels: TriangularKernels, lanes: Int) {
         val rng = Random(20261013)
         val order = 3
         val n = order + 2
@@ -162,7 +162,7 @@ internal object SimdRuntimePathCheck {
      * One contiguous side runs along the block. The oracle is the portable loop over every side, reached by
      * giving it a second side it does not otherwise take, so the new body is not checked against itself.
      */
-    private fun assertSingleSideAgreesWithReference(kernels: KernelProvider, lanes: Int) {
+    private fun assertSingleSideAgreesWithReference(kernels: TriangularKernels, lanes: Int) {
         val rng = Random(20261031)
         for (order in intArrayOf(lanes + 1, 4 * lanes + 3)) {
             val n = order + 2
@@ -219,7 +219,7 @@ internal object SimdRuntimePathCheck {
             val dense = DoubleArray(3 * count + 8) { rng.nextDouble(-1.0, 1.0) }
 
             val expected = ScalarEngine.dot(indices, 1, values, 2, count, dense)
-            val actual = engine.kernels.dot(indices, 1, values, 2, count, dense)
+            val actual = engine.kernels.indexedKernels.dot(indices, 1, values, 2, count, dense)
 
             assertClose(expected, actual, "sparse dot count=$count engine=${engine.name}")
         }

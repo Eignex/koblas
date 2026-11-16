@@ -19,7 +19,7 @@ import kotlin.test.assertTrue
  * on a runtime without the module is a linkage error before any test body runs.
  */
 class SimdPanelKernelsTest {
-    private val kernels: KernelProvider? = KoblasEngine.simd?.panelProvider
+    private val kernels: PanelKernels? = KoblasEngine.simd?.panelProvider
 
     @Test
     fun `long column updates agree with the scalar oracle`() {

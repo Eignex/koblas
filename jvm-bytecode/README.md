@@ -107,8 +107,10 @@ explicit wrapper constructors count as boxing, while widening between primitive 
 
 Backend implementations are separate from the public typed `KoblasEngine` API. The shared
 `BackendEngine` adapter validates and stages operands before passing primitive windows to
-`KernelProvider` or `HostBlas`. The verifier rejects typed container arguments/results in those
-interfaces and their implementations through the packaged inheritance graph, inheritance of the typed
-public API, and calls that
-reconstruct or consume typed containers within a backend. This also covers unused declarations.
+the vector, indexed, panel, packed-product and triangular kernel contracts, or `HostBlas`.
+`KernelProvider` carries shared identity and capability metadata; `KernelSet` accepts a distinct type
+for each arithmetic role. The verifier recognizes each role independently and rejects typed container
+arguments/results in those interfaces and their implementations through the packaged inheritance graph,
+inheritance of the typed public API, and calls that reconstruct or consume typed containers within a
+backend. This also covers unused declarations.
 JVM foreign-memory transfers and Native pinning accept the same primitive geometry.

@@ -2,7 +2,7 @@ package com.eignex.koblas.internal.engine
 
 import com.eignex.koblas.*
 import com.eignex.koblas.EngineImplementation.*
-import com.eignex.koblas.internal.kernels.KernelProvider
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import kotlin.test.*
 
@@ -165,8 +165,8 @@ class EngineTuningTest {
         }
     }
 
-    private fun provider(vendor: Vendor, operations: Set<EngineImplementation>): KernelProvider =
-        object : KernelProvider {
+    private fun provider(vendor: Vendor, operations: Set<EngineImplementation>): VectorKernels =
+        object : VectorKernels {
             override val name = vendor.vendorName
             override val vendor = vendor
             override val implementations = operations

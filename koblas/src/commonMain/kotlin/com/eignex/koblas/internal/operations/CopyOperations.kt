@@ -71,7 +71,7 @@ private fun KoblasEngine.copyIntoDenseVector(source: Vector, destination: DenseV
         val provider = vectorProviderFor(EngineImplementation.Copy, source.size, contiguous)
         // Portable contiguous copy is a memmove, so it needs no alias snapshot.
         val stable = if (provider === ScalarEngine && contiguous) source else source.stableFor(destination)
-        provider.copy(
+        provider.vectorKernels.copy(
             stable.values,
             stable.offset,
             destination.values,

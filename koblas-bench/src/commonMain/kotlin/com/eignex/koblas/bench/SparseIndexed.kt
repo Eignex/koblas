@@ -19,7 +19,9 @@ internal fun sparseIndexedWork(case: BenchCase, engine: KoblasEngine): CaseWork 
     val timing = if (mutation) case.option("timing", "reset-and-arithmetic") else "arithmetic"
 
     fun arithmetic(selected: KoblasEngine, sparse: SparseVector, destination: DoubleArray): BenchmarkOperation {
-        val kernels = selected.kernels
+        if (operation == "spnrm2") return BenchmarkOperation { selected.normVector(sparse) }
+        if (operation == "spasum") return BenchmarkOperation { selected.absoluteSumVector(sparse) }
+        val kernels = selected.kernels.indexedKernels
         val indices = sparse.copyIndices()
         val initialValues = sparse.values.copyOf()
         val count = sparse.nnz
@@ -30,8 +32,6 @@ internal fun sparseIndexedWork(case: BenchCase, engine: KoblasEngine): CaseWork 
                 kernels.dot(sparse.indices, 0, sparse.values, 0, count,
                     sparseY.indices, 0, sparseY.values, 0, sparseY.nnz)
             }
-            "spnrm2" -> BenchmarkOperation { selected.normVector(sparse) }
-            "spasum" -> BenchmarkOperation { selected.absoluteSumVector(sparse) }
             "spaxpy" -> BenchmarkOperation {
                 initialDense.copyInto(destination)
                 kernels.axpy(sparse.indices, 0, sparse.values, 0, count, 0.875, destination)

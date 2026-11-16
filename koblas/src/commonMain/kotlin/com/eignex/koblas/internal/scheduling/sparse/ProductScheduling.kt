@@ -577,7 +577,7 @@ private fun KernelProvider.sparseEvaluatedAxpy(
     length: Int,
 ) {
     if (alpha != 0.0) {
-        this.axpy(y, yOffset, alpha, x, xOffset, length)
+        vectorKernels.axpy(y, yOffset, alpha, x, xOffset, length)
         return
     }
     scalarEvaluatedAxpy(y, yOffset, alpha, x, xOffset, length)

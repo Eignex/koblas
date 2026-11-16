@@ -130,8 +130,8 @@ internal inline fun copyTriangle(
     entry: (i: Int, j: Int) -> Double,
 ) {
     for (j in 0 until columns) {
-        val first = if (lower == true) j else 0
-        val last = if (lower == false && j < rows) j + 1 else rows
+        val first = selectedRowStart(j, rows, lower)
+        val last = selectedRowEnd(j, rows, lower)
         for (i in first until last) copy[i + j * rows] = if (unitDiag && i == j) 1.0 else entry(i, j)
     }
 }

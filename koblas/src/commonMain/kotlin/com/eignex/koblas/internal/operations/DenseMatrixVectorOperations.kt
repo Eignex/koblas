@@ -72,7 +72,7 @@ internal fun KoblasEngine.updateDenseRank(
 ) {
     val backend = kernels
     val host = backend.hostForCall(Ger, a.rows, a.cols, 1, !a.isWholeBuffer)
-    prepareRankUpdate(alpha, x, y, a, "ger", scratch) { xv, xo, xs, yv, yo, ys ->
+    prepareRankUpdate(alpha, x, y, a, RankUpdate.General, scratch) { xv, xo, xs, yv, yo, ys ->
         if (host != null) {
             host.cblasGer(
                 alpha, xv, xo, x.size, xs, yv, yo, y.size, ys,
@@ -96,7 +96,7 @@ internal fun KoblasEngine.updateSymmetricRank(
 ) {
     val backend = kernels
     val host = backend.hostForCall(Syr, a.rows, a.rows, 1, !a.isWholeBuffer)
-    prepareRankUpdate(alpha, x, x, a, "syr", scratch) { values, offset, stride, _, _, _ ->
+    prepareRankUpdate(alpha, x, x, a, RankUpdate.Symmetric, scratch) { values, offset, stride, _, _, _ ->
         if (host != null) {
             host.cblasSyr(
                 alpha, values, offset, x.size, stride,
@@ -118,7 +118,7 @@ internal fun KoblasEngine.updateSymmetricRankTwo(
 ) {
     val backend = kernels
     val host = backend.hostForCall(Syr2, a.rows, a.rows, 1, !a.isWholeBuffer)
-    prepareRankUpdate(alpha, x, y, a, "syr2", scratch) { xv, xo, xs, yv, yo, ys ->
+    prepareRankUpdate(alpha, x, y, a, RankUpdate.SymmetricTwo, scratch) { xv, xo, xs, yv, yo, ys ->
         if (host != null) {
             host.cblasSyr2(
                 alpha, xv, xo, x.size, xs, yv, yo, y.size, ys,

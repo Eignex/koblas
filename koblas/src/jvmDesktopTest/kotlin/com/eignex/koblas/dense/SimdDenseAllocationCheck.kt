@@ -103,34 +103,34 @@ internal object SimdDenseAllocationCheck {
             a[0]
         }
         assertAllocationFree("unrolled absolute sum with a tail") {
-            engine.kernels.asum(x, 3, ORDER - 3)
+            engine.kernels.vectorKernels.asum(x, 3, ORDER - 3)
         }
         assertAllocationFree("unrolled dot with offsets and a tail") {
-            engine.kernels.dot(x, 3, y, 5, ORDER - 5)
+            engine.kernels.vectorKernels.dot(x, 3, y, 5, ORDER - 5)
         }
         assertAllocationFree("contiguous axpy with offsets and a tail") {
-            engine.kernels.axpy(y, 3, 1e-12, x, 1, ORDER - 3)
+            engine.kernels.vectorKernels.axpy(y, 3, 1e-12, x, 1, ORDER - 3)
             y[3]
         }
         assertAllocationFree("unit axpy at simplex width with offsets and a tail") {
-            engine.kernels.axpy(y, 3, 1.0, x, 1, 70)
+            engine.kernels.vectorKernels.axpy(y, 3, 1.0, x, 1, 70)
             y[3]
         }
         val streamingSource = DoubleArray(65_552) { 0.125 }
         val streamingDestination = DoubleArray(streamingSource.size)
         assertAllocationFree("streaming axpy with offsets and a tail", warmup = 20_000, iterations = 2_000) {
-            engine.kernels.axpy(streamingDestination, 3, 1e-12, streamingSource, 1, 65_537)
+            engine.kernels.vectorKernels.axpy(streamingDestination, 3, 1e-12, streamingSource, 1, 65_537)
             streamingDestination[3]
         }
         assertAllocationFree("filtered iamax with an offset and a tail") {
-            engine.kernels.iamax(x, 3, ORDER - 3).toDouble()
+            engine.kernels.vectorKernels.iamax(x, 3, ORDER - 3).toDouble()
         }
         val peaked = DoubleArray(ORDER) { if (it == 3) 2.0 else -1.0 }
         assertAllocationFree("iamax filtering non improving blocks") {
-            engine.kernels.iamax(peaked, 3, ORDER - 3).toDouble()
+            engine.kernels.vectorKernels.iamax(peaked, 3, ORDER - 3).toDouble()
         }
         assertAllocationFree("norm with an offset and a tail") {
-            engine.kernels.nrm2(x, 3, ORDER - 3)
+            engine.kernels.vectorKernels.nrm2(x, 3, ORDER - 3)
         }
         checkWholeOperations(engine)
         checkDefaultDispatch()
@@ -184,10 +184,10 @@ internal object SimdDenseAllocationCheck {
      */
     private fun checkHostComposition(engine: KoblasEngine) {
         val portable = engineWithKernels(
-            engine.kernels,
-            engine.kernels,
-            engine.kernels,
-            engine.kernels,
+            engine.kernels.vectorKernels,
+            engine.panelProvider,
+            engine.productProvider,
+            engine.triangularProvider,
         )
         val composed = engineWithHost(
             portable,
@@ -388,7 +388,7 @@ internal object SimdDenseAllocationCheck {
      * whole tile and a column edge stores fewer columns, and the writeback is where accumulators that
      * stopped living in registers show up.
      */
-    private fun checkShortEdges(products: KernelProvider, tileRows: Int, tileColumns: Int) {
+    private fun checkShortEdges(products: PackedProductKernels, tileRows: Int, tileColumns: Int) {
         val depth = 32
         val left = DoubleArray(tileRows * depth) { 1.0 + (it % 13) * 0.125 }
         val right = DoubleArray(tileColumns * depth) { 0.5 + (it % 7) * 0.25 }
@@ -424,7 +424,7 @@ internal object SimdDenseAllocationCheck {
      * inlined into a traversal is not, since what a compiler keeps in registers depends on the size of the
      * method it ended up compiling.
      */
-    private fun checkBlockOfTiles(products: KernelProvider, tileRows: Int, tileColumns: Int) {
+    private fun checkBlockOfTiles(products: PackedProductKernels, tileRows: Int, tileColumns: Int) {
         val depth = 64
         // One row and one column short of whole tiles, so the block has both edges inside it as well as the
         // full tiles that surround them.

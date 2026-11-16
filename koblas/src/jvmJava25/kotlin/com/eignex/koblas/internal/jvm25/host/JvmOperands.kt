@@ -3,7 +3,7 @@ package com.eignex.koblas.internal.jvm25.host
 import com.eignex.koblas.*
 import com.eignex.koblas.internal.host.baseIndex
 import com.eignex.koblas.internal.kernels.*
-import com.eignex.koblas.internal.operations.MatrixStructure
+import com.eignex.koblas.internal.operations.*
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout.JAVA_DOUBLE
@@ -93,11 +93,9 @@ internal class NativeMatrix(
     /** Writes only selected logical entries, preserving padding and the other triangle. */
     fun writeBack() {
         for (column in 0 until columns) {
-            for (row in 0 until rows) {
-                if (storedEntry(structure, row, column)) {
-                    values[offset + row + column * sourceLeadingDimension] =
-                        segment.getAtIndex(JAVA_DOUBLE, (row + column * rows).toLong())
-                }
+            for (row in structure.storedRowStart(column, rows) until structure.storedRowEnd(column, rows)) {
+                values[offset + row + column * sourceLeadingDimension] =
+                    segment.getAtIndex(JAVA_DOUBLE, (row + column * rows).toLong())
             }
         }
     }
@@ -117,25 +115,14 @@ internal fun Arena.stageMatrix(
     val segment = allocate(JAVA_DOUBLE, maxOf(1L, span))
     if (read) {
         for (column in 0 until columns) {
-            for (row in 0 until rows) {
-                if (storedEntry(structure, row, column)) {
-                    segment.setAtIndex(
-                        JAVA_DOUBLE,
-                        (row + column * rows).toLong(),
-                        values[offset + row + column * leadingDimension],
-                    )
-                }
+            for (row in structure.storedRowStart(column, rows) until structure.storedRowEnd(column, rows)) {
+                segment.setAtIndex(
+                    JAVA_DOUBLE,
+                    (row + column * rows).toLong(),
+                    values[offset + row + column * leadingDimension],
+                )
             }
         }
     }
     return NativeMatrix(segment, maxOf(1, rows), values, offset, rows, columns, leadingDimension, structure)
-}
-
-/** Which entries the binding may transfer, including implicit unit-diagonal exclusion. */
-private fun storedEntry(structure: MatrixStructure, row: Int, column: Int): Boolean = when (structure) {
-    MatrixStructure.General -> true
-    MatrixStructure.SymmetricLower, MatrixStructure.TriangularLower -> row >= column
-    MatrixStructure.SymmetricUpper, MatrixStructure.TriangularUpper -> row <= column
-    MatrixStructure.UnitLower -> row > column
-    MatrixStructure.UnitUpper -> row < column
 }

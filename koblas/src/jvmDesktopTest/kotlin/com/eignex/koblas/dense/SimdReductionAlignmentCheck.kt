@@ -41,7 +41,7 @@ internal object SimdReductionAlignmentCheck {
         SimdVectorOpsTest().`reductions agree with the scalar oracle for windows in large backing arrays`()
         SimdVectorOpsTest().assertFiniteReductionsAgreeWithReference(65_536)
         SimdVectorOpsTest().assertFiniteReductionsAgreeWithReference(65_537)
-        val kernels = requireNotNull(KoblasEngine.simd).kernels
+        val kernels = requireNotNull(KoblasEngine.simd).kernels.vectorKernels
         for (i in values.indices) values[i] = (i % 17 - 8) / 16.0
         val other = DoubleArray(values.size) { (it % 11 - 5) / 8.0 }
         assertAllocationFree("asum") { kernels.asum(values, 0, 65_536) }

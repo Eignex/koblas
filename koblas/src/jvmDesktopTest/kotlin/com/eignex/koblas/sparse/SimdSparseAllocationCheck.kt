@@ -59,7 +59,7 @@ internal object SimdSparseAllocationCheck {
         val dense = DoubleArray(DIMENSION) { 1.0 + (it % 17) * 0.03125 }
 
         assertAllocationFree("dispatched indexed dot") {
-            engine.kernels.dot(indices, 0, values, 0, values.size, dense)
+            engine.kernels.indexedKernels.dot(indices, 0, values, 0, values.size, dense)
         }
         checkPublicSlices(engine)
         checkPanels(engine)
@@ -85,7 +85,7 @@ internal object SimdSparseAllocationCheck {
             }
         }
         val dense = DoubleArray(DIMENSION) { 1.0 + (it % 17) * 0.03125 }
-        val kernels = engine.kernels
+        val kernels = engine.kernels.indexedKernels
         val matrix = SparseMatrix.wrap(
             DIMENSION,
             2,

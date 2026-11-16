@@ -13,7 +13,7 @@ class RunnerTest {
     @Test
     fun `recorded providers follow the actual threshold and layout dispatcher`() {
         var calls = 0
-        val leaf = object : KernelProvider {
+        val leaf = object : VectorKernels {
             override val name = "chosen"
             override fun minimumLength(implementation: EngineImplementation): Int = 64
             override fun requiresUnitStride(implementation: EngineImplementation): Boolean = true
@@ -21,7 +21,7 @@ class RunnerTest {
             override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int, aStride: Int,
                 bStride: Int): Double {
                 calls++
-                return KoblasEngine.scalar.kernels.dot(a, aOff, b, bOff, len, aStride, bStride)
+                return KoblasEngine.scalar.kernels.vectorKernels.dot(a, aOff, b, bOff, len, aStride, bStride)
             }
         }
         val engine = BuiltinEngine("threshold", KernelSet(vectors = leaf)).asEngine()

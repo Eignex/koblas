@@ -441,7 +441,7 @@ class StagingTest {
         val expected = x.toDoubleArray()
         val scratch = Scratch()
 
-        prepareRankUpdate(0.5, x, y, a, "ger", scratch) { xv, xo, xs, yv, yo, ys ->
+        prepareRankUpdate(0.5, x, y, a, RankUpdate.General, scratch) { xv, xo, xs, yv, yo, ys ->
             values.fill(-1.0)
             assertSame(xv, yv)
             assertEquals(0, xo)
@@ -570,7 +570,7 @@ class StagingTest {
                 val source = DenseVector.wrap(backing, sourceOffset, 5, stride)
                 val destination = DenseVector.wrap(backing, destinationOffset, 5, stride)
                 val expected = backing.copyOf()
-                KoblasEngine.scalar.kernels.axpy(
+                KoblasEngine.scalar.kernels.vectorKernels.axpy(
                     expected,
                     destinationOffset,
                     0.75,

@@ -14,14 +14,14 @@ internal fun sparseColumnDotWork(case: BenchCase, engine: KoblasEngine): CaseWor
     val matrix = SparseMatrix.wrap(rows, 5, intArrayOf(0, 1, 2, 3, count + 3, count + 4), indices, values)
     val dense = Fixtures.vector(rows, 2)
     val vector = DenseVector.wrap(dense)
-    val kernels = engine.kernels
+    val kernels = engine.kernels.indexedKernels
     val raw = case.operation == "spdot-column-raw"
     val run = if (raw) {
         BenchmarkOperation { kernels.dot(indices, 3, values, 3, count, dense) }
     } else {
         BenchmarkOperation { engine.dotColumn(matrix, 3, vector) }
     }
-    val expected = KoblasEngine.scalar.kernels.dot(indices, 3, values, 3, count, dense)
+    val expected = KoblasEngine.scalar.kernels.indexedKernels.dot(indices, 3, values, 3, count, dense)
     DenseReference.check(doubleArrayOf(expected), doubleArrayOf(run()), case.id)
     return engineWork(engine, case.operation, "arithmetic", run)
 }

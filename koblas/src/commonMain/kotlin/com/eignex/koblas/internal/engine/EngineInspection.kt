@@ -7,19 +7,19 @@ import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 
 /** The kernels a shared schedule run on this engine calls, which a built-in engine binds once. */
-internal val KernelProvider.panelProvider: KernelProvider get() = when (this) {
+internal val KernelProvider.panelProvider: PanelKernels get() = when (this) {
     is BuiltinEngine -> roles.panels
-    else -> this
+    else -> this as? PanelKernels ?: missingRole()
 }
 
-internal val KernelProvider.productProvider: KernelProvider get() = when (this) {
+internal val KernelProvider.productProvider: PackedProductKernels get() = when (this) {
     is BuiltinEngine -> roles.products
-    else -> this
+    else -> this as? PackedProductKernels ?: missingRole()
 }
 
-internal val KernelProvider.triangularProvider: KernelProvider get() = when (this) {
+internal val KernelProvider.triangularProvider: TriangularKernels get() = when (this) {
     is BuiltinEngine -> roles.triangular
-    else -> this
+    else -> this as? TriangularKernels ?: missingRole()
 }
 
 /** Selects the same primitive provider used by vector execution and alias preparation. */
@@ -51,23 +51,9 @@ internal fun KernelProvider.wholeCallFor(
     depth: Int = 1,
     borrowed: Boolean = false,
 ): KernelProvider? {
-    val provider = (this as? BuiltinEngine)?.hostFor(operation, rows, columns, depth, borrowed) ?: this
-    // Portable schedules retain the caller's selected kernels instead of a portable leaf's.
-    return provider.takeIf { it !== ScalarEngine && (it !== this || operation in it.implementations) }
+    val provider = if (this is BuiltinEngine) hostFor(operation, rows, columns, depth, borrowed) else this
+    return provider?.takeIf { operation in it.implementations && it !== ScalarEngine }
 }
-
-/**
- * The engine a whole call on this one is handed to, or null when this engine runs the shared schedule itself.
- *
- * Only a built-in engine hands calls to its selected host library, which must export the operation.
- */
-internal fun KernelProvider.routedWholeCall(
-    operation: EngineImplementation,
-    rows: Int,
-    columns: Int,
-    depth: Int,
-    borrowed: Boolean,
-): KernelProvider? = wholeCallFor(operation, rows, columns, depth, borrowed)?.takeIf { it !== this }
 
 internal fun KernelProvider.implementationFor(
     operation: EngineImplementation,
@@ -80,9 +66,9 @@ internal fun KernelProvider.implementationFor(
     }?.name
 }
 
-internal val KoblasEngine.panelProvider: KernelProvider get() = kernels.panelProvider
-internal val KoblasEngine.productProvider: KernelProvider get() = kernels.productProvider
-internal val KoblasEngine.triangularProvider: KernelProvider get() = kernels.triangularProvider
+internal val KoblasEngine.panelProvider: PanelKernels get() = kernels.panelProvider
+internal val KoblasEngine.productProvider: PackedProductKernels get() = kernels.productProvider
+internal val KoblasEngine.triangularProvider: TriangularKernels get() = kernels.triangularProvider
 
 internal fun KoblasEngine.vectorProviderFor(
     operation: EngineImplementation,
@@ -97,14 +83,6 @@ internal fun KoblasEngine.wholeCallFor(
     depth: Int = 1,
     borrowed: Boolean = false,
 ): KernelProvider? = kernels.wholeCallFor(operation, rows, columns, depth, borrowed)
-
-internal fun KoblasEngine.routedWholeCall(
-    operation: EngineImplementation,
-    rows: Int,
-    columns: Int,
-    depth: Int,
-    borrowed: Boolean,
-): KernelProvider? = kernels.routedWholeCall(operation, rows, columns, depth, borrowed)
 
 internal fun KoblasEngine.providerFor(
     operation: EngineImplementation,
@@ -129,12 +107,10 @@ internal fun KernelProvider.hostForCall(
     depth: Int,
     borrowed: Boolean,
 ): HostBlas? {
-    val backend = this
-    if (backend is HostBlas) {
-        if (operation !in backend.implementations) {
-            throw UnsupportedOperationException("${operation.entryPoint} is not exported by ${backend.name}")
-        }
-        return backend
+    val selected = wholeCallFor(operation, rows, columns, depth, borrowed)
+    if (selected is HostBlas) return selected
+    if (this is HostBlas) {
+        throw UnsupportedOperationException("${operation.entryPoint} is not exported by $name")
     }
-    return (backend as? BuiltinEngine)?.hostFor(operation, rows, columns, depth, borrowed) as? HostBlas
+    return null
 }

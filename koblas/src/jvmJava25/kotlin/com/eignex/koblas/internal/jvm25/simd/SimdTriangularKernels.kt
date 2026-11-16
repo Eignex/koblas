@@ -3,7 +3,7 @@
 package com.eignex.koblas.internal.jvm25.simd
 
 import com.eignex.koblas.*
-import com.eignex.koblas.internal.kernels.KernelProvider
+import com.eignex.koblas.internal.kernels.TriangularKernels
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import com.eignex.koblas.internal.kernels.scalar.dense.triangleEntry
 import jdk.incubator.vector.DoubleVector
@@ -16,7 +16,7 @@ import jdk.incubator.vector.VectorOperators
  * reports the bodies and [gathersRightHandSides] requests profitable copies. [KoblasEngine] checks module
  * availability before species initialization.
  */
-internal object SimdTriangularKernels : KernelProvider {
+internal object SimdTriangularKernels : TriangularKernels {
     override val id: String = "jvm-simd"
     override val implementations = setOf(EngineImplementation.Triangular)
 

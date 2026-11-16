@@ -32,6 +32,11 @@ public final class KernelBoundaries {
     private static final Set<String> BACKENDS = Set.of(
         PROJECT + "internal/kernels/EngineKernels",
         PROJECT + "internal/kernels/KernelProvider",
+        PROJECT + "internal/kernels/VectorKernels",
+        PROJECT + "internal/kernels/IndexedKernels",
+        PROJECT + "internal/kernels/PanelKernels",
+        PROJECT + "internal/kernels/PackedProductKernels",
+        PROJECT + "internal/kernels/TriangularKernels",
         PROJECT + "internal/host/HostBlas"
     );
     private static final Set<String> CONTAINERS = Set.of(

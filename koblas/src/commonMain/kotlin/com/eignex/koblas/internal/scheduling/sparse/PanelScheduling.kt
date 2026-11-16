@@ -249,9 +249,9 @@ internal fun KernelProvider.sparseTriangularRightColumn(
             val alpha = if (solve) -value else value
             val rowOffset = origin + row * leadingDimension
             if (solve == gather) {
-                this.axpy(dense, rowOffset, alpha, dense, columnOffset, rows)
+                vectorKernels.axpy(dense, rowOffset, alpha, dense, columnOffset, rows)
             } else {
-                this.axpy(dense, columnOffset, alpha, dense, rowOffset, rows)
+                vectorKernels.axpy(dense, columnOffset, alpha, dense, rowOffset, rows)
             }
         }
     }
@@ -268,6 +268,6 @@ private fun KernelProvider.sparseApplyDiagonal(
     if (solve) {
         scalarDivide(dense, offset, rows, diagonal)
     } else {
-        scale(dense, offset, diagonal, rows)
+        vectorKernels.scale(dense, offset, diagonal, rows)
     }
 }

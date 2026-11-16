@@ -62,7 +62,7 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork {
             val x = fixture.x
             val y = fixture.y
             val run = BenchmarkOperation {
-                engine.kernels.axpy(y, 0, 1.0, x, 0, length)
+                engine.kernels.vectorKernels.axpy(y, 0, 1.0, x, 0, length)
                 y[0]
             }
             fixture.verify(case.id, run)
@@ -234,7 +234,7 @@ private fun vectorWork(case: BenchCase, engine: KoblasEngine): CaseWork {
     val reset = mutation && case.option("timing", "reset-and-arithmetic") != "arithmetic"
     val timing = if (reset) "reset-and-arithmetic" else "arithmetic"
     fun arithmetic(provider: KoblasEngine, a: DenseVector, b: DenseVector): BenchmarkOperation {
-        val kernels = provider.kernels
+        val kernels = provider.kernels.vectorKernels
         var alpha = 0.875
         val apply: BenchmarkOperation = when (case.operation) {
             "dot" -> BenchmarkOperation {
