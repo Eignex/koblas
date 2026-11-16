@@ -56,9 +56,12 @@ class DenseTest {
 
     @Test
     fun `every product case runs on every engine and names it`() {
+        val cases = REPRESENTATIVE_PRODUCT_CASES.map { Cases.parse(it).single() }
+        val expectedOperations = operationSpecs.filterValues { it.level == 3 }.keys
+        assertEquals(expectedOperations, cases.map { it.operation }.toSet())
         val engines = listOfNotNull<KoblasEngine>(KoblasEngine.scalar, KoblasEngine.simd)
-        for (line in PRODUCT_CASES) {
-            val case = Cases.parse(line).single()
+        for (case in cases) {
+            val line = case.id
             for (engine in engines) {
                 val work = assertNotNull(denseWork(case, engine), "$line on ${engine.name}")
                 assertEquals("${engine.name}/${case.operation}", work.kernel)
@@ -101,7 +104,7 @@ class DenseTest {
          * A square of forty-eight is packed into tiles on every backend here, and a triangle of ninety-six is
          * more than one diagonal block, so the blocked paths are what preflight checks.
          */
-        val PRODUCT_CASES = listOf(
+        val REPRESENTATIVE_PRODUCT_CASES = listOf(
             "gemm+64x64x128+uniform",
             "gemm+256x2x512+uniform+transA=T+transB=T",
             "gemmt+48x48+uniform+uplo=L+transA=N+transB=N",

@@ -156,7 +156,7 @@ internal fun measurement(
     kernel: String? = null,
     provider: String? = null,
 ): Measurement = Measurement(
-    listOf(
+    ReportIdentity(
         case.id, status, comparisonKind, timingMode,
         // Timed rows require their attribution; declined rows carry the rejection reason.
         if (status != "ok") kernel ?: "unavailable" else checkNotNull(kernel) {
@@ -207,11 +207,23 @@ internal data class RoutingKey(
 
 internal expect fun RoutingKey.provider(engine: KoblasEngine): String
 
-internal data class Measurement(val case: List<String>, val fork: Int, val nanos: Double?)
+internal data class ReportIdentity(
+    val caseId: String,
+    val status: String,
+    val comparisonKind: String,
+    val timingMode: String,
+    val kernel: String,
+    val provider: String,
+    val routingKey: String,
+) {
+    fun csvFields(): List<String> = listOf(caseId, status, comparisonKind, timingMode, kernel, provider, routingKey)
+}
+
+internal data class Measurement(val identity: ReportIdentity, val fork: Int, val nanos: Double?)
 
 internal fun reportCsv(measurements: List<Measurement>): String = buildString {
     appendLine(CSV_HEADER)
-    for ((case, rows) in measurements.groupBy { it.case }) {
+    for ((identity, rows) in measurements.groupBy { it.identity }) {
         val samples = rows.filter { it.nanos != null }
         val values = samples.map { requireNotNull(it.nanos) }.sorted()
         require(values.all { it.isFinite() && it > 0 }) { "invalid measured timing" }
@@ -221,7 +233,7 @@ internal fun reportCsv(measurements: List<Measurement>): String = buildString {
             listOf(median, values.first(), values.last()).map(Double::toString)
         }
         val counts = listOf(samples.size.toString(), samples.map { it.fork }.distinct().size.toString())
-        appendLine(csvRecord(case + counts + statistics))
+        appendLine(csvRecord(identity.csvFields() + counts + statistics))
     }
 }
 

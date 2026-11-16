@@ -44,10 +44,24 @@ class SparseTest {
      */
     @Test
     fun `every sparse matrix operation verifies its result before it is timed`() {
-        for (id in listOf(
+        val cases = REPRESENTATIVE_MATRIX_CASES.map { Cases.parse(it).single() }
+        val expectedOperations = operationSpecs.filterValues { "support" in it.allowed }.keys
+        assertEquals(expectedOperations, cases.map { it.operation }.toSet())
+        for (case in cases) {
+            val id = case.id
+            val work = assertNotNull(sparseWork(case, KoblasEngine.scalar), id)
+            assertTrue(work.run().isFinite(), id)
+        }
+    }
+
+    private companion object {
+        // Small shapes exercise preflight validation without using the performance inventory's sizes.
+        val REPRESENTATIVE_MATRIX_CASES = listOf(
             "spgemv+9x7+sparse-uniform+density=0.3+mode=oneshot",
             "spgemv+9x7+sparse-uniform+density=0.3+mode=oneshot+transA=T",
             "spmm+9x3x7+sparse-uniform+density=0.3+mode=oneshot",
+            "spmm-right+9x3x7+sparse-uniform+density=0.3+mode=oneshot",
+            "spmm-right+9x3x7+sparse-uniform+density=0.3+mode=oneshot+transA=T",
             "spmm+9x3x7+sparse-uniform+density=0.3+mode=oneshot+transB=T",
             "spsymv+9+sparse-triangular+density=0.3+mode=oneshot+uplo=L",
             "spsymv+9+sparse-triangular+density=0.3+mode=oneshot+uplo=U",
@@ -62,10 +76,6 @@ class SparseTest {
             "sptrmm+3x9+sparse-triangular+density=0.3+mode=oneshot+side=R+uplo=L+transA=N+diag=N",
             "spsyrk-dense+9x5+sparse-uniform+density=0.3+uplo=U",
             "spsyrk-dense+9x5+sparse-uniform+density=0.3+uplo=L",
-        )) {
-            val case = Cases.parse(id).single()
-            val work = assertNotNull(sparseWork(case, KoblasEngine.scalar), id)
-            assertTrue(work.run().isFinite(), id)
-        }
+        )
     }
 }

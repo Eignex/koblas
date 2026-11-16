@@ -64,16 +64,74 @@ class CalibrationCaptureTest {
         }
     }
 
-    private fun rewrite(path: Path, before: String, after: String) = Files.writeString(path, Files.readString(
-        path).replace(before, after))
-    private fun fixture(block: (Path) -> Unit) {
-        val root = Files.createTempDirectory("koblas-tuning")
-        try {
-            block(root)
-        } finally {
-            root.toFile().deleteRecursively()
+    @Test fun `fetched captures validate selected arm artifacts and retain job evidence`() = fixture { root ->
+        fetchedRounds(root)
+
+        val capture = readCalibration(listOf(root), "native", "onemkl", "onemkl", arm = "baseline")
+
+        assertEquals(listOf(0.5, 0.5, 0.5), capture.timings.map { it.ratio })
+        assertTrue(root.resolve("lab-job.json").toString() in capture.hashes)
+        assertTrue(root.resolve("lab-execution.json").toString() in capture.hashes)
+        assertTrue(root.resolve("lab-cases.jsonl").toString() in capture.hashes)
+        assertEquals(2, capture.provenance.size)
+    }
+
+    @Test fun `fetched captures reject unsuccessful paired arms and changed artifacts`() {
+        for (failure in listOf("pair", "artifact")) fixture { root ->
+            fetchedRounds(root)
+            when (failure) {
+                "pair" -> rewrite(root.resolve("lab-cases.jsonl"),
+                    "\"arm\":\"candidate\",\"status\":\"DONE\"", "\"arm\":\"candidate\",\"status\":\"FAILED\"")
+                "artifact" -> rewrite(root.resolve("cases/0/out/pass-2/onemkl.csv"), ",5,", ",6,")
+            }
+
+            assertFailsWith<IllegalArgumentException>(failure) {
+                readCalibration(listOf(root), "native", "onemkl", "onemkl", arm = "baseline")
+            }
         }
     }
+
+    @Test fun `captures reject changed protocol runtime and measured sources`() {
+        for (failure in listOf("protocol", "runtime", "manifest")) fixture { root ->
+            rounds(root)
+            when (failure) {
+                "protocol" -> rewrite(root.resolve("pass-2/metadata.txt"), "cpu_policy=unbound", "cpu_policy=pinned")
+                "runtime" -> rewrite(root.resolve("pass-2/metadata.txt"), "runtime=Native", "runtime=Other")
+                "manifest" -> {
+                    val other = Files.createDirectory(root.resolve("other"))
+                    rounds(other)
+                    rewrite(other.resolve("source-hashes.txt"), "a".repeat(64), "b".repeat(64))
+                }
+            }
+            val directories = if (failure == "manifest") listOf(root, root.resolve("other")) else listOf(root)
+
+            assertFailsWith<IllegalArgumentException>(failure) {
+                readCalibration(directories, "native", "onemkl", "onemkl")
+            }
+        }
+    }
+
+    private fun fetchedRounds(root: Path) {
+        val output = Files.createDirectories(root.resolve("cases/0/out"))
+        rounds(output)
+        Files.writeString(output.parent.resolve("vendor-package.txt"), "pinned fixture package")
+        Files.writeString(root.resolve("lab-job.json"), """{"id":"fixture","status":"DONE"}""")
+        Files.writeString(root.resolve("lab-execution.json"), """{"attempts":[{"status":"FAILED"}]}""")
+        val artifacts = Files.walk(output).use { paths ->
+            paths.filter { Files.isRegularFile(it) }.sorted().map { path ->
+                mapOf("path" to output.relativize(path).toString().replace('\\', '/'), "sha256" to digest(path))
+            }.toList()
+        }
+        val rows = listOf("baseline", "candidate").mapIndexed { index, arm ->
+            json(linkedMapOf("index" to index, "arm" to arm, "status" to "DONE", "problem" to mapOf("problem" to "dot"),
+                "seed" to "1", "repeat" to "0", "record" to mapOf("status" to "success", "artifacts" to artifacts)))
+        }
+        Files.writeString(root.resolve("lab-cases.jsonl"), rows.joinToString("\n"))
+    }
+
+    private fun rewrite(path: Path, before: String, after: String) = Files.writeString(path, Files.readString(
+        path).replace(before, after))
+    private fun fixture(block: (Path) -> Unit) = withTemporaryDirectory("koblas-tuning", block)
     private fun rounds(root: Path, jvm: Boolean = false) {
         val times = if (jvm) mapOf("jvm-scalar" to 10, "jvm-simd" to 2, "onemkl-jvm" to 5) else mapOf("native" to 10,
             "onemkl" to 5)

@@ -512,4 +512,160 @@ class StagingTest {
         assertTrue(windowsOverlap(backing, 31, 4, -3, backing, 22, 2, 1))
         assertFalse(windowsOverlap(backing, 0, 8, 1, other, 0, 8, 1))
     }
+
+    @Test
+    fun `product aliases agree with the reference and share one snapshot`() = withEngines { blas ->
+        assertDenseProductAliasesAgreeWithReference(blas)
+    }
+
+    @Test
+    fun `rectangular product aliases retain their operand shapes`() = withEngines { blas ->
+        assertRectangularProductAliasesAgreeWithReference(blas)
+    }
+
+    @Test
+    fun `windowed GER snapshots either or both aliased vector ranges`() = withKoblasEngine { engine ->
+        for (alias in 1..3) {
+            val workspace = Scratch()
+            repeat(2) { _ ->
+                val a = DenseMatrix.wrap(9, 8, DoubleArray(72) { (it % 13 - 6) / 8.0 })
+                val x = if (alias != 2) a.values else DoubleArray(10) { (it - 4) / 16.0 }
+                val y = if (alias != 1) a.values else DoubleArray(11) { (5 - it) / 8.0 }
+                val xOffset = if (alias != 2) 29 else 1
+                val yOffset = if (alias != 1) 30 else 4
+                val expected = referenceWindow(a, x, y, 3, 2, xOffset, yOffset)
+
+                engine.ger(-0.875, x, y, a, 2, 3, 3, 2, xOffset, yOffset, scratch = workspace)
+
+                assertWindowAgreesWithReference(expected, a, 3, 2)
+                assertEquals(if (alias != 2) 1 else 0, workspace.available(3))
+                assertEquals(if (alias != 1) 1 else 0, workspace.available(2))
+                assertEquals(0, workspace.available(a.values.size))
+            }
+        }
+    }
+
+    @Test
+    fun `windowed GER shares a backing array without staging disjoint entries`() = withKoblasEngine { engine ->
+        val a = DenseMatrix.wrap(9, 8, DoubleArray(72) { (it % 13 - 6) / 8.0 })
+        val workspace = Scratch()
+        val expected = referenceWindow(a, a.values, a.values, 3, 2, 0, 4)
+
+        engine.ger(-0.875, a.values, a.values, a, 2, 3, 3, 2, 0, 4, scratch = workspace)
+
+        assertWindowAgreesWithReference(expected, a, 3, 2)
+        assertEquals(0, workspace.idleLengths())
+    }
+
+    @Test
+    fun `shared buffer axpy agrees with the scalar snapshot reference`() {
+        for (engine in listOfNotNull(KoblasEngine.scalar, KoblasEngine.simd, koblas)) {
+            for ((sourceOffset, destinationOffset, stride) in listOf(
+                Triple(0, 1, 2),
+                Triple(8, 9, -2),
+                Triple(0, 5, 1),
+                Triple(0, 1, 1),
+            )) {
+                val backing = DoubleArray(10) { it + 0.25 }
+                val source = DenseVector.wrap(backing, sourceOffset, 5, stride)
+                val destination = DenseVector.wrap(backing, destinationOffset, 5, stride)
+                val expected = backing.copyOf()
+                KoblasEngine.scalar.kernels.axpy(
+                    expected,
+                    destinationOffset,
+                    0.75,
+                    source.toDoubleArray(),
+                    0,
+                    5,
+                    stride,
+                )
+
+                engine.axpyVector(0.75, source, destination)
+
+                assertAxpyAgreesWithReference(expected, backing)
+            }
+        }
+    }
+
+    @Test
+    fun `shared buffer copy preserves the snapshot sequence and padding`() {
+        for (engine in listOfNotNull(KoblasEngine.scalar, KoblasEngine.simd, koblas)) {
+            for ((sourceOffset, destinationOffset, stride) in listOf(
+                Triple(0, 1, 2),
+                Triple(8, 9, -2),
+                Triple(0, 5, 1),
+                Triple(0, 1, 1),
+                Triple(1, 0, 1),
+                Triple(2, 7, 1),
+                Triple(9, 8, -1),
+            )) {
+                val backing = DoubleArray(14) { it + 0.25 }
+                val source = DenseVector.wrap(backing, sourceOffset, 5, stride)
+                val destination = DenseVector.wrap(backing, destinationOffset, 5, stride)
+                val expected = backing.copyOf()
+                val snapshot = source.toDoubleArray()
+                for (i in snapshot.indices) expected[destinationOffset + i * stride] = snapshot[i]
+
+                engine.copy(source, destination)
+
+                assertContentEquals(expected, backing)
+            }
+        }
+    }
+
+    @Test
+    fun `matvec calls snapshot vector aliases before writing`() {
+        val matrix = DenseMatrix.diagonal(3)
+        for (reversed in booleanArrayOf(false, true)) {
+            for (symmetric in booleanArrayOf(false, true)) {
+                val destination = doubleArrayOf(1.0, 2.0, 3.0)
+                val original = destination.copyOf()
+                // A call that scaled the destination before reading its input would see the scaled values.
+                val source =
+                    if (reversed) DenseVector.wrap(destination, 2, 3, -1) else DenseVector.wrap(destination, 0, 3, 1)
+                val expected = DoubleArray(3) { source[it] + 0.5 * original[it] }
+
+                if (symmetric) {
+                    koblas.symv(1.0, matrix, source, 0.5, DenseVector.wrap(destination))
+                } else {
+                    koblas.gemv(1.0, matrix, source, 0.5, DenseVector.wrap(destination))
+                }
+
+                assertContentEquals(expected, destination)
+            }
+        }
+    }
+
+    @Test
+    fun `gemv snapshots matrix aliases before writing`() {
+        val destination = doubleArrayOf(1.0, 2.0, 3.0)
+        val matrix = DenseMatrix.wrap(3, 1, destination)
+
+        koblas.gemv(1.0, matrix, dense(2.0), 0.5, DenseVector.wrap(destination))
+
+        assertContentEquals(doubleArrayOf(2.5, 5.0, 7.5), destination)
+    }
+
+    @Test
+    fun `symv snapshots its matrix alias before writing`() {
+        val destination = doubleArrayOf(2.0)
+        val matrix = DenseMatrix.wrap(1, 1, destination)
+
+        koblas.symv(1.0, matrix, dense(3.0), 0.5, DenseVector.wrap(destination))
+
+        assertContentEquals(doubleArrayOf(7.0), destination)
+    }
+
+    private fun dense(vararg values: Double) = DenseVector.of(values)
+
+    private fun assertAxpyAgreesWithReference(expected: DoubleArray, actual: DoubleArray) {
+        assertEquals(expected.size, actual.size)
+        for (i in expected.indices) {
+            when {
+                expected[i].isNaN() -> assertTrue(actual[i].isNaN(), "axpy backing index $i should be NaN")
+                expected[i] == 0.0 -> assertEquals(expected[i].toBits(), actual[i].toBits(), "axpy backing index $i")
+                else -> assertClose(expected[i], actual[i], "axpy backing index $i")
+            }
+        }
+    }
 }
