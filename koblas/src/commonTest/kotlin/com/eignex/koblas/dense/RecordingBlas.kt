@@ -24,7 +24,7 @@ internal open class RecordingBlas(
     override val implementations: Set<EngineImplementation> = EngineImplementation.entries.filter {
         it.entryPoint.isNotEmpty()
     }.toSet(),
-) : HostBlas() {
+) : HostBlas {
     override val vendor: Vendor get() = Vendor.OpenBlas
     override val name: String get() = vendor.vendorName.lowercase()
     private val recorded = mutableListOf<BlasCall>()
@@ -102,101 +102,260 @@ internal open class RecordingBlas(
         xStride: Int,
         yStride: Int,
     ) = record(EngineImplementation.Rot)
-    // The shared host base checks and stages each routine, so what is recorded is what a library would receive:
-    // the caller's storage, or a staged copy where an input shares the destination.
+    // The shared public adapter checks and stages operands before these primitive callbacks.
+    // Descriptors below exist only to make the received geometry inspectable by tests.
 
     override fun cblasGemv(
         alpha: Double,
-        a: DenseMatrix,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
         transposeA: Boolean,
-        x: DenseVector,
+        x: DoubleArray,
+        xOffset: Int,
+        xSize: Int,
+        xStride: Int,
         beta: Double,
-        y: DenseVector,
-    ) = record(EngineImplementation.Gemv, a)
+        y: DoubleArray,
+        yOffset: Int,
+        ySize: Int,
+        yStride: Int,
+    ) = record(EngineImplementation.Gemv, DenseMatrix.wrap(aRows, aColumns, a, aOffset, aLeadingDimension))
 
     override fun cblasSymv(
         alpha: Double,
-        a: DenseMatrix,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
         structure: MatrixStructure,
-        x: DenseVector,
+        x: DoubleArray,
+        xOffset: Int,
+        xSize: Int,
+        xStride: Int,
         beta: Double,
-        y: DenseVector,
-    ) = record(EngineImplementation.Symv, a)
+        y: DoubleArray,
+        yOffset: Int,
+        ySize: Int,
+        yStride: Int,
+    ) = record(EngineImplementation.Symv, DenseMatrix.wrap(aRows, aColumns, a, aOffset, aLeadingDimension))
 
-    override fun cblasGer(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix) =
-        record(EngineImplementation.Ger, a)
+    override fun cblasGer(
+        alpha: Double,
+        x: DoubleArray,
+        xOffset: Int,
+        xSize: Int,
+        xStride: Int,
+        y: DoubleArray,
+        yOffset: Int,
+        ySize: Int,
+        yStride: Int,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
+    ) = record(EngineImplementation.Ger, DenseMatrix.wrap(aRows, aColumns, a, aOffset, aLeadingDimension))
 
-    override fun cblasSyr(alpha: Double, x: DenseVector, a: DenseMatrix, structure: MatrixStructure) =
-        record(EngineImplementation.Syr, a)
+    override fun cblasSyr(
+        alpha: Double,
+        x: DoubleArray,
+        xOffset: Int,
+        xSize: Int,
+        xStride: Int,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
+        structure: MatrixStructure,
+    ) = record(EngineImplementation.Syr, DenseMatrix.wrap(aRows, aColumns, a, aOffset, aLeadingDimension))
 
-    override fun cblasSyr2(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix, structure: MatrixStructure) =
-        record(EngineImplementation.Syr2, a)
+    override fun cblasSyr2(
+        alpha: Double,
+        x: DoubleArray,
+        xOffset: Int,
+        xSize: Int,
+        xStride: Int,
+        y: DoubleArray,
+        yOffset: Int,
+        ySize: Int,
+        yStride: Int,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
+        structure: MatrixStructure,
+    ) = record(EngineImplementation.Syr2, DenseMatrix.wrap(aRows, aColumns, a, aOffset, aLeadingDimension))
 
     override fun cblasTriangularVector(
         operation: EngineImplementation,
-        a: DenseMatrix,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
         structure: MatrixStructure,
         transposeA: Boolean,
-        x: DenseVector,
-    ) = record(operation, a)
+        x: DoubleArray,
+        xOffset: Int,
+        xSize: Int,
+        xStride: Int,
+    ) = record(operation, DenseMatrix.wrap(aRows, aColumns, a, aOffset, aLeadingDimension))
 
     override fun cblasGemm(
         alpha: Double,
-        a: DenseMatrix,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: DoubleArray,
+        bOffset: Int,
+        bRows: Int,
+        bColumns: Int,
+        bLeadingDimension: Int,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrix,
-    ) = record(EngineImplementation.Gemm, a, b, c)
+        c: DoubleArray,
+        cOffset: Int,
+        cRows: Int,
+        cColumns: Int,
+        cLeadingDimension: Int,
+    ) = record(
+        EngineImplementation.Gemm,
+        DenseMatrix.wrap(aRows, aColumns, a, aOffset, aLeadingDimension),
+        DenseMatrix.wrap(bRows, bColumns, b, bOffset, bLeadingDimension),
+        DenseMatrix.wrap(cRows, cColumns, c, cOffset, cLeadingDimension),
+    )
 
     override fun cblasGemmt(
         alpha: Double,
-        a: DenseMatrix,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: DoubleArray,
+        bOffset: Int,
+        bRows: Int,
+        bColumns: Int,
+        bLeadingDimension: Int,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DoubleArray,
+        cOffset: Int,
+        cRows: Int,
+        cColumns: Int,
+        cLeadingDimension: Int,
         structure: MatrixStructure,
-    ) = record(EngineImplementation.Gemmt, a, b, c)
+    ) = record(
+        EngineImplementation.Gemmt,
+        DenseMatrix.wrap(aRows, aColumns, a, aOffset, aLeadingDimension),
+        DenseMatrix.wrap(bRows, bColumns, b, bOffset, bLeadingDimension),
+        DenseMatrix.wrap(cRows, cColumns, c, cOffset, cLeadingDimension),
+    )
 
     override fun cblasSymm(
         alpha: Double,
-        a: DenseMatrix,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
         structure: MatrixStructure,
-        b: DenseMatrix,
+        b: DoubleArray,
+        bOffset: Int,
+        bRows: Int,
+        bColumns: Int,
+        bLeadingDimension: Int,
         beta: Double,
-        c: DenseMatrix,
+        c: DoubleArray,
+        cOffset: Int,
+        cRows: Int,
+        cColumns: Int,
+        cLeadingDimension: Int,
         rightSide: Boolean,
-    ) = record(EngineImplementation.Symm, a, b, c)
+    ) = record(
+        EngineImplementation.Symm,
+        DenseMatrix.wrap(aRows, aColumns, a, aOffset, aLeadingDimension),
+        DenseMatrix.wrap(bRows, bColumns, b, bOffset, bLeadingDimension),
+        DenseMatrix.wrap(cRows, cColumns, c, cOffset, cLeadingDimension),
+    )
 
     override fun cblasSyrk(
         alpha: Double,
-        a: DenseMatrix,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
         transposeA: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DoubleArray,
+        cOffset: Int,
+        cRows: Int,
+        cColumns: Int,
+        cLeadingDimension: Int,
         structure: MatrixStructure,
-    ) = record(EngineImplementation.Syrk, a, c)
+    ) = record(
+        EngineImplementation.Syrk,
+        DenseMatrix.wrap(aRows, aColumns, a, aOffset, aLeadingDimension),
+        DenseMatrix.wrap(cRows, cColumns, c, cOffset, cLeadingDimension),
+    )
 
     override fun cblasSyr2k(
         alpha: Double,
-        a: DenseMatrix,
-        b: DenseMatrix,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
+        b: DoubleArray,
+        bOffset: Int,
+        bRows: Int,
+        bColumns: Int,
+        bLeadingDimension: Int,
         transposeA: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DoubleArray,
+        cOffset: Int,
+        cRows: Int,
+        cColumns: Int,
+        cLeadingDimension: Int,
         structure: MatrixStructure,
-    ) = record(EngineImplementation.Syr2k, a, b, c)
+    ) = record(
+        EngineImplementation.Syr2k,
+        DenseMatrix.wrap(aRows, aColumns, a, aOffset, aLeadingDimension),
+        DenseMatrix.wrap(bRows, bColumns, b, bOffset, bLeadingDimension),
+        DenseMatrix.wrap(cRows, cColumns, c, cOffset, cLeadingDimension),
+    )
 
     override fun cblasTriangularMatrix(
         operation: EngineImplementation,
         alpha: Double,
-        a: DenseMatrix,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
         structure: MatrixStructure,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: DoubleArray,
+        bOffset: Int,
+        bRows: Int,
+        bColumns: Int,
+        bLeadingDimension: Int,
         rightSide: Boolean,
-    ) = record(operation, a, b)
+    ) = record(
+        operation,
+        DenseMatrix.wrap(aRows, aColumns, a, aOffset, aLeadingDimension),
+        DenseMatrix.wrap(bRows, bColumns, b, bOffset, bLeadingDimension),
+    )
 }

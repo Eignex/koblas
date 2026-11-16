@@ -27,7 +27,7 @@ class EngineInspectionTest {
                 val c = DenseMatrix.zero(order, order)
                 val expected = host.takeIf { order == 8 && !borrowed }
 
-                engine.gemm(1.0, a, false, b, false, 0.0, c)
+                engine.asEngine().gemm(1.0, a, false, b, false, 0.0, c)
 
                 assertSame(expected, engine.wholeCallFor(Gemm, order, order, order, borrowed))
                 assertSame(expected, engine.routedWholeCall(Gemm, order, order, order, borrowed))
@@ -42,7 +42,7 @@ class EngineInspectionTest {
         val host = RecordingBlas()
         val a = DenseMatrix.zero(3, 3)
 
-        host.gemm(1.0, a, false, a, false, 0.0, DenseMatrix.zero(3, 3))
+        host.asEngine().gemm(1.0, a, false, a, false, 0.0, DenseMatrix.zero(3, 3))
 
         assertSame(host, host.wholeCallFor(Gemm, 3, 3, 3))
         assertNull(host.routedWholeCall(Gemm, 3, 3, 3, false))
@@ -59,7 +59,7 @@ class EngineInspectionTest {
         val engine = BuiltinEngine("test", host = host)
         val a = DenseMatrix.zero(3, 3)
 
-        engine.gemm(1.0, a, false, a, false, 0.0, DenseMatrix.zero(3, 3))
+        engine.asEngine().gemm(1.0, a, false, a, false, 0.0, DenseMatrix.zero(3, 3))
 
         assertNull(engine.wholeCallFor(Gemm, 3, 3, 3))
         assertNull(engine.routedWholeCall(Gemm, 3, 3, 3, false))

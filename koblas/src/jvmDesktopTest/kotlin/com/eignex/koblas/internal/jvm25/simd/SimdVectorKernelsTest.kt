@@ -9,7 +9,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-private val selectedBackend = KoblasEngine.simd ?: ScalarEngine
+private val selectedBackend = KoblasEngine.simd ?: KoblasEngine.scalar
 
 /**
  * Checks per-operation routing on the Vector API arm. Reductions and AXPY use explicit vector kernels;
@@ -63,7 +63,7 @@ class SimdVectorKernelsTest {
     fun `contiguous copy agrees with the scalar reference across windows`() {
         if (!simdAvailable) return skipped()
 
-        for (engine in listOf(ScalarEngine, kernels)) assertCopyAgreesWithReference(engine)
+        for (engine in listOf(KoblasEngine.scalar, kernels)) assertCopyAgreesWithReference(engine)
     }
 
     @Test

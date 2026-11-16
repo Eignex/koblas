@@ -581,7 +581,7 @@ class DenseOpsTest {
         assertShrinkingGerAgreesWithReference { x, y, a ->
             val start = x.indexOfFirst { it != 0.0 }
             val extent = a.rows - start
-            engine.kernels.ger(-1.0, x, y, a, start, start, extent, extent, start, start)
+            engine.ger(-1.0, x, y, a, start, start, extent, extent, start, start)
         }
     }
 
@@ -596,7 +596,7 @@ class DenseOpsTest {
                 val originalY = y.copyOf()
                 val expected = referenceWindow(a, x, y, rows, columns)
 
-                engine.kernels.ger(-0.875, x, y, a, 2, 3, rows, columns, 1, 4)
+                engine.ger(-0.875, x, y, a, 2, 3, rows, columns, 1, 4)
 
                 assertWindowAgreesWithReference(expected, a, rows, columns)
                 assertContentEquals(originalX, x)
@@ -616,7 +616,7 @@ class DenseOpsTest {
                 val yOffset = if (alias != 1) 30 else 4
                 val expected = referenceWindow(a, x, y, 3, 2, xOffset, yOffset)
 
-                engine.kernels.ger(-0.875, x, y, a, 2, 3, 3, 2, xOffset, yOffset, scratch = workspace)
+                engine.ger(-0.875, x, y, a, 2, 3, 3, 2, xOffset, yOffset, scratch = workspace)
 
                 assertWindowAgreesWithReference(expected, a, 3, 2)
                 assertEquals(if (alias != 2) 1 else 0, workspace.available(3))
@@ -632,7 +632,7 @@ class DenseOpsTest {
         val workspace = Scratch()
         val expected = referenceWindow(a, a.values, a.values, 3, 2, 0, 4)
 
-        engine.kernels.ger(-0.875, a.values, a.values, a, 2, 3, 3, 2, 0, 4, scratch = workspace)
+        engine.ger(-0.875, a.values, a.values, a, 2, 3, 3, 2, 0, 4, scratch = workspace)
 
         assertWindowAgreesWithReference(expected, a, 3, 2)
         assertEquals(0, workspace.idleLengths())
@@ -649,7 +649,7 @@ class DenseOpsTest {
                     val before = a.values.copyOf()
 
                     assertFailsWith<DimensionMismatch> {
-                        engine.kernels.ger(
+                        engine.ger(
                             alpha, DoubleArray(10), DoubleArray(11), a,
                             args[0], args[1], args[2], args[3], args[4], args[5],
                         )
@@ -668,7 +668,7 @@ class DenseOpsTest {
             val workspace = Scratch()
             val alpha = if (shape.first > 0 && shape.second > 0) 0.0 else Double.NaN
 
-            engine.kernels.ger(
+            engine.ger(
                 alpha, a.values, a.values, a,
                 9 - shape.first, 8 - shape.second, shape.first, shape.second,
                 72 - shape.first, 72 - shape.second,

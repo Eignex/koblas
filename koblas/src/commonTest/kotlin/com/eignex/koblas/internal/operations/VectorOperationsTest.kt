@@ -2,6 +2,7 @@ package com.eignex.koblas.internal.operations
 
 import com.eignex.koblas.*
 import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.internal.engine.asEngine
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import kotlin.test.*
@@ -203,7 +204,7 @@ class VectorOperationsTest {
             }
         }
 
-        for (type in listOf(Norm.One, Norm.Two, Norm.Infinity, Norm.MaxAbs)) engine.normVector(source, type)
+        for (type in listOf(Norm.One, Norm.Two, Norm.Infinity, Norm.MaxAbs)) engine.asEngine().normVector(source, type)
 
         assertEquals(listOf("asum", "nrm2", "iamax", "iamax"), calls)
     }
@@ -222,7 +223,7 @@ class VectorOperationsTest {
         }
         val expected = KoblasEngine.scalar.kernels.sum(source.values, 0, source.values.size)
 
-        val actual = engine.sumVector(source)
+        val actual = engine.asEngine().sumVector(source)
 
         assertEquals(source.values.size, length)
         assertClose(expected, actual, "sparse sum")

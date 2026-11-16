@@ -70,7 +70,7 @@ class SparseOpsTest {
                     return 0.0
                 }
             }
-            val kernels = engineWithKernels(vectors = selected).kernels
+            val kernels = engineWithKernels(vectors = selected)
 
             kernels.normVector(x)
             kernels.absoluteSumVector(x)
@@ -203,7 +203,7 @@ class SparseOpsTest {
                 return 0.0
             }
         }
-        val kernels = engineWithKernels(indexed = selected).kernels
+        val kernels = engineWithKernels(indexed = selected)
 
         for (column in 0 until matrix.cols) kernels.dotColumn(matrix, column, DenseVector.wrap(denseOperand))
 

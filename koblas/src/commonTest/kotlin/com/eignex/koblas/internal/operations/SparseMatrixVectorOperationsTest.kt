@@ -2,6 +2,7 @@ package com.eignex.koblas.internal.operations
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.withEngines
+import com.eignex.koblas.internal.engine.asEngine
 import com.eignex.koblas.internal.kernels.KernelProvider
 import com.eignex.koblas.sparse.ReferenceSparseBlas
 import kotlin.test.Test
@@ -75,7 +76,7 @@ class SparseMatrixVectorOperationsTest {
         val y = DenseVector.wrap(DoubleArray(8), 1, 4, 2)
         val scratch = Scratch()
 
-        assertFailsWith<IllegalStateException> { engine.gemv(0.5, a, x, 0.5, y, scratch = scratch) }
+        assertFailsWith<IllegalStateException> { engine.asEngine().gemv(0.5, a, x, 0.5, y, scratch = scratch) }
 
         assertEquals(2, scratch.available(4))
     }

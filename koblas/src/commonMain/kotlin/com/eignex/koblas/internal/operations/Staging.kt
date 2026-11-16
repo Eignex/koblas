@@ -110,7 +110,7 @@ internal inline fun <T> stagedRegion(
     return stagedRegion(arrays, a, destination.values, lower, unitDiag, block)
 }
 
-/** Typed host and storage callbacks retain the original container unless a snapshot needs adapting. */
+/** Storage callbacks retain the original container unless a snapshot needs adapting. */
 internal fun DenseMatrix.typedRegion(values: DoubleArray, offset: Int, leadingDimension: Int): DenseMatrix =
     if (values === this.values && offset == this.offset && leadingDimension == this.leadingDimension) {
         this
@@ -135,25 +135,19 @@ internal inline fun <T> stagedWindow(
     }
 }
 
-/** Only typed host callbacks need a container around a primitive snapshot. */
-internal fun DenseVector.typedWindow(values: DoubleArray, offset: Int, stride: Int): DenseVector =
-    if (values === this.values && offset == this.offset && stride == this.stride) {
-        this
-    } else {
-        DenseVector.wrap(values, offset, size, stride)
-    }
-
-/** Snapshots [a] only when its logical entries overlap [vector]. */
+/** Matrix snapshots against a vector preserve primitive geometry for every backend. */
 internal inline fun <T> stagedRegionAgainst(
     arrays: Scratch?,
     a: DenseMatrix,
     vector: DenseVector,
     lower: Boolean? = null,
     unitDiag: Boolean = false,
-    block: (DenseMatrix) -> T,
+    block: (DoubleArray, Int, Int) -> T,
 ): T {
-    if (!regionWindowOverlap(a, vector.values, vector.offset, vector.size, vector.stride)) return block(a)
-    return stagedRegion(arrays, a, vector.values, lower = lower, unitDiag = unitDiag, block = block)
+    if (!regionWindowOverlap(a, vector.values, vector.offset, vector.size, vector.stride)) {
+        return block(a.values, a.offset, a.leadingDimension)
+    }
+    return stagedRegion(arrays, a, vector.values, lower, unitDiag, block)
 }
 
 /** Primitive window pair with one loan for identical mappings, even for single entries with different strides. */

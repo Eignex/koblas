@@ -51,9 +51,9 @@ internal class PinnedVector(
     val increment: Int,
 )
 
-/** Pins [vector] for the call. Negative strides pass the low end with the sign kept on the increment. */
-internal fun Pins.stage(vector: DenseVector): PinnedVector =
-    PinnedVector(pointer(vector.values, baseIndex(vector)), vector.stride)
+/** Pins the vector window for the call. Negative strides pass the low end with the sign kept on the increment. */
+internal fun Pins.stageVector(values: DoubleArray, offset: Int, size: Int, stride: Int): PinnedVector =
+    PinnedVector(pointer(values, baseIndex(offset, stride, size)), stride)
 
 /** A matrix operand reaching BLAS in place, at its first entry and with its own column spacing. */
 internal class PinnedMatrix(
@@ -64,12 +64,18 @@ internal class PinnedMatrix(
 )
 
 /**
- * Pins [matrix] for the call. An empty region may sit at the end of its buffer, where no entry has an address,
+ * Pins the matrix window for the call. An empty region may sit at the end of its buffer, where no entry has an address,
  * so it passes the buffer's start instead; BLAS reads nothing through an operand with no entries.
  */
-internal fun Pins.stage(matrix: DenseMatrix): PinnedMatrix {
-    val empty = matrix.rows == 0 || matrix.cols == 0
-    return PinnedMatrix(pointer(matrix.values, if (empty) 0 else matrix.offset), maxOf(1, matrix.leadingDimension))
+internal fun Pins.stageMatrix(
+    values: DoubleArray,
+    offset: Int,
+    rows: Int,
+    columns: Int,
+    leadingDimension: Int,
+): PinnedMatrix {
+    val empty = rows == 0 || columns == 0
+    return PinnedMatrix(pointer(values, if (empty) 0 else offset), maxOf(1, leadingDimension))
 }
 
 /** The address of a raw run's lowest entry, once the whole run is checked to lie inside the pinned array. */

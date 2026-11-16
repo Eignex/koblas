@@ -4,6 +4,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.KoblasEngine
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.internal.engine.*
+import com.eignex.koblas.internal.engine.asEngine
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import com.eignex.koblas.internal.operations.staged
@@ -51,7 +52,7 @@ class ProductSchedulingTest {
             assertTrue(engine.packsProduct(m, n, k), "${engine.name} ${m}x${n}x$k is not packed")
             for (transposeA in booleanArrayOf(false, true)) {
                 for (transposeB in booleanArrayOf(false, true)) {
-                    checkProduct(engine, m, n, k, transposeA, transposeB, 0.875, -0.25, rng)
+                    checkProduct(engine.asEngine(), m, n, k, transposeA, transposeB, 0.875, -0.25, rng)
                 }
             }
         }
@@ -71,7 +72,7 @@ class ProductSchedulingTest {
         ReferenceBlas.gemm(0.875, a, false, b, false, 0.0, expected)
         val c = DenseMatrix(m, n, DoubleArray(m * n) { Double.NaN })
 
-        engine.gemm(0.875, a, false, b, false, 0.0, c)
+        engine.asEngine().gemm(0.875, a, false, b, false, 0.0, c)
 
         assertClose(expected.values, c.values, "${engine.name} poisoned destination", tolerance = 1e-10)
     }
@@ -83,7 +84,7 @@ class ProductSchedulingTest {
         val m = packedExtent(engine.tileRows)
         val n = packedExtent(engine.tileColumns)
         for (k in intArrayOf(PRODUCT_BLOCK_DEPTH - 1, PRODUCT_BLOCK_DEPTH, PRODUCT_BLOCK_DEPTH + 1)) {
-            checkProduct(engine, m, n, k, transposeA = false, transposeB = false, 0.5, 2.0, rng)
+            checkProduct(engine.asEngine(), m, n, k, transposeA = false, transposeB = false, 0.5, 2.0, rng)
         }
     }
 
@@ -108,7 +109,7 @@ class ProductSchedulingTest {
         )
         val aliased = DenseMatrix(order, order, start.values.copyOf())
 
-        engine.gemm(0.875, aliased, false, aliased, true, -0.25, aliased, scratch = workspace)
+        engine.asEngine().gemm(0.875, aliased, false, aliased, true, -0.25, aliased, scratch = workspace)
 
         assertClose(expected.values, aliased.values, "${engine.name} aliased product", tolerance = 1e-10)
         val staged = order * order
@@ -127,7 +128,7 @@ class ProductSchedulingTest {
 
         val separate = Scratch()
         val other = randomMatrix(order, order, rng)
-        engine.gemm(0.875, other, false, aliased, true, -0.25, expected, scratch = separate)
+        engine.asEngine().gemm(0.875, other, false, aliased, true, -0.25, expected, scratch = separate)
         assertEquals(
             expectedLoans(staged, listOf(leftPanel, rightPanel)),
             separate.available(staged),
@@ -145,7 +146,7 @@ class ProductSchedulingTest {
         val b = DenseMatrix(k, n, DoubleArray(k * n) { Double.POSITIVE_INFINITY })
         val c = DenseMatrix(m, n, DoubleArray(m * n) { 2.0 })
 
-        engine.gemm(0.0, a, false, b, false, 0.5, c)
+        engine.asEngine().gemm(0.0, a, false, b, false, 0.5, c)
 
         assertTrue(c.values.all { it == 1.0 }, "${engine.name} read an operand a zero alpha excludes")
     }
@@ -165,8 +166,8 @@ class ProductSchedulingTest {
         val other = DenseMatrix(wide, 0, DoubleArray(0))
         val empty = DenseMatrix(0, 0, DoubleArray(0))
 
-        engine.gemm(1.0, a, false, b, false, 1.0, c, scratch = workspace)
-        engine.gemm(0.875, none, false, other, false, -0.25, empty, scratch = workspace)
+        engine.asEngine().gemm(1.0, a, false, b, false, 1.0, c, scratch = workspace)
+        engine.asEngine().gemm(0.875, none, false, other, false, -0.25, empty, scratch = workspace)
 
         assertEquals(0, workspace.idleLengths(), "${engine.name} borrowed scratch for a product with no output")
     }
@@ -180,7 +181,7 @@ class ProductSchedulingTest {
         val beforeA = a.values.copyOf()
         val beforeB = b.values.copyOf()
 
-        engine.gemm(0.875, a, false, b, false, -0.25, randomMatrix(37, 29, rng))
+        engine.asEngine().gemm(0.875, a, false, b, false, -0.25, randomMatrix(37, 29, rng))
 
         assertContentEquals(beforeA, a.values, "${engine.name} wrote into its left operand")
         assertContentEquals(beforeB, b.values, "${engine.name} wrote into its right operand")
@@ -200,9 +201,9 @@ class ProductSchedulingTest {
         val left = scratchCapacity(productBlockRows(engine, 37) * productBlockDepth(41))
         val right = scratchCapacity(productBlockColumns(engine, 29) * productBlockDepth(41))
 
-        engine.gemm(0.875, a, false, b, false, -0.25, c, scratch = workspace)
+        engine.asEngine().gemm(0.875, a, false, b, false, -0.25, c, scratch = workspace)
         val afterOne = workspace.available(left) + if (right == left) 0 else workspace.available(right)
-        repeat(3) { engine.gemm(0.875, a, false, b, false, -0.25, c, scratch = workspace) }
+        repeat(3) { engine.asEngine().gemm(0.875, a, false, b, false, -0.25, c, scratch = workspace) }
 
         assertEquals(2, afterOne, "a blocked product did not borrow a panel for each operand")
         assertEquals(

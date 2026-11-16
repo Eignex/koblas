@@ -3,6 +3,7 @@ package com.eignex.koblas.internal.host
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.internal.engine.*
+import com.eignex.koblas.internal.engine.asEngine
 import com.eignex.koblas.internal.jvm25.host.*
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
@@ -54,7 +55,7 @@ internal object OneMklInterfaceCheck {
             "the inherited ILP64 interface was not overridden",
         )
         assertEquals(ThreadEvidence.Confirmed, library.threadEvidence)
-        val blas = JvmVendorBlas(library)
+        val blas = JvmVendorBlas(library).asEngine()
         val x = DenseVector.wrap(vendorValues(7, 31))
         val y = DenseVector.wrap(vendorValues(7, 32))
         val expectedDot = ScalarEngine.dot(x.values, 0, y.values, 0, x.size)

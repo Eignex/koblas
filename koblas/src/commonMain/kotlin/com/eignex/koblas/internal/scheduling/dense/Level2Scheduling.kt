@@ -72,7 +72,10 @@ internal fun KoblasEngine.scheduleGemv(
 @Suppress("LongParameterList") // the operands, their snapshots and the BLAS dsymv scalars
 internal fun KoblasEngine.scheduleSymv(
     alpha: Double,
-    a: DenseMatrix,
+    a: DoubleArray,
+    aOffset: Int,
+    lda: Int,
+    order: Int,
     x: DoubleArray,
     xOffset: Int,
     xStride: Int,
@@ -83,14 +86,14 @@ internal fun KoblasEngine.scheduleSymv(
     lower: Boolean,
 ) {
     val panels = panelProvider
-    val n = a.rows
+    val n = order
     applyBeta(this, y, yOffset, n, beta, yStride)
     val group = panels.executionGroup(PanelWork.CoupledDotUpdate, n, n, xStride == 1 && yStride == 1)
     forEachTrianglePanel(n, group, lower, fromDiagonal = false) { start, width, window, rows ->
-        symmetricCorner(alpha, a, x, xOffset, xStride, y, yOffset, yStride, start, width, lower)
+        symmetricCorner(alpha, a, aOffset, lda, x, xOffset, xStride, y, yOffset, yStride, start, width, lower)
         if (rows > 0) {
             panels.coupledUpdateDot(
-                alpha, a.values, a.offset + window + start * a.leadingDimension, a.leadingDimension, x,
+                alpha, a, aOffset + window + start * lda, lda, x,
                 xOffset + window * xStride, rows, width, y, yOffset + window * yStride, x,
                 xOffset + start * xStride, y, yOffset + start * yStride, xStride, yStride,
                 xStride, yStride,
@@ -108,7 +111,9 @@ internal fun KoblasEngine.scheduleSymv(
  */
 private fun symmetricCorner(
     alpha: Double,
-    a: DenseMatrix,
+    a: DoubleArray,
+    aOffset: Int,
+    lda: Int,
     x: DoubleArray,
     xOffset: Int,
     xStride: Int,
@@ -119,16 +124,15 @@ private fun symmetricCorner(
     width: Int,
     lower: Boolean,
 ) {
-    val lda = a.leadingDimension
     for (c in start until start + width) {
         val coefficient = alpha * x[xOffset + c * xStride]
-        val diagonal = a.values[a.offset + c + c * lda]
+        val diagonal = a[aOffset + c + c * lda]
         var mirrored = 0.0
         // Only the stored positions of this column, so no test per entry; the mirrored row sums once.
         val first = if (lower) c + 1 else start
         val last = if (lower) start + width else c
         for (i in first until last) {
-            val value = a.values[a.offset + i + c * lda]
+            val value = a[aOffset + i + c * lda]
             y[yOffset + i * yStride] += coefficient * value
             mirrored += value * x[xOffset + i * xStride]
         }
@@ -208,25 +212,31 @@ internal fun KoblasEngine.scheduleSyr2(
  * one step.
  */
 internal fun KoblasEngine.scheduleTrsv(
-    a: DenseMatrix,
+    a: DoubleArray,
+    aOffset: Int,
+    lda: Int,
+    order: Int,
     x: DoubleArray,
     xOffset: Int,
     xStride: Int,
     lower: Boolean,
     transpose: Boolean,
     unitDiag: Boolean,
-) = triangularVector(a, x, xOffset, xStride, lower, transpose, unitDiag, solve = true)
+) = triangularVector(a, aOffset, lda, order, x, xOffset, xStride, lower, transpose, unitDiag, solve = true)
 
 /** `x = op(T) · x` in place, the multiply counterpart of [scheduleTrsv]. */
 internal fun KoblasEngine.scheduleTrmv(
-    a: DenseMatrix,
+    a: DoubleArray,
+    aOffset: Int,
+    lda: Int,
+    order: Int,
     x: DoubleArray,
     xOffset: Int,
     xStride: Int,
     lower: Boolean,
     transpose: Boolean,
     unitDiag: Boolean,
-) = triangularVector(a, x, xOffset, xStride, lower, transpose, unitDiag, solve = false)
+) = triangularVector(a, aOffset, lda, order, x, xOffset, xStride, lower, transpose, unitDiag, solve = false)
 
 /**
  * [scheduleTrsv] or, when not [solve], [scheduleTrmv]. A multiply walks the blocks against the solve's
@@ -234,7 +244,10 @@ internal fun KoblasEngine.scheduleTrmv(
  * it is overwritten.
  */
 private fun KoblasEngine.triangularVector(
-    a: DenseMatrix,
+    a: DoubleArray,
+    aOffset: Int,
+    lda: Int,
+    order: Int,
     x: DoubleArray,
     xOffset: Int,
     xStride: Int,
@@ -245,8 +258,7 @@ private fun KoblasEngine.triangularVector(
 ) {
     val panels = panelProvider
     val triangles = triangularProvider
-    val n = a.rows
-    val lda = a.leadingDimension
+    val n = order
     val coefficient = if (solve) -1.0 else 1.0
 
     // The rest of the stored triangle beside a block: below it when lower, above it when upper.
@@ -254,15 +266,15 @@ private fun KoblasEngine.triangularVector(
         val outside = if (lower) start + size else 0
         val outsideRows = if (lower) n - outside else start
         if (outsideRows == 0) return
-        val block = a.offset + outside + start * lda
+        val block = aOffset + outside + start * lda
         if (transpose) {
             panels.multiDot(
-                coefficient, a.values, block, lda, x, xOffset + outside * xStride, xStride, outsideRows, size,
+                coefficient, a, block, lda, x, xOffset + outside * xStride, xStride, outsideRows, size,
                 1.0, x, xOffset + start * xStride, xStride,
             )
         } else {
             panels.columnUpdate(
-                coefficient, a.values, block, lda, x, xOffset + start * xStride, xStride, outsideRows, size,
+                coefficient, a, block, lda, x, xOffset + start * xStride, xStride, outsideRows, size,
                 x, xOffset + outside * xStride, xStride,
             )
         }
@@ -272,11 +284,11 @@ private fun KoblasEngine.triangularVector(
         val origin = xOffset + start * xStride
         if (solve) {
             triangles.diagonalSolve(
-                a.values, lda, start, size, transpose, lower != transpose, unitDiag, x, origin, xStride, 1, 1, a.offset,
+                a, lda, start, size, transpose, lower != transpose, unitDiag, x, origin, xStride, 1, 1, aOffset,
             )
         } else {
             triangles.diagonalMultiply(
-                a.values, lda, start, size, transpose, lower != transpose, unitDiag, x, origin, xStride, 1, 1, a.offset,
+                a, lda, start, size, transpose, lower != transpose, unitDiag, x, origin, xStride, 1, 1, aOffset,
             )
         }
         if (transpose != solve) panel(start, size)

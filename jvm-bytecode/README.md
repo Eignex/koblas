@@ -43,8 +43,8 @@ when SIMD is withheld. Scalar-returning reductions must allocate no temporary co
 sums may allocate only their returned arrays. The adapters themselves remain ordinary outlined calls.
 
 Dense Level 2 vector snapshots also pass primitive windows into the shared schedules. Identical mappings
-share one loan; disjoint windows retain their original offsets and strides. Host bindings adapt those
-windows back to typed callbacks, keeping the original vector when no snapshot is needed. Rectangular
+share one loan; disjoint windows retain their original offsets and strides. Host bindings consume those
+windows directly through the same shared preparation. Rectangular
 GER checks overlap against primitive destination geometry rather than constructing a matrix view.
 `simdAliasStagingAllocationCheck` and `scalarAliasStagingAllocationCheckC1` enforce allocation-free
 vector staging with retained scratch while vector and matrix-view factories remain outlined. They cover
@@ -52,8 +52,7 @@ aliased GEMV/SYMV, rank updates, shared snapshots and both overlapping and disjo
 
 Dense Level 3 matrix snapshots carry arrays, offsets and leading dimensions through preparation and
 scheduling as well. Identical operand regions share one loan, symmetric operands retain their selected
-triangle rules, and thin GEMM keeps its GEMV path over the same primitive geometry. Typed host callbacks
-retain their container interface. `simdMatrixAliasAllocationCheck` and
+triangle rules, and thin GEMM keeps its GEMV path over the same primitive geometry. Host callbacks consume the same primitive geometry. `simdMatrixAliasAllocationCheck` and
 `scalarMatrixAliasAllocationCheckC1` keep the matrix factory outlined while exercising every dense
 Level 3 family, padded regions, shared and distinct aliases, thin products and a wider product.
 
@@ -90,3 +89,11 @@ measured library operation are outside this harness check. Captures and regressi
 record `primitive-double-v1`; compare numerical changes using the same callback representation.
 Inherited callback and helper bodies are resolved through their superclass and interface declarations,
 including an implementation inherited from a superclass that does not itself implement the callback interface.
+
+Backend implementations are separate from the public typed `KoblasEngine` API. The shared
+`BackendEngine` adapter validates and stages operands before passing primitive windows to
+`KernelProvider` or `HostBlas`. The verifier rejects typed container arguments/results in those
+interfaces and their implementations through the packaged inheritance graph, inheritance of the typed
+public API, and calls that
+reconstruct or consume typed containers within a backend. This also covers unused declarations.
+JVM foreign-memory transfers and Native pinning accept the same primitive geometry.

@@ -3,6 +3,7 @@ package com.eignex.koblas
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.internal.engine.*
+import com.eignex.koblas.internal.engine.asEngine
 import com.eignex.koblas.internal.host.environmentVariableOrNull
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.KernelProvider
@@ -30,7 +31,7 @@ class KoblasEngineTest {
         }
         val view = DenseVector.wrap(DoubleArray(7), 5, 3, -2)
 
-        assertEquals(42.0, engine.sum(view))
+        assertEquals(42.0, engine.asEngine().sum(view))
     }
 
     @Test
@@ -319,9 +320,9 @@ class KoblasEngineTest {
 
     @Test
     fun `a partial provider never inherits portable arithmetic`() {
-        assertFailsWith<UnsupportedOperationException> { partial.kernels.sum(doubleArrayOf(1.0), 0, 1) }
+        assertFailsWith<UnsupportedOperationException> { partial.sum(doubleArrayOf(1.0), 0, 1) }
         assertFailsWith<UnsupportedOperationException> {
-            partial.kernels.dot(
+            partial.dot(
                 intArrayOf(0),
                 0,
                 doubleArrayOf(1.0),
@@ -343,8 +344,9 @@ class KoblasEngineTest {
     @Test
     fun `exact SIMD uses supplied kernels from their intrinsic minimum length`() {
         val simd = KoblasEngine.simd ?: return
-        val leaf = simd.providers.first { it.id == "jvm-simd" && EngineImplementation.Iamax in it.implementations }
-            as KernelProvider
+        val leaf = simd.providers.first {
+            it.id == "jvm-simd" && EngineImplementation.Iamax in it.implementations
+        }.kernels
 
         assertEquals(
             leaf.name,
@@ -423,7 +425,7 @@ class KoblasEngineTest {
     private fun provider(id: String, operations: Set<EngineImplementation>): KoblasEngine = object : KernelProvider {
         override val name = id
         override val implementations = operations
-    }
+    }.asEngine()
 
     @Test
     fun `the default level one kernels agree with the scalar loops`() = assertLevel1KernelsAgreeWithReference(koblas)

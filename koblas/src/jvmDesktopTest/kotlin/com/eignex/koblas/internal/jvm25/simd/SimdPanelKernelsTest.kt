@@ -137,7 +137,7 @@ class SimdPanelKernelsTest {
     /** The species this backend resolved, read back from the name it publishes. */
     private fun lanes(): Int = checkNotNull(KoblasEngine.simd).providers.first {
         EngineImplementation.Dot in it.implementations
-    }.let { it as KernelProvider }.minimumLength(EngineImplementation.Dot)
+    }.kernels.minimumLength(EngineImplementation.Dot)
 
     private fun vectorised() = PanelWork.entries
 

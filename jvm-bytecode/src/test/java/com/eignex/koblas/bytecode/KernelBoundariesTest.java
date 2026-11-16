@@ -7,6 +7,7 @@ import java.lang.constant.DynamicCallSiteDesc;
 import java.lang.constant.MethodHandleDesc;
 import java.lang.constant.MethodTypeDesc;
 import java.util.function.Consumer;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -101,6 +102,94 @@ public class KernelBoundariesTest {
         byte[] caller = fixture(code -> code.aconst_null().aconst_null().iconst_0()
             .invokeinterface(backend, "sum", MethodTypeDesc.of(CD_double, DOUBLES, CD_int)).pop2().return_());
         assertTrue(KernelBoundaries.violations(caller).isEmpty());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"DenseVector", "DenseMatrix", "SparseVector", "SparseMatrix"})
+    void backendDeclarationsRejectTypedOperandsWithoutCallSites(String name) {
+        ClassDesc backend = ClassDesc.of("com.eignex.koblas.internal.host.HostBlas");
+        byte[] declaration = ClassFile.of().build(backend, builder -> builder
+            .withFlags(ClassFile.ACC_PUBLIC | ClassFile.ACC_INTERFACE | ClassFile.ACC_ABSTRACT)
+            .withMethod("multiply", MethodTypeDesc.of(CD_void, ClassDesc.of("com.eignex.koblas." + name)),
+                ClassFile.ACC_PUBLIC | ClassFile.ACC_ABSTRACT, method -> {}));
+        assertEquals(1, KernelBoundaries.violations(declaration).size());
+    }
+
+    @Test
+    void backendInterfacesRejectInheritingTheTypedPublicApi() {
+        ClassDesc backend = ClassDesc.of("com.eignex.koblas.internal.kernels.KernelProvider");
+        byte[] declaration = ClassFile.of().build(backend, builder -> builder
+            .withFlags(ClassFile.ACC_PUBLIC | ClassFile.ACC_INTERFACE | ClassFile.ACC_ABSTRACT)
+            .withInterfaceSymbols(ClassDesc.of("com.eignex.koblas.KoblasEngine")));
+        assertEquals(1, KernelBoundaries.violations(declaration).size());
+    }
+
+    @Test
+    void backendImplementationsRejectTypedResults() {
+        ClassDesc provider = ClassDesc.of("com.eignex.koblas.internal.kernels.KernelProvider");
+        byte[] declaration = ClassFile.of().build(ClassDesc.of("com.eignex.koblas.internal.CustomBackend"), builder -> builder
+            .withFlags(ClassFile.ACC_PUBLIC | ClassFile.ACC_ABSTRACT)
+            .withInterfaceSymbols(provider)
+            .withMethod("window", MethodTypeDesc.of(MATRIX), ClassFile.ACC_PUBLIC | ClassFile.ACC_ABSTRACT, method -> {}));
+        assertEquals(1, KernelBoundaries.violations(declaration).size());
+    }
+
+    @Test
+    void primitiveBackendsRejectReconstructingTypedViews() {
+        ClassDesc provider = ClassDesc.of("com.eignex.koblas.internal.kernels.KernelProvider");
+        ClassDesc companion = ClassDesc.of("com.eignex.koblas.DenseMatrix$Companion");
+        byte[] declaration = ClassFile.of().build(ClassDesc.of("com.eignex.koblas.internal.CustomBackend"), builder -> builder
+            .withInterfaceSymbols(provider)
+            .withMethodBody("compute", MethodTypeDesc.of(CD_void), ClassFile.ACC_PUBLIC,
+                code -> code.aconst_null().invokevirtual(companion, "wrap", MethodTypeDesc.of(MATRIX)).pop().return_()));
+        assertEquals(1, KernelBoundaries.violations(declaration).size());
+    }
+
+    @Test
+    void primitiveBackendsRejectDirectContainerConstructors() {
+        ClassDesc provider = ClassDesc.of("com.eignex.koblas.internal.kernels.KernelProvider");
+        byte[] declaration = ClassFile.of().build(ClassDesc.of("com.eignex.koblas.internal.CustomBackend"), builder -> builder
+            .withInterfaceSymbols(provider)
+            .withMethodBody("compute", MethodTypeDesc.of(CD_void), ClassFile.ACC_PUBLIC,
+                code -> code.new_(MATRIX).dup().invokespecial(MATRIX, "<init>", MethodTypeDesc.of(CD_void)).pop().return_()));
+        assertEquals(1, KernelBoundaries.violations(declaration).size());
+    }
+
+    @Test
+    void primitiveBackendsRejectTypedMethodHandles() {
+        ClassDesc provider = ClassDesc.of("com.eignex.koblas.internal.kernels.KernelProvider");
+        var factory = MethodHandleDesc.ofMethod(STATIC, LEAF, "window", MethodTypeDesc.of(MATRIX, DOUBLES));
+        byte[] declaration = ClassFile.of().build(ClassDesc.of("com.eignex.koblas.internal.CustomBackend"), builder -> builder
+            .withInterfaceSymbols(provider)
+            .withMethodBody("compute", MethodTypeDesc.of(CD_void), ClassFile.ACC_PUBLIC,
+                code -> code.ldc(factory).pop().return_()));
+        assertEquals(1, KernelBoundaries.violations(declaration).size());
+    }
+
+    @Test
+    void backendPolicyFollowsInheritedImplementationContracts() {
+        ClassDesc backend = ClassDesc.of("com.eignex.koblas.internal.kernels.KernelProvider");
+        ClassDesc bridge = ClassDesc.of("com.eignex.koblas.internal.Bridge");
+        byte[] parent = ClassFile.of().build(bridge, builder -> builder
+            .withFlags(ClassFile.ACC_PUBLIC | ClassFile.ACC_INTERFACE | ClassFile.ACC_ABSTRACT)
+            .withInterfaceSymbols(backend));
+        byte[] child = ClassFile.of().build(ClassDesc.of("com.eignex.koblas.internal.CustomBackend"), builder -> builder
+            .withFlags(ClassFile.ACC_PUBLIC | ClassFile.ACC_ABSTRACT)
+            .withInterfaceSymbols(bridge)
+            .withMethod("window", MethodTypeDesc.of(MATRIX), ClassFile.ACC_PUBLIC | ClassFile.ACC_ABSTRACT, method -> {}));
+        assertEquals(1, KernelBoundaries.violations(List.of(parent, child)).size());
+    }
+
+    @Test
+    void backendPolicyRejectsIndirectTypedApiInheritance() {
+        ClassDesc backend = ClassDesc.of("com.eignex.koblas.internal.kernels.KernelProvider");
+        ClassDesc bridge = ClassDesc.of("com.eignex.koblas.internal.TypedBridge");
+        byte[] parent = ClassFile.of().build(bridge, builder -> builder
+            .withFlags(ClassFile.ACC_PUBLIC | ClassFile.ACC_INTERFACE | ClassFile.ACC_ABSTRACT)
+            .withInterfaceSymbols(ClassDesc.of("com.eignex.koblas.KoblasEngine")));
+        byte[] child = ClassFile.of().build(ClassDesc.of("com.eignex.koblas.internal.CustomBackend"), builder -> builder
+            .withInterfaceSymbols(backend, bridge));
+        assertEquals(1, KernelBoundaries.violations(List.of(parent, child)).size());
     }
 
     @Test
