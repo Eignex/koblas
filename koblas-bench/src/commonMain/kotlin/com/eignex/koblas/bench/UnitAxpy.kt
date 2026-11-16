@@ -1,8 +1,8 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.*
 import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.internal.kernels.*
 
 /** Disjoint ordinary arrays matching the raw unit-multiplier update in Klause's cached-value restore. */
 internal class UnitAxpy(size: Int) {

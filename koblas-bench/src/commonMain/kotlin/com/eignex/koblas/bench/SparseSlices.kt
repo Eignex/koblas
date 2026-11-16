@@ -1,8 +1,8 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.*
 import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.internal.kernels.*
 
 /** Raw CSC windows through the selected engine, including validation and any indexed fallback. */
 internal fun sparseSlicesWork(case: BenchCase, engine: KoblasEngine): CaseWork {

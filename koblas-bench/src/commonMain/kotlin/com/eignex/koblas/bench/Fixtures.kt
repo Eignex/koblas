@@ -16,7 +16,8 @@ internal class PortableRandom(seed: Long) {
 }
 
 internal object Fixtures {
-    fun stream(operand: Int): PortableRandom = PortableRandom(FIXTURE_SEED xor (operand.toLong() * -7046029254386353131L))
+    fun stream(operand: Int): PortableRandom = PortableRandom(
+        FIXTURE_SEED xor (operand.toLong() * -7046029254386353131L))
 
     fun vector(size: Int, operand: Int): DoubleArray = DoubleArray(size).also { values ->
         val random = stream(operand)
@@ -28,13 +29,15 @@ internal object Fixtures {
 
     fun triangular(order: Int, operand: Int, lower: Boolean): DenseMatrix {
         val matrix = matrix(order, order, operand)
-        for (j in 0 until order) for (i in 0 until order) {
-            if ((lower && i < j) || (!lower && i > j)) {
-                matrix[i, j] = 0.0
-            } else if (i != j) {
-                // Bound the off-diagonal row norm even with an implicit unit diagonal. Otherwise large
-                // solves amplify legal accumulation differences beyond the reference comparison's bound.
-                matrix[i, j] /= 2.0 * maxOf(1, order)
+        for (j in 0 until order) {
+            for (i in 0 until order) {
+                if ((lower && i < j) || (!lower && i > j)) {
+                    matrix[i, j] = 0.0
+                } else if (i != j) {
+                    // Bound the off-diagonal row norm even with an implicit unit diagonal. Otherwise large
+                    // solves amplify legal accumulation differences beyond the reference comparison's bound.
+                    matrix[i, j] /= 2.0 * maxOf(1, order)
+                }
             }
         }
         for (i in 0 until order) matrix[i, i] = 2.0 + kotlin.math.abs(matrix[i, i])
@@ -79,7 +82,8 @@ internal object Fixtures {
                 if (triangular && ((lower && row < j) || (!lower && row > j))) continue
                 rowIndices += row
                 columnIndices += j
-                values += if (triangular && row == j) 2.0 + kotlin.math.abs(random.nextDouble()) else random.nextDouble()
+                values +=
+                    if (triangular && row == j) 2.0 + kotlin.math.abs(random.nextDouble()) else random.nextDouble()
             }
             if (triangular && j < rows && selected.none { it == j }) {
                 rowIndices += j

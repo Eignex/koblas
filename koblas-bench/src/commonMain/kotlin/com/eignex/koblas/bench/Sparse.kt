@@ -2,9 +2,9 @@
 
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.*
 import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.operations.*
 
 /**
@@ -15,14 +15,12 @@ import com.eignex.koblas.internal.operations.*
  * Vector API selection still runs scalar loops below its crossover.
  */
 @Suppress("LongMethod", "CyclomaticComplexMethod") // one branch per benchmarked operation
-internal fun sparseWork(case: BenchCase, engine: KoblasEngine): CaseWork {
-    return when (case.operation) {
-        "spdot-column", "spdot-column-raw" -> sparseColumnDotWork(case, engine)
-        "spdot-slice", "spaxpy-slice", "spscatter-slice" -> sparseSlicesWork(case, engine)
-        "spdot", "spdot-raw", "spdot-sparse", "spaxpy", "spaxpy-raw", "spnrm2", "spasum",
-        "spscatter", "spscatter-raw", "spgather", "spgather-zero" -> sparseIndexedWork(case, engine)
-        else -> sparseMatrixWork(case, engine)
-    }
+internal fun sparseWork(case: BenchCase, engine: KoblasEngine): CaseWork = when (case.operation) {
+    "spdot-column", "spdot-column-raw" -> sparseColumnDotWork(case, engine)
+    "spdot-slice", "spaxpy-slice", "spscatter-slice" -> sparseSlicesWork(case, engine)
+    "spdot", "spdot-raw", "spdot-sparse", "spaxpy", "spaxpy-raw", "spnrm2", "spasum",
+    "spscatter", "spscatter-raw", "spgather", "spgather-zero" -> sparseIndexedWork(case, engine)
+    else -> sparseMatrixWork(case, engine)
 }
 
 /**
@@ -57,7 +55,8 @@ internal fun sparseMatrixWork(case: BenchCase, engine: KoblasEngine): CaseWork {
             val x = Fixtures.vector(if (transpose) d[0] else d[1], 2)
             val y0 = Fixtures.vector(if (transpose) d[1] else d[0], 3)
             val y = y0.copyOf()
-            val xVector = DenseVector.wrap(x); val yVector = DenseVector.wrap(y)
+            val xVector = DenseVector.wrap(x)
+            val yVector = DenseVector.wrap(y)
             val expected = DenseReference.gemv(alpha, SparseReference.dense(a), transpose, x, beta, y0)
             arm(
                 verify = {
@@ -65,7 +64,11 @@ internal fun sparseMatrixWork(case: BenchCase, engine: KoblasEngine): CaseWork {
                     engine.gemv(alpha, a, xVector, beta, yVector, transpose)
                     DenseReference.check(expected, y, "${case.id} gemv")
                 },
-            ) { y0.copyInto(y); engine.gemv(alpha, a, xVector, beta, yVector, transpose); y[0] }
+            ) {
+                y0.copyInto(y)
+                engine.gemv(alpha, a, xVector, beta, yVector, transpose)
+                y[0]
+            }
         }
 
         "spmm" -> {
@@ -88,7 +91,6 @@ internal fun sparseMatrixWork(case: BenchCase, engine: KoblasEngine): CaseWork {
                 engine.gemm(alpha, a, transpose, b, transposeDense, beta, c, scratch = scratch)
                 c.values[0]
             }
-
         }
 
         // The right-side form multiplies a dense operand by the sparse one on the selected engine.
@@ -130,7 +132,8 @@ internal fun sparseMatrixWork(case: BenchCase, engine: KoblasEngine): CaseWork {
             val x = Fixtures.vector(d[0], 2)
             val y0 = Fixtures.vector(d[0], 3)
             val y = y0.copyOf()
-            val xVector = DenseVector.wrap(x); val yVector = DenseVector.wrap(y)
+            val xVector = DenseVector.wrap(x)
+            val yVector = DenseVector.wrap(y)
             val expected = DenseReference.symv(alpha, SparseReference.dense(a), lower, x, beta, y0)
             arm(
                 verify = {
@@ -138,7 +141,11 @@ internal fun sparseMatrixWork(case: BenchCase, engine: KoblasEngine): CaseWork {
                     engine.symv(alpha, a, xVector, beta, yVector, lower)
                     DenseReference.check(expected, y, "${case.id} symmetric product")
                 },
-            ) { y0.copyInto(y); engine.symv(alpha, a, xVector, beta, yVector, lower); y[0] }
+            ) {
+                y0.copyInto(y)
+                engine.symv(alpha, a, xVector, beta, yVector, lower)
+                y[0]
+            }
         }
 
         "spsymm" -> {
@@ -176,12 +183,14 @@ internal fun sparseMatrixWork(case: BenchCase, engine: KoblasEngine): CaseWork {
             arm(
                 verify = {
                     x0.copyInto(x)
-                    if (solve) engine.trsv(a, vector, lower, transpose, unit) else engine.trmv(a, vector, lower, transpose, unit)
+                    if (solve) engine.trsv(a, vector, lower, transpose, unit) else engine.trmv(a, vector,
+                        lower, transpose, unit)
                     DenseReference.check(expected, x, "${case.id} triangular")
                 },
             ) {
                 x0.copyInto(x)
-                if (solve) engine.trsv(a, vector, lower, transpose, unit) else engine.trmv(a, vector, lower, transpose, unit)
+                if (solve) engine.trsv(a, vector, lower, transpose, unit) else engine.trmv(a, vector, lower,
+                    transpose, unit)
                 x[0]
             }
         }

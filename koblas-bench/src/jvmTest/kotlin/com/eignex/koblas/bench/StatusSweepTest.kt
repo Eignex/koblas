@@ -18,7 +18,9 @@ class StatusSweepTest {
 
     @Test fun `core sweep retains routine families within a bounded inventory`() {
         val routines = KoblasEngine::class.java.declaredMethods
-            .filter { !Modifier.isStatic(it.modifiers) && !it.name.startsWith("get") && '$' !in it.name }.map { it.name }.toSet()
+            .filter {
+                !Modifier.isStatic(it.modifiers) && !it.name.startsWith("get") && '$' !in it.name
+            }.map { it.name }.toSet()
         val cases = workloads()
         val names = mapOf("scale" to "scal", "scatter" to "spscatter-raw", "gather" to "spgather",
             "gatherZero" to "spgather-zero", "dotColumn" to "spdot-column")
@@ -48,15 +50,21 @@ class StatusSweepTest {
         assertTrue(work.any { it < PACKED_PRODUCT_MINIMUM_WORK })
         assertTrue(PACKED_PRODUCT_MINIMUM_WORK in work)
         assertTrue(work.any { it > PACKED_PRODUCT_MINIMUM_WORK })
-        val crossing = products.filter { it.dimension(0) > PRODUCT_BLOCK_ROWS &&
-            it.dimension(1) > PRODUCT_BLOCK_COLUMNS && it.dimension(2) > PRODUCT_BLOCK_DEPTH }
+        val crossing = products.filter {
+            it.dimension(0) > PRODUCT_BLOCK_ROWS &&
+                it.dimension(1) > PRODUCT_BLOCK_COLUMNS && it.dimension(2) > PRODUCT_BLOCK_DEPTH
+        }
         assertTrue(crossing.any { it.options["layout"] == "borrowed" && "workspace" !in it.options })
         assertTrue(crossing.any { it.options["layout"] == "borrowed" && it.options["workspace"] == "retained" })
         for (operation in listOf("trsm", "trmm")) {
-            assertTrue(cases.any { it.operation == operation && it.option("side", "L") == "L" &&
-                it.dimension(0) > TRIANGULAR_DIAGONAL_BLOCK && it.dimension(1) < 16 })
-            assertTrue(cases.any { it.operation == operation && it.option("side", "L") == "R" &&
-                it.dimension(1) > TRIANGULAR_DIAGONAL_BLOCK && it.dimension(0) < 16 })
+            assertTrue(cases.any {
+                it.operation == operation && it.option("side", "L") == "L" &&
+                    it.dimension(0) > TRIANGULAR_DIAGONAL_BLOCK && it.dimension(1) < 16
+            })
+            assertTrue(cases.any {
+                it.operation == operation && it.option("side", "L") == "R" &&
+                    it.dimension(1) > TRIANGULAR_DIAGONAL_BLOCK && it.dimension(0) < 16
+            })
         }
         for ((option, value) in listOf("transA" to "T", "transB" to "T", "uplo" to "U", "diag" to "U")) {
             assertTrue(cases.any { !it.operation.startsWith("sp") && it.options[option] == value })
@@ -113,7 +121,9 @@ class StatusSweepTest {
             val cases = KoblasLabSuite.plan(BenchRequest(mapOf("sweep-profile" to "extended-v2",
                 "platform" to platform, "arch" to arch, "targets" to targets)))
 
-            assertTrue(cases.all { it.parameters["targets"] == targets && (it.attributes - "nativeExecutable").isEmpty() })
+            assertTrue(cases.all {
+                it.parameters["targets"] == targets && (it.attributes - "nativeExecutable").isEmpty()
+            })
             assertTrue(cases.all { it.resources.requiredTags == setOf("platform:$platform", "arch:$arch") })
             assertEquals(platform == "linux", cases.all { "nativeExecutable" in it.attributes })
         }
@@ -163,7 +173,8 @@ class StatusSweepTest {
             assertFailsWith<IllegalArgumentException> { KoblasLabSuite.plan(BenchRequest(parameters + override)) }
         }
         assertFailsWith<IllegalArgumentException> {
-            KoblasLabSuite.plan(BenchRequest(mapOf("sweep-profile" to "status-v4", "cases" to "koblas-bench/cases.txt")))
+            KoblasLabSuite.plan(BenchRequest(mapOf("sweep-profile" to "status-v4",
+                "cases" to "koblas-bench/cases.txt")))
         }
     }
 }

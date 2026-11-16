@@ -25,8 +25,10 @@ internal fun borrowedProductWork(case: BenchCase, engine: KoblasEngine): CaseWor
     val original = c.values.copyOf()
     val expected = original.copyOf()
     val result = DenseReference.gemm(alpha, sourceA, ta, sourceB, tb, beta, initialC)
-    for (j in 0 until columns) for (i in 0 until rows) {
-        expected[c.offset + i + j * c.leadingDimension] = result[i + j * rows]
+    for (j in 0 until columns) {
+        for (i in 0 until rows) {
+            expected[c.offset + i + j * c.leadingDimension] = result[i + j * rows]
+        }
     }
     val scratch = if (case.options["workspace"] == "retained") Scratch() else null
     fun apply(): Double {

@@ -6,8 +6,10 @@ import kotlin.test.assertEquals
 class DirectoryPathsTest {
     @Test
     fun `windows paths preserve their drive and network roots`() {
-        assertEquals(listOf("C:/reports", "C:/reports/round"), parentDirectories("C:\\reports\\round\\out.csv", windows = true))
-        assertEquals(listOf("//server/share/reports"), parentDirectories("\\\\server\\share\\reports\\out.csv", windows = true))
+        assertEquals(listOf("C:/reports", "C:/reports/round"), parentDirectories(
+            "C:\\reports\\round\\out.csv", windows = true))
+        assertEquals(listOf("//server/share/reports"), parentDirectories(
+            "\\\\server\\share\\reports\\out.csv", windows = true))
         assertEquals(emptyList(), parentDirectories("C:/out.csv", windows = true))
         assertEquals(emptyList(), parentDirectories("//server/share/out.csv", windows = true))
     }

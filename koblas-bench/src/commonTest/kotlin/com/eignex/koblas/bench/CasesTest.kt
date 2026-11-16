@@ -4,7 +4,6 @@ import com.eignex.koblas.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
 
 class CasesTest {
     @Test
@@ -69,14 +68,16 @@ class CasesTest {
         assertEquals(listOf("dot+4096+uniform", "sum+4096+uniform"), Cases.select(cases).map { it.id })
         assertEquals(listOf("dot+4096+uniform"), Cases.select(cases, operation = "dot").map { it.id })
         assertEquals(listOf("dot+4096+uniform", "dot+7+uniform"), Cases.select(cases, "sweep", "dot").map { it.id })
-        for ((suite, operation) in listOf("sweep" to "all", "unknown" to "dot", "sweep" to "axpy", "default" to "unknown")) {
+        for ((suite, operation) in listOf("sweep" to "all", "unknown" to "dot", "sweep" to "axpy",
+            "default" to "unknown")) {
             assertFailsWith<IllegalArgumentException> { Cases.select(cases, suite, operation) }
         }
     }
 
     @Test
     fun `parser rejects invalid suite membership`() {
-        for (suffix in listOf("", "all", "default,default", "sweep,", ",sweep", "default,other", "default+suite=sweep")) {
+        for (suffix in listOf("", "all", "default,default", "sweep,", ",sweep", "default,other",
+            "default+suite=sweep")) {
             assertFailsWith<IllegalArgumentException> { Cases.parse("dot+7+uniform+suite=$suffix") }
         }
     }
@@ -144,7 +145,9 @@ class CasesTest {
         val supported = Cases.parse("spmm+9x4x7+sparse-uniform+density=0.1+support=banded+mode=oneshot").single()
         assertEquals("banded", supported.option("support", "uniform"))
 
-        assertFailsWith<IllegalArgumentException> { Cases.parse("spdot+4096+sparse-uniform+density=0.1+support=banded") }
+        assertFailsWith<IllegalArgumentException> {
+            Cases.parse("spdot+4096+sparse-uniform+density=0.1+support=banded")
+        }
         assertFailsWith<IllegalArgumentException> {
             Cases.parse("spmm+9x4x7+sparse-uniform+density=0.1+support=diagonal+mode=oneshot")
         }
@@ -173,5 +176,4 @@ class CasesTest {
             assertFailsWith<IllegalArgumentException> { Cases.parse(id) }
         }
     }
-
 }

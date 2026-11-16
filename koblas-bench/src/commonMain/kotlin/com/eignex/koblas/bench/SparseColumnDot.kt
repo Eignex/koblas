@@ -1,8 +1,8 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.*
 import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.internal.kernels.*
 
 /** Matched CSC column windows, including public validation, through the selected engine. */
 internal fun sparseColumnDotWork(case: BenchCase, engine: KoblasEngine): CaseWork {

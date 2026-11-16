@@ -26,8 +26,10 @@ internal fun sparseIndexedWork(case: BenchCase, engine: KoblasEngine): CaseWork 
         return when (operation) {
             "spdot" -> BenchmarkOperation { kernels.dot(sparse.indices, 0, sparse.values, 0, count, destination) }
             "spdot-raw" -> BenchmarkOperation { kernels.dot(indices, 0, sparse.values, 0, count, destination) }
-            "spdot-sparse" -> BenchmarkOperation { kernels.dot(sparse.indices, 0, sparse.values, 0, count,
-                sparseY.indices, 0, sparseY.values, 0, sparseY.nnz) }
+            "spdot-sparse" -> BenchmarkOperation {
+                kernels.dot(sparse.indices, 0, sparse.values, 0, count,
+                    sparseY.indices, 0, sparseY.values, 0, sparseY.nnz)
+            }
             "spnrm2" -> BenchmarkOperation { selected.normVector(sparse) }
             "spasum" -> BenchmarkOperation { selected.absoluteSumVector(sparse) }
             "spaxpy" -> BenchmarkOperation {
@@ -41,7 +43,8 @@ internal fun sparseIndexedWork(case: BenchCase, engine: KoblasEngine): CaseWork 
                 destination[0]
             }
             "spscatter" -> BenchmarkOperation {
-                initialValues.copyInto(sparse.values); initialDense.copyInto(destination)
+                initialValues.copyInto(sparse.values)
+                initialDense.copyInto(destination)
                 kernels.scatter(sparse.indices, 0, sparse.values, 0, count, destination)
                 sparse.values[0]
             }
@@ -56,7 +59,8 @@ internal fun sparseIndexedWork(case: BenchCase, engine: KoblasEngine): CaseWork 
                 sparse.values[0] + sparse.values[count - 1]
             }
             "spgather-zero" -> BenchmarkOperation {
-                initialValues.copyInto(sparse.values); initialDense.copyInto(destination)
+                initialValues.copyInto(sparse.values)
+                initialDense.copyInto(destination)
                 kernels.gatherZero(indices, 0, sparse.values, 0, count, destination)
                 sparse.values[0]
             }

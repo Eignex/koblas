@@ -29,9 +29,11 @@ class CasesFileTest {
     @Test
     fun `capture selection agrees with Kotlin across suites and smoke limits`() {
         val cases = Cases.parse(Files.readString(Path.of("cases.txt")))
-        for ((suite, operation) in listOf("default" to "all", "default" to "dot", "default" to "ger-window-shrinking", "sweep" to "dot", "sweep" to "sum")) {
+        for ((suite, operation) in listOf("default" to "all", "default" to "dot", "default" to "ger-window-shrinking",
+            "sweep" to "dot", "sweep" to "sum")) {
             for (smoke in listOf(false, true)) {
-                val process = ProcessBuilder("awk", "-v", "suite=$suite", "-v", "operation=$operation", "-v", "smoke=$smoke",
+                val process = ProcessBuilder("awk", "-v", "suite=$suite", "-v", "operation=$operation", "-v",
+                    "smoke=$smoke",
                     "-f", "select-cases.awk", "cases.txt").redirectErrorStream(true).start()
                 val output = process.inputStream.bufferedReader().readText()
                 assertEquals(0, process.waitFor(), output)
@@ -44,7 +46,8 @@ class CasesFileTest {
     @Test
     fun `capture rejects invalid and empty selections`() {
         // gemm has no sweep, so asking for one is the empty intersection this rejects.
-        for ((suite, operation) in listOf("sweep" to "all", "unknown" to "dot", "sweep" to "gemm", "default" to "unknown")) {
+        for ((suite, operation) in listOf("sweep" to "all", "unknown" to "dot", "sweep" to "gemm",
+            "default" to "unknown")) {
             val process = ProcessBuilder("awk", "-v", "suite=$suite", "-v", "operation=$operation",
                 "-f", "select-cases.awk", "cases.txt").redirectErrorStream(true).start()
             val output = process.inputStream.bufferedReader().readText()
@@ -54,7 +57,8 @@ class CasesFileTest {
 
     @Test
     fun `capture rejects malformed membership even after smoke limit`() {
-        for (suffix in listOf("", "all", "default,default", "sweep,", ",sweep", "default,other", "default+suite=sweep")) {
+        for (suffix in listOf("", "all", "default,default", "sweep,", ",sweep", "default,other",
+            "default+suite=sweep")) {
             val process = ProcessBuilder("awk", "-v", "suite=default", "-v", "operation=all", "-v", "smoke=true",
                 "-f", "select-cases.awk").redirectErrorStream(true).start()
             process.outputStream.bufferedWriter().use {
@@ -69,7 +73,9 @@ class CasesFileTest {
     fun `default workload has stable supported identities`() {
         val defaults = Cases.select(Cases.parse(Files.readString(Path.of("cases.txt"))))
         val ids = defaults.joinToString("\n") { it.id }
-        val digest = MessageDigest.getInstance("SHA-256").digest(ids.toByteArray()).joinToString("") { "%02x".format(it) }
+        val digest = MessageDigest.getInstance("SHA-256").digest(ids.toByteArray()).joinToString("") {
+            "%02x".format(it)
+        }
 
         // The digest protects benchmark identities used to compare captures.
         assertEquals("3cc1e8b6093e05397085ed3ef49c23c8635d36042467d33c620c7b1fc76c4f85", digest)

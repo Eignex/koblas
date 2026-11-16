@@ -32,5 +32,4 @@ class JvmRunnerTest {
             Files.deleteIfExists(path)
         }
     }
-
 }

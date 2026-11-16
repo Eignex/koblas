@@ -19,7 +19,10 @@ class CaptureShellTest {
             val env = mapOf("SystemRoot" to root.resolve("Windows").toString(), "Path" to "$system;$git")
 
             assertEquals(bash.toString(), captureShell(windows = true, environment = env))
-            assertFailsWith<IllegalStateException> { captureShell(windows = true, environment = env + ("Path" to system.toString())) }
+            assertFailsWith<IllegalStateException> {
+                captureShell(windows = true, environment =
+                    env + ("Path" to system.toString()))
+            }
             assertEquals(system.resolve("bash.exe").toString(), captureShell(windows = true,
                 environment = env + ("KOBLAS_BASH" to system.resolve("bash.exe").toString())))
         } finally {

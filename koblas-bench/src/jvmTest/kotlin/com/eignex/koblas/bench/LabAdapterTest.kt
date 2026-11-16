@@ -1,9 +1,9 @@
 package com.eignex.koblas.bench
 
 import com.eignex.lab.bench.*
+import kotlinx.serialization.json.*
 import java.nio.file.Files
 import java.nio.file.Path
-import kotlinx.serialization.json.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -20,11 +20,15 @@ class LabAdapterTest {
 
             assertEquals(2, cases.size)
             assertEquals(2, cases.map { it.id }.distinct().size)
-            assertEquals(setOf("dot+64+uniform", "copy+17+uniform+stride=2"), cases.map { it.parameters.getValue("row") }.toSet())
+            assertEquals(setOf("dot+64+uniform", "copy+17+uniform+stride=2"), cases.map {
+                it.parameters.getValue("row")
+            }.toSet())
             assertTrue(cases.all { it.resources.memoryMiB == 2048L })
             assertTrue(cases.all { it.attributes["nativeExecutable"]?.contains("/linuxX64/") == true })
             assertTrue(cases.all { case -> case.inputs.any { it.path.endsWith("calibration/plan-fixture.txt") } })
-        } finally { Files.delete(file) }
+        } finally {
+            Files.delete(file)
+        }
     }
 
     @Test fun `vendors select their compatible hosts`() {
@@ -33,7 +37,9 @@ class LabAdapterTest {
             Triple("accelerate", "arm64", "mac"))) {
             val cases = KoblasLabSuite.plan(BenchRequest(mapOf("vendor" to vendor, "arch" to arch)))
 
-            assertEquals(setOf(setOf("platform:$platform", "arch:$arch")), cases.map { it.resources.requiredTags }.toSet())
+            assertEquals(setOf(setOf("platform:$platform", "arch:$arch")), cases.map {
+                it.resources.requiredTags
+            }.toSet())
         }
     }
 
@@ -82,7 +88,8 @@ class LabAdapterTest {
     }
 
     @Test fun `jvm options take only hotspot flags`() {
-        val accepted = mapOf("vendor" to "onemkl", "operation" to "dot", "jvm-options" to "-XX:MaxVectorSize=32 -XX:-UseFMA")
+        val accepted = mapOf("vendor" to "onemkl", "operation" to "dot",
+            "jvm-options" to "-XX:MaxVectorSize=32 -XX:-UseFMA")
 
         KoblasLabSuite.plan(BenchRequest(accepted))
 
@@ -95,14 +102,20 @@ class LabAdapterTest {
 
     @Test fun `owned captures need no vendor and windows keeps compatible library architectures`() {
         val owned = KoblasLabSuite.plan(BenchRequest(mapOf("targets" to "jvm-scalar,jvm-simd,jvm-default-no-simd")))
-        assertTrue(owned.all { it.inputs.none { input -> input.role == "vendor" } && "nativeExecutable" !in it.attributes })
+        assertTrue(owned.all {
+            it.inputs.none { input -> input.role == "vendor" } &&
+                "nativeExecutable" !in it.attributes
+        })
         for ((vendor, arch) in mapOf("onemkl" to "x86_64", "aocl" to "x86_64", "armpl" to "arm64")) {
             val cases = KoblasLabSuite.plan(BenchRequest(mapOf("vendor" to vendor, "arch" to arch,
                 "platform" to "windows", "targets" to "$vendor-jvm")))
             assertTrue(cases.all { it.resources.requiredTags == setOf("platform:windows", "arch:$arch") })
         }
         val native = KoblasLabSuite.plan(BenchRequest(mapOf("platform" to "windows", "targets" to "native")))
-        assertTrue(native.all { case -> case.attributes["nativeExecutable"]?.endsWith("mingwX64/releaseExecutable/koblas-bench.exe") == true })
+        assertTrue(native.all { case ->
+            case.attributes["nativeExecutable"]?.endsWith("mingwX64/releaseExecutable/koblas-bench.exe") ==
+                true
+        })
     }
 
     @Test fun `prepared capture retains partial outputs`() {
@@ -130,17 +143,21 @@ class LabAdapterTest {
                     echo retained-log
                     exit $exit
                 """.trimIndent() + "\n")
-                val case = KoblasLabSuite.plan(BenchRequest(mapOf("targets" to "jvm-scalar", "operation" to "dot"))).first()
+                val case = KoblasLabSuite.plan(BenchRequest(mapOf("targets" to "jvm-scalar",
+                    "operation" to "dot"))).first()
 
                 val result = KoblasLabSuite.run(case, BenchContext(root.resolve("out"), worktree = repository))
 
                 assertEquals(if (complete && exit == 0) BenchStatus.SUCCESS else BenchStatus.FAILED, result.status)
                 assertTrue(result.artifacts.any { it.path == "report/jvm-scalar.csv" })
                 assertTrue(Files.readString(root.resolve("out/capture.log")).contains("retained-log"))
-                assertEquals(case.parameters.getValue("row"), Files.readString(root.resolve("out/report/cases.txt")).trim())
+                assertEquals(case.parameters.getValue("row"), Files.readString(root.resolve(
+                    "out/report/cases.txt")).trim())
                 val arguments = Files.readAllLines(root.resolve("out/report/arguments.txt"))
                 assertTrue("--prepared" in arguments && "--retain-incomplete" in arguments)
-            } finally { root.toFile().deleteRecursively() }
+            } finally {
+                root.toFile().deleteRecursively()
+            }
         }
     }
 
@@ -184,7 +201,9 @@ class LabAdapterTest {
                 hashes += identity[1]
             }
             assertEquals(2, hashes.size)
-        } finally { root.toFile().deleteRecursively() }
+        } finally {
+            root.toFile().deleteRecursively()
+        }
     }
 
     @Test fun `status capture exports each engine metric with its measured attribution`() {
@@ -217,14 +236,18 @@ class LabAdapterTest {
             val result = KoblasLabSuite.run(case, BenchContext(root.resolve("out"), worktree = repository))
 
             assertEquals(BenchStatus.SUCCESS, result.status)
-            assertEquals(listOf("median_ns", "median_ns/jvm-scalar", "median_ns/jvm-simd"), result.metrics.map { it.name })
+            assertEquals(listOf("median_ns", "median_ns/jvm-scalar", "median_ns/jvm-simd"), result.metrics.map {
+                it.name
+            })
             assertTrue(result.metrics.all { it.value == 12.5 && it.unit == "ns/op" })
             val controls = result.details!!.getValue("benchmarkControls").jsonObject
             assertEquals("primitive-double-v1", controls.getValue("callbackResult").jsonPrimitive.content)
-            val attribution = result.details!!.getValue("metricAttribution").jsonObject.getValue("median_ns/jvm-simd").jsonObject
+            val attribution = result.details!!.getValue("metricAttribution").jsonObject.getValue(
+                "median_ns/jvm-simd").jsonObject
             assertEquals("jvm-simd", attribution.getValue("engine").jsonPrimitive.content)
             assertEquals("scalar", attribution.getValue("provider").jsonPrimitive.content)
-        } finally { root.toFile().deleteRecursively() }
+        } finally {
+            root.toFile().deleteRecursively()
+        }
     }
-
 }

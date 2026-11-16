@@ -1,8 +1,8 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.*
 import com.eignex.koblas.KoblasEngine
+import com.eignex.koblas.internal.kernels.*
 
 internal data class CaseWork(
     val comparisonKind: String,
@@ -69,78 +69,125 @@ internal fun denseWork(case: BenchCase, engine: KoblasEngine): CaseWork {
             engineWork(engine, case.operation, "arithmetic", run, y)
         }
         "gemv" -> {
-            val m = d[0]; val n = d[1]; val trans = case.flag("transA")
+            val m = d[0]
+            val n = d[1]
+            val trans = case.flag("transA")
             val a = Fixtures.matrix(if (trans) n else m, if (trans) m else n, 1)
-            val x = Fixtures.vector(n, 2); val y0 = Fixtures.vector(m, 3); val y = y0.copyOf()
-            val xVector = DenseVector.wrap(x); val yVector = DenseVector.wrap(y)
+            val x = Fixtures.vector(n, 2)
+            val y0 = Fixtures.vector(m, 3)
+            val y = y0.copyOf()
+            val xVector = DenseVector.wrap(x)
+            val yVector = DenseVector.wrap(y)
             val resets = resets(case)
             level23(
                 engine, case, timing(case),
                 verify = {
                     val expected = DenseReference.gemv(alpha, a, trans, x, beta, y0)
-                    y0.copyInto(y); engine.gemv(alpha, a, xVector, beta, yVector, trans)
+                    y0.copyInto(y)
+                    engine.gemv(alpha, a, xVector, beta, yVector, trans)
                     DenseReference.check(expected, y, "${case.id} gemv")
                 },
-            ) { if (resets) y0.copyInto(y); engine.gemv(alpha, a, xVector, beta, yVector, trans); y[0] }
+            ) {
+                if (resets) y0.copyInto(y)
+                engine.gemv(alpha, a, xVector, beta, yVector, trans)
+                y[0]
+            }
         }
         "symv" -> {
-            val n = d[0]; val lower = case.option("uplo", "L") == "L"; val a = Fixtures.matrix(n, n, 1)
-            val x = Fixtures.vector(n, 2); val y0 = Fixtures.vector(n, 3); val y = y0.copyOf()
-            val xVector = DenseVector.wrap(x); val yVector = DenseVector.wrap(y)
+            val n = d[0]
+            val lower = case.option("uplo", "L") == "L"
+            val a = Fixtures.matrix(n, n, 1)
+            val x = Fixtures.vector(n, 2)
+            val y0 = Fixtures.vector(n, 3)
+            val y = y0.copyOf()
+            val xVector = DenseVector.wrap(x)
+            val yVector = DenseVector.wrap(y)
             val resets = resets(case)
             level23(
                 engine, case, timing(case),
                 verify = {
                     val expected = DenseReference.symv(alpha, a, lower, x, beta, y0)
-                    y0.copyInto(y); engine.symv(alpha, a, xVector, beta, yVector, lower)
+                    y0.copyInto(y)
+                    engine.symv(alpha, a, xVector, beta, yVector, lower)
                     DenseReference.check(expected, y, "${case.id} symv")
                 },
-            ) { if (resets) y0.copyInto(y); engine.symv(alpha, a, xVector, beta, yVector, lower); y[0] }
+            ) {
+                if (resets) y0.copyInto(y)
+                engine.symv(alpha, a, xVector, beta, yVector, lower)
+                y[0]
+            }
         }
         "ger", "syr", "syr2" -> rankUpdateWork(case, engine)
         "ger-shrinking", "ger-window-shrinking" -> shrinkingRankUpdateWork(case, engine)
         "trsv", "trmv" -> triangularVectorWork(case, engine)
         "gemm" -> gemmWork(case, engine)
         "symm" -> {
-            val m = d[0]; val n = d[1]; val right = case.option("side", "L") == "R"; val lower = case.option(
+            val m = d[0]
+            val n = d[1]
+            val right = case.option("side", "L") == "R"
+            val lower = case.option(
                 "uplo",
                 "L",
             ) == "L"
-            val a = Fixtures.matrix(if (right) n else m, if (right) n else m, 1); val b = Fixtures.matrix(m, n, 2)
-            val c0 = Fixtures.matrix(m, n, 3); val c = Fixtures.matrix(m, n, 3)
+            val a = Fixtures.matrix(if (right) n else m, if (right) n else m, 1)
+            val b = Fixtures.matrix(m, n, 2)
+            val c0 = Fixtures.matrix(m, n, 3)
+            val c = Fixtures.matrix(m, n, 3)
             level23(
                 engine, case, "reset-and-arithmetic",
                 verify = {
                     val expected = DenseReference.symm(alpha, a, lower, right, b, beta, c0)
-                    c0.values.copyInto(c.values); engine.symm(alpha, a, b, beta, c, lower, right)
+                    c0.values.copyInto(c.values)
+                    engine.symm(alpha, a, b, beta, c, lower, right)
                     DenseReference.check(expected, c.values, "${case.id} symm")
                 },
-            ) { c0.values.copyInto(c.values); engine.symm(alpha, a, b, beta, c, lower, right); c.values[0] }
+            ) {
+                c0.values.copyInto(c.values)
+                engine.symm(alpha, a, b, beta, c, lower, right)
+                c.values[0]
+            }
         }
         "gemmt" -> {
-            val n = d[0]; val k = d[1]; val ta = case.flag("transA"); val tb = case.flag("transB"); val lower = case.option(
-                "uplo",
-                "L",
-            ) == "L"
-            val a = Fixtures.matrix(if (ta) k else n, if (ta) n else k, 1); val b = Fixtures.matrix(if (tb) n else k, if (tb) k else n, 2)
-            val c0 = Fixtures.matrix(n, n, 3); val c = Fixtures.matrix(n, n, 3)
+            val n = d[0]
+            val k = d[1]
+            val ta = case.flag("transA")
+            val tb = case.flag("transB")
+            val lower =
+                case.option(
+                    "uplo",
+                    "L",
+                ) == "L"
+            val a = Fixtures.matrix(if (ta) k else n, if (ta) n else k, 1)
+            val b = Fixtures.matrix(if (tb) n else k, if (tb) k else n, 2)
+            val c0 = Fixtures.matrix(n, n, 3)
+            val c = Fixtures.matrix(n, n, 3)
             level23(
                 engine, case, "reset-and-arithmetic",
                 verify = {
                     val expected = DenseReference.gemmt(alpha, a, ta, b, tb, beta, c0, lower)
-                    c0.values.copyInto(c.values); engine.gemmt(alpha, a, ta, b, tb, beta, c, lower)
+                    c0.values.copyInto(c.values)
+                    engine.gemmt(alpha, a, ta, b, tb, beta, c, lower)
                     DenseReference.check(expected, c.values, "${case.id} gemmt")
                 },
-            ) { c0.values.copyInto(c.values); engine.gemmt(alpha, a, ta, b, tb, beta, c, lower); c.values[0] }
+            ) {
+                c0.values.copyInto(c.values)
+                engine.gemmt(alpha, a, ta, b, tb, beta, c, lower)
+                c.values[0]
+            }
         }
         "syrk", "syr2k" -> {
-            val n = d[0]; val k = d[1]; val trans = case.flag("transA"); val lower = case.option("uplo", "L") == "L"
-            val a = Fixtures.matrix(if (trans) k else n, if (trans) n else k, 1); val b = Fixtures.matrix(
+            val n = d[0]
+            val k = d[1]
+            val trans = case.flag("transA")
+            val lower = case.option("uplo", "L") == "L"
+            val a = Fixtures.matrix(if (trans) k else n, if (trans) n else k, 1)
+            val b = Fixtures.matrix(
                 a.rows,
                 a.cols,
                 2,
             )
-            val c0 = Fixtures.matrix(n, n, 3); val c = Fixtures.matrix(n, n, 3)
+            val c0 = Fixtures.matrix(n, n, 3)
+            val c = Fixtures.matrix(n, n, 3)
             val single = case.operation == "syrk"
             level23(
                 engine, case, "reset-and-arithmetic",
@@ -190,18 +237,45 @@ private fun vectorWork(case: BenchCase, engine: KoblasEngine): CaseWork {
         val kernels = provider.kernels
         var alpha = 0.875
         val apply: BenchmarkOperation = when (case.operation) {
-            "dot" -> BenchmarkOperation { kernels.dot(a.values, a.offset, b.values, b.offset, size, a.stride, b.stride) }
+            "dot" -> BenchmarkOperation {
+                kernels.dot(a.values, a.offset, b.values, b.offset, size, a.stride, b.stride)
+            }
             "nrm2" -> BenchmarkOperation { kernels.nrm2(a.values, a.offset, size, a.stride) }
             "asum" -> BenchmarkOperation { kernels.asum(a.values, a.offset, size, a.stride) }
             "sum" -> BenchmarkOperation { kernels.sum(a.values, a.offset, size, stride) }
             "iamax" -> BenchmarkOperation { kernels.iamax(a.values, a.offset, a.size, a.stride).toDouble() }
-            "copy" -> BenchmarkOperation { kernels.copy(a.values, a.offset, b.values, b.offset, size, a.stride, b.stride); b[0] }
-            "axpy" -> BenchmarkOperation { if (!reset) alpha = -alpha; kernels.axpy(b.values, b.offset, alpha, a.values, a.offset, size, b.stride, a.stride); b[0] }
-            "scal" -> BenchmarkOperation { kernels.scale(a.values, a.offset, if (reset) 0.875 else -1.0, a.size, a.stride); a[0] + a[size - 1] }
-            "swap" -> BenchmarkOperation { kernels.swap(a.values, a.offset, b.values, b.offset, a.size, a.stride, b.stride); a[0] + b[0] }
-            else -> BenchmarkOperation { kernels.rot(a.values, a.offset, b.values, b.offset, a.size, 0.8, 0.6, a.stride, b.stride); a[0] + b[0] }
+            "copy" -> BenchmarkOperation {
+                kernels.copy(a.values, a.offset, b.values, b.offset, size, a.stride, b.stride)
+                b[0]
+            }
+            "axpy" -> BenchmarkOperation {
+                if (!reset) alpha = -alpha
+                kernels.axpy(b.values, b.offset, alpha, a.values, a.offset, size, b.stride, a.stride)
+                b[0]
+            }
+            "scal" -> BenchmarkOperation {
+                kernels.scale(a.values, a.offset, if (reset) 0.875 else -1.0, a.size, a.stride)
+                a[0] +
+                    a[size - 1]
+            }
+            "swap" -> BenchmarkOperation {
+                kernels.swap(a.values, a.offset, b.values, b.offset, a.size, a.stride, b.stride)
+                a[0] +
+                    b[0]
+            }
+            else -> BenchmarkOperation {
+                kernels.rot(a.values, a.offset, b.values, b.offset, a.size, 0.8, 0.6, a.stride, b.stride)
+                a[0] +
+                    b[0]
+            }
         }
-        return BenchmarkOperation { if (reset) { initialX.copyInto(a.values); initialY.copyInto(b.values) }; apply() }
+        return BenchmarkOperation {
+            if (reset) {
+                initialX.copyInto(a.values)
+                initialY.copyInto(b.values)
+            }
+            apply()
+        }
     }
     val referenceX = operand(1)
     val referenceY = operand(2)
@@ -227,9 +301,12 @@ private fun rankUpdateWork(case: BenchCase, engine: KoblasEngine): CaseWork {
     val lower = case.option("uplo", "L") == "L"
     val rows = case.dimension(0)
     val cols = if (case.operation == "ger") case.dimension(1) else rows
-    val original = Fixtures.matrix(rows, cols, 1); val target = Fixtures.matrix(rows, cols, 1)
-    val x = Fixtures.vector(rows, 2); val y = Fixtures.vector(cols, 3)
-    val xVector = DenseVector.wrap(x); val yVector = DenseVector.wrap(y)
+    val original = Fixtures.matrix(rows, cols, 1)
+    val target = Fixtures.matrix(rows, cols, 1)
+    val x = Fixtures.vector(rows, 2)
+    val y = Fixtures.vector(cols, 3)
+    val xVector = DenseVector.wrap(x)
+    val yVector = DenseVector.wrap(y)
     val operation = case.operation
     fun apply(scale: Double) = when (operation) {
         "ger" -> engine.ger(scale, xVector, yVector, target)
@@ -247,13 +324,15 @@ private fun rankUpdateWork(case: BenchCase, engine: KoblasEngine): CaseWork {
                 "syr" -> DenseReference.syr(alpha, x, original, lower)
                 else -> DenseReference.syr2(alpha, x, y, original, lower)
             }
-            original.values.copyInto(target.values); apply(alpha)
+            original.values.copyInto(target.values)
+            apply(alpha)
             DenseReference.check(expected, target.values, "${case.id} ${case.operation}")
             original.values.copyInto(target.values)
         },
     ) {
         if (resets) original.values.copyInto(target.values) else signed = -signed
-        apply(if (resets) alpha else signed); target.values[0]
+        apply(if (resets) alpha else signed)
+        target.values[0]
     }
 }
 
@@ -262,51 +341,73 @@ private fun triangularVectorWork(case: BenchCase, engine: KoblasEngine): CaseWor
     val lower = case.option("uplo", "L") == "L"
     val trans = case.flag("transA")
     val unit = case.option("diag", "N") == "U"
-    val a = Fixtures.triangular(n, 1, lower); val x0 = Fixtures.vector(n, 2); val x = x0.copyOf()
+    val a = Fixtures.triangular(n, 1, lower)
+    val x0 = Fixtures.vector(n, 2)
+    val x = x0.copyOf()
     val vector = DenseVector.wrap(x)
     val solve = case.operation == "trsv"
     fun apply() = if (solve) engine.trsv(a, vector, lower, trans, unit) else engine.trmv(a, vector, lower, trans, unit)
     return level23(
-                engine, case, "reset-and-arithmetic",
+        engine, case, "reset-and-arithmetic",
         verify = {
             val expected = if (solve) {
                 DenseReference.trsv(a, x0, lower, trans, unit)
             } else {
                 DenseReference.trmv(a, x0, lower, trans, unit)
             }
-            x0.copyInto(x); apply()
+            x0.copyInto(x)
+            apply()
             DenseReference.check(expected, x, "${case.id} ${case.operation}")
         },
-    ) { x0.copyInto(x); apply(); x[0] }
+    ) {
+        x0.copyInto(x)
+        apply()
+        x[0]
+    }
 }
 
 private fun gemmWork(case: BenchCase, engine: KoblasEngine): CaseWork {
     if (case.options["layout"] == "borrowed") return borrowedProductWork(case, engine)
-    val (m, n, k) = case.dimensions; val ta = case.flag("transA"); val tb = case.flag("transB")
-    val alpha = 0.875; val beta = -0.25
+    val (m, n, k) = case.dimensions
+    val ta = case.flag("transA")
+    val tb = case.flag("transB")
+    val alpha = 0.875
+    val beta = -0.25
     val a = Fixtures.matrix(if (ta) k else m, if (ta) m else k, 1)
     val b = Fixtures.matrix(if (tb) n else k, if (tb) k else n, 2)
-    val original = Fixtures.matrix(m, n, 3); val c = Fixtures.matrix(m, n, 3)
+    val original = Fixtures.matrix(m, n, 3)
+    val c = Fixtures.matrix(m, n, 3)
     val scratch = if (case.options["workspace"] == "retained") Scratch() else null
     return level23(
         engine, case,
         "reset-and-arithmetic",
         verify = {
             val expected = DenseReference.gemm(alpha, a, ta, b, tb, beta, original)
-            original.values.copyInto(c.values); engine.gemm(alpha, a, ta, b, tb, beta, c, scratch = scratch)
+            original.values.copyInto(c.values)
+            engine.gemm(alpha, a, ta, b, tb, beta, c, scratch = scratch)
             DenseReference.check(expected, c.values, "${case.id} gemm")
         },
-    ) { original.values.copyInto(c.values); engine.gemm(alpha, a, ta, b, tb, beta, c, scratch = scratch); c.values[0] }
+    ) {
+        original.values.copyInto(c.values)
+        engine.gemm(alpha, a, ta, b, tb, beta, c, scratch = scratch)
+        c.values[0]
+    }
 }
 
 private fun triangularMatrixWork(case: BenchCase, engine: KoblasEngine): CaseWork {
-    val (m, n) = case.dimensions; val right = case.option("side", "L") == "R"; val lower = case.option(
+    val (m, n) = case.dimensions
+    val right = case.option("side", "L") == "R"
+    val lower = case.option(
         "uplo",
         "L",
     ) == "L"
-    val trans = case.flag("transA"); val unit = case.option("diag", "N") == "U"; val order = if (right) n else m
+    val trans = case.flag("transA")
+    val unit = case.option("diag", "N") == "U"
+    val order = if (right) n else m
     val alpha = 0.875
-    val triangle = Fixtures.triangular(order, 1, lower); val original = Fixtures.matrix(m, n, 2); val b = Fixtures.matrix(
+    val triangle = Fixtures.triangular(order, 1, lower)
+    val original = Fixtures.matrix(m, n, 2)
+    val b = Fixtures.matrix(
         m,
         n,
         2,
@@ -325,10 +426,15 @@ private fun triangularMatrixWork(case: BenchCase, engine: KoblasEngine): CaseWor
             } else {
                 DenseReference.trmm(triangle, original, lower, trans, unit, right, alpha)
             }
-            original.values.copyInto(b.values); apply()
+            original.values.copyInto(b.values)
+            apply()
             DenseReference.check(expected, b.values, "${case.id} ${case.operation}")
         },
-    ) { original.values.copyInto(b.values); apply(); b.values[0] }
+    ) {
+        original.values.copyInto(b.values)
+        apply()
+        b.values[0]
+    }
 }
 
 /**

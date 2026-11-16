@@ -21,6 +21,7 @@ internal object SparseReference {
         for (j in 0 until a.cols) a.forEachInColumn(j) { i, v -> result.values[i + j * a.rows] = v }
         return result
     }
+
     /**
      * Fails when a fresh CSC result is not the column-major matrix [expected] describes, or is not valid CSC.
      *
@@ -37,7 +38,9 @@ internal object SparseReference {
         val pointers = actual.copyColumnPointers()
         val indices = actual.copyRowIndices()
         check(pointers.size == actual.cols + 1) { "$what: ${pointers.size} pointers for ${actual.cols} columns" }
-        check(pointers[actual.cols] == actual.nnz) { "$what: pointers end at ${pointers[actual.cols]}, nnz ${actual.nnz}" }
+        check(pointers[actual.cols] == actual.nnz) {
+            "$what: pointers end at ${pointers[actual.cols]}, nnz ${actual.nnz}"
+        }
         for (j in 0 until actual.cols) {
             check(pointers[j] <= pointers[j + 1]) { "$what: column $j pointers descend" }
             for (k in pointers[j] + 1 until pointers[j + 1]) {
