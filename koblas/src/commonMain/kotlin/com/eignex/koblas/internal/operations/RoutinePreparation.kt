@@ -29,6 +29,24 @@ internal inline fun prepareMatrixVector(
     arrays: Scratch?,
     body: (DenseMatrix, DenseVector) -> Unit,
 ) {
+    prepareMatrixVector(vectors, alpha, a, transpose, x, beta, y, lower, arrays) { sa, values, offset, stride ->
+        body(sa, x.typedWindow(values, offset, stride))
+    }
+}
+
+/** Primitive counterpart for schedules that do not need a typed vector around the snapshot. */
+internal inline fun prepareMatrixVector(
+    vectors: KoblasEngine,
+    alpha: Double,
+    a: DenseMatrix,
+    transpose: Boolean,
+    x: DenseVector,
+    beta: Double,
+    y: DenseVector,
+    lower: Boolean?,
+    arrays: Scratch?,
+    body: (DenseMatrix, DoubleArray, Int, Int) -> Unit,
+) {
     val rows = if (transpose) a.cols else a.rows
     val depth = if (transpose) a.rows else a.cols
     if (lower == null) {
@@ -42,7 +60,9 @@ internal inline fun prepareMatrixVector(
         return
     }
     stagedRegionAgainst(arrays, a, y, lower = lower) { sa ->
-        stagedWindow(arrays, x, x.overlaps(y)) { sx -> body(sa, sx) }
+        stagedWindow(arrays, x.values, x.offset, x.size, x.stride, x.overlaps(y)) { values, offset, stride ->
+            body(sa, values, offset, stride)
+        }
     }
 }
 
@@ -59,13 +79,35 @@ internal inline fun prepareRankUpdate(
     arrays: Scratch?,
     body: (DenseVector, DenseVector) -> Unit,
 ) {
+    prepareRankUpdate(alpha, x, y, a, what, arrays) { xv, xo, xs, yv, yo, ys ->
+        val sx = x.typedWindow(xv, xo, xs)
+        val sy = if (sameVectorMapping(x, y)) sx else y.typedWindow(yv, yo, ys)
+        body(sx, sy)
+    }
+}
+
+/** Primitive snapshots shared by the portable GER, SYR and SYR2 schedules. */
+internal inline fun prepareRankUpdate(
+    alpha: Double,
+    x: DenseVector,
+    y: DenseVector,
+    a: DenseMatrix,
+    what: String,
+    arrays: Scratch?,
+    body: (DoubleArray, Int, Int, DoubleArray, Int, Int) -> Unit,
+) {
     when (what) {
         "syr" -> requireSyrOperands(a, x.size, what)
         "syr2" -> requireSyr2Operands(a, x.size, y.size, what)
         else -> requireGerOperands(x.size, y.size, a)
     }
     if (alpha == 0.0 || a.rows == 0 || a.cols == 0) return
-    stagedWindows(arrays, x, y, a, body)
+    stagedWindows(
+        arrays,
+        x.values, x.offset, x.size, x.stride, regionWindowOverlap(a, x.values, x.offset, x.size, x.stride),
+        y.values, y.offset, y.size, y.stride, regionWindowOverlap(a, y.values, y.offset, y.size, y.stride),
+        body,
+    )
 }
 
 /**
@@ -163,17 +205,17 @@ internal fun KoblasEngine.updateRank(
         scheduleGer(alpha, x, xOffset, xStride, y, yOffset, yStride, a, destinationOffset, rows, columns)
         return
     }
-    val window = if (rowOffset == 0 && columnOffset == 0 && rows == a.rows && columns == a.cols) {
-        a
-    } else {
-        a.view(rowOffset, columnOffset, rows, columns)
-    }
-    val xView = DenseVector.wrap(x, xOffset, rows, xStride)
-    val yView = DenseVector.wrap(y, yOffset, columns, yStride)
-    stagedWindows(scratch, xView, yView, window) { sx, sy ->
+    val xAliased = regionWindowOverlap(
+        a.values, destinationOffset, rows, columns, a.leadingDimension, x, xOffset, rows, xStride,
+    )
+    val yAliased = regionWindowOverlap(
+        a.values, destinationOffset, rows, columns, a.leadingDimension, y, yOffset, columns, yStride,
+    )
+    stagedWindows(
+        scratch, x, xOffset, rows, xStride, xAliased, y, yOffset, columns, yStride, yAliased,
+    ) { xv, xo, xs, yv, yo, ys ->
         scheduleGer(
-            alpha, sx.values, sx.offset, sx.stride, sy.values, sy.offset, sy.stride,
-            window, window.offset, rows, columns,
+            alpha, xv, xo, xs, yv, yo, ys, a, destinationOffset, rows, columns,
         )
     }
 }

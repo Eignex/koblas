@@ -13,14 +13,28 @@ internal val DenseVector.isWholeBuffer: Boolean
     get() = offset == 0 && stride == 1 && values.size == size
 
 /** Exact overlap of a vector window and the logical columns of [a], ignoring column padding. */
-internal fun regionWindowOverlap(a: DenseMatrix, values: DoubleArray, offset: Int, count: Int, stride: Int): Boolean {
-    if (a.values !== values || count == 0 || a.rows == 0 || a.cols == 0) return false
+internal fun regionWindowOverlap(a: DenseMatrix, values: DoubleArray, offset: Int, count: Int, stride: Int): Boolean =
+    regionWindowOverlap(a.values, a.offset, a.rows, a.cols, a.leadingDimension, values, offset, count, stride)
+
+/** Exact overlap for an internal matrix region without constructing a submatrix view. */
+internal fun regionWindowOverlap(
+    matrix: DoubleArray,
+    matrixOffset: Int,
+    rows: Int,
+    columns: Int,
+    leadingDimension: Int,
+    values: DoubleArray,
+    offset: Int,
+    count: Int,
+    stride: Int,
+): Boolean {
+    if (matrix !== values || count == 0 || rows == 0 || columns == 0) return false
     val step = if (count <= 1) 1L else kotlin.math.abs(stride.toLong())
     val first = minOf(offset.toLong(), offset.toLong() + (count - 1L) * stride)
     val last = maxOf(offset.toLong(), offset.toLong() + (count - 1L) * stride)
-    for (column in 0 until a.cols) {
-        val from = a.offset.toLong() + column.toLong() * a.leadingDimension
-        val until = from + a.rows
+    for (column in 0 until columns) {
+        val from = matrixOffset.toLong() + column.toLong() * leadingDimension
+        val until = from + rows
         val candidate = first + maxOf(0L, (from - first + step - 1) / step) * step
         if (candidate <= last && candidate < until) return true
     }

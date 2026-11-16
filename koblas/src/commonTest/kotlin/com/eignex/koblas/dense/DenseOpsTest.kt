@@ -627,6 +627,18 @@ class DenseOpsTest {
     }
 
     @Test
+    fun `windowed GER shares a backing array without staging disjoint entries`() = withKoblasEngine { engine ->
+        val a = DenseMatrix.wrap(9, 8, DoubleArray(72) { (it % 13 - 6) / 8.0 })
+        val workspace = Scratch()
+        val expected = referenceWindow(a, a.values, a.values, 3, 2, 0, 4)
+
+        engine.kernels.ger(-0.875, a.values, a.values, a, 2, 3, 3, 2, 0, 4, scratch = workspace)
+
+        assertWindowAgreesWithReference(expected, a, 3, 2)
+        assertEquals(0, workspace.idleLengths())
+    }
+
+    @Test
     fun `windowed GER validates every range before writing even with zero alpha`() = withKoblasEngine { engine ->
         val valid = intArrayOf(2, 3, 3, 2, 1, 4)
         for (alpha in doubleArrayOf(0.0, -1.0)) {

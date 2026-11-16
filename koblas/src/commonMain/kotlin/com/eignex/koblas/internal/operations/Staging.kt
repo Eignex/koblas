@@ -82,19 +82,30 @@ internal inline fun <T> stagedRegion(
     return stagedRegion(arrays, a, destination.values, stable, original, lower, unitDiag, block)
 }
 
-/** [block] over [vector], or over a contiguous snapshot of its logical entries when [aliased]. */
+/** Snapshot logical entries into a loan without creating a temporary vector descriptor. */
 internal inline fun <T> stagedWindow(
     arrays: Scratch?,
-    vector: DenseVector,
+    values: DoubleArray,
+    offset: Int,
+    size: Int,
+    stride: Int,
     aliased: Boolean,
-    block: (DenseVector) -> T,
+    block: (DoubleArray, Int, Int) -> T,
 ): T {
-    if (!aliased) return block(vector)
-    return arrays.borrow(vector.size) { copy ->
-        for (i in 0 until vector.size) copy[i] = vector[i]
-        block(DenseVector.wrap(copy))
+    if (!aliased) return block(values, offset, stride)
+    return arrays.borrow(size) { copy ->
+        for (i in 0 until size) copy[i] = values[offset + i * stride]
+        block(copy, 0, 1)
     }
 }
+
+/** Only typed host callbacks need a container around a primitive snapshot. */
+internal fun DenseVector.typedWindow(values: DoubleArray, offset: Int, stride: Int): DenseVector =
+    if (values === this.values && offset == this.offset && stride == this.stride) {
+        this
+    } else {
+        DenseVector.wrap(values, offset, size, stride)
+    }
 
 /** Snapshots [a] only when its logical entries overlap [vector]. */
 internal inline fun <T> stagedRegionAgainst(
@@ -109,22 +120,25 @@ internal inline fun <T> stagedRegionAgainst(
     return stagedRegion(arrays, a, vector.values, lower = lower, unitDiag = unitDiag, block = block)
 }
 
-/** Stages both vectors against [destination], sharing a snapshot when they address the same entries. */
+/** Primitive window pair with one loan for identical mappings, even for single entries with different strides. */
 internal inline fun <T> stagedWindows(
     arrays: Scratch?,
-    x: DenseVector,
-    y: DenseVector,
-    destination: DenseMatrix,
-    block: (DenseVector, DenseVector) -> T,
-): T {
-    val xAliased = regionWindowOverlap(destination, x.values, x.offset, x.size, x.stride)
-    return stagedWindow(arrays, x, xAliased) { sx ->
-        if (sameVectorMapping(x, y)) {
-            block(sx, sx)
-        } else {
-            val yAliased = regionWindowOverlap(destination, y.values, y.offset, y.size, y.stride)
-            stagedWindow(arrays, y, yAliased) { sy -> block(sx, sy) }
-        }
+    x: DoubleArray,
+    xOffset: Int,
+    xSize: Int,
+    xStride: Int,
+    xAliased: Boolean,
+    y: DoubleArray,
+    yOffset: Int,
+    ySize: Int,
+    yStride: Int,
+    yAliased: Boolean,
+    block: (DoubleArray, Int, Int, DoubleArray, Int, Int) -> T,
+): T = stagedWindow(arrays, x, xOffset, xSize, xStride, xAliased) { xv, xo, xs ->
+    if (x === y && xOffset == yOffset && xSize == ySize && (xSize <= 1 || xStride == yStride)) {
+        block(xv, xo, xs, xv, xo, xs)
+    } else {
+        stagedWindow(arrays, y, yOffset, ySize, yStride, yAliased) { yv, yo, ys -> block(xv, xo, xs, yv, yo, ys) }
     }
 }
 
