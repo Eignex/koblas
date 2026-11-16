@@ -8,6 +8,10 @@ plugins {
 
 allprojects {
     repositories {
+        maven("https://central.sonatype.com/repository/maven-snapshots/") {
+            mavenContent { snapshotsOnly() }
+            content { includeGroup("com.eignex") }
+        }
         ivy {
             url = uri("https://github.com/Eignex/kbuild/releases/download")
             patternLayout { artifact("v[revision]/[artifact]-[revision](-[classifier]).[ext]") }

@@ -2,6 +2,7 @@
 module com.eignex.koblas {
     requires transitive kotlin.stdlib;
     requires transitive kotlinx.serialization.core;
+    requires util.jvm;
     requires java.management;
     requires jdk.management;
     requires static jdk.incubator.vector;
