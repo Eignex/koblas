@@ -316,6 +316,30 @@ class MatrixOpsTest {
     }
 
     @Test
+    fun `sparse infinity norms agree with the scalar oracle as row support grows`() {
+        for (count in listOf(1, 8, 9, 17, 65, 129)) {
+            val compact = DenseMatrix.zero(count, 5)
+            val source = SparseMatrix.ofColumns(
+                Int.MAX_VALUE,
+                compact.cols,
+                List(compact.cols) { column ->
+                    List(count) { row ->
+                        val value = ((row * 7 + column * 3) % 19 - 9) * 0.125
+                        compact[row, column] = value
+                        val index = if (row == count - 1) Int.MAX_VALUE - 1 else row * 8192
+                        index to value
+                    }
+                },
+            )
+            val expected = referenceMatrixNorm(compact, Norm.Infinity)
+
+            val actual = source.norm(Norm.Infinity)
+
+            assertNormAgreesWithReference(expected, actual)
+        }
+    }
+
+    @Test
     fun `matrix norms leave the whole backing buffer unchanged`() {
         val a = paddedRegion(3, 4)
         val before = a.values.copyOf()
