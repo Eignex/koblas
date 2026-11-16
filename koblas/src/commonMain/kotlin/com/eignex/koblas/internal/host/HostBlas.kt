@@ -4,7 +4,7 @@ package com.eignex.koblas.internal.host
 
 import com.eignex.koblas.*
 import com.eignex.koblas.EngineImplementation
-import com.eignex.koblas.internal.kernels.KernelProvider
+import com.eignex.koblas.internal.kernels.VectorKernels
 import com.eignex.koblas.internal.operations.*
 import com.eignex.koblas.internal.storage.dense.*
 
@@ -14,7 +14,7 @@ import com.eignex.koblas.internal.storage.dense.*
  * A binding supplies the calls themselves, which receive operands already validated and free of overlap with
  * their destination. A routine the library does not export fails before any operand is touched.
  */
-internal interface HostBlas : KernelProvider {
+internal interface HostBlas : VectorKernels {
     fun cblasGemv(
         alpha: Double,
         a: DoubleArray,

@@ -2,7 +2,7 @@ package com.eignex.koblas.internal.jvm25.simd
 
 import com.eignex.koblas.*
 import com.eignex.koblas.EngineImplementation
-import com.eignex.koblas.internal.kernels.KernelProvider
+import com.eignex.koblas.internal.kernels.IndexedKernels
 import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
 
@@ -11,7 +11,7 @@ import jdk.incubator.vector.VectorOperators
  * Vector API indexed operations measured slower and can fall back to allocating Java code.
  * Keep a separate object so DoubleVector initialization occurs only when the module is present.
  */
-internal object SimdIndexedKernels : KernelProvider {
+internal object SimdIndexedKernels : IndexedKernels {
     override val id: String = "jvm-simd"
     override fun minimumLength(implementation: EngineImplementation): Int = 2
 

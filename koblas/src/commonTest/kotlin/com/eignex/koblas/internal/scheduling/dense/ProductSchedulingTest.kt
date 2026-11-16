@@ -31,7 +31,7 @@ class ProductSchedulingTest {
      * Shapes cross each block boundary while keeping the other axes small for the oracle.
      * Tile-derived extents ensure packing on wide species and leave remainder tiles.
      */
-    private fun blockedShapes(tile: KernelProvider): List<Triple<Int, Int, Int>> {
+    private fun blockedShapes(tile: PackedProductKernels): List<Triple<Int, Int, Int>> {
         val rows = packedExtent(tile.tileRows)
         val columns = packedExtent(tile.tileColumns)
         return listOf(
@@ -423,7 +423,7 @@ class ProductSchedulingTest {
 
     @Suppress("LongParameterList") // the backend and the four facts that pick out one case of the sweep
     private fun assertWindowed(
-        products: KernelProvider,
+        products: PackedProductKernels,
         selected: OutputTriangle,
         packed: Boolean,
         transposeA: Boolean,
@@ -541,10 +541,10 @@ class ProductSchedulingTest {
         }
     }
 
-    private fun koblasPanels(): KernelProvider = KoblasEngine.simd?.panelProvider ?: ScalarEngine
+    private fun koblasPanels(): PanelKernels = KoblasEngine.simd?.panelProvider ?: ScalarEngine
 
     /** The panel backend that belongs beside [products], so a composition under test is a real one. */
-    private fun panelsFor(products: KernelProvider): KernelProvider =
+    private fun panelsFor(products: PackedProductKernels): PanelKernels =
         if (products === ScalarEngine) ScalarEngine else koblasPanels()
 
     /** The blocked shape and the direct one, so every conformance check covers both routes. */

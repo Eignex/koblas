@@ -143,13 +143,13 @@ class NativeVendorBlasTest {
             val outside = DoubleArray(3)
 
             assertFailsWith<DimensionMismatch>("dot offset=$offset stride=$stride") {
-                vendor.kernels.dot(outside, offset, inside, 0, 3, stride, 1)
+                vendor.kernels.vectorKernels.dot(outside, offset, inside, 0, 3, stride, 1)
             }
             assertFailsWith<DimensionMismatch>("axpy offset=$offset stride=$stride") {
-                vendor.kernels.axpy(inside, 0, 1.0, outside, offset, 3, 1, stride)
+                vendor.kernels.vectorKernels.axpy(inside, 0, 1.0, outside, offset, 3, 1, stride)
             }
             assertFailsWith<DimensionMismatch>("nrm2 offset=$offset stride=$stride") {
-                vendor.kernels.nrm2(outside, offset, 3, stride)
+                vendor.kernels.vectorKernels.nrm2(outside, offset, 3, stride)
             }
         }
     }

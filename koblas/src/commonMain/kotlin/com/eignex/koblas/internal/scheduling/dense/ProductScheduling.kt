@@ -8,10 +8,12 @@ import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.operations.applyBeta
 import com.eignex.koblas.internal.scheduling.forEachPanel
 import com.eignex.koblas.internal.storage.borrowOptional
+import com.eignex.koblas.internal.storage.dense.selectedRowEnd
+import com.eignex.koblas.internal.storage.dense.selectedRowStart
 
 /*
  * Shared scheduling for `C = alpha * op(A) * op(B) + beta * C`.
- * Large windows pack cache blocks for [EngineKernels.productBlock]; small or thin ones use Level 2 panels.
+ * Large windows pack cache blocks for [PackedProductKernels.productBlock]; small or thin ones use Level 2 panels.
  * Beta applies once per destination window, on the first depth block or unpacked column writeback.
  * Offsets and leading dimensions let structured routines pass strips and blocks without copying.
  */
@@ -41,6 +43,13 @@ internal enum class OutputTriangle {
 
     /** Only entries on or above the diagonal of the destination window are written. */
     Upper,
+    ;
+
+    val lower: Boolean? get() = when (this) {
+        Full -> null
+        Lower -> true
+        Upper -> false
+    }
 }
 
 /**
@@ -98,7 +107,7 @@ internal fun productWindow(
 
 /** Transient cache-block packing, with a tile-sized merge buffer for a selected triangle. */
 internal fun blockedProduct(
-    kernels: EngineKernels,
+    kernels: PackedProductKernels,
     alpha: Double,
     a: DoubleArray,
     aOffset: Int,
@@ -169,14 +178,14 @@ internal inline fun forEachProductBlock(
 }
 
 /** The block extents a product of these logical extents is scheduled with, for [forEachProductBlock]. */
-internal fun productBlockRows(kernels: EngineKernels, m: Int): Int = blockExtent(
+internal fun productBlockRows(kernels: PackedProductKernels, m: Int): Int = blockExtent(
     PRODUCT_BLOCK_ROWS,
     kernels.tileRows,
     m,
 )
 
 /** The destination columns one block covers, rounded to whole tiles. */
-internal fun productBlockColumns(kernels: EngineKernels, n: Int): Int =
+internal fun productBlockColumns(kernels: PackedProductKernels, n: Int): Int =
     blockExtent(PRODUCT_BLOCK_COLUMNS, kernels.tileColumns, n)
 
 /** The shared-dimension steps one block accumulates, which needs no rounding. */
@@ -213,7 +222,7 @@ internal fun insideTriangle(
  * Tiles wholly outside the selected triangle are skipped.
  */
 internal inline fun forEachSelectedTile(
-    kernels: EngineKernels,
+    kernels: PackedProductKernels,
     row: Int,
     rowCount: Int,
     column: Int,
@@ -243,7 +252,7 @@ internal inline fun forEachSelectedTile(
 /** The block traversal itself, over panels packed into [left] and [right]. */
 @Suppress("CyclomaticComplexMethod") // the traversal, its lazy packing and the three positions of a block
 private fun blockedProductCore(
-    kernels: EngineKernels,
+    kernels: PackedProductKernels,
     alpha: Double,
     a: DoubleArray,
     aOffset: Int,
@@ -315,7 +324,7 @@ private fun blockedProductCore(
  * Merging per register tile bounds discarded work to part of a tile instead of part of a cache block.
  */
 private fun selectedBlock(
-    kernels: EngineKernels,
+    kernels: PackedProductKernels,
     alpha: Double,
     leftPanel: DoubleArray,
     leftStride: Int,
@@ -407,7 +416,7 @@ private fun mergeSelected(
  * [gathersCoefficients] gathers strided columns of `op(B)` when vector reductions amortize the copy.
  */
 internal fun directProduct(
-    panels: EngineKernels,
+    panels: PanelKernels,
     alpha: Double,
     a: DoubleArray,
     aOffset: Int,
@@ -462,7 +471,7 @@ internal fun directColumnBlock(m: Int): Int = if (m < PRODUCT_BLOCK_ROWS) m else
  * A transposed left operand reduces down stored columns and an untransposed one accumulates them into the
  * destination, which are different panels over different shapes, so each is grouped over the shape it cuts.
  */
-internal fun directPanelGroup(panels: EngineKernels, m: Int, k: Int, transposeA: Boolean): Int = if (transposeA) {
+internal fun directPanelGroup(panels: PanelKernels, m: Int, k: Int, transposeA: Boolean): Int = if (transposeA) {
     panels.executionGroup(PanelWork.MultiDot, k, m)
 } else {
     panels.executionGroup(PanelWork.ColumnUpdate, directColumnBlock(m), k)
@@ -470,7 +479,7 @@ internal fun directPanelGroup(panels: EngineKernels, m: Int, k: Int, transposeA:
 
 /** The transposed-left half of [directProduct], with or without the gathered coefficient column. */
 private fun reducedProduct(
-    panels: EngineKernels,
+    panels: PanelKernels,
     alpha: Double,
     a: DoubleArray,
     aOffset: Int,
@@ -509,21 +518,18 @@ private fun reducedProduct(
 
 /** The first destination row column [j] may be written at, which the selected triangle decides. */
 internal fun selectedRow(j: Int, m: Int, selected: OutputTriangle): Int =
-    if (selected == OutputTriangle.Lower) if (j < m) j else m else 0
+    selectedRowStart(j, m, selected.lower)
 
 /** How many destination rows column [j] may be written at, counted from [selectedRow]. */
-internal fun selectedRows(j: Int, m: Int, selected: OutputTriangle): Int = when (selected) {
-    OutputTriangle.Full -> m
-    OutputTriangle.Lower -> if (j < m) m - j else 0
-    OutputTriangle.Upper -> if (j + 1 < m) j + 1 else m
-}
+internal fun selectedRows(j: Int, m: Int, selected: OutputTriangle): Int =
+    selectedRowEnd(j, m, selected.lower) - selectedRow(j, m, selected)
 
 /**
  * Gather a strided coefficient column only if it enables a different reduction body and enough destination
  * rows reuse it to amortize the copy. [DIRECT_GATHER_MINIMUM_ROWS] reflects local measurements:
  * eight rows clearly won, while four varied between captures. Other hosts need their own evidence.
  */
-internal fun gathersCoefficients(panels: EngineKernels, rows: Int, depth: Int, strided: Boolean): Boolean {
+internal fun gathersCoefficients(panels: PanelKernels, rows: Int, depth: Int, strided: Boolean): Boolean {
     if (!strided || rows < DIRECT_GATHER_MINIMUM_ROWS || depth <= 0) return false
     val group = panels.executionGroup(PanelWork.MultiDot, depth, rows)
     return panels.implementationFor(PanelWork.MultiDot, depth, group, contiguous = true) !=

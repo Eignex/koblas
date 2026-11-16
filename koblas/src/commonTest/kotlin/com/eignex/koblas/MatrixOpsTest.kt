@@ -354,13 +354,13 @@ class MatrixOpsTest {
             val rows = type == Norm.Infinity
             val sums = DoubleArray(if (rows) a.rows else a.cols) { index ->
                 val entries = if (rows) DoubleArray(a.cols) { a[index, it] } else DoubleArray(a.rows) { a[it, index] }
-                KoblasEngine.scalar.kernels.asum(entries, 0, entries.size)
+                KoblasEngine.scalar.kernels.vectorKernels.asum(entries, 0, entries.size)
             }
             return sums.maxOrNull() ?: 0.0
         }
         val entries = DoubleArray(a.rows * a.cols) { a[it % a.rows, it / a.rows] }
-        if (type == Norm.Frobenius) return KoblasEngine.scalar.kernels.nrm2(entries, 0, entries.size)
-        val index = KoblasEngine.scalar.kernels.iamax(entries, 0, entries.size)
+        if (type == Norm.Frobenius) return KoblasEngine.scalar.kernels.vectorKernels.nrm2(entries, 0, entries.size)
+        val index = KoblasEngine.scalar.kernels.vectorKernels.iamax(entries, 0, entries.size)
         return if (index < 0) 0.0 else abs(entries[index])
     }
 
@@ -421,7 +421,7 @@ class MatrixOpsTest {
     fun `total sums agree with the scalar oracle across storage types`() {
         for (a in reductionMatrices()) {
             val entries = DoubleArray(a.rows * a.cols) { a[it % a.rows, it / a.rows] }
-            val expected = KoblasEngine.scalar.kernels.sum(entries, 0, entries.size)
+            val expected = KoblasEngine.scalar.kernels.vectorKernels.sum(entries, 0, entries.size)
 
             val actual = a.sum()
 
@@ -439,7 +439,7 @@ class MatrixOpsTest {
                     } else {
                         DoubleArray(a.cols) { a[index, it] }
                     }
-                    KoblasEngine.scalar.kernels.sum(entries, 0, entries.size)
+                    KoblasEngine.scalar.kernels.vectorKernels.sum(entries, 0, entries.size)
                 }
 
                 val actual = a.sum(axis)
@@ -493,7 +493,7 @@ class MatrixOpsTest {
     fun `sparse sums depend only on stored entries for large shapes`() {
         val a = SparseMatrix.ofColumns(Int.MAX_VALUE, 2, listOf(listOf(0 to 1.25), listOf(Int.MAX_VALUE - 1 to -0.5)))
         val values = doubleArrayOf(1.25, -0.5)
-        val expected = KoblasEngine.scalar.kernels.sum(values, 0, values.size)
+        val expected = KoblasEngine.scalar.kernels.vectorKernels.sum(values, 0, values.size)
 
         assertSumAgreesWithReference(expected, a.sum())
         assertVectorAgreesWithReference(values, a.sum(0), DoubleArray(2))

@@ -3,7 +3,7 @@ package com.eignex.koblas.internal.operations
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.withEngines
 import com.eignex.koblas.internal.engine.asEngine
-import com.eignex.koblas.internal.kernels.KernelProvider
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.sparse.ReferenceSparseBlas
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -65,7 +65,7 @@ class SparseMatrixVectorOperationsTest {
 
     @Test
     fun `packed vector loans return when sparse arithmetic throws`() {
-        val engine = object : KernelProvider {
+        val engine = object : VectorKernels {
             override val name = "throwing"
             override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int, vStride: Int) {
                 error("arithmetic failed")

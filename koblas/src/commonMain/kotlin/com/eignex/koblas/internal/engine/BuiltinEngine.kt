@@ -10,11 +10,11 @@ import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 
 /** Fixed arithmetic roles, with scalar coverage for every omitted role. */
 internal class KernelSet(
-    val vectors: KernelProvider = ScalarEngine,
-    val indexed: KernelProvider = ScalarEngine,
-    val panels: KernelProvider = ScalarEngine,
-    val products: KernelProvider = ScalarEngine,
-    val triangular: KernelProvider = ScalarEngine,
+    val vectors: VectorKernels = ScalarEngine,
+    val indexed: IndexedKernels = ScalarEngine,
+    val panels: PanelKernels = ScalarEngine,
+    val products: PackedProductKernels = ScalarEngine,
+    val triangular: TriangularKernels = ScalarEngine,
 )
 
 /** Owned arithmetic roles and one optional host library with measured crossovers. */
@@ -23,7 +23,7 @@ internal class BuiltinEngine(
     val roles: KernelSet = KernelSet(),
     val host: KernelProvider? = null,
     private val tuning: EngineTuning? = null,
-) : KernelProvider {
+) : VectorKernels, IndexedKernels {
     override val implementations = ScalarEngine.implementations.filterTo(mutableSetOf()) { it.vector }
     override val providers: List<KernelProvider> = listOfNotNull(
         host,
@@ -36,7 +36,7 @@ internal class BuiltinEngine(
     ).distinct()
 
     private val owned = EngineImplementation.entries.map { operation ->
-        val leaf = if (operation.name.startsWith("Indexed")) roles.indexed else roles.vectors
+        val leaf = if (operation.indexed) roles.indexed else roles.vectors
         if (operation in leaf.implementations) leaf else ScalarEngine
     }
     private val minimums = IntArray(owned.size) { i ->
@@ -82,18 +82,20 @@ internal class BuiltinEngine(
         operation: EngineImplementation,
         length: Int,
         contiguous: Boolean = true,
-        action: (KernelProvider) -> R,
+        action: (VectorKernels) -> R,
     ): R {
         val provider = vectorProvider(operation, length, contiguous)
-        return if (provider === ScalarEngine) action(ScalarEngine) else action(provider)
+        return if (provider === ScalarEngine) action(ScalarEngine) else action(provider.vectorKernels)
     }
 
-    override fun implementationFor(work: PanelWork, rows: Int, columns: Int, contiguous: Boolean): String =
-        roles.panels.implementationFor(work, rows, columns, contiguous)
-    override fun implementationsFor(rows: Int, columns: Int, depth: Int): List<String> =
-        roles.products.implementationsFor(rows, columns, depth)
-    override fun implementationsFor(order: Int, sides: Int, contiguous: Boolean): List<String> =
-        roles.triangular.implementationsFor(order, sides, contiguous)
+    private inline fun <R> withIndexed(
+        operation: EngineImplementation,
+        length: Int,
+        action: (IndexedKernels) -> R,
+    ): R {
+        val provider = vectorProvider(operation, length, true)
+        return if (provider === ScalarEngine) action(ScalarEngine) else action(provider.indexedKernels)
+    }
 
     override fun dot(
         a: DoubleArray,
@@ -152,7 +154,7 @@ internal class BuiltinEngine(
         valueOffset: Int,
         count: Int,
         dense: DoubleArray,
-    ): Double = withVector(IndexedDot, count) {
+    ): Double = withIndexed(IndexedDot, count) {
         it.dot(indices, indexOffset, values, valueOffset, count, dense)
     }
 
@@ -167,7 +169,7 @@ internal class BuiltinEngine(
         yValues: DoubleArray,
         yValueOffset: Int,
         yCount: Int,
-    ): Double = withVector(IndexedSparseDot, maxOf(xCount, yCount)) {
+    ): Double = withIndexed(IndexedSparseDot, maxOf(xCount, yCount)) {
         it.dot(
             xIndices, xIndexOffset, xValues, xValueOffset, xCount,
             yIndices, yIndexOffset, yValues, yValueOffset, yCount,
@@ -182,7 +184,7 @@ internal class BuiltinEngine(
         count: Int,
         alpha: Double,
         destination: DoubleArray,
-    ): Unit = withVector(IndexedAxpy, count) {
+    ): Unit = withIndexed(IndexedAxpy, count) {
         it.axpy(indices, indexOffset, values, valueOffset, count, alpha, destination)
     }
 
@@ -193,7 +195,7 @@ internal class BuiltinEngine(
         valueOffset: Int,
         count: Int,
         destination: DoubleArray,
-    ): Unit = withVector(IndexedScatter, count) {
+    ): Unit = withIndexed(IndexedScatter, count) {
         it.scatter(indices, indexOffset, values, valueOffset, count, destination)
     }
 
@@ -204,7 +206,7 @@ internal class BuiltinEngine(
         valueOffset: Int,
         count: Int,
         source: DoubleArray,
-    ): Unit = withVector(IndexedGather, count) {
+    ): Unit = withIndexed(IndexedGather, count) {
         it.gather(indices, indexOffset, values, valueOffset, count, source)
     }
 
@@ -215,7 +217,7 @@ internal class BuiltinEngine(
         valueOffset: Int,
         count: Int,
         source: DoubleArray,
-    ): Unit = withVector(IndexedGatherZero, count) {
+    ): Unit = withIndexed(IndexedGatherZero, count) {
         it.gatherZero(indices, indexOffset, values, valueOffset, count, source)
     }
 

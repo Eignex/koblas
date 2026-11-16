@@ -1,6 +1,7 @@
 package com.eignex.koblas.internal.jvm25.host
 
 import com.eignex.koblas.*
+import com.eignex.koblas.internal.operations.MatrixStructure
 import java.lang.foreign.Arena
 import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 import kotlin.math.abs
@@ -9,6 +10,68 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 
 class JvmOperandsTest {
+    @Test
+    fun `matrix staging omits unstored entries and implicit diagonals`() {
+        for (structure in MatrixStructure.entries) {
+            for ((rows, columns) in listOf(0 to 3, 3 to 0, 2 to 4, 4 to 2)) {
+                val offset = 2
+                val lda = rows + 2
+                val values = DoubleArray(offset + lda * columns) { Double.NaN }
+                val expected = DoubleArray(maxOf(1, rows * columns))
+                for (j in 0 until columns) {
+                    for (i in 0 until rows) {
+                        if (stored(structure, i, j)) {
+                            val value = 1.0 + i + j * rows
+                            values[offset + i + j * lda] = value
+                            expected[i + j * rows] = value
+                        }
+                    }
+                }
+
+                Arena.ofConfined().use { arena ->
+                    val native = arena.stageMatrix(values, offset, rows, columns, lda, structure)
+
+                    assertContentEquals(expected, native.segment.toArray(JAVA_DOUBLE), "$structure ${rows}x$columns")
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `matrix writeback preserves unstored entries implicit diagonals and padding`() {
+        for (structure in MatrixStructure.entries) {
+            for ((rows, columns) in listOf(0 to 3, 3 to 0, 2 to 4, 4 to 2)) {
+                val offset = 2
+                val lda = rows + 2
+                val values = DoubleArray(offset + lda * columns) { -0.0 }
+                val expected = values.copyOf()
+                for (j in 0 until columns) {
+                    for (i in 0 until rows) {
+                        if (stored(structure, i, j)) expected[offset + i + j * lda] = 1.0 + i + j * rows
+                    }
+                }
+
+                Arena.ofConfined().use { arena ->
+                    val native = arena.stageMatrix(values, offset, rows, columns, lda, structure, read = false)
+                    for (index in 0 until rows * columns) {
+                        native.segment.setAtIndex(JAVA_DOUBLE, index.toLong(), 1.0 + index)
+                    }
+                    native.writeBack()
+                }
+
+                assertContentEquals(expected, values, "$structure ${rows}x$columns")
+            }
+        }
+    }
+
+    private fun stored(structure: MatrixStructure, row: Int, column: Int): Boolean = when (structure) {
+        MatrixStructure.General -> true
+        MatrixStructure.SymmetricLower, MatrixStructure.TriangularLower -> row >= column
+        MatrixStructure.SymmetricUpper, MatrixStructure.TriangularUpper -> row <= column
+        MatrixStructure.UnitLower -> row > column
+        MatrixStructure.UnitUpper -> row < column
+    }
+
     @Test
     fun `overwrite staging omits old vector entries`() {
         for (stride in listOf(1, -1, 3, -3)) {

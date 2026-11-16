@@ -3,7 +3,6 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.internal.kernels.*
-import com.eignex.koblas.internal.kernels.KernelProvider
 import com.eignex.koblas.internal.operations.*
 import com.eignex.koblas.internal.scheduling.sparse.AdjacentPreferringPanels
 import kotlin.math.abs
@@ -33,9 +32,9 @@ class SparseOpsTest {
             val size = nnz * 8
             val x = randomSparseVector(size, nnz, rng)
             val y = randomVector(size, rng)
-            val expected = KoblasEngine.scalar.kernels.dot(x.indices, 0, x.values, 0, x.values.size, y)
+            val expected = KoblasEngine.scalar.kernels.indexedKernels.dot(x.indices, 0, x.values, 0, x.values.size, y)
 
-            val actual = koblas.kernels.dot(x.indices, 0, x.values, 0, x.values.size, y)
+            val actual = koblas.kernels.indexedKernels.dot(x.indices, 0, x.values, 0, x.values.size, y)
 
             // A vectorized reduction sums lanes in a different order, so the bound scales with the count.
             assertTrue(
@@ -57,7 +56,7 @@ class SparseOpsTest {
                 assertEquals(1, stride)
                 calls += operation
             }
-            val selected = object : KernelProvider {
+            val selected = object : VectorKernels {
                 override val name = "stored-reductions"
                 override val implementations = setOf(EngineImplementation.Nrm2, EngineImplementation.Asum)
                 override fun nrm2(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
@@ -87,9 +86,9 @@ class SparseOpsTest {
         val updated = dense.copyOf()
         val scattered = DoubleArray(dense.size) { 8.0 }
 
-        val dot = koblas.kernels.dot(indices, 1, values, 2, 3, dense)
-        koblas.kernels.axpy(indices, 1, values, 2, 3, 0.5, updated)
-        koblas.kernels.scatter(indices, 1, values, 2, 3, scattered)
+        val dot = koblas.kernels.indexedKernels.dot(indices, 1, values, 2, 3, dense)
+        koblas.kernels.indexedKernels.axpy(indices, 1, values, 2, 3, 0.5, updated)
+        koblas.kernels.indexedKernels.scatter(indices, 1, values, 2, 3, scattered)
 
         assertEquals(-19.0, dot)
         assertContentEquals(doubleArrayOf(10.0, 6.0, 20.0, 30.0, 5.5, 50.0, 0.0), updated)
@@ -103,7 +102,7 @@ class SparseOpsTest {
         val dense = doubleArrayOf(2.0, 7.0, -1.0)
 
         for (engine in vectorEngines) {
-            assertEquals(0.0, engine.kernels.dot(indices, 0, values, 0, 3, dense), engine.name)
+            assertEquals(0.0, engine.kernels.indexedKernels.dot(indices, 0, values, 0, 3, dense), engine.name)
         }
     }
 
@@ -111,9 +110,9 @@ class SparseOpsTest {
     fun `raw empty slices at array ends are legal`() {
         val destination = doubleArrayOf(3.0)
 
-        val dot = koblas.kernels.dot(intArrayOf(9), 1, doubleArrayOf(9.0), 1, 0, DoubleArray(0))
-        koblas.kernels.axpy(intArrayOf(9), 1, doubleArrayOf(9.0), 1, 0, 2.0, destination)
-        koblas.kernels.scatter(intArrayOf(9), 1, doubleArrayOf(9.0), 1, 0, destination)
+        val dot = koblas.kernels.indexedKernels.dot(intArrayOf(9), 1, doubleArrayOf(9.0), 1, 0, DoubleArray(0))
+        koblas.kernels.indexedKernels.axpy(intArrayOf(9), 1, doubleArrayOf(9.0), 1, 0, 2.0, destination)
+        koblas.kernels.indexedKernels.scatter(intArrayOf(9), 1, doubleArrayOf(9.0), 1, 0, destination)
 
         assertEquals(0.0, dot)
         assertContentEquals(doubleArrayOf(3.0), destination)
@@ -135,7 +134,7 @@ class SparseOpsTest {
         val source = doubleArrayOf(-0.0, Double.NaN, Double.NEGATIVE_INFINITY)
         val destination = DoubleArray(3)
 
-        koblas.kernels.scatter(intArrayOf(0, 1, 2), 0, source, 0, 3, destination)
+        koblas.kernels.indexedKernels.scatter(intArrayOf(0, 1, 2), 0, source, 0, 3, destination)
 
         assertEquals((-0.0).toBits(), destination[0].toBits())
         assertTrue(destination[1].isNaN())
@@ -161,7 +160,9 @@ class SparseOpsTest {
             for (column in 0 until matrix.cols) {
                 val start = matrix.colPointers[column]
                 val length = matrix.colPointers[column + 1] - start
-                val expected = KoblasEngine.scalar.kernels.dot(indices, start, values, start, length, dense)
+                val expected = KoblasEngine.scalar.kernels.indexedKernels.dot(
+                    indices, start, values, start, length, dense,
+                )
 
                 for (selected in vectorEngines) {
                     val actual = selected.dotColumn(matrix, column, DenseVector.wrap(dense))
@@ -183,7 +184,7 @@ class SparseOpsTest {
         )
         val denseOperand = DoubleArray(matrix.rows)
         val calls = mutableListOf<Pair<Int, Int>>()
-        val selected = object : KernelProvider {
+        val selected = object : IndexedKernels {
             override val implementations = setOf(EngineImplementation.IndexedDot)
             override val name: String = "test-SparseOpsTest"
 
@@ -222,7 +223,9 @@ class SparseOpsTest {
             )
             for (rhs in listOf(3.0, Double.POSITIVE_INFINITY, Double.NaN)) {
                 val dense = doubleArrayOf(Double.NaN, Double.NEGATIVE_INFINITY, rhs, Double.NaN)
-                val expected = KoblasEngine.scalar.kernels.dot(matrix.rowIndices, 1, matrix.values, 1, 1, dense)
+                val expected = KoblasEngine.scalar.kernels.indexedKernels.dot(
+                    matrix.rowIndices, 1, matrix.values, 1, 1, dense,
+                )
 
                 val actual = koblas.dotColumn(matrix, 1, DenseVector.wrap(dense))
 
@@ -243,7 +246,9 @@ class SparseOpsTest {
         val dense = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
         for (coefficient in listOf(2.0, 5.0, -0.0)) {
             matrix.values[1] = coefficient
-            val expected = KoblasEngine.scalar.kernels.dot(matrix.rowIndices, 1, matrix.values, 1, 2, dense)
+            val expected = KoblasEngine.scalar.kernels.indexedKernels.dot(
+                matrix.rowIndices, 1, matrix.values, 1, 2, dense,
+            )
 
             val actual = koblas.dotColumn(matrix, 1, DenseVector.wrap(dense))
 
@@ -261,7 +266,7 @@ class SparseOpsTest {
             doubleArrayOf(8.0, 2.0, -3.0, 9.0),
         )
         val before = matrix.values.copyOf()
-        val expected = KoblasEngine.scalar.kernels.dot(matrix.rowIndices, 1, before, 1, 2, before)
+        val expected = KoblasEngine.scalar.kernels.indexedKernels.dot(matrix.rowIndices, 1, before, 1, 2, before)
 
         for (engine in vectorEngines) {
             val actual = engine.dotColumn(matrix, 1, DenseVector.wrap(matrix.values))
@@ -275,7 +280,7 @@ class SparseOpsTest {
     fun `column dots accept empty columns with no rows`() {
         val matrix = SparseMatrix.wrap(0, 2, intArrayOf(0, 0, 0), IntArray(0), DoubleArray(0))
         val dense = DoubleArray(0)
-        val expected = KoblasEngine.scalar.kernels.dot(IntArray(0), 0, DoubleArray(0), 0, 0, dense)
+        val expected = KoblasEngine.scalar.kernels.indexedKernels.dot(IntArray(0), 0, DoubleArray(0), 0, 0, dense)
 
         for (column in 0 until matrix.cols) {
             assertDotAgreesWithReference(

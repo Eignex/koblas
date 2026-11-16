@@ -131,7 +131,7 @@ class JvmVendorBlasTest {
         assertEquals(0.0, blas.dotVector(empty, empty))
         assertEquals(0.0, blas.normVector(empty))
         assertEquals(0.0, blas.absoluteSumVector(empty))
-        assertEquals(-1, blas.kernels.iamax(empty.values, empty.offset, empty.size, empty.stride))
+        assertEquals(-1, blas.kernels.vectorKernels.iamax(empty.values, empty.offset, empty.size, empty.stride))
     }
 
     @Test
@@ -160,7 +160,7 @@ class JvmVendorBlasTest {
         val second = DenseVector.wrap(storage, 1, size, lda)
         ScalarEngine.swap(expected, 0, expected, 1, size, lda, lda)
 
-        blas.kernels.swap(
+        blas.kernels.vectorKernels.swap(
             first.values,
             first.offset,
             second.values,

@@ -95,9 +95,9 @@ internal fun triangularMatrix(
         val rows = if (right) sides else order
         val cols = if (right) order else sides
         if (ldb == rows) {
-            engine.scale(b, bOffset, alpha, rows * cols)
+            engine.vectorKernels.scale(b, bOffset, alpha, rows * cols)
         } else {
-            for (j in 0 until cols) engine.scale(b, bOffset + j * ldb, alpha, rows)
+            for (j in 0 until cols) engine.vectorKernels.scale(b, bOffset + j * ldb, alpha, rows)
         }
     }
     val flip = transpose != right
@@ -135,7 +135,7 @@ internal fun triangularMatrix(
  * Cap the backend's recommended group by available sides, with a floor of one.
  * The recommendation controls residency for both gathered and natively adjacent right-hand sides.
  */
-internal fun triangularGroup(triangles: EngineKernels, block: Int, sides: Int): Int {
+internal fun triangularGroup(triangles: TriangularKernels, block: Int, sides: Int): Int {
     val recommended = triangles.rightHandSideGroup(block, sides)
     val bounded = if (recommended > sides) sides else recommended
     return if (bounded < 1) 1 else bounded
@@ -146,7 +146,7 @@ internal fun triangularGroup(triangles: EngineKernels, block: Int, sides: Int): 
  * independent of the whole call's dimensions.
  */
 private fun diagonalStep(
-    triangles: EngineKernels,
+    triangles: TriangularKernels,
     t: DoubleArray,
     order: Int,
     tOffset: Int,
@@ -193,7 +193,7 @@ private fun diagonalStep(
 
 /** Whichever of the two substitutions this call is, with the arguments they share. */
 private fun substitute(
-    triangles: EngineKernels,
+    triangles: TriangularKernels,
     solve: Boolean,
     t: DoubleArray,
     order: Int,

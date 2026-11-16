@@ -24,7 +24,7 @@ internal fun KernelProvider.scheduleSparseGemv(
             val start = aPointers[j]
             val end = aPointers[j + 1]
             if (start == end) continue
-            val sum = dot(
+            val sum = indexedKernels.dot(
                 aIndices,
                 start,
                 aValues,
@@ -38,7 +38,7 @@ internal fun KernelProvider.scheduleSparseGemv(
         for (j in 0 until aColumns) {
             val xj = alpha * x[j]
             val start = aPointers[j]
-            this.axpy(
+            indexedKernels.axpy(
                 aIndices,
                 start,
                 aValues,

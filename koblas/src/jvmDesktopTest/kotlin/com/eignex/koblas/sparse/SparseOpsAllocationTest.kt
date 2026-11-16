@@ -31,7 +31,7 @@ class SparseOpsAllocationTest internal constructor(private val case: AllocationC
         private fun indexedCases(): List<AllocationCase> = listOf(
             with(SparseVectorFixture()) {
                 AllocationCase("sparse dot against a dense array allocates nothing", 1_000) {
-                    engine.kernels.dot(
+                    engine.kernels.indexedKernels.dot(
                         vector.indices,
                         0,
                         vector.values,
@@ -43,19 +43,23 @@ class SparseOpsAllocationTest internal constructor(private val case: AllocationC
             },
             with(IndexedSliceFixture()) {
                 AllocationCase("indexed gather allocates nothing", 1_000) {
-                    engine.kernels.gather(gathered.indices, 0, gathered.values, 0, gathered.values.size, dense)
+                    engine.kernels.indexedKernels.gather(
+                        gathered.indices, 0, gathered.values, 0, gathered.values.size, dense,
+                    )
                     gathered
                 }
             },
             with(IndexedSliceFixture()) {
                 AllocationCase("indexed axpy with independent offsets allocates nothing", 1_000) {
-                    engine.kernels.axpy(indices, INDEX_OFFSET, values, VALUE_OFFSET, ENTRIES, 1e-12, dense)
+                    engine.kernels.indexedKernels.axpy(
+                        indices, INDEX_OFFSET, values, VALUE_OFFSET, ENTRIES, 1e-12, dense,
+                    )
                     dense
                 }
             },
             with(IndexedSliceFixture()) {
                 AllocationCase("indexed scatter with independent offsets allocates nothing", 1_000) {
-                    engine.kernels.scatter(indices, INDEX_OFFSET, values, VALUE_OFFSET, ENTRIES, dense)
+                    engine.kernels.indexedKernels.scatter(indices, INDEX_OFFSET, values, VALUE_OFFSET, ENTRIES, dense)
                     dense
                 }
             },

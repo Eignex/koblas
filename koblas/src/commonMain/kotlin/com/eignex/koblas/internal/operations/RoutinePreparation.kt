@@ -45,20 +45,27 @@ internal inline fun prepareMatrixVector(
     }
 }
 
+/** Rank updates have distinct operand shapes even though they share alias preparation. */
+internal enum class RankUpdate(val routine: String) {
+    General("ger"),
+    Symmetric("syr"),
+    SymmetricTwo("syr2"),
+}
+
 /** Shared GER/SYR/SYR2 preparation snapshots identical vector mappings once. */
 internal inline fun prepareRankUpdate(
     alpha: Double,
     x: DenseVector,
     y: DenseVector,
     a: DenseMatrix,
-    what: String,
+    operation: RankUpdate,
     arrays: Scratch?,
     body: (DoubleArray, Int, Int, DoubleArray, Int, Int) -> Unit,
 ) {
-    when (what) {
-        "syr" -> requireSyrOperands(a, x.size, what)
-        "syr2" -> requireSyr2Operands(a, x.size, y.size, what)
-        else -> requireGerOperands(x.size, y.size, a)
+    when (operation) {
+        RankUpdate.General -> requireGerOperands(x.size, y.size, a)
+        RankUpdate.Symmetric -> requireSyrOperands(a, x.size, operation.routine)
+        RankUpdate.SymmetricTwo -> requireSyr2Operands(a, x.size, y.size, operation.routine)
     }
     if (alpha == 0.0 || a.rows == 0 || a.cols == 0) return
     stagedWindows(
@@ -209,8 +216,8 @@ internal fun scaleRegion(
         return
     }
     for (j in 0 until columns) {
-        val first = if (lower == true) j else 0
-        val last = if (lower == false) j + 1 else rows
+        val first = selectedRowStart(j, rows, lower)
+        val last = selectedRowEnd(j, rows, lower)
         for (i in first until last) {
             val at = offset + i + j * lda
             a[at] = if (beta == 0.0) 0.0 else beta * a[at]
@@ -227,7 +234,7 @@ internal fun applyBeta(k: KoblasEngine, v: DoubleArray, off: Int, len: Int, beta
             for (i in 0 until len) v[off + i * stride] = 0.0
         }
 
-        beta != 1.0 -> k.kernels.scale(v, off, beta, len, stride)
+        beta != 1.0 -> k.kernels.vectorKernels.scale(v, off, beta, len, stride)
     }
 }
 
@@ -240,6 +247,6 @@ internal fun applyBeta(k: KernelProvider, v: DoubleArray, off: Int, len: Int, be
             for (i in 0 until len) v[off + i * stride] = 0.0
         }
 
-        beta != 1.0 -> k.scale(v, off, beta, len, stride)
+        beta != 1.0 -> k.vectorKernels.scale(v, off, beta, len, stride)
     }
 }

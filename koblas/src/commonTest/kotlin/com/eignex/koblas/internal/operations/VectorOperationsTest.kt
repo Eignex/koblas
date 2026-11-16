@@ -51,7 +51,7 @@ class VectorOperationsTest {
         for (alpha in doubleArrayOf(-2.0, 0.0, 1.0)) {
             for (destination in mutationOperands(values)) {
                 val expected = values.copyOf()
-                KoblasEngine.scalar.kernels.scale(expected, 0, alpha, expected.size)
+                KoblasEngine.scalar.kernels.vectorKernels.scale(expected, 0, alpha, expected.size)
 
                 koblas.scaleVector(alpha, destination)
 
@@ -67,7 +67,7 @@ class VectorOperationsTest {
         for (source in mutationOperands(x)) {
             for (destination in mutationOperands(y)) {
                 val expected = y.copyOf()
-                KoblasEngine.scalar.kernels.axpy(expected, 0, -1.5, x, 0, x.size)
+                KoblasEngine.scalar.kernels.vectorKernels.axpy(expected, 0, -1.5, x, 0, x.size)
 
                 koblas.axpyVector(-1.5, source, destination)
 
@@ -87,7 +87,7 @@ class VectorOperationsTest {
                 DenseVector.wrap(backing)
             }
             val expected = backing.copyOf()
-            KoblasEngine.scalar.kernels.axpy(expected, 3, 2.0, source.toDoubleArray(), 0, 4, -1)
+            KoblasEngine.scalar.kernels.vectorKernels.axpy(expected, 3, 2.0, source.toDoubleArray(), 0, 4, -1)
 
             koblas.axpyVector(2.0, source, destination)
 
@@ -100,8 +100,10 @@ class VectorOperationsTest {
         val source: Vector = SparseVector.wrap(Int.MAX_VALUE, intArrayOf(1, Int.MAX_VALUE - 1), doubleArrayOf(0.0, 2.0))
         val destination = SparseVector.wrap(Int.MAX_VALUE, intArrayOf(0, Int.MAX_VALUE - 1), doubleArrayOf(3.0, -4.0))
         val expectedValues = doubleArrayOf(3.0, 0.0, -4.0)
-        KoblasEngine.scalar.kernels.axpy(intArrayOf(1, 2), 0, doubleArrayOf(0.0, 2.0), 0, 2, 2.0, expectedValues)
-        KoblasEngine.scalar.kernels.scale(expectedValues, 0, -2.0, expectedValues.size)
+        KoblasEngine.scalar.kernels.indexedKernels.axpy(
+            intArrayOf(1, 2), 0, doubleArrayOf(0.0, 2.0), 0, 2, 2.0, expectedValues,
+        )
+        KoblasEngine.scalar.kernels.vectorKernels.scale(expectedValues, 0, -2.0, expectedValues.size)
 
         koblas.axpyVector(2.0, source, destination)
         koblas.scaleVector(-2.0, destination)
@@ -122,7 +124,7 @@ class VectorOperationsTest {
                 }
                 val destination = SparseVector.wrap(count, IntArray(count) { it }, DoubleArray(count) { -1.0 })
                 val expected = destination.values.copyOf()
-                KoblasEngine.scalar.kernels.axpy(expected, 0, 0.5, values, 0, count)
+                KoblasEngine.scalar.kernels.vectorKernels.axpy(expected, 0, 0.5, values, 0, count)
 
                 koblas.axpyVector(0.5, source, destination)
 
@@ -138,7 +140,7 @@ class VectorOperationsTest {
         val source: Vector = ForeignVector(DenseVector.wrap(backing, 3, 4, -1))
         val destination = SparseVector.wrap(4, intArrayOf(0, 1, 2, 3), backing)
         val expected = backing.copyOf()
-        KoblasEngine.scalar.kernels.axpy(expected, 0, 2.0, source.toDoubleArray(), 0, 4)
+        KoblasEngine.scalar.kernels.vectorKernels.axpy(expected, 0, 2.0, source.toDoubleArray(), 0, 4)
 
         koblas.axpyVector(2.0, source, destination)
 
@@ -182,25 +184,25 @@ class VectorOperationsTest {
     fun `sparse norms use selected kernels over stored values only`() {
         val source = SparseVector.wrap(Int.MAX_VALUE, intArrayOf(1, 100), doubleArrayOf(2.0, -3.0))
         val calls = mutableListOf<String>()
-        val engine = object : KernelProvider {
+        val engine = object : VectorKernels {
             override val name = "recording"
             override fun asum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
                 assertSame(source.values, v)
                 assertEquals(2, len)
                 calls += "asum"
-                return KoblasEngine.scalar.kernels.asum(v, vOff, len, vStride)
+                return KoblasEngine.scalar.kernels.vectorKernels.asum(v, vOff, len, vStride)
             }
             override fun nrm2(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
                 assertSame(source.values, v)
                 assertEquals(2, len)
                 calls += "nrm2"
-                return KoblasEngine.scalar.kernels.nrm2(v, vOff, len, vStride)
+                return KoblasEngine.scalar.kernels.vectorKernels.nrm2(v, vOff, len, vStride)
             }
             override fun iamax(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Int {
                 assertSame(source.values, v)
                 assertEquals(2, len)
                 calls += "iamax"
-                return KoblasEngine.scalar.kernels.iamax(v, vOff, len, vStride)
+                return KoblasEngine.scalar.kernels.vectorKernels.iamax(v, vOff, len, vStride)
             }
         }
 
@@ -213,15 +215,15 @@ class VectorOperationsTest {
     fun `sparse sum uses the selected kernel over stored values only`() {
         val source = SparseVector.wrap(Int.MAX_VALUE, intArrayOf(1, 100), doubleArrayOf(2.0, -3.0))
         var length = -1
-        val engine = object : KernelProvider {
+        val engine = object : VectorKernels {
             override val name = "recording"
             override fun sum(v: DoubleArray, vOff: Int, len: Int, vStride: Int): Double {
                 assertSame(source.values, v)
                 length = len
-                return KoblasEngine.scalar.kernels.sum(v, vOff, len, vStride)
+                return KoblasEngine.scalar.kernels.vectorKernels.sum(v, vOff, len, vStride)
             }
         }
-        val expected = KoblasEngine.scalar.kernels.sum(source.values, 0, source.values.size)
+        val expected = KoblasEngine.scalar.kernels.vectorKernels.sum(source.values, 0, source.values.size)
 
         val actual = engine.asEngine().sumVector(source)
 
@@ -246,7 +248,7 @@ class VectorOperationsTest {
             }
             override fun toDoubleArray(): DoubleArray = error("Materialized opaque storage")
         }
-        val expected = KoblasEngine.scalar.kernels.dot(source.values, 0, doubleArrayOf(4.0, -2.0), 0, 2)
+        val expected = KoblasEngine.scalar.kernels.vectorKernels.dot(source.values, 0, doubleArrayOf(4.0, -2.0), 0, 2)
 
         for ((x, y) in listOf(source to other, other to source)) {
             reads.clear()
@@ -269,9 +271,11 @@ class VectorOperationsTest {
                 val packed = destination.toDoubleArray()
                 if (copy) {
                     packed.fill(0.0)
-                    KoblasEngine.scalar.kernels.scatter(source.indices, 0, source.values, 0, 2, packed)
+                    KoblasEngine.scalar.kernels.indexedKernels.scatter(source.indices, 0, source.values, 0, 2, packed)
                 } else {
-                    KoblasEngine.scalar.kernels.axpy(source.indices, 0, source.values, 0, 2, -1.5, packed)
+                    KoblasEngine.scalar.kernels.indexedKernels.axpy(
+                        source.indices, 0, source.values, 0, 2, -1.5, packed,
+                    )
                 }
                 for (i in packed.indices) expected[destination.offset + i * stride] = packed[i]
 
@@ -306,7 +310,7 @@ class VectorOperationsTest {
             for ((source, destination) in identicalDenseMappings()) {
                 for (i in 0 until source.size) source[i] = inputs[i % inputs.size]
                 val expected = source.values.copyOf()
-                KoblasEngine.scalar.kernels.axpy(
+                KoblasEngine.scalar.kernels.vectorKernels.axpy(
                     expected,
                     destination.offset,
                     alpha,
@@ -329,7 +333,7 @@ class VectorOperationsTest {
         val source = DenseVector.wrap(backing, 2, 5)
         val destination = DenseVector.wrap(backing, 6, 5, -1)
         val expected = backing.copyOf()
-        KoblasEngine.scalar.kernels.axpy(expected, 6, 0.75, source.toDoubleArray(), 0, 5, -1)
+        KoblasEngine.scalar.kernels.vectorKernels.axpy(expected, 6, 0.75, source.toDoubleArray(), 0, 5, -1)
 
         koblas.axpyVector(0.75, source, destination)
 
@@ -343,7 +347,9 @@ class VectorOperationsTest {
             val destination = DenseVector.wrap(backing, 0, size)
             val source = if (size == 0) sparse(0) else sparse(size, 0 to 2.0, 2 to -1.0)
             val expected = backing.copyOf()
-            KoblasEngine.scalar.kernels.axpy(source.indices, 0, source.values, 0, source.indices.size, 2.0, expected)
+            KoblasEngine.scalar.kernels.indexedKernels.axpy(
+                source.indices, 0, source.values, 0, source.indices.size, 2.0, expected,
+            )
 
             koblas.axpyVector(2.0, source, destination)
 
@@ -368,7 +374,9 @@ class VectorOperationsTest {
             val destination = if (borrowed) DenseVector.wrap(backing, 1, 4) else DenseVector.wrap(backing)
             val source = ForeignVector(DenseVector.wrap(backing, destination.offset + 3, 4, -1))
             val expected = backing.copyOf()
-            KoblasEngine.scalar.kernels.axpy(expected, destination.offset, 2.0, source.toDoubleArray(), 0, 4)
+            KoblasEngine.scalar.kernels.vectorKernels.axpy(
+                expected, destination.offset, 2.0, source.toDoubleArray(), 0, 4,
+            )
 
             koblas.axpyVector(2.0, source, destination)
 

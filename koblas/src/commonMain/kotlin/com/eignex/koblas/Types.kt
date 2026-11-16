@@ -156,6 +156,11 @@ public enum class EngineImplementation(
     Trsm("cblas_dtrsm", matrix = true),
     ;
 
+    internal val indexed: Boolean get() = when (this) {
+        IndexedDot, IndexedSparseDot, IndexedAxpy, IndexedScatter, IndexedGather, IndexedGatherZero -> true
+        else -> false
+    }
+
     internal val family: Boolean get() = this == Panels || this == Products || this == Triangular
     internal val vector: Boolean get() = !matrix && !family
 }

@@ -166,7 +166,7 @@ class DenseOpsTest {
     fun `iamax over an empty vector reports no index`() = withRegionEngines { blas ->
         val empty = DenseVector.zero(0)
 
-        val index = blas.kernels.iamax(empty.values, empty.offset, empty.size, empty.stride)
+        val index = blas.kernels.vectorKernels.iamax(empty.values, empty.offset, empty.size, empty.stride)
 
         assertEquals(-1, index)
     }

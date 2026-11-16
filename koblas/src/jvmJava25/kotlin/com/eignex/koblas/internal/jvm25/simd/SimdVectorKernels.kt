@@ -4,7 +4,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.EngineImplementation.*
 import com.eignex.koblas.internal.engine.KernelSet
 import com.eignex.koblas.internal.kernels.*
-import com.eignex.koblas.internal.kernels.KernelProvider
+import com.eignex.koblas.internal.kernels.VectorKernels
 import com.eignex.koblas.internal.kernels.scalar.dense.*
 import kotlin.math.sqrt
 
@@ -17,7 +17,7 @@ internal val simdAvailable: Boolean = try {
 }
 
 /** Only supplied operations are capabilities; the composer supplies other providers. */
-private object SimdVectorLeaves : KernelProvider {
+private object SimdVectorLeaves : VectorKernels {
     override val id: String = "jvm-simd"
     override val implementations = setOf(Dot, Sum, Nrm2, Iamax, Asum, Axpy)
     override fun dynamicAttribution(implementation: EngineImplementation): Boolean = implementation == Nrm2

@@ -13,7 +13,7 @@ import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
  * resident updates retain destination vectors across columns. [implementationFor] reports the actual body.
  * [KoblasEngine] checks module availability before species initialization.
  */
-internal object SimdPanelKernels : KernelProvider {
+internal object SimdPanelKernels : PanelKernels {
     override val id: String = "jvm-simd"
 
     override val implementations = setOf(EngineImplementation.Panels)
