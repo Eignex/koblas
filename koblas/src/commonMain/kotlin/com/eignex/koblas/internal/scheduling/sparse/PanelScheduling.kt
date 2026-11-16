@@ -1,6 +1,5 @@
 package com.eignex.koblas.internal.scheduling.sparse
 
-import com.eignex.koblas.*
 import com.eignex.koblas.internal.engine.panelProvider
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.dense.scalarDivide
@@ -11,7 +10,7 @@ import com.eignex.koblas.internal.storage.sparse.*
  * Backend-recommended grouping for the current right-hand-side layout, capped by scheduling's staging budget.
  * The traversal remains portable CSC; a grouping recommendation does not imply vectorised sparse indices.
  */
-internal fun KoblasEngine.sparseRightHandSideGroup(
+internal fun KernelProvider.sparseRightHandSideGroup(
     rows: Int,
     columns: Int,
     contiguous: Boolean = false,
@@ -22,7 +21,7 @@ internal fun KoblasEngine.sparseRightHandSideGroup(
  * Whether adjacent panels of [width] sides outperform strided ones. This is an explicit backend preference;
  * portable kernels decline staging because their arithmetic gains nothing from adjacency.
  */
-internal fun KoblasEngine.sparsePrefersAdjacentSides(width: Int, entries: Int, reduction: Boolean = false): Boolean =
+internal fun KernelProvider.sparsePrefersAdjacentSides(width: Int, entries: Int, reduction: Boolean = false): Boolean =
     panelProvider.prefersContiguous(sparsePanelWork(reduction), width, entries)
 
 /** Reductions carry accumulators; scatters carry destination windows. */
@@ -35,7 +34,7 @@ private fun sparsePanelWork(reduction: Boolean): PanelWork =
  * Both halves share `alpha · value` and accumulate directly into the destination without gathered scratch.
  */
 @Suppress("LongParameterList") // one CSC column slice against a dense panel, with both layouts
-internal fun KoblasEngine.sparseSymmetricLeftColumn(
+internal fun KernelProvider.sparseSymmetricLeftColumn(
     alpha: Double,
     column: Int,
     rowIndices: IntArray,
@@ -74,7 +73,7 @@ internal fun KoblasEngine.sparseSymmetricLeftColumn(
  * Vectorisation depends on the dense source layout; [alpha] scales the finished sum.
  */
 @Suppress("LongParameterList") // the column slice, the dense window, and the output panel
-internal fun KoblasEngine.sparseGatherProductPanel(
+internal fun KernelProvider.sparseGatherProductPanel(
     alpha: Double,
     rowIndices: IntArray,
     values: DoubleArray,
@@ -104,7 +103,7 @@ internal fun KoblasEngine.sparseGatherProductPanel(
  * Vectorisation depends on the destination layout, so this direction may stage the destination.
  */
 @Suppress("LongParameterList") // the column slice, the dense window, and the output panel
-internal fun KoblasEngine.sparseScatterProductPanel(
+internal fun KernelProvider.sparseScatterProductPanel(
     alpha: Double,
     rowIndices: IntArray,
     values: DoubleArray,
@@ -133,7 +132,7 @@ internal fun KoblasEngine.sparseScatterProductPanel(
  * Only wholly live groups use the panel leaf; partially masked groups retain the explicit loop on every backend.
  */
 @Suppress("LongParameterList") // the column slice, its two triangle flags, and the panel window
-internal fun KoblasEngine.sparseTriangularPanelScatter(
+internal fun KernelProvider.sparseTriangularPanelScatter(
     solve: Boolean,
     column: Int,
     lower: Boolean,
@@ -185,7 +184,7 @@ internal fun KoblasEngine.sparseTriangularPanelScatter(
  * masks nothing: every stored strictly triangular entry participates.
  */
 @Suppress("LongParameterList") // the column slice, its two triangle flags, and the panel window
-internal fun KoblasEngine.sparseTriangularPanelGather(
+internal fun KernelProvider.sparseTriangularPanelGather(
     solve: Boolean,
     column: Int,
     lower: Boolean,
@@ -225,7 +224,7 @@ internal fun KoblasEngine.sparseTriangularPanelGather(
  * reciprocal multiplication would change the solve's division semantics.
  */
 @Suppress("LongParameterList") // the column slice, its four flags, and the dense block
-internal fun KoblasEngine.sparseTriangularRightColumn(
+internal fun KernelProvider.sparseTriangularRightColumn(
     solve: Boolean,
     gather: Boolean,
     column: Int,
@@ -250,16 +249,16 @@ internal fun KoblasEngine.sparseTriangularRightColumn(
             val alpha = if (solve) -value else value
             val rowOffset = origin + row * leadingDimension
             if (solve == gather) {
-                kernels.axpy(dense, rowOffset, alpha, dense, columnOffset, rows)
+                this.axpy(dense, rowOffset, alpha, dense, columnOffset, rows)
             } else {
-                kernels.axpy(dense, columnOffset, alpha, dense, rowOffset, rows)
+                this.axpy(dense, columnOffset, alpha, dense, rowOffset, rows)
             }
         }
     }
     if (!gather && !unitDiagonal) sparseApplyDiagonal(dense, columnOffset, rows, diagonal, solve)
 }
 
-private fun KoblasEngine.sparseApplyDiagonal(
+private fun KernelProvider.sparseApplyDiagonal(
     dense: DoubleArray,
     offset: Int,
     rows: Int,
@@ -269,6 +268,6 @@ private fun KoblasEngine.sparseApplyDiagonal(
     if (solve) {
         scalarDivide(dense, offset, rows, diagonal)
     } else {
-        kernels.scale(dense, offset, diagonal, rows)
+        scale(dense, offset, diagonal, rows)
     }
 }

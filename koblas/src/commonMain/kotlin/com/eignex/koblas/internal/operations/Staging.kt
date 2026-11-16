@@ -19,21 +19,6 @@ internal inline fun <T> staged(arrays: Scratch?, values: DoubleArray, aliased: B
     }
 }
 
-/**
- * [staged] for a sparse operand, where only the coefficients can alias.
- *
- * The structural arrays are never a destination, so the snapshot shares them and copies the coefficients
- * alone.
- */
-@OptIn(UnsafeKoblasApi::class)
-internal inline fun <T> staged(arrays: Scratch?, a: SparseMatrix, aliased: Boolean, block: (SparseMatrix) -> T): T {
-    if (!aliased) return block(a)
-    return arrays.borrow(a.nnz) { copy ->
-        a.values.copyInto(copy)
-        block(SparseMatrix.wrapTrusted(a.rows, a.cols, a.colPointers, a.rowIndices, copy))
-    }
-}
-
 /** Equal mappings have no cross-index dependency; partial aliases need a snapshot. */
 internal fun DenseVector.stableFor(destination: DenseVector): DenseVector =
     if (!sameVectorMapping(this, destination) && overlaps(destination)) DenseVector.wrap(toDoubleArray()) else this
@@ -43,24 +28,6 @@ internal fun Vector.stableFor(destination: DenseVector): Vector = when (this) {
     is SparseVector -> if (values === destination.values) copyVectorStorage(this) else this
     is DenseVector -> stableFor(destination)
     else -> DenseVector.wrap(toDoubleArray())
-}
-
-/** Snapshots a region only when it shares the destination buffer. */
-internal inline fun <T> stagedRegion(
-    arrays: Scratch?,
-    a: DenseMatrix,
-    destination: DoubleArray,
-    stable: DenseMatrix? = null,
-    original: DenseMatrix? = null,
-    lower: Boolean? = null,
-    unitDiag: Boolean = false,
-    block: (DenseMatrix) -> T,
-): T {
-    if (a.values !== destination) return block(a)
-    if (original != null && stable != null && sameRegion(a, original)) return block(stable)
-    return stagedRegion(arrays, a, destination, lower, unitDiag) { values, offset, leadingDimension ->
-        block(a.typedRegion(values, offset, leadingDimension))
-    }
 }
 
 /** A matrix snapshot keeps its geometry in primitive fields rather than a temporary container. */
@@ -82,21 +49,6 @@ internal inline fun <T> stagedRegion(
     }
 }
 
-/** Disjoint submatrices of the same parent need no snapshot. */
-internal inline fun <T> stagedRegion(
-    arrays: Scratch?,
-    a: DenseMatrix,
-    destination: DenseMatrix,
-    stable: DenseMatrix? = null,
-    original: DenseMatrix? = null,
-    lower: Boolean? = null,
-    unitDiag: Boolean = false,
-    block: (DenseMatrix) -> T,
-): T {
-    if (!regionsOverlap(a, destination)) return block(a)
-    return stagedRegion(arrays, a, destination.values, stable, original, lower, unitDiag, block)
-}
-
 /** Primitive snapshot geometry for exact rectangle overlap, excluding the parent's padding. */
 internal inline fun <T> stagedRegion(
     arrays: Scratch?,
@@ -109,14 +61,6 @@ internal inline fun <T> stagedRegion(
     if (!regionsOverlap(a, destination)) return block(a.values, a.offset, a.leadingDimension)
     return stagedRegion(arrays, a, destination.values, lower, unitDiag, block)
 }
-
-/** Storage callbacks retain the original container unless a snapshot needs adapting. */
-internal fun DenseMatrix.typedRegion(values: DoubleArray, offset: Int, leadingDimension: Int): DenseMatrix =
-    if (values === this.values && offset == this.offset && leadingDimension == this.leadingDimension) {
-        this
-    } else {
-        DenseMatrix.wrap(rows, cols, values, offset, leadingDimension)
-    }
 
 /** Snapshot logical entries into a loan without creating a temporary vector descriptor. */
 internal inline fun <T> stagedWindow(

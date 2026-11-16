@@ -633,13 +633,46 @@ public interface KoblasEngine {
         // Return before staging or loans: an empty axis may be paired with an enormous one.
         if (c.rows == 0 || c.cols == 0) return
         if (alpha == 0.0) return scaleRegion(c, beta, vectors = this)
-        staged(scratch, a, a.values === c.values) { stableA ->
-            stagedRegion(scratch, b, c) { stableB ->
-                scaleRegion(c, beta, vectors = this)
+        val backend = kernels
+        staged(scratch, a.values, a.values === c.values) { stableA ->
+            stagedRegion(scratch, b, c) { bv, bo, bld ->
+                scaleRegion(c.values, c.offset, c.rows, c.cols, c.leadingDimension, beta, vectors = backend)
                 if (right) {
-                    multiplySymmetricFromTheRight(this, alpha, stableA, stableB, c, lower)
+                    multiplySymmetricFromTheRight(
+                        backend,
+                        alpha,
+                        stableA,
+                        a.colPointers,
+                        a.rowIndices,
+                        a.cols,
+                        bv,
+                        bo,
+                        b.rows,
+                        bld,
+                        c.values,
+                        c.offset,
+                        c.leadingDimension,
+                        lower,
+                    )
                 } else {
-                    multiplySymmetricFromTheLeft(this, alpha, stableA, stableB, c, lower, scratch)
+                    multiplySymmetricFromTheLeft(
+                        backend,
+                        alpha,
+                        stableA,
+                        a.colPointers,
+                        a.rowIndices,
+                        a.rows,
+                        a.cols,
+                        bv,
+                        bo,
+                        b.cols,
+                        bld,
+                        c.values,
+                        c.offset,
+                        c.leadingDimension,
+                        lower,
+                        scratch,
+                    )
                 }
             }
         }
@@ -672,14 +705,52 @@ public interface KoblasEngine {
         if (c.rows == 0 || c.cols == 0) return
         if (alpha == 0.0) return scaleRegion(c, beta, vectors = this)
         val depth = if (right) (if (transposeB) b.rows else b.cols) else (if (transposeA) a.rows else a.cols)
-        staged(scratch, a, a.values === c.values) { stableA ->
-            stagedRegion(scratch, b, c) { stableB ->
-                scaleRegion(c, beta, vectors = this)
+        if (depth == 0) return scaleRegion(c, beta, vectors = this)
+        val backend = kernels
+        staged(scratch, a.values, a.values === c.values) { stableA ->
+            stagedRegion(scratch, b, c) { bv, bo, bld ->
+                scaleRegion(c.values, c.offset, c.rows, c.cols, c.leadingDimension, beta, vectors = backend)
                 if (right) {
-                    multiplyFromTheRight(this, alpha, stableA, transposeA, stableB, transposeB, c, c.rows, scratch)
+                    multiplyFromTheRight(
+                        backend,
+                        alpha,
+                        stableA,
+                        a.colPointers,
+                        a.rowIndices,
+                        a.cols,
+                        transposeA,
+                        bv,
+                        bo,
+                        b.rows,
+                        b.cols,
+                        bld,
+                        transposeB,
+                        c.values,
+                        c.offset,
+                        c.leadingDimension,
+                        c.rows,
+                        scratch,
+                    )
                 } else {
                     multiplyFromTheLeft(
-                        this, alpha, stableA, transposeA, stableB, transposeB, c, c.rows, c.cols, depth, scratch,
+                        backend,
+                        alpha,
+                        stableA,
+                        a.colPointers,
+                        a.rowIndices,
+                        a.cols,
+                        transposeA,
+                        bv,
+                        bo,
+                        bld,
+                        transposeB,
+                        c.values,
+                        c.offset,
+                        c.leadingDimension,
+                        c.rows,
+                        c.cols,
+                        depth,
+                        scratch,
                     )
                 }
             }
@@ -703,9 +774,9 @@ public interface KoblasEngine {
         requireSyrkOperands(a, transpose, c)
         // An empty pattern needs only triangle scaling, avoiding potentially oversized row-indexed adjacency.
         if (alpha == 0.0 || a.nnz == 0 || n == 0) return scaleRegion(c, beta, lower)
-        staged(scratch, a, a.values === c.values) { stableA ->
+        staged(scratch, a.values, a.values === c.values) { stableA ->
             scaleRegion(c, beta, lower)
-            withSymmetricRankScratch(scratch, n, stableA.rows, stableA.nnz) {
+            withSymmetricRankScratch(scratch, n, a.rows, a.nnz) {
                     sums,
                     touchedAt,
                     touched,
@@ -715,8 +786,25 @@ public interface KoblasEngine {
                     rowCursor,
                 ->
                 symmetricRankInto(
-                    alpha, stableA, transpose, c, lower, sums, touchedAt, touched,
-                    rowPointers, adjacentColumns, adjacentPositions, rowCursor,
+                    alpha,
+                    stableA,
+                    a.colPointers,
+                    a.rowIndices,
+                    a.rows,
+                    a.cols,
+                    transpose,
+                    c.values,
+                    c.offset,
+                    c.rows,
+                    c.leadingDimension,
+                    lower,
+                    sums,
+                    touchedAt,
+                    touched,
+                    rowPointers,
+                    adjacentColumns,
+                    adjacentPositions,
+                    rowCursor,
                 )
             }
         }

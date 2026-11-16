@@ -180,7 +180,8 @@ internal fun KoblasEngine.updateRank(
 /** Scales selected entries, never reading a zero-scaled destination or visiting its padding. */
 internal fun scaleRegion(a: DenseMatrix, beta: Double, lower: Boolean? = null, vectors: KoblasEngine? = null) {
     if (beta == 1.0 || a.rows == 0 || a.cols == 0) return
-    scaleRegion(a.values, a.offset, a.rows, a.cols, a.leadingDimension, beta, lower, vectors?.kernels)
+    val backend = if (lower == null && beta != 0.0) vectors?.kernels else null
+    scaleRegion(a.values, a.offset, a.rows, a.cols, a.leadingDimension, beta, lower, backend)
 }
 
 /** Scales a primitive destination window after its descriptor was unwrapped at entry. */

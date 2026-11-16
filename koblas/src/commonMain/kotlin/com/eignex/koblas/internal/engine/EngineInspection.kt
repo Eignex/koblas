@@ -128,9 +128,7 @@ internal fun KoblasEngine.hostForCall(
     columns: Int,
     depth: Int,
     borrowed: Boolean,
-): HostBlas? {
-    return kernels.hostForCall(operation, rows, columns, depth, borrowed)
-}
+): HostBlas? = kernels.hostForCall(operation, rows, columns, depth, borrowed)
 
 internal fun KernelProvider.hostForCall(
     operation: EngineImplementation,
