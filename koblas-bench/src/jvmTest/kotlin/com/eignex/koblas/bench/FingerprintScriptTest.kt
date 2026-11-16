@@ -1,5 +1,6 @@
 package com.eignex.koblas.bench
 
+import com.eignex.lab.bench.WorkspaceChecksums
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
@@ -38,9 +39,7 @@ class FingerprintScriptTest {
             "koblas-bench/build/lab/classes/com/eignex/koblas/bench/PreparedFingerprints.class",
         ))
         val script = File("script-helpers.sh").absolutePath
-        val classpath = listOf(PreparedFingerprints::class.java, Unit::class.java).map { type ->
-            File(type.protectionDomain.codeSource.location.toURI()).path
-        }.distinct().joinToString(File.pathSeparator)
+        val classpath = helperClasspath()
         val body = """
             set -euo pipefail
             source "${'$'}1"
@@ -98,6 +97,11 @@ class FingerprintScriptTest {
         assertEquals(0, process.waitFor(), result)
         return result
     }
+
+    private fun helperClasspath(): String =
+        listOf(PreparedFingerprints::class.java, WorkspaceChecksums::class.java, Unit::class.java).map { type ->
+            File(type.protectionDomain.codeSource.location.toURI()).path
+        }.distinct().joinToString(File.pathSeparator)
 
     private fun digest(file: Path): String =
         HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(file)))

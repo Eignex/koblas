@@ -1,5 +1,6 @@
 package com.eignex.koblas.bench
 
+import com.eignex.lab.bench.WorkspaceChecksums
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.Writer
