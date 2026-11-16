@@ -14,7 +14,7 @@ plugins {
     kotlin("plugin.serialization")
 }
 
-val utilPin = "0.0.1-20261116.103526-21"
+val utilPin = "0.0.1-ci.43879527918.1-20261116.135058-1"
 
 val fullTargets = providers.gradleProperty("targets.full").isPresent
 
@@ -82,17 +82,17 @@ kotlin {
 // Timestamped KMP roots redirect to mutable platform snapshots; pin the consumed variants too.
 dependencies {
     constraints {
-        for ((platform, pinned) in mapOf(
-            "jvm" to utilPin,
-            "linuxx64" to utilPin,
-            "linuxarm64" to utilPin,
-            "mingwx64" to utilPin,
-            "macosarm64" to utilPin,
-            "iosarm64" to "0.0.1-20261116.103526-23",
-            "iossimulatorarm64" to "0.0.1-20261116.103526-23",
+        for (platform in listOf(
+            "jvm",
+            "linuxx64",
+            "linuxarm64",
+            "mingwx64",
+            "macosarm64",
+            "iosarm64",
+            "iossimulatorarm64",
         )) {
-            add("commonMainImplementation", "com.eignex:util-$platform:$pinned") {
-                version { strictly(pinned) }
+            add("commonMainImplementation", "com.eignex:util-$platform:$utilPin") {
+                version { strictly(utilPin) }
             }
         }
     }
