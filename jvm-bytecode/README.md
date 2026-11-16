@@ -31,9 +31,16 @@ Source-inline these higher-order helpers or use a primitive callback interface w
 be retained. Startup and allocation-on-miss factories, and generated public facade bridges,
 remain ordinary calls. This rule does not require inlining ordinary primitive/array helpers.
 
-Dense schedules pass product regions as arrays, offsets, strides and extents. They do not construct
-transient matrix views between blocks: those views allocate when their factory is not inlined.
-The packaged verifier rejects dense matrix construction and view factories inside dense scheduling.
+Dense and sparse schedules receive primitive providers and operand windows as arrays, offsets, strides
+and extents. The typed entry layer validates and unwraps operands once, before scheduling. The packaged
+verifier rejects public engine and container fields, arguments and results at scheduling declarations and calls,
+including direct constructors, helper results, method handles and dynamic call sites/constants. Public
+engine and container implementations are recognized through the packaged inheritance graph. These rules
+keep typed container and public engine adaptation outside numerical scheduling. They check visible
+bytecode types rather than proving the absence of arbitrary allocation through erased objects or reflection;
+the isolated allocation probes independently check the measured paths under C1 and C2. Primitive helpers and
+backend dispatch may remain outlined; storage operations and custom public engine adapters remain
+outside numerical scheduling.
 
 Reduction adapters likewise pass primitive windows directly to built-in kernels. Custom public engines
 retain typed vector calls, since they need a view to receive the original offset, length and stride.
