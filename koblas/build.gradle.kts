@@ -216,10 +216,11 @@ val allocationArguments = vectorArguments + listOf("-XX:-TieredCompilation", "-X
 val profiles = buildList {
     val windowBoundaries = listOf(
         "-XX:CompileCommand=dontinline,com.eignex.koblas.DenseVector\$Companion::wrap",
+        "-XX:CompileCommand=dontinline,com.eignex.koblas.DenseMatrix\$Companion::wrap",
         "-XX:CompileCommand=dontinline,com.eignex.koblas.DenseMatrix::columnView",
         "-XX:CompileCommand=dontinline,com.eignex.koblas.DenseMatrix::view",
     )
-    for (family in listOf("Reduction", "AliasStaging")) {
+    for (family in listOf("Reduction", "AliasStaging", "MatrixAlias")) {
         for (scalarOnly in listOf(false, true)) {
             add(JvmCheckProfile(
                 if (scalarOnly) "scalar${family}AllocationCheckC1" else "simd${family}AllocationCheck",

@@ -21,10 +21,15 @@ import com.eignex.koblas.internal.operations.*
  */
 internal fun KoblasEngine.scheduleGemm(
     alpha: Double,
-    a: DenseMatrix,
+    a: DoubleArray,
+    aOffset: Int,
+    lda: Int,
     transposeA: Boolean,
-    b: DenseMatrix,
+    b: DoubleArray,
+    bOffset: Int,
+    ldb: Int,
     transposeB: Boolean,
+    depth: Int,
     beta: Double,
     c: DenseMatrix,
     arrays: Scratch?,
@@ -32,7 +37,8 @@ internal fun KoblasEngine.scheduleGemm(
     if (c.cols == 1 && c.rows > 1) {
         // The column of op(B) is a stored column, or a stored row when B is transposed.
         scheduleGemv(
-            alpha, a, b.values, b.offset, if (transposeB) b.leadingDimension else 1,
+            alpha, a, aOffset, lda, if (transposeA) depth else c.rows, if (transposeA) c.rows else depth,
+            b, bOffset, if (transposeB) ldb else 1,
             beta, c.values, c.offset, 1, transposeA,
         )
         return
@@ -40,36 +46,49 @@ internal fun KoblasEngine.scheduleGemm(
     if (c.rows == 1 && c.cols > 1) {
         // The destination row is op(B)ᵀ times the row of op(A), a stored column when A is transposed.
         scheduleGemv(
-            alpha, b, a.values, a.offset, if (transposeA) 1 else a.leadingDimension,
+            alpha, b, bOffset, ldb, if (transposeB) c.cols else depth, if (transposeB) depth else c.cols,
+            a, aOffset, if (transposeA) 1 else lda,
             beta, c.values, c.offset, c.leadingDimension, !transposeB,
         )
         return
     }
     productWindow(
-        this, alpha, a, transposeA, b, transposeB, beta, c, OutputTriangle.Full, arrays,
+        this, alpha, a, aOffset, lda, transposeA, b, bOffset, ldb, transposeB,
+        beta, c.values, c.offset, c.leadingDimension, c.rows, c.cols, depth, OutputTriangle.Full, arrays,
     )
 }
 
 internal fun KoblasEngine.scheduleGemmt(
     alpha: Double,
-    a: DenseMatrix,
+    a: DoubleArray,
+    aOffset: Int,
+    lda: Int,
     transposeA: Boolean,
-    b: DenseMatrix,
+    b: DoubleArray,
+    bOffset: Int,
+    ldb: Int,
     transposeB: Boolean,
+    depth: Int,
     beta: Double,
     c: DenseMatrix,
     lower: Boolean,
     arrays: Scratch?,
 ) {
     productWindow(
-        this, alpha, a, transposeA, b, transposeB, beta, c, selectedTriangle(lower), arrays,
+        this, alpha, a, aOffset, lda, transposeA, b, bOffset, ldb, transposeB,
+        beta, c.values, c.offset, c.leadingDimension, c.rows, c.cols, depth, selectedTriangle(lower), arrays,
     )
 }
 
 internal fun KoblasEngine.scheduleSymm(
     alpha: Double,
-    a: DenseMatrix,
-    b: DenseMatrix,
+    a: DoubleArray,
+    aOffset: Int,
+    lda: Int,
+    order: Int,
+    b: DoubleArray,
+    bOffset: Int,
+    ldb: Int,
     beta: Double,
     c: DenseMatrix,
     lower: Boolean,
@@ -78,30 +97,39 @@ internal fun KoblasEngine.scheduleSymm(
 ) {
     scaleRegion(c, beta, vectors = this)
     symmetricProduct(
-        this, alpha, a.values, a.rows, lower, b.values, b.leadingDimension, c.values, c.leadingDimension,
-        c.rows, c.cols, right, arrays, a.offset, a.leadingDimension, b.offset, c.offset,
+        this, alpha, a, order, lower, b, ldb, c.values, c.leadingDimension,
+        c.rows, c.cols, right, arrays, aOffset, lda, bOffset, c.offset,
     )
 }
 
 internal fun KoblasEngine.scheduleSyrk(
     alpha: Double,
-    a: DenseMatrix,
+    a: DoubleArray,
+    aOffset: Int,
+    lda: Int,
     transpose: Boolean,
+    depth: Int,
     beta: Double,
     c: DenseMatrix,
     lower: Boolean,
     arrays: Scratch?,
 ) {
     productWindow(
-        this, alpha, a, transpose, a, !transpose, beta, c, selectedTriangle(lower), arrays,
+        this, alpha, a, aOffset, lda, transpose, a, aOffset, lda, !transpose,
+        beta, c.values, c.offset, c.leadingDimension, c.rows, c.cols, depth, selectedTriangle(lower), arrays,
     )
 }
 
 internal fun KoblasEngine.scheduleSyr2k(
     alpha: Double,
-    a: DenseMatrix,
-    b: DenseMatrix,
+    a: DoubleArray,
+    aOffset: Int,
+    lda: Int,
+    b: DoubleArray,
+    bOffset: Int,
+    ldb: Int,
     transpose: Boolean,
+    depth: Int,
     beta: Double,
     c: DenseMatrix,
     lower: Boolean,
@@ -109,16 +137,21 @@ internal fun KoblasEngine.scheduleSyr2k(
 ) {
     val selected = selectedTriangle(lower)
     productWindow(
-        this, alpha, a, transpose, b, !transpose, beta, c, selected, arrays,
+        this, alpha, a, aOffset, lda, transpose, b, bOffset, ldb, !transpose,
+        beta, c.values, c.offset, c.leadingDimension, c.rows, c.cols, depth, selected, arrays,
     )
     productWindow(
-        this, alpha, b, transpose, a, !transpose, 1.0, c, selected, arrays,
+        this, alpha, b, bOffset, ldb, transpose, a, aOffset, lda, !transpose,
+        1.0, c.values, c.offset, c.leadingDimension, c.rows, c.cols, depth, selected, arrays,
     )
 }
 
 internal fun KoblasEngine.scheduleTriangularMatrix(
     alpha: Double,
-    a: DenseMatrix,
+    a: DoubleArray,
+    aOffset: Int,
+    lda: Int,
+    order: Int,
     structure: MatrixStructure,
     transpose: Boolean,
     b: DenseMatrix,
@@ -127,8 +160,8 @@ internal fun KoblasEngine.scheduleTriangularMatrix(
     arrays: Scratch?,
 ) {
     triangularMatrix(
-        this, a.values, a.rows, b.values, b.leadingDimension, if (right) b.rows else b.cols,
-        structure.isLower, transpose, structure.isUnitDiagonal, right, alpha, solve, arrays, a.offset,
-        a.leadingDimension, b.offset,
+        this, a, order, b.values, b.leadingDimension, if (right) b.rows else b.cols,
+        structure.isLower, transpose, structure.isUnitDiagonal, right, alpha, solve, arrays, aOffset,
+        lda, b.offset,
     )
 }
