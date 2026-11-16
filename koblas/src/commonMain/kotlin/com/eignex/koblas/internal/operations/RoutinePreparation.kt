@@ -178,25 +178,45 @@ internal fun KoblasEngine.updateRank(
 }
 
 /** Scales selected entries, never reading a zero-scaled destination or visiting its padding. */
-internal fun scaleRegion(a: DenseMatrix, beta: Double, lower: Boolean? = null, vectors: KoblasEngine? = null) {
-    if (beta == 1.0 || a.rows == 0 || a.cols == 0) return
+internal fun scaleRegion(a: DenseMatrix, beta: Double, lower: Boolean? = null, vectors: KoblasEngine? = null) =
+    scaleRegion(a.values, a.offset, a.rows, a.cols, a.leadingDimension, beta, lower, vectors?.kernels)
+
+/** Scales a primitive destination window after its descriptor was unwrapped at entry. */
+internal fun scaleRegion(
+    a: DoubleArray,
+    offset: Int,
+    rows: Int,
+    columns: Int,
+    lda: Int,
+    beta: Double,
+    lower: Boolean? = null,
+    vectors: KernelProvider? = null,
+) {
+    if (beta == 1.0 || rows == 0 || columns == 0) return
     if (lower == null && vectors != null) {
-        if (a.leadingDimension == a.rows) {
-            applyBeta(vectors, a.values, a.offset, a.rows * a.cols, beta)
+        if (lda == rows) {
+            applyBeta(vectors, a, offset, rows * columns, beta)
         } else {
-            for (j in 0 until a.cols) applyBeta(vectors, a.values, a.offset + j * a.leadingDimension, a.rows, beta)
+            for (j in 0 until columns) applyBeta(vectors, a, offset + j * lda, rows, beta)
         }
         return
     }
-    for (j in 0 until a.cols) {
+    for (j in 0 until columns) {
         val first = if (lower == true) j else 0
-        val last = if (lower == false) j + 1 else a.rows
-        for (i in first until last) a[i, j] = if (beta == 0.0) 0.0 else beta * a[i, j]
+        val last = if (lower == false) j + 1 else rows
+        for (i in first until last) {
+            val at = offset + i + j * lda
+            a[at] = if (beta == 0.0) 0.0 else beta * a[at]
+        }
     }
 }
 
 /** `v = beta * v` over the [len] entries from [off], honoring the `beta == 0` overwrite convention. */
-internal fun applyBeta(k: KoblasEngine, v: DoubleArray, off: Int, len: Int, beta: Double, stride: Int = 1) {
+internal fun applyBeta(k: KoblasEngine, v: DoubleArray, off: Int, len: Int, beta: Double, stride: Int = 1) =
+    applyBeta(k.kernels, v, off, len, beta, stride)
+
+/** Primitive scaling preserves the selected backend without passing the public adapter into schedules. */
+internal fun applyBeta(k: KernelProvider, v: DoubleArray, off: Int, len: Int, beta: Double, stride: Int = 1) {
     when {
         beta == 0.0 -> if (stride == 1) {
             v.fill(0.0, off, off + len)
@@ -204,6 +224,6 @@ internal fun applyBeta(k: KoblasEngine, v: DoubleArray, off: Int, len: Int, beta
             for (i in 0 until len) v[off + i * stride] = 0.0
         }
 
-        beta != 1.0 -> k.kernels.scale(v, off, beta, len, stride)
+        beta != 1.0 -> k.scale(v, off, beta, len, stride)
     }
 }
