@@ -112,6 +112,23 @@ class RunnerTest {
     }
 
     @Test
+    fun `report keeps provider attribution separate and escapes its fields`() {
+        val case = Cases.parse("dot+4+uniform").single()
+        val measurements = listOf(
+            measurement(case, settings(), 1, 2.5, "ok", "direct", "arithmetic", "scalar/dot", "portable"),
+            measurement(case, settings(), 2, 3.5, "ok", "direct", "arithmetic", "scalar/dot", "host,\"quoted\""),
+        )
+
+        val records = reportCsv(measurements).trim().lines()
+
+        assertEquals(listOf(
+            CSV_HEADER,
+            "dot+4+uniform,ok,direct,arithmetic,scalar/dot,portable,Dot:4:1:1:false:1:true,1,1,2.5,2.5,2.5",
+            "dot+4+uniform,ok,direct,arithmetic,scalar/dot,\"host,\"\"quoted\"\"\",Dot:4:1:1:false:1:true,1,1,3.5,3.5,3.5",
+        ), records)
+    }
+
+    @Test
     fun `unsupported case has no timing`() {
         val case = Cases.parse("dot+4+uniform").single()
         val measurement = measurement(case, settings(), 0, null, "unsupported", "unsupported", "arithmetic")
@@ -150,7 +167,7 @@ class RunnerTest {
             val row =
                 measurement(Cases.parse(id).single(), settings(), 0, null, "unsupported", "unsupported", "arithmetic")
 
-            assertEquals(key, row.case.last())
+            assertEquals(key, row.identity.routingKey)
         }
     }
 

@@ -16,8 +16,7 @@ class FingerprintScriptTest {
     fun `a failed helper discards partial lines before complete fresh hashing`() = fixture { root ->
         val marker = root.resolve("called")
         val java = root.resolve("java")
-        Files.writeString(java, "#!/usr/bin/env bash\nprintf partial\ntouch \"${'$'}HELPER_MARKER\"\nexit 1\n")
-        check(java.toFile().setExecutable(true))
+        writeExecutableScript(java, "printf partial\ntouch \"${'$'}HELPER_MARKER\"\nexit 1\n")
         val source = Files.createDirectories(root.resolve("source"))
         val input = Files.writeString(source.resolve("a file"), "original")
         Files.createDirectories(source.resolve("koblas-bench/build/lab/classes/com/eignex/koblas/bench"))
@@ -58,14 +57,10 @@ class FingerprintScriptTest {
             export LAB_WORKSPACE_CACHE="${'$'}3/cache"
             fingerprint "${'$'}2" sources archive > "${'$'}3/cached"
         """.trimIndent()
-        val process = ProcessBuilder(captureShell(), "-c", body, "fixture", script, source.toString(), root.toString())
-            .redirectErrorStream(true).apply {
-                environment()["KOBLAS_BENCH_JAVA"] = Path.of(System.getProperty("java.home"), "bin", "java").toString()
-                environment()["KOBLAS_BENCH_CLASSPATH"] = classpath
-            }.start()
-        val log = process.inputStream.bufferedReader().readText()
-
-        assertEquals(0, process.waitFor(), log)
+        runProcess(listOf(captureShell(), "-c", body, "fixture", script, source.toString(), root.toString()), mapOf(
+            "KOBLAS_BENCH_JAVA" to Path.of(System.getProperty("java.home"), "bin", "java").toString(),
+            "KOBLAS_BENCH_CLASSPATH" to classpath,
+        ))
         assertTrue(Files.size(root.resolve("fresh")) > 64)
         assertContentEquals(Files.readAllBytes(root.resolve("fresh")), Files.readAllBytes(root.resolve("cached")))
     }
@@ -83,19 +78,15 @@ class FingerprintScriptTest {
 
     private fun fingerprint(source: Path, java: Path, marker: Path): String {
         val script = File("script-helpers.sh").absolutePath
-        val process = ProcessBuilder(
+        return runProcess(listOf(
             captureShell(), "-c", "source \"${'$'}1\"; fingerprint \"${'$'}2\" sources archive",
             "fixture", script, source.toString(),
-        )
-            .redirectErrorStream(true).apply {
-                environment()["LAB_WORKSPACE_CACHE"] = source.parent.resolve("cache").toString()
-                environment()["KOBLAS_BENCH_JAVA"] = java.toString()
-                environment()["KOBLAS_BENCH_CLASSPATH"] = "fixture"
-                environment()["HELPER_MARKER"] = marker.toString()
-            }.start()
-        val result = process.inputStream.bufferedReader().readText()
-        assertEquals(0, process.waitFor(), result)
-        return result
+        ), mapOf(
+            "LAB_WORKSPACE_CACHE" to source.parent.resolve("cache").toString(),
+            "KOBLAS_BENCH_JAVA" to java.toString(),
+            "KOBLAS_BENCH_CLASSPATH" to "fixture",
+            "HELPER_MARKER" to marker.toString(),
+        ))
     }
 
     private fun helperClasspath(): String =
@@ -108,11 +99,6 @@ class FingerprintScriptTest {
 
     private fun fixture(block: (Path) -> Unit) {
         if (System.getProperty("os.name").startsWith("Windows")) return
-        val root = Files.createTempDirectory("koblas-script-fingerprint")
-        try {
-            block(root)
-        } finally {
-            root.toFile().deleteRecursively()
-        }
+        withTemporaryDirectory("koblas-script-fingerprint", block)
     }
 }

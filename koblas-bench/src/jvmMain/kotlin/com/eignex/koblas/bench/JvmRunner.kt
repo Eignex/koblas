@@ -36,6 +36,14 @@ public object JvmBenchmarkBridge {
     }
 }
 
+private data class AdmittedCase(
+    val case: BenchCase,
+    val comparisonKind: String,
+    val timingMode: String,
+    val kernel: String?,
+    val provider: String?,
+)
+
 public fun main(args: Array<String>) {
     val settings = parseArguments(args)
     val vendorMode = vendorForRuntime(settings.mode, JVM_VENDOR_PREFIX) != null
@@ -46,9 +54,7 @@ public fun main(args: Array<String>) {
     val allCases = Cases.parse(readTextFile(settings.casesPath))
     val selected = Cases.select(allCases, settings.suite, settings.operation)
     val (engine, implementation) = benchmarkEngine(settings.mode)
-    val supported = linkedMapOf<String, Pair<String, String>>()
-    val kernels = linkedMapOf<String, String>()
-    val providers = linkedMapOf<String, String>()
+    val supported = linkedMapOf<String, AdmittedCase>()
     val rowsByCase = linkedMapOf<String, MutableList<Measurement>>()
     for (case in selected) {
         // Build and verify work outside timing and decline unsupported arms before starting JMH.
@@ -60,14 +66,12 @@ public fun main(args: Array<String>) {
                 case.option("timing", "arithmetic"), arm.reason,
             )
         } else {
-            supported[case.id] = work.comparisonKind to work.timingMode
-            work.kernel?.let { kernels[case.id] = it }
-            work.provider?.let { providers[case.id] = it }
+            supported[case.id] = AdmittedCase(case, work.comparisonKind, work.timingMode, work.kernel, work.provider)
         }
     }
     if (supported.isNotEmpty()) {
         val results = Runner(jmhOptions(settings, supported.keys)).run()
-        appendJmhRows(rowsByCase, results, allCases.associateBy { it.id }, supported, settings, kernels, providers)
+        appendJmhRows(rowsByCase, results, supported, settings)
     }
     writeRows(settings, selected, rowsByCase)
     println("wrote ${selected.size} case summaries from ${rowsByCase.values.sumOf { rows ->
@@ -108,16 +112,12 @@ private fun jmhOptions(settings: Settings, caseIds: Collection<String>) = Option
 private fun appendJmhRows(
     rowsByCase: MutableMap<String, MutableList<Measurement>>,
     results: Collection<RunResult>,
-    cases: Map<String, BenchCase>,
-    supported: Map<String, Pair<String, String>>,
+    supported: Map<String, AdmittedCase>,
     settings: Settings,
-    kernels: Map<String, String>,
-    providers: Map<String, String>,
 ) {
     for (result in results.sortedBy { it.params.getParam("caseId") }) {
         val caseId = result.params.getParam("caseId")
-        val case = requireNotNull(cases[caseId])
-        val (comparison, timing) = requireNotNull(supported[caseId])
+        val admitted = requireNotNull(supported[caseId])
         var sample = 0
         for (fork in result.benchmarkResults) {
             for (iteration in fork.iterationResults) {
@@ -127,8 +127,8 @@ private fun appendJmhRows(
                     "invalid JMH result for $caseId"
                 }
                 rowsByCase.getOrPut(caseId, ::arrayListOf) += measurement(
-                    case, settings, ++sample, nanosPerOperation, "ok", comparison, timing, kernels[caseId],
-                    providers[caseId],
+                    admitted.case, settings, ++sample, nanosPerOperation, "ok", admitted.comparisonKind,
+                    admitted.timingMode, admitted.kernel, admitted.provider,
                 )
             }
         }

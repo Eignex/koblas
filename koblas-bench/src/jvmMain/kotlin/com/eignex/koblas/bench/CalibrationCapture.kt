@@ -44,231 +44,272 @@ internal fun readCalibration(
     arm: String? = null, cpuClass: String? = null, sveBits: String? = null, engineName: String? = null,
 ): CalibrationCapture {
     require(directories.isNotEmpty() && directories.map { it.toRealPath() }.distinct().size == directories.size)
+    return CalibrationReader(CalibrationSelection(baseline, candidate, backend, arm, cpuClass, sveBits, engineName))
+        .read(directories)
+}
+
+private data class CalibrationSelection(
+    val baseline: String, val candidate: String, val backend: String?, val arm: String?,
+    val cpuClass: String?, val sveBits: String?, val engineName: String?,
+) {
     val targets = calibrationTargets(baseline) + candidate
-    val hashes = linkedMapOf<String, String>()
-    val provenance = mutableListOf<Any>()
-    val timings = mutableListOf<PairedTiming>()
-    val cases = mutableSetOf<String>()
-    val platforms = mutableSetOf<List<String>>()
-    val manifests = mutableSetOf<List<String>>()
-    val protocols = mutableSetOf<Map<String, String>>()
-    val environments = mutableMapOf<String, List<Any>>()
-    val jobs = mutableSetOf<String>()
-    fun remember(path: Path): String = digest(path).also { hashes[path.toString()] = it }
-    for (directory in directories) {
+}
+
+private data class CaptureAttempt(val passes: List<Path>, val fetched: Boolean)
+private data class CapturePass(
+    val path: Path, val metadata: Map<String, Map<String, String>>,
+    val fields: Map<String, String>, val identities: List<Map<String, String>>, val target: List<String>,
+)
+private data class PassTimings(val cases: Set<String>, val timings: List<PairedTiming>)
+
+private class CalibrationReader(private val selection: CalibrationSelection) {
+    private val hashes = linkedMapOf<String, String>()
+    private val provenance = mutableListOf<Any>()
+    private val timings = mutableListOf<PairedTiming>()
+    private val cases = mutableSetOf<String>()
+    private val platforms = mutableSetOf<List<String>>()
+    private val manifests = mutableSetOf<List<String>>()
+    private val protocols = mutableSetOf<Map<String, String>>()
+    private val environments = mutableMapOf<String, List<Any>>()
+    private val jobs = mutableSetOf<String>()
+
+    fun read(directories: List<Path>): CalibrationCapture {
+        for (directory in directories) {
+            for (attempt in discoverAttempts(directory)) readAttempt(attempt)
+        }
+        require(timings.isNotEmpty() && protocols.size == 1 && manifests.size == 1) {
+            "Inputs have no timings or mix protocols or measured code"
+        }
+        require(platforms.map {
+            listOf(it[0], it[1], it[2], it[4], it[5])
+        }.distinct().size == 1) { "Fit each target separately" }
+        provenance +=
+            mapOf("target_models" to platforms, "measured_sources" to manifests.single(), "protocol" to protocols.single())
+        return CalibrationCapture(platforms.first(), cases, timings, hashes, provenance)
+    }
+
+    private fun remember(path: Path): String = digest(path).also { hashes[path.toString()] = it }
+
+    private fun discoverAttempts(directory: Path): List<CaptureAttempt> {
         val index = directory.resolve("lab-cases.jsonl")
-        val groups = if (!Files.exists(index)) {
-            require(arm == null) { "--lab-arm requires a fetched job" }
-            listOf(Files.list(directory).use { paths ->
+        if (!Files.exists(index)) {
+            require(selection.arm == null) { "--lab-arm requires a fetched job" }
+            val passes = Files.list(directory).use { paths ->
                 paths.filter { it.fileName.toString().matches(Regex("pass-[0-9]+")) }.toList()
-            })
-        } else {
-            remember(index)
-            val snapshots = listOf("lab-job.json", "lab-execution.json").associateWith { name ->
-                val path = directory.resolve(name)
-                remember(path)
-                Json.parseToJsonElement(Files.readString(path))
             }
-            val job = snapshots.getValue("lab-job.json")
-            require(job.field("status") == "DONE" && jobs.add(job.field("id"))) {
-                "Require distinct completed lab jobs"
-            }
-            val rows = Files.readAllLines(index).filter(String::isNotBlank).map {
-                Json.parseToJsonElement(it).jsonObject
-            }
-            require(rows.map {
-                it.field("index").toInt()
-            }.let { it.all { n -> n >= 0 } && it.distinct().size == it.size })
-            val arms = rows.map { it.field("arm") }.toSet()
-            val selected = arm ?: arms.single()
-            require(selected in arms)
-            provenance += mapOf("resources" to snapshots, "rows" to rows, "arm" to selected)
-            rows.groupBy {
-                listOf(it.getValue("problem").field("problem"), it.field("seed"), it.field("repeat"))
-            }.values.map { pair ->
-                require(pair.size == arms.size && pair.map { it.field("arm") }.toSet() == arms && pair.all {
-                    it.field("status") == "DONE" && it.getValue("record").field("status") == "success"
-                }) { "Every requested row must contain all successful paired arms" }
-                val row = pair.single { it.field("arm") == selected }
-                val root = directory.resolve("cases/${row.field("index")}/out").toRealPath()
-                val artifacts = row.getValue("record").jsonObject.getValue("artifacts").jsonArray
-                    .associateBy { it.field("path") }
-                fun declared(name: String): Path {
-                    val path = root.resolve(name).toRealPath()
-                    require(name in artifacts && path.startsWith(root) && Files.isRegularFile(path)) {
-                        "Missing accepted artifact $name"
-                    }
-                    val expected = artifacts.getValue(name).field("sha256")
-                    require(expected.isEmpty() || remember(path) == expected) {
-                        "Accepted artifact hash differs: $name"
-                    }
-                    return path
-                }
-                artifacts.keys.filter { it.matches(Regex("(?:.*/)?pass-[0-9]+/metadata.txt")) }.map { name ->
-                    val path = declared(name)
-                    for (target in targets) declared(name.removeSuffix("metadata.txt") + "$target.csv")
-                    declared(root.relativize(path.parent.parent.resolve("source-hashes.txt")).toString())
-                    path.parent
-                }
-            }
+            return listOf(CaptureAttempt(passes, fetched = false))
         }
-        for (passes in groups) {
-            require(passes.size >= 3 && passes.distinct().size == passes.size) {
-                "At least three distinct paired rounds required"
-            }
-            val attemptTargets = mutableSetOf<List<String>>()
-            val commits = mutableSetOf<String>()
-            val models = mutableSetOf<String>()
-            var expectedCases: Set<String>? = null
-            val paired = mutableListOf<PairedTiming>()
-            for (pass in passes.sorted()) {
-                val metadataPath = pass.resolve("metadata.txt")
-                remember(metadataPath)
-                val metadata = sections(Files.readString(metadataPath))
-                val fields = metadata.getValue("capture")
-                require(
-                    metadata.getValue("")["status"] == "complete" && fields.getValue("requested_samples")
-                        .toInt() >= 3 &&
-                        fields.getValue("target_ns").toLong() >= 10000000) { "Incomplete capture or smoke timings" }
-                require(fields["dirty"] == "false" && fields.getValue("source_commit").matches(Regex("[0-9a-f]{40}")))
-                commits += fields.getValue("source_commit")
-                val identities = targets.map { metadata.getValue(it) }
-                val vendorNames = setOf("onemkl", "openblas", "aocl", "armpl", "accelerate")
-                val declared = identities.map { identity ->
-                    Regex("""/caps\[([^:]+):""")
-                        .findAll(identity.getValue("implementation")).map { it.groupValues[1] }.toSet()
-                }
-                if (baseline.startsWith("jvm-")) {
-                    val allowed = if (baseline == "jvm-scalar") setOf("portable") else setOf("portable", "jvm-simd")
-                    require(declared.dropLast(1).all { it.isNotEmpty() && it.all(allowed::contains) }) {
-                        "Baseline includes a provider outside its owned fallback"
-                    }
-                }
-                identities.forEachIndexed { index, identity ->
-                    val implementation = identity.getValue("implementation")
-                    require(declared[index].none {
-                        it in vendorNames
-                    } || "/threads=" in implementation) { "Missing vendor version or thread evidence" }
-                }
-                val packagePath = pass.parent.parent.resolve("vendor-package.txt")
-                if (Files.isRegularFile(packagePath)) remember(packagePath)
-                if (Files.exists(index) && identities.any { "/oneMKL/" in it.getValue("implementation") })
-                    require(Files.isRegularFile(packagePath)) { "Missing pinned oneMKL package evidence" }
-                if (engineName != null) require(
-                    identities.last().getValue("implementation").startsWith("$candidate/$engineName/")) {
-                    "Different compiled engine"
-                }
-                val target = identities.first().let { id ->
-                    listOf("runtime", "os", "arch", "cpu_model", "cpu_class", "sve_vector_bits").map {
-                        id.getValue("profile_$it")
-                    }
-                }
-                require(identities.all { id ->
-                    target == listOf("runtime", "os", "arch", "cpu_model", "cpu_class", "sve_vector_bits")
-                        .map { id.getValue("profile_$it") }
-                }) { "Paired targets differ" }
-                attemptTargets += target
-                if ((cpuClass != null && target[4] != cpuClass) || (sveBits != null && target[5] != sveBits)) continue
-                val hardware = metadata["hardware"].orEmpty()
-                val model = hardware["model name"] ?: hardware["cpu_model"] ?: target[3]
-                require(model != "*" && target[4] != "*") { "Unknown CPU model or instruction class" }
-                models += model
-                if (target[4] == "Sve") require(target[5].toIntOrNull() in 128..2048 && target[5].toInt() % 128 == 0)
-                if (target[0] == "jvm") require(fields.getValue("warmups").toInt() >= 20 &&
-                    fields.getValue("requested_jvm_forks").toInt() >= 2 &&
-                    fields.getValue("target_ns").toLong() >= 200000000)
-                platforms += target
-                val protocolKeys =
-                    listOf("warmups", "requested_samples", "target_ns", "requested_jvm_forks", "jvm_gc",
-                        "jvm_heap", "cpu_policy", "koblas_threads")
-                require(protocolKeys.all { !fields[it].isNullOrEmpty() })
-                protocols +=
-                    fields.filterKeys {
-                        it in protocolKeys || it.startsWith("KOBLAS_") ||
-                            it in listOf("JAVA_TOOL_OPTIONS", "JDK_JAVA_OPTIONS")
-                    }
-                val environment = listOf(fields.getValue("platform").split(' ').drop(2), identities.map { id ->
-                    listOf(id.getValue("runtime"), id.getValue("harness"), id.getValue("warmup_target_ns"),
-                        Regex("""/(Accelerate|oneMKL|OpenBLAS|AOCL|ArmPL)/([^\n]*?)/threads=([^/]+)""")
-                            .findAll(id.getValue("implementation")).map {
-                                listOf(it.groupValues[1], it.groupValues[2].substringAfterLast('/'), it.groupValues[3])
-                            }.toList())
-                })
-                require(environments.getOrPut(model) {
-                    environment
-                } == environment) { "Different runtime or vendor settings within one CPU model" }
-                val manifestPath = pass.parent.resolve("source-hashes.txt")
-                remember(manifestPath)
-                val manifest = Files.readAllLines(manifestPath).filter { line ->
-                    val path = line.substringAfter(' ')
-                    path.startsWith("koblas/src/") || path.startsWith("koblas-bench/src/") ||
-                        path.startsWith("koblas-bench/jmh/") ||
-                        path.startsWith("gradle/") ||
-                        path.endsWith(".gradle.kts") ||
-                        path in
-                        listOf("gradle.properties", "koblas-bench/capture-report.sh",
-                            "koblas-bench/script-helpers.sh", "koblas-bench/lab/prepare-vendor.sh")
-                }.sorted()
-                require(manifest.isNotEmpty() && manifest.all {
-                    it.substringBefore(' ').matches(Regex("[0-9a-f]{64}"))
-                })
-                require(manifest.map { it.substringAfter(' ') }.distinct().size == manifest.size)
-                manifests += manifest
-                val tables = targets.map { targetName ->
-                    val csv = pass.resolve("$targetName.csv")
-                    remember(csv)
-                    readTimingCsv(Files.readString(csv))
-                }
-                require(tables.map { it.keys }.distinct().size == 1) { "Paired arms contain different cases" }
-                require(expectedCases == null || expectedCases == tables.first().keys) {
-                    "Rounds contain different cases"
-                }
-                expectedCases = tables.first().keys
-                cases += tables.first().keys
-                for (case in tables.first().keys) {
-                    val references = tables.dropLast(1).map { it.getValue(case) }
-                    val right = tables.last().getValue(case)
-                    if (right["status"] == "unsupported" && backend != null) continue
-                    val rows = references + listOf(right)
-                    require(rows.all {
-                        it["status"] == "ok" && it.getValue("samples").toInt() >= 3 &&
-                            it.getValue("median_ns").toDouble().let { n -> n.isFinite() && n > 0 }
-                    }) { "Untimed case $case" }
-                    require(rows.map { it.getValue("timing_mode") to it.getValue("routing_key") }.distinct().size == 1)
-                    val provider = right.getValue("provider")
-                    require(provider.isNotBlank())
-                    if (backend != null && provider != backend) continue
-                    val key = right.getValue("routing_key").split(':')
-                    val shape = if (key.first().isEmpty()) null else {
-                        require(key.size == 7)
-                        RoutingShape(EngineImplementation.valueOf(key[0]), key[1].toInt(), key[2].toInt(),
-                            key[3].toInt(),
-                            key[4].toBooleanStrict(), key[5].toInt(), key[6].toBooleanStrict())
-                    }
-                    paired += PairedTiming(case, model, provider, shape,
-                        right.getValue("median_ns").toDouble() /
-                            references.minOf { it.getValue("median_ns").toDouble() })
-                }
-            }
-            require(commits.size == 1 && attemptTargets.size == 1 && models.size <= 1) {
-                "An attempt changed CPU or source revision"
-            }
-            require(paired.groupBy { it.case }.values.all {
-                it.size == passes.size &&
-                    it.map { p -> p.shape to p.provider }.distinct().size == 1
-            })
-            timings += paired
+        remember(index)
+        val snapshots = listOf("lab-job.json", "lab-execution.json").associateWith { name ->
+            val path = directory.resolve(name)
+            remember(path)
+            Json.parseToJsonElement(Files.readString(path))
+        }
+        val job = snapshots.getValue("lab-job.json")
+        require(job.field("status") == "DONE" && jobs.add(job.field("id"))) {
+            "Require distinct completed lab jobs"
+        }
+        val rows = Files.readAllLines(index).filter(String::isNotBlank).map {
+            Json.parseToJsonElement(it).jsonObject
+        }
+        require(rows.map {
+            it.field("index").toInt()
+        }.let { it.all { n -> n >= 0 } && it.distinct().size == it.size })
+        val arms = rows.map { it.field("arm") }.toSet()
+        val selected = selection.arm ?: arms.single()
+        require(selected in arms)
+        provenance += mapOf("resources" to snapshots, "rows" to rows, "arm" to selected)
+        return rows.groupBy {
+            listOf(it.getValue("problem").field("problem"), it.field("seed"), it.field("repeat"))
+        }.values.map { pair ->
+            require(pair.size == arms.size && pair.map { it.field("arm") }.toSet() == arms && pair.all {
+                it.field("status") == "DONE" && it.getValue("record").field("status") == "success"
+            }) { "Every requested row must contain all successful paired arms" }
+            val row = pair.single { it.field("arm") == selected }
+            CaptureAttempt(acceptedPasses(directory, row), fetched = true)
         }
     }
-    require(timings.isNotEmpty() && protocols.size == 1 && manifests.size == 1) {
-        "Inputs have no timings or mix protocols or measured code"
+
+    private fun acceptedPasses(directory: Path, row: JsonObject): List<Path> {
+        val root = directory.resolve("cases/${row.field("index")}/out").toRealPath()
+        val artifacts = row.getValue("record").jsonObject.getValue("artifacts").jsonArray
+            .associateBy { it.field("path") }
+        fun declared(name: String): Path {
+            val path = root.resolve(name).toRealPath()
+            require(name in artifacts && path.startsWith(root) && Files.isRegularFile(path)) {
+                "Missing accepted artifact $name"
+            }
+            val expected = artifacts.getValue(name).field("sha256")
+            require(expected.isEmpty() || remember(path) == expected) {
+                "Accepted artifact hash differs: $name"
+            }
+            return path
+        }
+        return artifacts.keys.filter { it.matches(Regex("(?:.*/)?pass-[0-9]+/metadata.txt")) }.map { name ->
+            val path = declared(name)
+            for (target in selection.targets) declared(name.removeSuffix("metadata.txt") + "$target.csv")
+            declared(root.relativize(path.parent.parent.resolve("source-hashes.txt")).toString())
+            path.parent
+        }
     }
-    require(platforms.map {
-        listOf(it[0], it[1], it[2], it[4], it[5])
-    }.distinct().size == 1) { "Fit each target separately" }
-    provenance +=
-        mapOf("target_models" to platforms, "measured_sources" to manifests.single(), "protocol" to protocols.single())
-    return CalibrationCapture(platforms.first(), cases, timings, hashes, provenance)
+
+    private fun readAttempt(attempt: CaptureAttempt) {
+        val passes = attempt.passes
+        require(passes.size >= 3 && passes.distinct().size == passes.size) {
+            "At least three distinct paired rounds required"
+        }
+        val attemptTargets = mutableSetOf<List<String>>()
+        val commits = mutableSetOf<String>()
+        val models = mutableSetOf<String>()
+        var expectedCases: Set<String>? = null
+        val paired = mutableListOf<PairedTiming>()
+        for (path in passes.sorted()) {
+            val pass = readPass(path, attempt.fetched)
+            commits += pass.fields.getValue("source_commit")
+            attemptTargets += pass.target
+            if ((selection.cpuClass != null && pass.target[4] != selection.cpuClass) ||
+                (selection.sveBits != null && pass.target[5] != selection.sveBits)) continue
+            val model = acceptPlatformAndProtocol(pass)
+            models += model
+            manifests += readManifest(path.parent.resolve("source-hashes.txt"))
+            val round = readPairedTimings(pass, model)
+            require(expectedCases == null || expectedCases == round.cases) { "Rounds contain different cases" }
+            expectedCases = round.cases
+            cases += round.cases
+            paired += round.timings
+        }
+        require(commits.size == 1 && attemptTargets.size == 1 && models.size <= 1) {
+            "An attempt changed CPU or source revision"
+        }
+        require(paired.groupBy { it.case }.values.all {
+            it.size == passes.size && it.map { p -> p.shape to p.provider }.distinct().size == 1
+        })
+        timings += paired
+    }
+
+    private fun readPass(path: Path, fetched: Boolean): CapturePass {
+        val metadataPath = path.resolve("metadata.txt")
+        remember(metadataPath)
+        val metadata = sections(Files.readString(metadataPath))
+        val fields = metadata.getValue("capture")
+        require(metadata.getValue("")["status"] == "complete" && fields.getValue("requested_samples").toInt() >= 3 &&
+            fields.getValue("target_ns").toLong() >= 10000000) { "Incomplete capture or smoke timings" }
+        require(fields["dirty"] == "false" && fields.getValue("source_commit").matches(Regex("[0-9a-f]{40}")))
+        val identities = selection.targets.map { metadata.getValue(it) }
+        validateImplementations(identities)
+        val packagePath = path.parent.parent.resolve("vendor-package.txt")
+        if (Files.isRegularFile(packagePath)) remember(packagePath)
+        if (fetched && identities.any { "/oneMKL/" in it.getValue("implementation") })
+            require(Files.isRegularFile(packagePath)) { "Missing pinned oneMKL package evidence" }
+        if (selection.engineName != null) require(
+            identities.last().getValue("implementation")
+                .startsWith("${selection.candidate}/${selection.engineName}/")) { "Different compiled engine" }
+        val profileKeys = listOf("runtime", "os", "arch", "cpu_model", "cpu_class", "sve_vector_bits")
+        val target = profileKeys.map { identities.first().getValue("profile_$it") }
+        require(identities.all { id ->
+            target == profileKeys.map { id.getValue("profile_$it") }
+        }) { "Paired targets differ" }
+        return CapturePass(path, metadata, fields, identities, target)
+    }
+
+    private fun validateImplementations(identities: List<Map<String, String>>) {
+        val vendorNames = setOf("onemkl", "openblas", "aocl", "armpl", "accelerate")
+        val declared = identities.map { identity ->
+            Regex("""/caps\[([^:]+):""")
+                .findAll(identity.getValue("implementation")).map { it.groupValues[1] }.toSet()
+        }
+        if (selection.baseline.startsWith("jvm-")) {
+            val allowed = if (selection.baseline == "jvm-scalar") setOf("portable") else setOf("portable", "jvm-simd")
+            require(declared.dropLast(1).all { it.isNotEmpty() && it.all(allowed::contains) }) {
+                "Baseline includes a provider outside its owned fallback"
+            }
+        }
+        identities.forEachIndexed { index, identity ->
+            val implementation = identity.getValue("implementation")
+            require(declared[index].none {
+                it in vendorNames
+            } || "/threads=" in implementation) { "Missing vendor version or thread evidence" }
+        }
+    }
+
+    private fun acceptPlatformAndProtocol(pass: CapturePass): String {
+        val target = pass.target
+        val fields = pass.fields
+        val identities = pass.identities
+        val hardware = pass.metadata["hardware"].orEmpty()
+        val model = hardware["model name"] ?: hardware["cpu_model"] ?: target[3]
+        require(model != "*" && target[4] != "*") { "Unknown CPU model or instruction class" }
+        if (target[4] == "Sve") require(target[5].toIntOrNull() in 128..2048 && target[5].toInt() % 128 == 0)
+        if (target[0] == "jvm") require(fields.getValue("warmups").toInt() >= 20 &&
+            fields.getValue("requested_jvm_forks").toInt() >= 2 && fields.getValue("target_ns").toLong() >= 200000000)
+        platforms += target
+        val protocolKeys =
+            listOf("warmups", "requested_samples", "target_ns", "requested_jvm_forks", "jvm_gc",
+                "jvm_heap", "cpu_policy", "koblas_threads")
+        require(protocolKeys.all { !fields[it].isNullOrEmpty() })
+        protocols +=
+            fields.filterKeys {
+                it in protocolKeys || it.startsWith("KOBLAS_") ||
+                    it in listOf("JAVA_TOOL_OPTIONS", "JDK_JAVA_OPTIONS")
+            }
+        val environment = listOf(fields.getValue("platform").split(' ').drop(2), identities.map { id ->
+            listOf(id.getValue("runtime"), id.getValue("harness"), id.getValue("warmup_target_ns"),
+                Regex("""/(Accelerate|oneMKL|OpenBLAS|AOCL|ArmPL)/([^\n]*?)/threads=([^/]+)""")
+                    .findAll(id.getValue("implementation")).map {
+                        listOf(it.groupValues[1], it.groupValues[2].substringAfterLast('/'), it.groupValues[3])
+                    }.toList())
+        })
+        require(environments.getOrPut(model) {
+            environment
+        } == environment) { "Different runtime or vendor settings within one CPU model" }
+        return model
+    }
+
+    private fun readManifest(path: Path): List<String> {
+        remember(path)
+        val manifest = Files.readAllLines(path).filter { line ->
+            val source = line.substringAfter(' ')
+            source.startsWith("koblas/src/") || source.startsWith("koblas-bench/src/") ||
+                source.startsWith("koblas-bench/jmh/") || source.startsWith("gradle/") ||
+                source.endsWith(".gradle.kts") ||
+                source in listOf("gradle.properties", "koblas-bench/capture-report.sh",
+                    "koblas-bench/script-helpers.sh", "koblas-bench/lab/prepare-vendor.sh")
+        }.sorted()
+        require(manifest.isNotEmpty() && manifest.all { it.substringBefore(' ').matches(Regex("[0-9a-f]{64}")) })
+        require(manifest.map { it.substringAfter(' ') }.distinct().size == manifest.size)
+        return manifest
+    }
+
+    private fun readPairedTimings(pass: CapturePass, model: String): PassTimings {
+        val tables = selection.targets.map { target ->
+            val csv = pass.path.resolve("$target.csv")
+            remember(csv)
+            readTimingCsv(Files.readString(csv))
+        }
+        require(tables.map { it.keys }.distinct().size == 1) { "Paired arms contain different cases" }
+        val paired = mutableListOf<PairedTiming>()
+        for (case in tables.first().keys) {
+            val references = tables.dropLast(1).map { it.getValue(case) }
+            val right = tables.last().getValue(case)
+            if (right["status"] == "unsupported" && selection.backend != null) continue
+            val rows = references + listOf(right)
+            require(rows.all { it["status"] == "ok" && it.getValue("samples").toInt() >= 3 &&
+                it.getValue("median_ns").toDouble().let { n -> n.isFinite() && n > 0 } }) { "Untimed case $case" }
+            require(rows.map { it.getValue("timing_mode") to it.getValue("routing_key") }.distinct().size == 1)
+            val provider = right.getValue("provider")
+            require(provider.isNotBlank())
+            if (selection.backend != null && provider != selection.backend) continue
+            val key = right.getValue("routing_key").split(':')
+            val shape = if (key.first().isEmpty()) null else {
+                require(key.size == 7)
+                RoutingShape(EngineImplementation.valueOf(key[0]), key[1].toInt(), key[2].toInt(), key[3].toInt(),
+                    key[4].toBooleanStrict(), key[5].toInt(), key[6].toBooleanStrict())
+            }
+            paired += PairedTiming(case, model, provider, shape,
+                right.getValue("median_ns").toDouble() / references.minOf { it.getValue("median_ns").toDouble() })
+        }
+        return PassTimings(tables.first().keys, paired)
+    }
 }
 
 private fun sections(text: String): Map<String, Map<String, String>> {

@@ -88,11 +88,8 @@ class PreparedFingerprintsTest {
         HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(file)))
 
     private fun fixture(block: (Path) -> Unit) {
-        val root = Files.createTempDirectory("koblas-fingerprints")
-        try {
+        withTemporaryDirectory("koblas-fingerprints") { root ->
             if (Files.getFileStore(root).supportsFileAttributeView("unix")) block(root)
-        } finally {
-            root.toFile().deleteRecursively()
         }
     }
 }

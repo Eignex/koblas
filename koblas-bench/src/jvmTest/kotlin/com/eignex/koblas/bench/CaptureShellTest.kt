@@ -8,8 +8,7 @@ import kotlin.test.assertFailsWith
 class CaptureShellTest {
     @Test
     fun `windows shell selection bypasses the wsl launcher and finds git cmd installations`() {
-        val root = Files.createTempDirectory("koblas-shell")
-        try {
+        withTemporaryDirectory("koblas-shell") { root ->
             val system = Files.createDirectories(root.resolve("Windows/System32"))
             Files.createFile(system.resolve("bash.exe"))
             val git = Files.createDirectories(root.resolve("Git/cmd"))
@@ -25,8 +24,6 @@ class CaptureShellTest {
             }
             assertEquals(system.resolve("bash.exe").toString(), captureShell(windows = true,
                 environment = env + ("KOBLAS_BASH" to system.resolve("bash.exe").toString())))
-        } finally {
-            root.toFile().deleteRecursively()
         }
     }
 
