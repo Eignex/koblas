@@ -2,15 +2,17 @@
 
 package com.eignex.koblas.internal.scheduling.sparse
 
-import com.eignex.koblas.*
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.sparse.sparseSymmetricVectorColumn
 import com.eignex.koblas.internal.operations.applyBeta
 
 @Suppress("LongParameterList") // the BLAS dgemv signature, over the snapshots taken for it
-internal fun KoblasEngine.scheduleSparseGemv(
+internal fun KernelProvider.scheduleSparseGemv(
     alpha: Double,
-    a: SparseMatrix,
+    aValues: DoubleArray,
+    aPointers: IntArray,
+    aIndices: IntArray,
+    aColumns: Int,
     x: DoubleArray,
     beta: Double,
     y: DoubleArray,
@@ -18,14 +20,14 @@ internal fun KoblasEngine.scheduleSparseGemv(
 ) {
     applyBeta(this, y, 0, y.size, beta)
     if (transpose) {
-        for (j in 0 until a.cols) {
-            val start = a.colPointers[j]
-            val end = a.colPointers[j + 1]
+        for (j in 0 until aColumns) {
+            val start = aPointers[j]
+            val end = aPointers[j + 1]
             if (start == end) continue
-            val sum = kernels.dot(
-                a.rowIndices,
+            val sum = dot(
+                aIndices,
                 start,
-                a.values,
+                aValues,
                 start,
                 end - start,
                 x,
@@ -33,15 +35,15 @@ internal fun KoblasEngine.scheduleSparseGemv(
             y[j] += alpha * sum
         }
     } else {
-        for (j in 0 until a.cols) {
+        for (j in 0 until aColumns) {
             val xj = alpha * x[j]
-            val start = a.colPointers[j]
-            kernels.axpy(
-                a.rowIndices,
+            val start = aPointers[j]
+            this.axpy(
+                aIndices,
                 start,
-                a.values,
+                aValues,
                 start,
-                a.colPointers[j + 1] - start,
+                aPointers[j + 1] - start,
                 xj,
                 y,
             )
@@ -49,23 +51,26 @@ internal fun KoblasEngine.scheduleSparseGemv(
     }
 }
 
-internal fun KoblasEngine.scheduleSparseSymv(
+internal fun KernelProvider.scheduleSparseSymv(
     alpha: Double,
-    a: SparseMatrix,
+    aValues: DoubleArray,
+    aPointers: IntArray,
+    aIndices: IntArray,
+    aColumns: Int,
     x: DoubleArray,
     beta: Double,
     y: DoubleArray,
     lower: Boolean,
 ) {
     applyBeta(this, y, 0, y.size, beta)
-    for (column in 0 until a.cols) {
+    for (column in 0 until aColumns) {
         sparseSymmetricVectorColumn(
             alpha,
             column,
-            a.rowIndices,
-            a.values,
-            a.colPointers[column],
-            a.colPointers[column + 1],
+            aIndices,
+            aValues,
+            aPointers[column],
+            aPointers[column + 1],
             x,
             y,
             lower,

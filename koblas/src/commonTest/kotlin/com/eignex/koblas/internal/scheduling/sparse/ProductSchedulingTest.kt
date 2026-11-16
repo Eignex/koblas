@@ -124,7 +124,7 @@ class ProductSchedulingTest {
                 // adjacent, so that one pair takes the adjacent body with no copy at all.
                 assertEquals(
                     !(transposeA && transposeB),
-                    productRhsPlan(staging, m, n, k, a.nnz, transposeA, transposeB).staged,
+                    productRhsPlan(staging.kernels, m, n, k, a.nnz, transposeA, transposeB).staged,
                     "$context staged the wrong way round",
                 )
                 assertClose(expected.values, stagedResult.values, "staged product $context")
@@ -146,7 +146,7 @@ class ProductSchedulingTest {
             ReferenceSparseBlas.symm(ALPHA, a, b, BETA, expected, lower)
 
             assertTrue(
-                symmetricRhsPlan(staging, order, SIDES, a.nnz).staged,
+                symmetricRhsPlan(staging.kernels, order, SIDES, a.nnz).staged,
                 "the symmetric fixture did not stage at lower=$lower",
             )
             val staged = c0.copyOf()
@@ -299,7 +299,7 @@ class ProductSchedulingTest {
         val depth = Int.MAX_VALUE / 4
 
         val plan = productRhsPlan(
-            wide,
+            wide.kernels,
             1,
             WidePanels.GROUP,
             depth,

@@ -1,8 +1,11 @@
 @file:Suppress("LongParameterList") // BLAS operands, flags and scratch
 
+@file:OptIn(UnsafeKoblasApi::class)
+
 package com.eignex.koblas.internal.operations
 
 import com.eignex.koblas.*
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.scheduling.sparse.*
 import com.eignex.koblas.internal.storage.dense.isWholeBuffer
 
@@ -17,7 +20,7 @@ internal fun KoblasEngine.multiplySparseMatrixVector(
     scratch: Scratch?,
 ) {
     withStableSparseVectors(alpha, a, x, beta, y, scratch) { sa, sx, sy ->
-        scheduleSparseGemv(alpha, sa, sx, beta, sy, transpose)
+        kernels.scheduleSparseGemv(alpha, sa, a.colPointers, a.rowIndices, a.cols, sx, beta, sy, transpose)
     }
 }
 
@@ -31,7 +34,7 @@ internal fun KoblasEngine.multiplySparseSymmetricVector(
     scratch: Scratch?,
 ) {
     withStableSparseVectors(alpha, a, x, beta, y, scratch) { sa, sx, sy ->
-        scheduleSparseSymv(alpha, sa, sx, beta, sy, lower)
+        kernels.scheduleSparseSymv(alpha, sa, a.colPointers, a.rowIndices, a.cols, sx, beta, sy, lower)
     }
 }
 
@@ -45,8 +48,18 @@ internal fun applySparseTriangularVector(
     scratch: Scratch?,
 ) {
     withContiguousVector(x, scratch, writeBack = true) { values ->
-        staged(scratch, a, a.values === values) { stable ->
-            triangularVectorCore(stable, values, lower, transpose, unitDiag, solve)
+        staged(scratch, a.values, a.values === values) { stable ->
+            triangularVectorCore(
+                stable,
+                a.colPointers,
+                a.rowIndices,
+                a.rows,
+                values,
+                lower,
+                transpose,
+                unitDiag,
+                solve,
+            )
         }
     }
 }
@@ -59,7 +72,7 @@ private inline fun KoblasEngine.withStableSparseVectors(
     beta: Double,
     y: DenseVector,
     scratch: Scratch?,
-    body: (SparseMatrix, DoubleArray, DoubleArray) -> Unit,
+    body: (DoubleArray, DoubleArray, DoubleArray) -> Unit,
 ) {
     if (alpha == 0.0 || a.rows == 0 || a.cols == 0) {
         applyBeta(this, y.values, y.offset, y.size, beta, y.stride)
@@ -68,7 +81,7 @@ private inline fun KoblasEngine.withStableSparseVectors(
     withContiguousVector(x, scratch) { input ->
         withContiguousVector(y, scratch, read = beta != 0.0, writeBack = true) { output ->
             staged(scratch, input, input === output) { stableX ->
-                staged(scratch, a, a.values === output) { stableA -> body(stableA, stableX, output) }
+                staged(scratch, a.values, a.values === output) { stableA -> body(stableA, stableX, output) }
             }
         }
     }

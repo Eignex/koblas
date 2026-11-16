@@ -128,8 +128,16 @@ internal fun KoblasEngine.hostForCall(
     columns: Int,
     depth: Int,
     borrowed: Boolean,
+): HostBlas? = kernels.hostForCall(operation, rows, columns, depth, borrowed)
+
+internal fun KernelProvider.hostForCall(
+    operation: EngineImplementation,
+    rows: Int,
+    columns: Int,
+    depth: Int,
+    borrowed: Boolean,
 ): HostBlas? {
-    val backend = kernels
+    val backend = this
     if (backend is HostBlas) {
         if (operation !in backend.implementations) {
             throw UnsupportedOperationException("${operation.entryPoint} is not exported by ${backend.name}")

@@ -3,6 +3,7 @@ package com.eignex.koblas.internal.scheduling.sparse
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.internal.engine.panelProvider
+import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.PanelWork
 import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import com.eignex.koblas.internal.operations.*
@@ -158,7 +159,7 @@ class TriangularSchedulingTest {
                         val source = randomMatrix(ORDER, SIDES, rng)
                         val context = "solve=$solve transpose=$transpose unit=$unit lower=$lower"
                         assertTrue(
-                            triangularRhsPlan(staging, ORDER, SIDES, t.nnz, transpose).staged,
+                            triangularRhsPlan(staging.kernels, ORDER, SIDES, t.nnz, transpose).staged,
                             "the triangular fixture did not stage at $context",
                         )
 
@@ -205,7 +206,7 @@ class TriangularSchedulingTest {
         val sharedTriangle = SparseMatrix.wrap(order, order, pointers, rows, block.copyOf())
         val aliased = DenseMatrix.wrap(order, sides, sharedTriangle.values)
         assertTrue(
-            triangularRhsPlan(staging, order, sides, sharedTriangle.nnz, transpose = false).staged,
+            triangularRhsPlan(staging.kernels, order, sides, sharedTriangle.nnz, transpose = false).staged,
             "the aliased triangular fixture did not stage",
         )
         staging.trsm(sharedTriangle, aliased, true, false, false, false, ALPHA, scratch = Scratch())
@@ -264,7 +265,7 @@ class TriangularSchedulingTest {
         for (side in intArrayOf(0, 2, 3)) for (row in 0 until order) source[row + side * order] = 1.0
         val b = DenseMatrix.wrap(order, sides, source.copyOf())
         assertTrue(
-            triangularRhsPlan(staging, order, sides, triangle.nnz, transpose = false).staged,
+            triangularRhsPlan(staging.kernels, order, sides, triangle.nnz, transpose = false).staged,
             "the fixture did not stage",
         )
 

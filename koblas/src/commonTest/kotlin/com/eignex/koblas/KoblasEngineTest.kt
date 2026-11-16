@@ -19,6 +19,30 @@ import kotlin.test.assertTrue
 
 class KoblasEngineTest {
     @Test
+    fun `zero depth sparse products need no primitive backend`() {
+        val engine = object : KoblasEngine {
+            override val name = "custom"
+        }
+        for (right in booleanArrayOf(false, true)) {
+            for (beta in doubleArrayOf(0.0, 1.0)) {
+                val a = SparseMatrix.wrap(
+                    if (right) 0 else 2,
+                    if (right) 2 else 0,
+                    IntArray(if (right) 3 else 1),
+                    IntArray(0),
+                    DoubleArray(0),
+                )
+                val b = DenseMatrix.wrap(if (right) 2 else 0, if (right) 0 else 2, DoubleArray(0))
+                val c = DenseMatrix.wrap(2, 2, DoubleArray(4) { 3.0 })
+
+                engine.gemm(0.5, a, false, b, false, beta, c, right)
+
+                assertContentEquals(DoubleArray(4) { 3.0 * beta }, c.values)
+            }
+        }
+    }
+
+    @Test
     fun `typed vector calls use the chosen engine primitives`() {
         val engine = object : KernelProvider {
             override val name = "recording"
