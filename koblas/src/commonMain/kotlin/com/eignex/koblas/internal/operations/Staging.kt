@@ -58,12 +58,27 @@ internal inline fun <T> stagedRegion(
 ): T {
     if (a.values !== destination) return block(a)
     if (original != null && stable != null && sameRegion(a, original)) return block(stable)
+    return stagedRegion(arrays, a, destination, lower, unitDiag) { values, offset, leadingDimension ->
+        block(a.typedRegion(values, offset, leadingDimension))
+    }
+}
+
+/** A matrix snapshot keeps its geometry in primitive fields rather than a temporary container. */
+internal inline fun <T> stagedRegion(
+    arrays: Scratch?,
+    a: DenseMatrix,
+    destination: DoubleArray,
+    lower: Boolean? = null,
+    unitDiag: Boolean = false,
+    block: (DoubleArray, Int, Int) -> T,
+): T {
+    if (a.values !== destination) return block(a.values, a.offset, a.leadingDimension)
     return arrays.borrow(DenseMatrix.entryCount(a.rows, a.cols)) { copy ->
         val values = a.values
         val offset = a.offset
         val lda = a.leadingDimension
         copyTriangle(a.rows, a.cols, lower, unitDiag, copy) { i, j -> values[offset + i + j * lda] }
-        block(DenseMatrix.wrap(a.rows, a.cols, copy))
+        block(copy, 0, a.rows)
     }
 }
 
@@ -81,6 +96,27 @@ internal inline fun <T> stagedRegion(
     if (!regionsOverlap(a, destination)) return block(a)
     return stagedRegion(arrays, a, destination.values, stable, original, lower, unitDiag, block)
 }
+
+/** Primitive snapshot geometry for exact rectangle overlap, excluding the parent's padding. */
+internal inline fun <T> stagedRegion(
+    arrays: Scratch?,
+    a: DenseMatrix,
+    destination: DenseMatrix,
+    lower: Boolean? = null,
+    unitDiag: Boolean = false,
+    block: (DoubleArray, Int, Int) -> T,
+): T {
+    if (!regionsOverlap(a, destination)) return block(a.values, a.offset, a.leadingDimension)
+    return stagedRegion(arrays, a, destination.values, lower, unitDiag, block)
+}
+
+/** Typed host and storage callbacks retain the original container unless a snapshot needs adapting. */
+internal fun DenseMatrix.typedRegion(values: DoubleArray, offset: Int, leadingDimension: Int): DenseMatrix =
+    if (values === this.values && offset == this.offset && leadingDimension == this.leadingDimension) {
+        this
+    } else {
+        DenseMatrix.wrap(rows, cols, values, offset, leadingDimension)
+    }
 
 /** Snapshot logical entries into a loan without creating a temporary vector descriptor. */
 internal inline fun <T> stagedWindow(

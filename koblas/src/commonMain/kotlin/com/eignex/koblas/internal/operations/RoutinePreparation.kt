@@ -145,14 +145,39 @@ internal inline fun prepareProduct(
     arrays: Scratch?,
     body: (DenseMatrix, DenseMatrix) -> Unit,
 ) {
+    prepareProduct(alpha, a, b, beta, c, depth, selected, aTriangle, vectors, arrays) { av, ao, ald, bv, bo, bld ->
+        val sa = a.typedRegion(av, ao, ald)
+        val sb = if (av !== a.values && sameRegion(a, b)) sa else b.typedRegion(bv, bo, bld)
+        body(sa, sb)
+    }
+}
+
+/** Primitive matrix snapshots for owned product schedules; identical regions share one loan. */
+internal inline fun prepareProduct(
+    alpha: Double,
+    a: DenseMatrix,
+    b: DenseMatrix,
+    beta: Double,
+    c: DenseMatrix,
+    depth: Int,
+    selected: Boolean?,
+    aTriangle: Boolean?,
+    vectors: KoblasEngine?,
+    arrays: Scratch?,
+    body: (DoubleArray, Int, Int, DoubleArray, Int, Int) -> Unit,
+) {
     // Return before borrowing operand-sized scratch for an empty destination.
     if (c.rows == 0 || c.cols == 0) return
     if (alpha == 0.0 || depth == 0) {
         scaleRegion(c, beta, selected, vectors)
         return
     }
-    stagedRegion(arrays, a, c, lower = aTriangle) { sa ->
-        stagedRegion(arrays, b, c, stable = sa, original = a) { sb -> body(sa, sb) }
+    stagedRegion(arrays, a, c, lower = aTriangle) { av, ao, ald ->
+        if (sameRegion(a, b)) {
+            body(av, ao, ald, av, ao, ald)
+        } else {
+            stagedRegion(arrays, b, c) { bv, bo, bld -> body(av, ao, ald, bv, bo, bld) }
+        }
     }
 }
 
@@ -171,6 +196,23 @@ internal inline fun prepareTriangularMatrix(
     arrays: Scratch?,
     body: (DenseMatrix) -> Unit,
 ) {
+    prepareTriangularMatrix(a, b, lower, unitDiag, right, alpha, what, arrays) { values, offset, leadingDimension ->
+        body(a.typedRegion(values, offset, leadingDimension))
+    }
+}
+
+/** A triangle snapshot reaches owned substitution/product schedules as a primitive matrix window. */
+internal inline fun prepareTriangularMatrix(
+    a: DenseMatrix,
+    b: DenseMatrix,
+    lower: Boolean,
+    unitDiag: Boolean,
+    right: Boolean,
+    alpha: Double,
+    what: String,
+    arrays: Scratch?,
+    body: (DoubleArray, Int, Int) -> Unit,
+) {
     requireTriangularMatrixOperands(a, b, right, what)
     if (alpha == 0.0) {
         scaleRegion(b, 0.0)
@@ -178,7 +220,7 @@ internal inline fun prepareTriangularMatrix(
     }
     val sides = if (right) b.rows else b.cols
     if (sides == 0 || a.rows == 0) return
-    stagedRegion(arrays, a, b, lower = lower, unitDiag = unitDiag) { sa -> body(sa) }
+    stagedRegion(arrays, a, b, lower = lower, unitDiag = unitDiag, block = body)
 }
 
 /** Whole and rectangular GER share panel selection and staging without allocating unaliased views. */

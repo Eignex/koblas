@@ -50,6 +50,13 @@ GER checks overlap against primitive destination geometry rather than constructi
 vector staging with retained scratch while vector and matrix-view factories remain outlined. They cover
 aliased GEMV/SYMV, rank updates, shared snapshots and both overlapping and disjoint GER regions.
 
+Dense Level 3 matrix snapshots carry arrays, offsets and leading dimensions through preparation and
+scheduling as well. Identical operand regions share one loan, symmetric operands retain their selected
+triangle rules, and thin GEMM keeps its GEMV path over the same primitive geometry. Typed host callbacks
+retain their container interface. `simdMatrixAliasAllocationCheck` and
+`scalarMatrixAliasAllocationCheckC1` keep the matrix factory outlined while exercising every dense
+Level 3 family, padded regions, shared and distinct aliases, thin products and a wider product.
+
 Source inlining removes a typed helper call before C1 or C2 compiles the caller. It does not
 guarantee that a larger caller compiles faster or that dispatch inlines. The checker cannot infer
 Vector values hidden by erased `Object` signatures. Allocation profiles remain necessary, and

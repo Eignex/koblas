@@ -21,16 +21,36 @@ internal fun KoblasEngine.scheduleGemv(
     yOffset: Int,
     yStride: Int,
     transpose: Boolean,
+) = scheduleGemv(
+    alpha, a.values, a.offset, a.leadingDimension, a.rows, a.cols,
+    x, xOffset, xStride, beta, y, yOffset, yStride, transpose,
+)
+
+/** Matrix snapshots can reach the same panel schedule without a transient matrix container. */
+internal fun KoblasEngine.scheduleGemv(
+    alpha: Double,
+    a: DoubleArray,
+    aOffset: Int,
+    lda: Int,
+    rows: Int,
+    columns: Int,
+    x: DoubleArray,
+    xOffset: Int,
+    xStride: Int,
+    beta: Double,
+    y: DoubleArray,
+    yOffset: Int,
+    yStride: Int,
+    transpose: Boolean,
 ) {
     val panels = panelProvider
-    val rows = a.rows
     if (transpose) {
         forEachPanel(
-            a.cols,
-            panels.executionGroup(PanelWork.MultiDot, rows, a.cols, xStride == 1),
+            columns,
+            panels.executionGroup(PanelWork.MultiDot, rows, columns, xStride == 1),
         ) { start, width ->
             panels.multiDot(
-                alpha, a.values, a.offset + start * a.leadingDimension, a.leadingDimension, x,
+                alpha, a, aOffset + start * lda, lda, x,
                 xOffset, xStride, rows, width, beta, y,
                 yOffset + start * yStride, yStride,
             )
@@ -38,11 +58,11 @@ internal fun KoblasEngine.scheduleGemv(
     } else {
         applyBeta(this, y, yOffset, rows, beta, yStride)
         forEachPanel(
-            a.cols,
-            panels.executionGroup(PanelWork.ColumnUpdate, rows, a.cols, yStride == 1),
+            columns,
+            panels.executionGroup(PanelWork.ColumnUpdate, rows, columns, yStride == 1),
         ) { start, width ->
             panels.columnUpdate(
-                alpha, a.values, a.offset + start * a.leadingDimension, a.leadingDimension, x,
+                alpha, a, aOffset + start * lda, lda, x,
                 xOffset + start * xStride, xStride, rows, width, y, yOffset, yStride,
             )
         }

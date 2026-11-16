@@ -396,8 +396,8 @@ public interface KoblasEngine {
         val routed = routedWholeCall(EngineImplementation.Gemm, c.rows, c.cols, depth, borrowed)
         if (routed != null) return routed.gemm(alpha, a, transposeA, b, transposeB, beta, c, scratch)
         requireGemmOperands(a, transposeA, b, transposeB, c)
-        prepareProduct(alpha, a, b, beta, c, depth, null, null, null, scratch) { sa, sb ->
-            scheduleGemm(alpha, sa, transposeA, sb, transposeB, beta, c, scratch)
+        prepareProduct(alpha, a, b, beta, c, depth, null, null, null, scratch) { av, ao, ald, bv, bo, bld ->
+            scheduleGemm(alpha, av, ao, ald, transposeA, bv, bo, bld, transposeB, depth, beta, c, scratch)
         }
     }
 
@@ -422,8 +422,8 @@ public interface KoblasEngine {
         val routed = routedWholeCall(EngineImplementation.Gemmt, c.rows, c.cols, depth, borrowed)
         if (routed != null) return routed.gemmt(alpha, a, transposeA, b, transposeB, beta, c, lower, scratch)
         requireGemmtOperands(a, transposeA, b, transposeB, c)
-        prepareProduct(alpha, a, b, beta, c, depth, lower, null, null, scratch) { sa, sb ->
-            scheduleGemmt(alpha, sa, transposeA, sb, transposeB, beta, c, lower, scratch)
+        prepareProduct(alpha, a, b, beta, c, depth, lower, null, null, scratch) { av, ao, ald, bv, bo, bld ->
+            scheduleGemmt(alpha, av, ao, ald, transposeA, bv, bo, bld, transposeB, depth, beta, c, lower, scratch)
         }
     }
 
@@ -447,8 +447,8 @@ public interface KoblasEngine {
         requireSymmOperands(a, b, c, right)
         // One operand serving both sides needs a full snapshot, since the second reads the triangle the first skips.
         val aTriangle = if (sameRegion(a, b)) null else lower
-        prepareProduct(alpha, a, b, beta, c, a.rows, null, aTriangle, this, scratch) { sa, sb ->
-            scheduleSymm(alpha, sa, sb, beta, c, lower, right, scratch)
+        prepareProduct(alpha, a, b, beta, c, a.rows, null, aTriangle, this, scratch) { av, ao, ald, bv, bo, bld ->
+            scheduleSymm(alpha, av, ao, ald, a.rows, bv, bo, bld, beta, c, lower, right, scratch)
         }
     }
 
@@ -476,8 +476,8 @@ public interface KoblasEngine {
         )
         if (routed != null) return routed.syrk(alpha, a, transpose, beta, c, lower, scratch)
         requireSyrkOperands(a, transpose, c)
-        prepareProduct(alpha, a, a, beta, c, depth, lower, null, null, scratch) { sa, _ ->
-            scheduleSyrk(alpha, sa, transpose, beta, c, lower, scratch)
+        prepareProduct(alpha, a, a, beta, c, depth, lower, null, null, scratch) { values, offset, lda, _, _, _ ->
+            scheduleSyrk(alpha, values, offset, lda, transpose, depth, beta, c, lower, scratch)
         }
     }
 
@@ -501,8 +501,8 @@ public interface KoblasEngine {
         val routed = routedWholeCall(EngineImplementation.Syr2k, c.rows, c.cols, depth, borrowed)
         if (routed != null) return routed.syr2k(alpha, a, b, transpose, beta, c, lower, scratch)
         requireSyr2kOperands(a, b, transpose, c)
-        prepareProduct(alpha, a, b, beta, c, depth, lower, null, null, scratch) { sa, sb ->
-            scheduleSyr2k(alpha, sa, sb, transpose, beta, c, lower, scratch)
+        prepareProduct(alpha, a, b, beta, c, depth, lower, null, null, scratch) { av, ao, ald, bv, bo, bld ->
+            scheduleSyr2k(alpha, av, ao, ald, bv, bo, bld, transpose, depth, beta, c, lower, scratch)
         }
     }
 
@@ -528,8 +528,10 @@ public interface KoblasEngine {
             !a.isWholeBuffer || !b.isWholeBuffer,
         )
         if (routed != null) return routed.trsm(a, b, lower, transpose, unitDiag, right, alpha, scratch)
-        prepareTriangularMatrix(a, b, lower, unitDiag, right, alpha, "trsm", scratch) { sa ->
-            scheduleTriangularMatrix(alpha, sa, triangle(lower, unitDiag), transpose, b, right, true, scratch)
+        prepareTriangularMatrix(a, b, lower, unitDiag, right, alpha, "trsm", scratch) { values, offset, lda ->
+            scheduleTriangularMatrix(
+                alpha, values, offset, lda, a.rows, triangle(lower, unitDiag), transpose, b, right, true, scratch,
+            )
         }
     }
 
@@ -552,8 +554,10 @@ public interface KoblasEngine {
             !a.isWholeBuffer || !b.isWholeBuffer,
         )
         if (routed != null) return routed.trmm(a, b, lower, transpose, unitDiag, right, alpha, scratch)
-        prepareTriangularMatrix(a, b, lower, unitDiag, right, alpha, "trmm", scratch) { sa ->
-            scheduleTriangularMatrix(alpha, sa, triangle(lower, unitDiag), transpose, b, right, false, scratch)
+        prepareTriangularMatrix(a, b, lower, unitDiag, right, alpha, "trmm", scratch) { values, offset, lda ->
+            scheduleTriangularMatrix(
+                alpha, values, offset, lda, a.rows, triangle(lower, unitDiag), transpose, b, right, false, scratch,
+            )
         }
     }
 

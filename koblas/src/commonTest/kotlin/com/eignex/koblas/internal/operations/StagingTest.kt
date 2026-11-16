@@ -213,6 +213,120 @@ class StagingTest {
     }
 
     @Test
+    fun `thin products snapshot matrix aliases for every transpose combination`() = withRegionEngines { blas ->
+        for ((rows, columns) in listOf(5 to 1, 1 to 5, 1 to 1)) {
+            for (transposeA in booleanArrayOf(false, true)) {
+                for (transposeB in booleanArrayOf(false, true)) {
+                    val parent = paddedRegion(8, 8)
+                    val depth = 3
+                    val a = parent.view(
+                        1,
+                        1,
+                        if (transposeA) depth else rows,
+                        if (transposeA) rows else depth,
+                    )
+                    val b = parent.view(
+                        1,
+                        1,
+                        if (transposeB) columns else depth,
+                        if (transposeB) depth else columns,
+                    )
+                    val c = parent.view(1, 1, rows, columns)
+                    val expected = contiguousCopy(c)
+                    val before = parent.values.copyOf()
+                    ReferenceBlas.gemm(
+                        0.875,
+                        contiguousCopy(a),
+                        transposeA,
+                        contiguousCopy(b),
+                        transposeB,
+                        -0.25,
+                        expected,
+                    )
+
+                    blas.gemm(0.875, a, transposeA, b, transposeB, -0.25, c, scratch = Scratch())
+
+                    assertRegionAgreesWithReference(
+                        expected,
+                        c,
+                        before,
+                        "rows=$rows cols=$columns ta=$transposeA tb=$transposeB",
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `identical product regions share one primitive snapshot`() {
+        val a = paddedRegion(3, 3)
+        val b = a.view()
+        val expected = contiguousCopy(a).values
+        val scratch = Scratch()
+
+        prepareProduct(1.0, a, b, 0.0, a, 3, null, null, null, scratch) { av, ao, ald, bv, bo, bld ->
+            a.values.fill(-1.0)
+            assertSame(av, bv)
+            assertEquals(0, ao)
+            assertEquals(ao, bo)
+            assertEquals(3, ald)
+            assertEquals(ald, bld)
+            assertContentEquals(expected, av)
+        }
+
+        assertEquals(1, scratch.available(9))
+    }
+
+    @Test
+    fun `typed product preparation preserves unstaged operands`() {
+        val a = paddedRegion(3, 3)
+        val b = paddedRegion(3, 3)
+        val c = DenseMatrix.zero(3)
+        val scratch = Scratch()
+
+        prepareProduct(1.0, a, b, 0.0, c, 3, null, null, null, scratch) { sa, sb ->
+            assertSame(a, sa)
+            assertSame(b, sb)
+        }
+
+        assertEquals(0, scratch.idleLengths())
+    }
+
+    @Test
+    fun `typed product preparation shares a snapshot for identical regions`() {
+        val a = paddedRegion(3, 3)
+        val expected = contiguousCopy(a).values
+        val scratch = Scratch()
+
+        prepareProduct(1.0, a, a.view(), 0.0, a, 3, null, null, null, scratch) { sa, sb ->
+            a.values.fill(-1.0)
+            assertSame(sa, sb)
+            assertContentEquals(expected, sa.values)
+        }
+
+        assertEquals(1, scratch.available(9))
+    }
+
+    @Test
+    fun `matrix snapshots return every loan when arithmetic throws`() {
+        for (shared in booleanArrayOf(false, true)) {
+            val parent = paddedRegion(5, 5)
+            val a = parent.view(0, 0, 3, 3)
+            val b = if (shared) a.view() else parent.view(1, 0, 3, 3)
+            val c = parent.view(0, 1, 3, 3)
+            val scratch = Scratch()
+
+            assertFailsWith<IllegalStateException> {
+                prepareProduct(1.0, a, b, 0.0, c, 3, null, null, null, scratch) { _, _, _, _, _, _ ->
+                    error("arithmetic failed")
+                }
+            }
+
+            assertEquals(if (shared) 1 else 2, scratch.available(9))
+        }
+    }
+
+    @Test
     fun `matrix vector products snapshot a shared destination buffer`() = withRegionEngines { blas ->
         val actual = doubleArrayOf(2.0, -0.5, 4.0)
         val a = DenseMatrix.wrap(3, 1, actual, leadingDimension = 5)

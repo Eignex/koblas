@@ -33,7 +33,7 @@ Kotlin Multiplatform BLAS.
 - Project helpers carrying Vector API values, masks or shuffles must be source-inlined. Vector backend expression and cast null checks must have an explicit local fast path; ordinary array/parameter checks remain intact. `verifyKernelBoundaries` checks the packaged bytecode, independently of Kotlin metadata. Primitive/array kernel boundaries may remain outlined; do not replace this rule with JIT size thresholds or blanket scalar inlining.
 
 - Higher-order helpers in kernels, schedules and operation preparation must be source-inlined, or accept a callback interface with primitive numeric parameters/results. `verifyKernelBoundaries` rejects surviving `FunctionN` arguments at these arithmetic seams. Startup factories and allocation-on-miss buffer factories may stay outlined.
-- Built-in reduction and vector snapshot adapters pass arrays, offsets, lengths and strides to primitive kernels. Construct typed vector views only when custom public engines or typed host callbacks need them. Isolated allocation checks keep view factories outlined and cover the scalar path under C1, so eliminating these views cannot depend on escape analysis.
+- Built-in reduction and vector snapshot adapters, and dense Level 3 matrix snapshots, pass arrays, offsets, lengths and strides to primitive kernels. Construct typed views only when custom public engines, host callbacks or storage adapters need them. Isolated allocation checks keep view factories outlined and cover the scalar path under C1, so eliminating these views cannot depend on escape analysis.
 
 ## Style and contributions
 
