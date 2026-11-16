@@ -116,6 +116,10 @@ public final class BenchmarkCallbacks {
                 if (!(item instanceof InvokeInstruction call)) continue;
                 String owner = call.owner().asInternalName();
                 String name = call.name().stringValue();
+                if (owner.equals("java/lang/invoke/MethodHandle")
+                        && (name.equals("invoke") || name.equals("invokeExact") || name.equals("invokeWithArguments"))) {
+                    failures.add(key + " crosses an opaque callback boundary through " + owner + "." + name);
+                }
                 if (boxedCall(owner, name, call.typeSymbol())) {
                     failures.add(key + " crosses a boxed callback boundary through " + owner + "." + name);
                 }

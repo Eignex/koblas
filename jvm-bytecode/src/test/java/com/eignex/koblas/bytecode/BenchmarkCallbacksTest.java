@@ -272,6 +272,29 @@ public class BenchmarkCallbacksTest {
         return classes;
     }
 
+    @Test
+    void opaqueMethodHandleCallsAreRejectedOnlyOnTimedPaths() {
+        ClassDesc handle = ClassDesc.of("java.lang.invoke.MethodHandle");
+        for (String name : new String[] {"invoke", "invokeExact", "invokeWithArguments"}) {
+            Consumer<CodeBuilder> invocation = code -> {
+                code.aconst_null();
+                if (name.equals("invokeWithArguments")) {
+                    code.aconst_null().invokevirtual(handle, name, MethodTypeDesc.of(CD_Object, CD_Object.arrayType()))
+                        .pop().dconst_1();
+                } else code.invokevirtual(handle, name, NUMERIC);
+                code.dreturn();
+            };
+            var timed = fixture(NUMERIC, invocation, false);
+            assertTrue(BenchmarkCallbacks.violations(timed).stream()
+                .anyMatch(message -> message.contains("opaque callback boundary")));
+            var untimed = fixture(NUMERIC, code -> code.dconst_1().dreturn(), false);
+            ClassDesc setup = ClassDesc.of("com.eignex.koblas.bench.MethodHandleSetup");
+            untimed.put("MethodHandleSetup", CLASS_FILE.build(setup, builder -> builder
+                .withMethodBody("setup", NUMERIC, ClassFile.ACC_PUBLIC | ClassFile.ACC_STATIC, invocation)));
+            assertTrue(BenchmarkCallbacks.violations(untimed).isEmpty());
+        }
+    }
+
     private static Map<String, byte[]> storedSupplier(boolean timed) {
         var classes = fixture(NUMERIC, code -> {
             if (timed) code.aconst_null().invokeinterface(SUPPLIER, "getAsDouble", NUMERIC);
