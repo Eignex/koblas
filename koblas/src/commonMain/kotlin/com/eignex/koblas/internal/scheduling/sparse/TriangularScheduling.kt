@@ -8,7 +8,7 @@ import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.kernels.scalar.sparse.*
 import com.eignex.koblas.internal.scheduling.forEachPanel
 import com.eignex.koblas.internal.storage.borrowOptional
-import com.eignex.koblas.internal.storage.sparse.lowerBound
+import com.eignex.util.arrays.lowerBoundInt
 
 /* Shared triangular scheduling over reusable sparse column and RHS-panel leaves. */
 
@@ -216,6 +216,6 @@ internal fun triangularVectorCore(
 /** Reads a stored diagonal or the implicit zero without reconstructing a sparse container. */
 private fun sparseDiagonal(pointers: IntArray, indices: IntArray, values: DoubleArray, column: Int): Double {
     val end = pointers[column + 1]
-    val position = lowerBound(indices, pointers[column], end, column)
+    val position = indices.lowerBoundInt(column, pointers[column], end)
     return if (position < end && indices[position] == column) values[position] else 0.0
 }

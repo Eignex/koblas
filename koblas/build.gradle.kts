@@ -14,6 +14,8 @@ plugins {
     kotlin("plugin.serialization")
 }
 
+val utilPin = "0.0.1-20261116.103526-21"
+
 val fullTargets = providers.gradleProperty("targets.full").isPresent
 
 eignexBuild {
@@ -66,10 +68,32 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
+            implementation("com.eignex:util:$utilPin") {
+                version { strictly(utilPin) }
+            }
             api("org.jetbrains.kotlinx:kotlinx-serialization-core")
         }
         commonTest.dependencies {
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json")
+        }
+    }
+}
+
+// Timestamped KMP roots redirect to mutable platform snapshots; pin the consumed variants too.
+dependencies {
+    constraints {
+        for ((platform, pinned) in mapOf(
+            "jvm" to utilPin,
+            "linuxx64" to utilPin,
+            "linuxarm64" to utilPin,
+            "mingwx64" to utilPin,
+            "macosarm64" to utilPin,
+            "iosarm64" to "0.0.1-20261116.103526-23",
+            "iossimulatorarm64" to "0.0.1-20261116.103526-23",
+        )) {
+            add("commonMainImplementation", "com.eignex:util-$platform:$pinned") {
+                version { strictly(pinned) }
+            }
         }
     }
 }

@@ -5,6 +5,10 @@ val consumerVersion = providers.gradleProperty("consumer.version").orElse("0.0.0
 repositories {
     maven { url = uri("../../koblas/build/staging-repo") }
     mavenCentral()
+    maven("https://central.sonatype.com/repository/maven-snapshots/") {
+        mavenContent { snapshotsOnly() }
+        content { includeGroup("com.eignex") }
+    }
 }
 
 kotlin {

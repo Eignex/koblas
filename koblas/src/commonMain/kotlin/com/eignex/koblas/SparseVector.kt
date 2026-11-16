@@ -2,6 +2,7 @@ package com.eignex.koblas
 
 import com.eignex.koblas.internal.storage.*
 import com.eignex.koblas.internal.storage.sparse.*
+import com.eignex.util.arrays.lowerBoundInt
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmStatic
@@ -63,7 +64,7 @@ public class SparseVector internal constructor(
     /** The stored value at (i), or 0.0 where nothing is stored. */
     override fun get(i: Int): Double {
         requireInBounds(i, size)
-        val position = lowerBound(indices, offset, offset + nnz, i)
+        val position = indices.lowerBoundInt(i, offset, offset + nnz)
         return if (position < offset + nnz && indices[position] == i) values[position] else 0.0
     }
 
@@ -75,7 +76,7 @@ public class SparseVector internal constructor(
             owner[i, columnIndex] = v
             return
         }
-        val position = lowerBound(indices, offset, offset + nnz, i)
+        val position = indices.lowerBoundInt(i, offset, offset + nnz)
         if (position < nnz && indices[position] == i) {
             values[position] = v
             return

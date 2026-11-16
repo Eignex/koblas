@@ -13,6 +13,10 @@ dependencyResolutionManagement {
         maven { url = uri("../../koblas/build/staging-repo") }
         google()
         mavenCentral()
+        maven("https://central.sonatype.com/repository/maven-snapshots/") {
+            mavenContent { snapshotsOnly() }
+            content { includeGroup("com.eignex") }
+        }
     }
 }
 rootProject.name = "koblas-consumers"

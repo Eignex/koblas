@@ -2,6 +2,7 @@ package com.eignex.koblas
 
 import com.eignex.koblas.internal.storage.*
 import com.eignex.koblas.internal.storage.sparse.*
+import com.eignex.util.arrays.lowerBoundInt
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
@@ -87,14 +88,14 @@ public class SparseMatrix internal constructor(
      */
     override fun get(i: Int, j: Int): Double {
         requireInBounds(i, j, rows, cols)
-        val position = lowerBound(rowIndices, colPointers[j], colPointers[j + 1], i)
+        val position = rowIndices.lowerBoundInt(i, colPointers[j], colPointers[j + 1])
         return if (position < colPointers[j + 1] && rowIndices[position] == i) values[position] else 0.0
     }
 
     /** Writes an entry, inserting its position when absent. Explicitly written zeros remain stored. */
     override fun set(i: Int, j: Int, v: Double) {
         requireInBounds(i, j, rows, cols)
-        val position = lowerBound(rowIndices, colPointers[j], colPointers[j + 1], i)
+        val position = rowIndices.lowerBoundInt(i, colPointers[j], colPointers[j + 1])
         if (position < colPointers[j + 1] && rowIndices[position] == i) {
             values[position] = v
             return

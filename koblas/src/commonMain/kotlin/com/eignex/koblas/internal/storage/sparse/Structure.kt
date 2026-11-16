@@ -2,6 +2,7 @@ package com.eignex.koblas.internal.storage.sparse
 
 import com.eignex.koblas.*
 import com.eignex.koblas.internal.storage.requireShape
+import com.eignex.util.arrays.lowerBoundInt
 
 /** Replacing a column preserves every other column and adjusts the following CSC boundaries. */
 internal fun SparseMatrix.replaceColumn(column: Int, indices: IntArray, coefficients: DoubleArray) {
@@ -55,38 +56,22 @@ internal inline fun spliceSparseEntries(
  * a prefix or suffix, so panel leaves receive a contiguous run.
  */
 internal fun selectedRunStart(rowIndices: IntArray, from: Int, to: Int, column: Int, lower: Boolean): Int =
-    if (lower) lowerBound(rowIndices, from, to, column) else from
+    if (lower) rowIndices.lowerBoundInt(column, from, to) else from
 
 /** Where the selected part of a column ends, the counterpart of [selectedRunStart]. */
 internal fun selectedRunEnd(rowIndices: IntArray, from: Int, to: Int, column: Int, lower: Boolean): Int =
-    if (lower) to else lowerBound(rowIndices, from, to, column + 1)
+    if (lower) to else rowIndices.lowerBoundInt(column + 1, from, to)
 
 /**
  * Start of the strictly triangular run. Its diagonal, when stored, is an endpoint, so excluding it never
  * leaves a hole in the run.
  */
 internal fun strictRunStart(rowIndices: IntArray, from: Int, to: Int, column: Int, lower: Boolean): Int =
-    if (lower) lowerBound(rowIndices, from, to, column + 1) else from
+    if (lower) rowIndices.lowerBoundInt(column + 1, from, to) else from
 
 /** Where the strictly triangular part of a column ends, the counterpart of [strictRunStart]. */
 internal fun strictRunEnd(rowIndices: IntArray, from: Int, to: Int, column: Int, lower: Boolean): Int =
-    if (lower) to else lowerBound(rowIndices, from, to, column)
-
-/**
- * The first position in the ascending run `[from, to)` whose row index is at least [row].
- */
-internal fun lowerBound(rowIndices: IntArray, from: Int, to: Int, row: Int): Int {
-    // Triangle-only storage puts each boundary at an endpoint, avoiding binary search.
-    if (from >= to || rowIndices[from] >= row) return from
-    if (rowIndices[to - 1] < row) return to
-    var low = from + 1
-    var high = to - 1
-    while (low < high) {
-        val middle = (low + high) ushr 1
-        if (rowIndices[middle] < row) low = middle + 1 else high = middle
-    }
-    return low
-}
+    if (lower) to else rowIndices.lowerBoundInt(column, from, to)
 
 /**
  * Checks compressed pointer lengths for results and scratch. A valid [SparseMatrix] bounds its columns

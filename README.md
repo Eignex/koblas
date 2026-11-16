@@ -21,6 +21,17 @@ are selected automatically. Factorizations and general solvers belong to consume
 
 ## Setup
 
+Configure repositories, including the snapshot repository for the pinned util dependency:
+
+```kotlin
+repositories {
+    mavenCentral()
+    maven("https://central.sonatype.com/repository/maven-snapshots/") {
+        mavenContent { snapshotsOnly() }
+    }
+}
+```
+
 Add the dependency to your JVM or `commonMain` source set:
 
 ```kotlin
