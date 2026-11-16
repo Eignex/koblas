@@ -35,9 +35,9 @@ public final class KernelBoundaries {
         PROJECT + "internal/host/HostBlas"
     );
     private static final Set<String> CONTAINERS = Set.of(
-        "L" + PROJECT + "Vector;", "L" + PROJECT + "Matrix;",
-        "L" + PROJECT + "DenseVector;", "L" + PROJECT + "DenseMatrix;",
-        "L" + PROJECT + "SparseVector;", "L" + PROJECT + "SparseMatrix;"
+        PROJECT + "Vector", PROJECT + "Matrix",
+        PROJECT + "DenseVector", PROJECT + "DenseMatrix",
+        PROJECT + "SparseVector", PROJECT + "SparseMatrix"
     );
 
     private KernelBoundaries() {}
@@ -56,8 +56,9 @@ public final class KernelBoundaries {
         }
         var backends = descendants(parents, BACKENDS);
         var typedApi = descendants(parents, Set.of(PROJECT + "KoblasEngine"));
+        var containers = descendants(parents, CONTAINERS);
         var failures = new ArrayList<String>();
-        for (var bytes : classes) failures.addAll(violations(bytes, backends, typedApi));
+        for (var bytes : classes) failures.addAll(violations(bytes, backends, typedApi, containers));
         return failures;
     }
 
@@ -75,63 +76,98 @@ public final class KernelBoundaries {
         return result;
     }
 
-    private static List<String> violations(byte[] bytes, Set<String> backends, Set<String> typedApi) {
+    private static List<String> violations(byte[] bytes, Set<String> backends, Set<String> typedApi, Set<String> containers) {
         var model = ClassFile.of().parse(bytes);
         String owner = model.thisClass().asInternalName();
         var failures = new ArrayList<String>(VectorAssertions.violations(bytes));
         boolean backend = backends.contains(owner);
+        boolean schedule = schedule(owner);
         if (backend && typedApi.contains(owner)) {
             failures.add(owner + " inherits the typed public API; implement only primitive backend interfaces");
+        }
+        if (schedule && typedApi.contains(owner)) {
+            failures.add(owner + " inherits the typed public API inside scheduling; pass the primitive provider once at entry");
+        }
+        if (schedule) {
+            for (var field : model.fields()) {
+                var type = field.fieldTypeSymbol();
+                if (container(type, containers) || publicEngine(type, typedApi)) {
+                    failures.add(owner + "." + field.fieldName().stringValue()
+                        + " stores a typed operand or public engine inside scheduling; pass primitive windows once at entry");
+                }
+            }
         }
         for (var method : model.methods()) {
             String caller = owner + "." + method.methodName().stringValue();
             if (backend) {
                 var type = method.methodTypeSymbol();
-                if (typed(type)) failures.add(caller + " exposes a typed container at a backend boundary; pass primitive windows");
+                if (typed(type, containers)) failures.add(caller + " exposes a typed container at a backend boundary; pass primitive windows");
+            }
+            if (schedule && publicEngine(method.methodTypeSymbol(), typedApi)) {
+                failures.add(caller + " exposes the typed public engine inside scheduling; pass the primitive provider once at entry");
+            }
+            if (schedule && typed(method.methodTypeSymbol(), containers)) {
+                failures.add(caller + " exposes a typed container inside scheduling; pass primitive windows once at entry");
             }
             if (method.code().isEmpty()) continue;
             for (var item : method.code().get()) {
                 if (item instanceof InvokeInstruction call) {
                     check(caller, call.owner().asInternalName(), call.name().stringValue(),
-                        call.typeSymbol(), failures);
-                    if (backend && (typed(call.typeSymbol()) || container(call.owner().asSymbol()))) failures.add(caller + " -> "
+                        call.typeSymbol(), typedApi, containers, failures);
+                    if (backend && (typed(call.typeSymbol(), containers) || container(call.owner().asSymbol(), containers))) failures.add(caller + " -> "
                         + call.owner().asInternalName() + "." + call.name().stringValue()
                         + " adapts a typed container inside a backend; consume primitive windows directly");
                 } else if (item instanceof InvokeDynamicInstruction dynamic) {
-                    constant(caller, dynamic.bootstrapMethod(), backend, failures);
-                    for (var argument : dynamic.bootstrapArgs()) constant(caller, argument, backend, failures);
+                    dynamicBoundary(caller, dynamic.typeSymbol(), backend, typedApi, containers, failures);
+                    constant(caller, dynamic.bootstrapMethod(), backend, typedApi, containers, failures);
+                    for (var argument : dynamic.bootstrapArgs()) constant(caller, argument, backend, typedApi, containers, failures);
                 } else if (item instanceof LoadConstantInstruction load) {
-                    constant(caller, load.constantValue(), backend, failures);
+                    constant(caller, load.constantValue(), backend, typedApi, containers, failures);
                 }
             }
         }
         return failures;
     }
 
-    private static void constant(String caller, ConstantDesc value, boolean backend, List<String> failures) {
+    private static void constant(String caller, ConstantDesc value, boolean backend, Set<String> typedApi, Set<String> containers,
+            List<String> failures) {
         if (value instanceof DirectMethodHandleDesc handle && handle.lookupDescriptor().startsWith("(")) {
             String descriptor = handle.owner().descriptorString();
             var type = MethodTypeDesc.ofDescriptor(handle.lookupDescriptor());
-            check(caller, descriptor.substring(1, descriptor.length() - 1), handle.methodName(), type, failures);
-            if (backend && (typed(type) || container(handle.owner()))) failures.add(caller + " -> "
+            check(caller, descriptor.substring(1, descriptor.length() - 1), handle.methodName(), type, typedApi, containers, failures);
+            if (backend && (typed(type, containers) || container(handle.owner(), containers))) failures.add(caller + " -> "
                 + handle.owner().displayName() + "." + handle.methodName()
                 + " adapts a typed container through a method handle inside a backend; consume primitive windows directly");
         } else if (value instanceof DynamicConstantDesc<?> dynamic) {
-            constant(caller, dynamic.bootstrapMethod(), backend, failures);
-            for (var argument : dynamic.bootstrapArgs()) constant(caller, argument, backend, failures);
+            dynamicBoundary(caller, MethodTypeDesc.of(dynamic.constantType()), backend, typedApi, containers, failures);
+            constant(caller, dynamic.bootstrapMethod(), backend, typedApi, containers, failures);
+            for (var argument : dynamic.bootstrapArgs()) constant(caller, argument, backend, typedApi, containers, failures);
+        }
+    }
+
+    private static void dynamicBoundary(String caller, MethodTypeDesc type, boolean backend, Set<String> typedApi,
+            Set<String> containers, List<String> failures) {
+        if (backend && typed(type, containers)) {
+            failures.add(caller + " adapts a typed container through a dynamic boundary inside a backend; consume primitive windows directly");
+        }
+        if (schedule(caller) && (typed(type, containers) || publicEngine(type, typedApi))) {
+            failures.add(caller + " carries a typed operand or public engine through a dynamic boundary inside scheduling; pass primitive windows once at entry");
         }
     }
 
     private static void check(String caller, String owner, String name, MethodTypeDesc type,
-            List<String> failures) {
+            Set<String> typedApi, Set<String> containers, List<String> failures) {
+        if (schedule(caller)) {
+            if (typed(type, containers) || containers.contains(owner)) {
+                failures.add(caller + " -> " + owner + "." + name
+                    + " carries a typed container inside scheduling; pass arrays, offsets, strides and extents");
+            }
+            if (typedApi.contains(owner) || publicEngine(type, typedApi)) {
+                failures.add(caller + " -> " + owner + "." + name
+                    + " reaches the typed public engine inside scheduling; pass the primitive provider once at entry");
+            }
+        }
         if (!owner.startsWith(PROJECT)) return;
-        boolean denseSchedule = caller.startsWith(PROJECT + "internal/scheduling/dense/");
-        boolean matrixView = owner.equals(PROJECT + "DenseMatrix$Companion")
-            && (name.equals("wrap") || name.equals("wrap$default"))
-            || owner.equals(PROJECT + "DenseMatrix")
-            && (name.equals("<init>") || name.equals("view") || name.equals("view$default"));
-        if (denseSchedule && matrixView) failures.add(caller + " -> " + owner + "." + name
-            + " constructs a temporary matrix region inside scheduling; pass arrays, offsets, strides and extents");
         boolean carrier = vector(type.returnType());
         for (var parameter : type.parameterArray()) carrier |= vector(parameter);
         boolean arithmetic = owner.startsWith(PROJECT + "internal/kernels/")
@@ -147,15 +183,32 @@ public final class KernelBoundaries {
             + " carries a Vector API value across a project call; source-inline the helper into its concrete caller");
     }
 
-    private static boolean typed(MethodTypeDesc type) {
-        if (container(type.returnType())) return true;
-        for (var parameter : type.parameterArray()) if (container(parameter)) return true;
+    private static boolean typed(MethodTypeDesc type, Set<String> containers) {
+        if (container(type.returnType(), containers)) return true;
+        for (var parameter : type.parameterArray()) if (container(parameter, containers)) return true;
         return false;
     }
 
-    private static boolean container(ClassDesc type) {
+    private static boolean schedule(String owner) {
+        return owner.startsWith(PROJECT + "internal/scheduling/");
+    }
+
+    private static boolean publicEngine(MethodTypeDesc type, Set<String> typedApi) {
+        if (publicEngine(type.returnType(), typedApi)) return true;
+        for (var parameter : type.parameterArray()) if (publicEngine(parameter, typedApi)) return true;
+        return false;
+    }
+
+    private static boolean publicEngine(ClassDesc type, Set<String> typedApi) {
         while (type.isArray()) type = type.componentType();
-        return CONTAINERS.contains(type.descriptorString());
+        String descriptor = type.descriptorString();
+        return descriptor.startsWith("L") && typedApi.contains(descriptor.substring(1, descriptor.length() - 1));
+    }
+
+    private static boolean container(ClassDesc type, Set<String> containers) {
+        while (type.isArray()) type = type.componentType();
+        String descriptor = type.descriptorString();
+        return descriptor.startsWith("L") && containers.contains(descriptor.substring(1, descriptor.length() - 1));
     }
 
     private static boolean vector(ClassDesc type) {
