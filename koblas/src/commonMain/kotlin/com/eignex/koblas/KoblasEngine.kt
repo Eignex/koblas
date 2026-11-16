@@ -7,8 +7,6 @@ package com.eignex.koblas
 import com.eignex.koblas.internal.engine.*
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.operations.*
-import com.eignex.koblas.internal.scheduling.dense.*
-import com.eignex.koblas.internal.scheduling.sparse.*
 import com.eignex.koblas.internal.storage.*
 import com.eignex.koblas.internal.storage.dense.*
 
@@ -393,27 +391,7 @@ public interface KoblasEngine {
         beta: Double,
         c: DenseMatrix,
         scratch: Scratch? = null,
-    ) {
-        val depth = if (transposeA) a.rows else a.cols
-        val borrowed = !a.isWholeBuffer || !b.isWholeBuffer || !c.isWholeBuffer
-        val backend = kernels
-        val routed = backend.hostForCall(EngineImplementation.Gemm, c.rows, c.cols, depth, borrowed)
-        requireGemmOperands(a, transposeA, b, transposeB, c)
-        prepareProduct(alpha, a, b, beta, c, depth, null, null, null, scratch) { av, ao, ald, bv, bo, bld ->
-            if (routed != null) {
-                routed.cblasGemm(
-                    alpha, av, ao, a.rows, a.cols, ald, transposeA,
-                    bv, bo, b.rows, b.cols, bld, transposeB, beta,
-                    c.values, c.offset, c.rows, c.cols, c.leadingDimension,
-                )
-            } else {
-                backend.scheduleGemm(
-                    alpha, av, ao, ald, transposeA, bv, bo, bld, transposeB, depth, beta, c.values, c.offset,
-                    c.leadingDimension, c.rows, c.cols, scratch,
-                )
-            }
-        }
-    }
+    ): Unit = multiplyDenseMatrices(alpha, a, transposeA, b, transposeB, beta, c, scratch)
 
     /**
      * `C = alpha · op(A) · op(B) + beta · C` in only the selected triangle (Netlib `GEMMTR`, commonly exposed as
@@ -430,27 +408,7 @@ public interface KoblasEngine {
         c: DenseMatrix,
         lower: Boolean = true,
         scratch: Scratch? = null,
-    ) {
-        val depth = if (transposeA) a.rows else a.cols
-        val borrowed = !a.isWholeBuffer || !b.isWholeBuffer || !c.isWholeBuffer
-        val backend = kernels
-        val routed = backend.hostForCall(EngineImplementation.Gemmt, c.rows, c.cols, depth, borrowed)
-        requireGemmtOperands(a, transposeA, b, transposeB, c)
-        prepareProduct(alpha, a, b, beta, c, depth, lower, null, null, scratch) { av, ao, ald, bv, bo, bld ->
-            if (routed != null) {
-                routed.cblasGemmt(
-                    alpha, av, ao, a.rows, a.cols, ald, transposeA,
-                    bv, bo, b.rows, b.cols, bld, transposeB, beta,
-                    c.values, c.offset, c.rows, c.cols, c.leadingDimension, symmetricStructure(lower),
-                )
-            } else {
-                backend.scheduleGemmt(
-                    alpha, av, ao, ald, transposeA, bv, bo, bld, transposeB, depth, beta, c.values, c.offset,
-                    c.leadingDimension, c.rows, c.cols, lower, scratch,
-                )
-            }
-        }
-    }
+    ): Unit = multiplyDenseMatricesInTriangle(alpha, a, transposeA, b, transposeB, beta, c, lower, scratch)
 
     /**
      * `C = alpha · A · B + beta · C`, or `C = alpha · B · A + beta · C` when [right] (BLAS `dsymm`). Only the
@@ -465,28 +423,7 @@ public interface KoblasEngine {
         lower: Boolean = true,
         right: Boolean = false,
         scratch: Scratch? = null,
-    ) {
-        val borrowed = !a.isWholeBuffer || !b.isWholeBuffer || !c.isWholeBuffer
-        val backend = kernels
-        val routed = backend.hostForCall(EngineImplementation.Symm, c.rows, c.cols, a.rows, borrowed)
-        requireSymmOperands(a, b, c, right)
-        // One operand serving both sides needs a full snapshot, since the second reads the triangle the first skips.
-        val aTriangle = if (sameRegion(a, b)) null else lower
-        prepareProduct(alpha, a, b, beta, c, a.rows, null, aTriangle, this, scratch) { av, ao, ald, bv, bo, bld ->
-            if (routed != null) {
-                routed.cblasSymm(
-                    alpha, av, ao, a.rows, a.cols, ald, symmetricStructure(lower),
-                    bv, bo, b.rows, b.cols, bld, beta,
-                    c.values, c.offset, c.rows, c.cols, c.leadingDimension, right,
-                )
-            } else {
-                backend.scheduleSymm(
-                    alpha, av, ao, ald, a.rows, bv, bo, bld, beta, c.values, c.offset, c.leadingDimension,
-                    c.rows, c.cols, lower, right, scratch,
-                )
-            }
-        }
-    }
+    ): Unit = multiplySymmetricMatrices(alpha, a, b, beta, c, lower, right, scratch)
 
     /**
      * `C = alpha · A·Aᵀ + beta · C`, or `alpha · Aᵀ·A + beta · C` when [transpose] (BLAS `dsyrk`). Only the
@@ -501,31 +438,7 @@ public interface KoblasEngine {
         c: DenseMatrix,
         lower: Boolean = true,
         scratch: Scratch? = null,
-    ) {
-        val depth = if (transpose) a.rows else a.cols
-        val backend = kernels
-        val routed = backend.hostForCall(
-            EngineImplementation.Syrk,
-            c.rows,
-            c.cols,
-            depth,
-            !a.isWholeBuffer || !c.isWholeBuffer,
-        )
-        requireSyrkOperands(a, transpose, c)
-        prepareProduct(alpha, a, a, beta, c, depth, lower, null, null, scratch) { values, offset, lda, _, _, _ ->
-            if (routed != null) {
-                routed.cblasSyrk(
-                    alpha, values, offset, a.rows, a.cols, lda, transpose, beta,
-                    c.values, c.offset, c.rows, c.cols, c.leadingDimension, symmetricStructure(lower),
-                )
-            } else {
-                backend.scheduleSyrk(
-                    alpha, values, offset, lda, transpose, depth, beta, c.values, c.offset, c.leadingDimension,
-                    c.rows, c.cols, lower, scratch,
-                )
-            }
-        }
-    }
+    ): Unit = updateSymmetricRankK(alpha, a, transpose, beta, c, lower, scratch)
 
     /**
      * `C = alpha · (op(A) · op(B)ᵀ + op(B) · op(A)ᵀ) + beta · C` (BLAS `dsyr2k`), where `op` transposes when
@@ -541,27 +454,7 @@ public interface KoblasEngine {
         c: DenseMatrix,
         lower: Boolean = true,
         scratch: Scratch? = null,
-    ) {
-        val depth = if (transpose) a.rows else a.cols
-        val borrowed = !a.isWholeBuffer || !b.isWholeBuffer || !c.isWholeBuffer
-        val backend = kernels
-        val routed = backend.hostForCall(EngineImplementation.Syr2k, c.rows, c.cols, depth, borrowed)
-        requireSyr2kOperands(a, b, transpose, c)
-        prepareProduct(alpha, a, b, beta, c, depth, lower, null, null, scratch) { av, ao, ald, bv, bo, bld ->
-            if (routed != null) {
-                routed.cblasSyr2k(
-                    alpha, av, ao, a.rows, a.cols, ald,
-                    bv, bo, b.rows, b.cols, bld, transpose, beta,
-                    c.values, c.offset, c.rows, c.cols, c.leadingDimension, symmetricStructure(lower),
-                )
-            } else {
-                backend.scheduleSyr2k(
-                    alpha, av, ao, ald, bv, bo, bld, transpose, depth, beta, c.values, c.offset,
-                    c.leadingDimension, c.rows, c.cols, lower, scratch,
-                )
-            }
-        }
-    }
+    ): Unit = updateSymmetricRankTwoK(alpha, a, b, transpose, beta, c, lower, scratch)
 
     /**
      * `B = alpha · op(T)⁻¹ · B` in place, or `B = alpha · B · op(T)⁻¹` when [right] (BLAS `dtrsm`). Flags follow
@@ -576,30 +469,7 @@ public interface KoblasEngine {
         right: Boolean = false,
         alpha: Double = 1.0,
         scratch: Scratch? = null,
-    ) {
-        val backend = kernels
-        val routed = backend.hostForCall(
-            EngineImplementation.Trsm,
-            b.rows,
-            b.cols,
-            a.rows,
-            !a.isWholeBuffer || !b.isWholeBuffer,
-        )
-        prepareTriangularMatrix(a, b, lower, unitDiag, right, alpha, "trsm", scratch) { values, offset, lda ->
-            if (routed != null) {
-                routed.cblasTriangularMatrix(
-                    EngineImplementation.Trsm, alpha,
-                    values, offset, a.rows, a.cols, lda, triangle(lower, unitDiag), transpose,
-                    b.values, b.offset, b.rows, b.cols, b.leadingDimension, right,
-                )
-            } else {
-                backend.scheduleTriangularMatrix(
-                    alpha, values, offset, lda, a.rows, triangle(lower, unitDiag), transpose,
-                    b.values, b.offset, b.leadingDimension, b.rows, b.cols, right, true, scratch,
-                )
-            }
-        }
-    }
+    ): Unit = solveDenseTriangularMatrix(a, b, lower, transpose, unitDiag, right, alpha, scratch)
 
     /** `B = alpha · op(T) · B`, or `B = alpha · B · op(T)` when [right] (BLAS `dtrmm`), the counterpart of [trsm]. */
     public fun trmm(
@@ -611,30 +481,7 @@ public interface KoblasEngine {
         right: Boolean = false,
         alpha: Double = 1.0,
         scratch: Scratch? = null,
-    ) {
-        val backend = kernels
-        val routed = backend.hostForCall(
-            EngineImplementation.Trmm,
-            b.rows,
-            b.cols,
-            a.rows,
-            !a.isWholeBuffer || !b.isWholeBuffer,
-        )
-        prepareTriangularMatrix(a, b, lower, unitDiag, right, alpha, "trmm", scratch) { values, offset, lda ->
-            if (routed != null) {
-                routed.cblasTriangularMatrix(
-                    EngineImplementation.Trmm, alpha,
-                    values, offset, a.rows, a.cols, lda, triangle(lower, unitDiag), transpose,
-                    b.values, b.offset, b.rows, b.cols, b.leadingDimension, right,
-                )
-            } else {
-                backend.scheduleTriangularMatrix(
-                    alpha, values, offset, lda, a.rows, triangle(lower, unitDiag), transpose,
-                    b.values, b.offset, b.leadingDimension, b.rows, b.cols, right, false, scratch,
-                )
-            }
-        }
-    }
+    ): Unit = multiplyDenseTriangularMatrix(a, b, lower, transpose, unitDiag, right, alpha, scratch)
 
     // Sparse matrix operations over validated CSC storage.
 
@@ -652,55 +499,7 @@ public interface KoblasEngine {
         lower: Boolean = true,
         right: Boolean = false,
         scratch: Scratch? = null,
-    ) {
-        requireSymmOperands(a, b, c, right)
-        // Return before staging or loans: an empty axis may be paired with an enormous one.
-        if (c.rows == 0 || c.cols == 0) return
-        if (alpha == 0.0) return scaleRegion(c, beta, vectors = this)
-        val backend = kernels
-        staged(scratch, a.values, a.values === c.values) { stableA ->
-            stagedRegion(scratch, b, c) { bv, bo, bld ->
-                scaleRegion(c.values, c.offset, c.rows, c.cols, c.leadingDimension, beta, vectors = backend)
-                if (right) {
-                    multiplySymmetricFromTheRight(
-                        backend,
-                        alpha,
-                        stableA,
-                        a.colPointers,
-                        a.rowIndices,
-                        a.cols,
-                        bv,
-                        bo,
-                        b.rows,
-                        bld,
-                        c.values,
-                        c.offset,
-                        c.leadingDimension,
-                        lower,
-                    )
-                } else {
-                    multiplySymmetricFromTheLeft(
-                        backend,
-                        alpha,
-                        stableA,
-                        a.colPointers,
-                        a.rowIndices,
-                        a.rows,
-                        a.cols,
-                        bv,
-                        bo,
-                        b.cols,
-                        bld,
-                        c.values,
-                        c.offset,
-                        c.leadingDimension,
-                        lower,
-                        scratch,
-                    )
-                }
-            }
-        }
-    }
+    ): Unit = multiplySymmetricMatrices(alpha, a, b, beta, c, lower, right, scratch)
 
     /**
      * `C = alpha · op(A) · op(B) + beta · C` (Sparse BLAS `usmm`) for a sparse [a] against a dense [b], or
@@ -719,67 +518,7 @@ public interface KoblasEngine {
         c: DenseMatrix,
         right: Boolean = false,
         scratch: Scratch? = null,
-    ) {
-        // Right-side multiplication uses the same derivation with operands reversed.
-        if (right) {
-            requireGemmOperands(b, transposeB, a, transposeA, c)
-        } else {
-            requireGemmOperands(a, transposeA, b, transposeB, c)
-        }
-        if (c.rows == 0 || c.cols == 0) return
-        if (alpha == 0.0) return scaleRegion(c, beta, vectors = this)
-        val depth = if (right) (if (transposeB) b.rows else b.cols) else (if (transposeA) a.rows else a.cols)
-        if (depth == 0) return scaleRegion(c, beta, vectors = this)
-        val backend = kernels
-        staged(scratch, a.values, a.values === c.values) { stableA ->
-            stagedRegion(scratch, b, c) { bv, bo, bld ->
-                scaleRegion(c.values, c.offset, c.rows, c.cols, c.leadingDimension, beta, vectors = backend)
-                if (right) {
-                    multiplyFromTheRight(
-                        backend,
-                        alpha,
-                        stableA,
-                        a.colPointers,
-                        a.rowIndices,
-                        a.cols,
-                        transposeA,
-                        bv,
-                        bo,
-                        b.rows,
-                        b.cols,
-                        bld,
-                        transposeB,
-                        c.values,
-                        c.offset,
-                        c.leadingDimension,
-                        c.rows,
-                        scratch,
-                    )
-                } else {
-                    multiplyFromTheLeft(
-                        backend,
-                        alpha,
-                        stableA,
-                        a.colPointers,
-                        a.rowIndices,
-                        a.cols,
-                        transposeA,
-                        bv,
-                        bo,
-                        bld,
-                        transposeB,
-                        c.values,
-                        c.offset,
-                        c.leadingDimension,
-                        c.rows,
-                        c.cols,
-                        depth,
-                        scratch,
-                    )
-                }
-            }
-        }
-    }
+    ): Unit = multiplySparseMatrix(alpha, a, transposeA, b, transposeB, beta, c, right, scratch)
 
     /**
      * Dense selected-triangle `C = alpha · op(A) · op(A)ᵀ + beta · C` for a sparse [a]. Only the [lower] or upper
@@ -793,46 +532,7 @@ public interface KoblasEngine {
         c: DenseMatrix,
         lower: Boolean = true,
         scratch: Scratch? = null,
-    ) {
-        val n = if (transpose) a.cols else a.rows
-        requireSyrkOperands(a, transpose, c)
-        // An empty pattern needs only triangle scaling, avoiding potentially oversized row-indexed adjacency.
-        if (alpha == 0.0 || a.nnz == 0 || n == 0) return scaleRegion(c, beta, lower)
-        staged(scratch, a.values, a.values === c.values) { stableA ->
-            scaleRegion(c, beta, lower)
-            withSymmetricRankScratch(scratch, n, a.rows, a.nnz) {
-                    sums,
-                    touchedAt,
-                    touched,
-                    rowPointers,
-                    adjacentColumns,
-                    adjacentPositions,
-                    rowCursor,
-                ->
-                symmetricRankInto(
-                    alpha,
-                    stableA,
-                    a.colPointers,
-                    a.rowIndices,
-                    a.rows,
-                    a.cols,
-                    transpose,
-                    c.values,
-                    c.offset,
-                    c.rows,
-                    c.leadingDimension,
-                    lower,
-                    sums,
-                    touchedAt,
-                    touched,
-                    rowPointers,
-                    adjacentColumns,
-                    adjacentPositions,
-                    rowCursor,
-                )
-            }
-        }
-    }
+    ): Unit = updateSymmetricRankK(alpha, a, transpose, beta, c, lower, scratch)
 
     /**
      * `B = alpha · op(T)⁻¹ · B` in place, or `B = alpha · B · op(T)⁻¹` when [right] (Sparse BLAS `ussm`), with the
