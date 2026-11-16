@@ -56,8 +56,24 @@ internal class PooledBuffers<A : Any> {
     /** Evicts all buffers of the least recently returned length when [size] would exceed the bound. */
     private fun makeRoomFor(size: Int) {
         if (idleWithSize(size) >= 0 || idleLengths() < MAX_IDLE_LENGTHS) return
-        val oldest = sizeOf(idle[0])
+        val oldest = leastRecentlyReturnedLength()
         for (i in idle.lastIndex downTo 0) if (sizeOf(idle[i]) == oldest) idle.removeAt(i)
+    }
+
+    private fun leastRecentlyReturnedLength(): Int {
+        for (i in idle.indices) {
+            val size = sizeOf(idle[i])
+            var returnedAgain = false
+            // An older buffer can belong to a length another buffer has refreshed more recently.
+            for (j in i + 1 until idle.size) {
+                if (sizeOf(idle[j]) == size) {
+                    returnedAgain = true
+                    break
+                }
+            }
+            if (!returnedAgain) return size
+        }
+        error("no idle buffer to evict")
     }
 
     private fun idleWithSize(size: Int): Int {
