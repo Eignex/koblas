@@ -157,9 +157,13 @@ internal fun KoblasEngine.updateRank(
     requireVectorWindow(x.size, xOffset, rows, xStride, "x")
     requireVectorWindow(y.size, yOffset, columns, yStride, "y")
     if (alpha == 0.0 || rows == 0 || columns == 0) return
+    val backend = kernels
     val destinationOffset = a.offset + rowOffset + columnOffset * a.leadingDimension
     if (x !== a.values && y !== a.values) {
-        scheduleGer(alpha, x, xOffset, xStride, y, yOffset, yStride, a, destinationOffset, rows, columns)
+        backend.scheduleGer(
+            alpha, x, xOffset, xStride, y, yOffset, yStride, a.values, destinationOffset, a.leadingDimension,
+            rows, columns,
+        )
         return
     }
     val xAliased = regionWindowOverlap(
@@ -171,8 +175,8 @@ internal fun KoblasEngine.updateRank(
     stagedWindows(
         scratch, x, xOffset, rows, xStride, xAliased, y, yOffset, columns, yStride, yAliased,
     ) { xv, xo, xs, yv, yo, ys ->
-        scheduleGer(
-            alpha, xv, xo, xs, yv, yo, ys, a, destinationOffset, rows, columns,
+        backend.scheduleGer(
+            alpha, xv, xo, xs, yv, yo, ys, a.values, destinationOffset, a.leadingDimension, rows, columns,
         )
     }
 }

@@ -2,32 +2,16 @@
 
 package com.eignex.koblas.internal.scheduling.dense
 
-import com.eignex.koblas.*
 import com.eignex.koblas.internal.engine.*
+import com.eignex.koblas.internal.kernels.KernelProvider
 import com.eignex.koblas.internal.kernels.PanelWork
 import com.eignex.koblas.internal.operations.applyBeta
 import com.eignex.koblas.internal.scheduling.forEachPanel
 
 // Each routine here runs after its preparation has settled an empty operand and a zero alpha.
 
-internal fun KoblasEngine.scheduleGemv(
-    alpha: Double,
-    a: DenseMatrix,
-    x: DoubleArray,
-    xOffset: Int,
-    xStride: Int,
-    beta: Double,
-    y: DoubleArray,
-    yOffset: Int,
-    yStride: Int,
-    transpose: Boolean,
-) = scheduleGemv(
-    alpha, a.values, a.offset, a.leadingDimension, a.rows, a.cols,
-    x, xOffset, xStride, beta, y, yOffset, yStride, transpose,
-)
-
 /** Matrix snapshots can reach the same panel schedule without a transient matrix container. */
-internal fun KoblasEngine.scheduleGemv(
+internal fun KernelProvider.scheduleGemv(
     alpha: Double,
     a: DoubleArray,
     aOffset: Int,
@@ -70,7 +54,7 @@ internal fun KoblasEngine.scheduleGemv(
 }
 
 @Suppress("LongParameterList") // the operands, their snapshots and the BLAS dsymv scalars
-internal fun KoblasEngine.scheduleSymv(
+internal fun KernelProvider.scheduleSymv(
     alpha: Double,
     a: DoubleArray,
     aOffset: Int,
@@ -140,7 +124,7 @@ private fun symmetricCorner(
     }
 }
 
-internal fun KoblasEngine.scheduleGer(
+internal fun KernelProvider.scheduleGer(
     alpha: Double,
     sx: DoubleArray,
     sxOffset: Int,
@@ -148,8 +132,9 @@ internal fun KoblasEngine.scheduleGer(
     sy: DoubleArray,
     syOffset: Int,
     syStride: Int,
-    a: DenseMatrix,
+    a: DoubleArray,
     aOffset: Int,
+    lda: Int,
     rows: Int,
     columns: Int,
 ) {
@@ -159,14 +144,14 @@ internal fun KoblasEngine.scheduleGer(
         panels.executionGroup(PanelWork.RankUpdate, rows, columns, sxStride == 1),
     ) { start, width ->
         panels.rankUpdate(
-            alpha, a.values, aOffset + start * a.leadingDimension, a.leadingDimension,
+            alpha, a, aOffset + start * lda, lda,
             sx, sxOffset, sxStride, rows, width,
             sy, syOffset + start * syStride, syStride,
         )
     }
 }
 
-internal fun KoblasEngine.scheduleSyr2(
+internal fun KernelProvider.scheduleSyr2(
     alpha: Double,
     xv: DoubleArray,
     xOrigin: Int,
@@ -174,12 +159,14 @@ internal fun KoblasEngine.scheduleSyr2(
     yv: DoubleArray,
     yOrigin: Int,
     yStep: Int,
-    a: DenseMatrix,
+    a: DoubleArray,
+    aOffset: Int,
+    lda: Int,
+    order: Int,
     lower: Boolean,
 ) {
     val panels = panelProvider
-    val n = a.rows
-    val lda = a.leadingDimension
+    val n = order
     val group = panels.executionGroup(PanelWork.RankUpdate, n, n, xStep == 1 && yStep == 1)
     forEachTrianglePanel(n, group, lower, fromDiagonal = true) { start, width, window, rows ->
         // Only the diagonal corner has differing stored rows; the remaining window is shared by the group.
@@ -190,12 +177,12 @@ internal fun KoblasEngine.scheduleSyr2(
             val yc = yv[yOrigin + c * yStep]
             for (i in cornerFirst until cornerLast) {
                 if (if (lower) i < c else i > c) continue
-                a.values[a.offset + i + c * lda] +=
+                a[aOffset + i + c * lda] +=
                     alpha * (xv[xOrigin + i * xStep] * yc + yv[yOrigin + i * yStep] * xc)
             }
         }
         panels.rankTwoUpdate(
-            alpha, a.values, a.offset + window + start * lda, lda,
+            alpha, a, aOffset + window + start * lda, lda,
             xv, xOrigin + window * xStep, xStep, yv, yOrigin + window * yStep, yStep, rows, width,
             yv, yOrigin + start * yStep, yStep, xv, xOrigin + start * xStep, xStep,
         )
@@ -211,7 +198,7 @@ internal fun KoblasEngine.scheduleSyr2(
  * substitution's and cannot be grouped away; what a panel covers is the independent arithmetic within
  * one step.
  */
-internal fun KoblasEngine.scheduleTrsv(
+internal fun KernelProvider.scheduleTrsv(
     a: DoubleArray,
     aOffset: Int,
     lda: Int,
@@ -225,7 +212,7 @@ internal fun KoblasEngine.scheduleTrsv(
 ) = triangularVector(a, aOffset, lda, order, x, xOffset, xStride, lower, transpose, unitDiag, solve = true)
 
 /** `x = op(T) · x` in place, the multiply counterpart of [scheduleTrsv]. */
-internal fun KoblasEngine.scheduleTrmv(
+internal fun KernelProvider.scheduleTrmv(
     a: DoubleArray,
     aOffset: Int,
     lda: Int,
@@ -243,7 +230,7 @@ internal fun KoblasEngine.scheduleTrmv(
  * dependency order and takes its panel on the other side of the diagonal step, so every entry is read before
  * it is overwritten.
  */
-private fun KoblasEngine.triangularVector(
+private fun KernelProvider.triangularVector(
     a: DoubleArray,
     aOffset: Int,
     lda: Int,
@@ -295,15 +282,18 @@ private fun KoblasEngine.triangularVector(
     }
 }
 
-internal fun KoblasEngine.scheduleSyr(
+internal fun KernelProvider.scheduleSyr(
     alpha: Double,
     xv: DoubleArray,
     origin: Int,
     step: Int,
-    a: DenseMatrix,
+    a: DoubleArray,
+    aOffset: Int,
+    lda: Int,
+    order: Int,
     lower: Boolean,
 ) {
-    val n = a.rows
+    val n = order
     val panels = panelProvider
     val group = panels.executionGroup(PanelWork.RankUpdate, n, n, step == 1)
     forEachTrianglePanel(n, group, lower, fromDiagonal = true) { start, width, window, rows ->
@@ -314,11 +304,11 @@ internal fun KoblasEngine.scheduleSyr(
             val coefficient = alpha * xv[origin + c * step]
             for (i in cornerFirst until cornerLast) {
                 if (if (lower) i < c else i > c) continue
-                a.values[a.offset + i + c * a.leadingDimension] += coefficient * xv[origin + i * step]
+                a[aOffset + i + c * lda] += coefficient * xv[origin + i * step]
             }
         }
         panels.rankUpdate(
-            alpha, a.values, a.offset + window + start * a.leadingDimension, a.leadingDimension, xv,
+            alpha, a, aOffset + window + start * lda, lda, xv,
             origin + window * step, step, rows, width,
             xv, origin + start * step, step,
         )

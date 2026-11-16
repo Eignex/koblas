@@ -122,14 +122,6 @@ internal fun KoblasEngine.implementationFor(
 ): String? = kernels.implementationFor(operation, length, contiguous)
 
 /** Resolve availability before preparation can write or borrow storage. */
-internal fun KoblasEngine.hostForCall(
-    operation: EngineImplementation,
-    rows: Int,
-    columns: Int,
-    depth: Int,
-    borrowed: Boolean,
-): HostBlas? = kernels.hostForCall(operation, rows, columns, depth, borrowed)
-
 internal fun KernelProvider.hostForCall(
     operation: EngineImplementation,
     rows: Int,

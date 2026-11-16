@@ -396,7 +396,8 @@ public interface KoblasEngine {
     ) {
         val depth = if (transposeA) a.rows else a.cols
         val borrowed = !a.isWholeBuffer || !b.isWholeBuffer || !c.isWholeBuffer
-        val routed = hostForCall(EngineImplementation.Gemm, c.rows, c.cols, depth, borrowed)
+        val backend = kernels
+        val routed = backend.hostForCall(EngineImplementation.Gemm, c.rows, c.cols, depth, borrowed)
         requireGemmOperands(a, transposeA, b, transposeB, c)
         prepareProduct(alpha, a, b, beta, c, depth, null, null, null, scratch) { av, ao, ald, bv, bo, bld ->
             if (routed != null) {
@@ -406,7 +407,10 @@ public interface KoblasEngine {
                     c.values, c.offset, c.rows, c.cols, c.leadingDimension,
                 )
             } else {
-                scheduleGemm(alpha, av, ao, ald, transposeA, bv, bo, bld, transposeB, depth, beta, c, scratch)
+                backend.scheduleGemm(
+                    alpha, av, ao, ald, transposeA, bv, bo, bld, transposeB, depth, beta, c.values, c.offset,
+                    c.leadingDimension, c.rows, c.cols, scratch,
+                )
             }
         }
     }
@@ -429,7 +433,8 @@ public interface KoblasEngine {
     ) {
         val depth = if (transposeA) a.rows else a.cols
         val borrowed = !a.isWholeBuffer || !b.isWholeBuffer || !c.isWholeBuffer
-        val routed = hostForCall(EngineImplementation.Gemmt, c.rows, c.cols, depth, borrowed)
+        val backend = kernels
+        val routed = backend.hostForCall(EngineImplementation.Gemmt, c.rows, c.cols, depth, borrowed)
         requireGemmtOperands(a, transposeA, b, transposeB, c)
         prepareProduct(alpha, a, b, beta, c, depth, lower, null, null, scratch) { av, ao, ald, bv, bo, bld ->
             if (routed != null) {
@@ -439,7 +444,10 @@ public interface KoblasEngine {
                     c.values, c.offset, c.rows, c.cols, c.leadingDimension, symmetricStructure(lower),
                 )
             } else {
-                scheduleGemmt(alpha, av, ao, ald, transposeA, bv, bo, bld, transposeB, depth, beta, c, lower, scratch)
+                backend.scheduleGemmt(
+                    alpha, av, ao, ald, transposeA, bv, bo, bld, transposeB, depth, beta, c.values, c.offset,
+                    c.leadingDimension, c.rows, c.cols, lower, scratch,
+                )
             }
         }
     }
@@ -459,7 +467,8 @@ public interface KoblasEngine {
         scratch: Scratch? = null,
     ) {
         val borrowed = !a.isWholeBuffer || !b.isWholeBuffer || !c.isWholeBuffer
-        val routed = hostForCall(EngineImplementation.Symm, c.rows, c.cols, a.rows, borrowed)
+        val backend = kernels
+        val routed = backend.hostForCall(EngineImplementation.Symm, c.rows, c.cols, a.rows, borrowed)
         requireSymmOperands(a, b, c, right)
         // One operand serving both sides needs a full snapshot, since the second reads the triangle the first skips.
         val aTriangle = if (sameRegion(a, b)) null else lower
@@ -471,7 +480,10 @@ public interface KoblasEngine {
                     c.values, c.offset, c.rows, c.cols, c.leadingDimension, right,
                 )
             } else {
-                scheduleSymm(alpha, av, ao, ald, a.rows, bv, bo, bld, beta, c, lower, right, scratch)
+                backend.scheduleSymm(
+                    alpha, av, ao, ald, a.rows, bv, bo, bld, beta, c.values, c.offset, c.leadingDimension,
+                    c.rows, c.cols, lower, right, scratch,
+                )
             }
         }
     }
@@ -491,7 +503,8 @@ public interface KoblasEngine {
         scratch: Scratch? = null,
     ) {
         val depth = if (transpose) a.rows else a.cols
-        val routed = hostForCall(
+        val backend = kernels
+        val routed = backend.hostForCall(
             EngineImplementation.Syrk,
             c.rows,
             c.cols,
@@ -506,7 +519,10 @@ public interface KoblasEngine {
                     c.values, c.offset, c.rows, c.cols, c.leadingDimension, symmetricStructure(lower),
                 )
             } else {
-                scheduleSyrk(alpha, values, offset, lda, transpose, depth, beta, c, lower, scratch)
+                backend.scheduleSyrk(
+                    alpha, values, offset, lda, transpose, depth, beta, c.values, c.offset, c.leadingDimension,
+                    c.rows, c.cols, lower, scratch,
+                )
             }
         }
     }
@@ -528,7 +544,8 @@ public interface KoblasEngine {
     ) {
         val depth = if (transpose) a.rows else a.cols
         val borrowed = !a.isWholeBuffer || !b.isWholeBuffer || !c.isWholeBuffer
-        val routed = hostForCall(EngineImplementation.Syr2k, c.rows, c.cols, depth, borrowed)
+        val backend = kernels
+        val routed = backend.hostForCall(EngineImplementation.Syr2k, c.rows, c.cols, depth, borrowed)
         requireSyr2kOperands(a, b, transpose, c)
         prepareProduct(alpha, a, b, beta, c, depth, lower, null, null, scratch) { av, ao, ald, bv, bo, bld ->
             if (routed != null) {
@@ -538,7 +555,10 @@ public interface KoblasEngine {
                     c.values, c.offset, c.rows, c.cols, c.leadingDimension, symmetricStructure(lower),
                 )
             } else {
-                scheduleSyr2k(alpha, av, ao, ald, bv, bo, bld, transpose, depth, beta, c, lower, scratch)
+                backend.scheduleSyr2k(
+                    alpha, av, ao, ald, bv, bo, bld, transpose, depth, beta, c.values, c.offset,
+                    c.leadingDimension, c.rows, c.cols, lower, scratch,
+                )
             }
         }
     }
@@ -557,7 +577,8 @@ public interface KoblasEngine {
         alpha: Double = 1.0,
         scratch: Scratch? = null,
     ) {
-        val routed = hostForCall(
+        val backend = kernels
+        val routed = backend.hostForCall(
             EngineImplementation.Trsm,
             b.rows,
             b.cols,
@@ -572,8 +593,9 @@ public interface KoblasEngine {
                     b.values, b.offset, b.rows, b.cols, b.leadingDimension, right,
                 )
             } else {
-                scheduleTriangularMatrix(
-                    alpha, values, offset, lda, a.rows, triangle(lower, unitDiag), transpose, b, right, true, scratch,
+                backend.scheduleTriangularMatrix(
+                    alpha, values, offset, lda, a.rows, triangle(lower, unitDiag), transpose,
+                    b.values, b.offset, b.leadingDimension, b.rows, b.cols, right, true, scratch,
                 )
             }
         }
@@ -590,7 +612,8 @@ public interface KoblasEngine {
         alpha: Double = 1.0,
         scratch: Scratch? = null,
     ) {
-        val routed = hostForCall(
+        val backend = kernels
+        val routed = backend.hostForCall(
             EngineImplementation.Trmm,
             b.rows,
             b.cols,
@@ -605,8 +628,9 @@ public interface KoblasEngine {
                     b.values, b.offset, b.rows, b.cols, b.leadingDimension, right,
                 )
             } else {
-                scheduleTriangularMatrix(
-                    alpha, values, offset, lda, a.rows, triangle(lower, unitDiag), transpose, b, right, false, scratch,
+                backend.scheduleTriangularMatrix(
+                    alpha, values, offset, lda, a.rows, triangle(lower, unitDiag), transpose,
+                    b.values, b.offset, b.leadingDimension, b.rows, b.cols, right, false, scratch,
                 )
             }
         }

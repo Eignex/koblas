@@ -74,7 +74,7 @@ internal inline fun forEachTriangularBlock(
  * Scale right-hand sides by [alpha] before substitution; other placements may round differently.
  */
 internal fun triangularMatrix(
-    engine: KoblasEngine,
+    engine: KernelProvider,
     t: DoubleArray,
     order: Int,
     b: DoubleArray,
@@ -95,9 +95,9 @@ internal fun triangularMatrix(
         val rows = if (right) sides else order
         val cols = if (right) order else sides
         if (ldb == rows) {
-            engine.kernels.scale(b, bOffset, alpha, rows * cols)
+            engine.scale(b, bOffset, alpha, rows * cols)
         } else {
-            for (j in 0 until cols) engine.kernels.scale(b, bOffset + j * ldb, alpha, rows)
+            for (j in 0 until cols) engine.scale(b, bOffset + j * ldb, alpha, rows)
         }
     }
     val flip = transpose != right
@@ -225,7 +225,7 @@ private fun substitute(
  * right-side calls use column strips with it on the right. [triangleWindow] maps normalized `M` back to `T`.
  */
 private fun triangularUpdate(
-    engine: KoblasEngine,
+    engine: KernelProvider,
     coefficient: Double,
     t: DoubleArray,
     order: Int,
