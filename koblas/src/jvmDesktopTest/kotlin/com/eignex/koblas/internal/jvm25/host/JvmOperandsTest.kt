@@ -15,7 +15,7 @@ class JvmOperandsTest {
             val vector = DenseVector.wrap(DoubleArray(12) { Double.NaN }, if (stride > 0) 1 else 7, 3, stride)
 
             Arena.ofConfined().use { arena ->
-                val native = arena.stage(vector, read = false)
+                val native = arena.stageVector(vector.values, vector.offset, vector.size, vector.stride, read = false)
 
                 assertContentEquals(DoubleArray(3), native.segment.toArray(JAVA_DOUBLE), "stride $stride")
             }
@@ -29,7 +29,7 @@ class JvmOperandsTest {
             val vector = DenseVector.wrap(storage, if (stride > 0) 2 else 2_002, 3, stride)
 
             Arena.ofConfined().use { arena ->
-                val native = arena.stage(vector)
+                val native = arena.stageVector(vector.values, vector.offset, vector.size, vector.stride)
 
                 assertEquals(3L * JAVA_DOUBLE.byteSize(), native.segment.byteSize(), "stride $stride")
             }
@@ -46,7 +46,7 @@ class JvmOperandsTest {
             val vector = DenseVector.wrap(storage, if (stride > 0) 2 else 2 + 2 * step, entries.size, stride)
 
             Arena.ofConfined().use { arena ->
-                val native = arena.stage(vector)
+                val native = arena.stageVector(vector.values, vector.offset, vector.size, vector.stride)
 
                 assertContentEquals(entries, native.segment.toArray(JAVA_DOUBLE), "stride $stride")
                 assertEquals(if (stride > 0) 1 else -1, native.increment, "stride $stride")
@@ -65,7 +65,7 @@ class JvmOperandsTest {
             val vector = DenseVector.wrap(storage, if (stride > 0) 2 else 2 + 2 * step, entries.size, stride)
 
             Arena.ofConfined().use { arena ->
-                val native = arena.stage(vector)
+                val native = arena.stageVector(vector.values, vector.offset, vector.size, vector.stride)
                 entries.forEachIndexed { index, value -> native.segment.setAtIndex(JAVA_DOUBLE, index.toLong(), value) }
                 native.writeBack()
             }
@@ -88,8 +88,8 @@ class JvmOperandsTest {
         }
 
         Arena.ofConfined().use { arena ->
-            val nativeFirst = arena.stage(first)
-            val nativeSecond = arena.stage(second)
+            val nativeFirst = arena.stageVector(first.values, first.offset, first.size, first.stride)
+            val nativeSecond = arena.stageVector(second.values, second.offset, second.size, second.stride)
             for (index in firstEntries.indices) {
                 nativeFirst.segment.setAtIndex(JAVA_DOUBLE, index.toLong(), firstEntries[index])
                 nativeSecond.segment.setAtIndex(JAVA_DOUBLE, index.toLong(), secondEntries[index])
@@ -108,7 +108,7 @@ class JvmOperandsTest {
             val vector = DenseVector.wrap(storage, 1, 1, stride)
 
             Arena.ofConfined().use { arena ->
-                val native = arena.stage(vector)
+                val native = arena.stageVector(vector.values, vector.offset, vector.size, vector.stride)
                 assertEquals(JAVA_DOUBLE.byteSize(), native.segment.byteSize(), "stride $stride")
                 assertEquals(1, native.increment, "stride $stride")
                 assertEquals(3.0, native.segment.getAtIndex(JAVA_DOUBLE, 0L), "stride $stride")
@@ -128,7 +128,7 @@ class JvmOperandsTest {
             val vector = DenseVector.wrap(storage, storage.size, 0, stride)
 
             Arena.ofConfined().use { arena ->
-                val native = arena.stage(vector)
+                val native = arena.stageVector(vector.values, vector.offset, vector.size, vector.stride)
                 assertEquals(JAVA_DOUBLE.byteSize(), native.segment.byteSize(), "stride $stride")
                 native.segment.setAtIndex(JAVA_DOUBLE, 0L, 5.0)
                 native.writeBack()

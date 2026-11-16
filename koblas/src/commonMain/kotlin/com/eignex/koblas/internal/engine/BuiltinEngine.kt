@@ -25,7 +25,7 @@ internal class BuiltinEngine(
     private val tuning: EngineTuning? = null,
 ) : KernelProvider {
     override val implementations = ScalarEngine.implementations.filterTo(mutableSetOf()) { it.vector }
-    override val providers: List<KoblasEngine> = listOfNotNull(
+    override val providers: List<KernelProvider> = listOfNotNull(
         host,
         roles.vectors,
         roles.indexed,

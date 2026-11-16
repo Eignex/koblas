@@ -16,7 +16,7 @@ class EngineSelectionTest {
         for (setting in listOf(null, "auto", " AUTO ")) {
             val engine = engineFromSetting(setting, automatic = { ScalarEngine })
 
-            assertSame(KoblasEngine.scalar, engine)
+            assertSame(ScalarEngine, engine)
         }
     }
 
@@ -29,12 +29,12 @@ class EngineSelectionTest {
             openVendor = { error("Unexpected vendor selection") },
         )
 
-        assertSame(KoblasEngine.scalar, engine)
+        assertSame(ScalarEngine, engine)
     }
 
     @Test
     fun `SIMD setting uses the exact SIMD engine`() {
-        val supplied = engineWithKernels()
+        val supplied = BuiltinEngine("test")
 
         val engine = engineFromSetting("simd", simd = { supplied })
 
@@ -77,22 +77,34 @@ class EngineSelectionTest {
     @Test
     fun `named selections share whole call routing and portable product coverage`() {
         var hostCalls = 0
-        val host = object : KernelProvider {
-            override val name = "test host"
-            override val vendor = Vendor.OpenBlas
-            override val implementations = setOf(EngineImplementation.Gemv)
-
-            override fun gemv(
+        val host = object : com.eignex.koblas.dense.RecordingBlas(setOf(EngineImplementation.Gemv)) {
+            override fun cblasGemv(
                 alpha: Double,
-                a: DenseMatrix,
-                x: DenseVector,
+                a: DoubleArray,
+                aOffset: Int,
+                aRows: Int,
+                aColumns: Int,
+                aLeadingDimension: Int,
+                transposeA: Boolean,
+                x: DoubleArray,
+                xOffset: Int,
+                xSize: Int,
+                xStride: Int,
                 beta: Double,
-                y: DenseVector,
-                transpose: Boolean,
-                scratch: Scratch?,
+                y: DoubleArray,
+                yOffset: Int,
+                ySize: Int,
+                yStride: Int,
             ) {
                 hostCalls++
-                KoblasEngine.scalar.gemv(alpha, a, x, beta, y, transpose, scratch)
+                KoblasEngine.scalar.gemv(
+                    alpha,
+                    DenseMatrix.wrap(aRows, aColumns, a, aOffset, aLeadingDimension),
+                    DenseVector.wrap(x, xOffset, xSize, xStride),
+                    beta,
+                    DenseVector.wrap(y, yOffset, ySize, yStride),
+                    transposeA,
+                )
             }
         }
         val launch = engineFromSetting("openblas", openVendor = { host })
@@ -108,8 +120,8 @@ class EngineSelectionTest {
             val vector = DenseVector.zero(2)
             val product = DenseMatrix.zero(2, 2)
 
-            engine.gemv(1.5, a, x, 0.0, vector)
-            engine.gemm(1.5, a, false, a, false, 0.0, product)
+            engine.asEngine().gemv(1.5, a, x, 0.0, vector)
+            engine.asEngine().gemm(1.5, a, false, a, false, 0.0, product)
 
             assertSame(host, engine.wholeCallFor(EngineImplementation.Gemv, 2, 2))
             assertNull(engine.wholeCallFor(EngineImplementation.Gemm, 2, 2, 2))
@@ -117,9 +129,9 @@ class EngineSelectionTest {
             assertProductAgreesWithReference(expectedProduct.values, product.values)
         }
         assertEquals(2, hostCalls)
-        assertFailsWith<UnsupportedOperationException> { host.sum(x) }
+        assertFailsWith<UnsupportedOperationException> { host.asEngine().sum(x) }
         assertFailsWith<UnsupportedOperationException> {
-            host.gemm(1.5, a, false, a, false, 0.0, DenseMatrix.zero(2, 2))
+            host.asEngine().gemm(1.5, a, false, a, false, 0.0, DenseMatrix.zero(2, 2))
         }
     }
 
@@ -166,10 +178,10 @@ class EngineSelectionTest {
                     }
                 }
             }
-            assertLevel1KernelsAgreeWithReference(programmatic)
+            assertLevel1KernelsAgreeWithReference(programmatic.asEngine())
             assertEquals(provider.name, engine.implementationFor(EngineImplementation.Copy, 16))
             assertEquals(ScalarEngine.name, engine.implementationFor(EngineImplementation.Sum, 16))
-            assertLevel1KernelsAgreeWithReference(engine)
+            assertLevel1KernelsAgreeWithReference(engine.asEngine())
         }
     }
     private fun assertProductAgreesWithReference(expected: DoubleArray, actual: DoubleArray) =

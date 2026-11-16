@@ -4,11 +4,11 @@ package com.eignex.koblas.internal.operations
 
 import com.eignex.koblas.*
 import com.eignex.koblas.EngineImplementation.*
-import com.eignex.koblas.internal.engine.routedWholeCall
+import com.eignex.koblas.internal.engine.hostForCall
 import com.eignex.koblas.internal.scheduling.dense.*
 import com.eignex.koblas.internal.storage.dense.isWholeBuffer
 
-/** Whole-call dispatch and alias preparation retain views until the numerical schedule begins. */
+/** Shared validation and alias preparation supply stable windows to owned and host arithmetic. */
 internal fun KoblasEngine.multiplyMatrixVector(
     alpha: Double,
     a: DenseMatrix,
@@ -19,10 +19,19 @@ internal fun KoblasEngine.multiplyMatrixVector(
     scratch: Scratch?,
 ) {
     val operation = if (transpose) GemvTransposed else Gemv
-    val host = routedWholeCall(operation, a.rows, a.cols, 1, !a.isWholeBuffer)
-    if (host != null) return host.gemv(alpha, a, x, beta, y, transpose, scratch)
-    prepareMatrixVector(this, alpha, a, transpose, x, beta, y, null, scratch) { sa, values, offset, stride ->
-        scheduleGemv(alpha, sa, values, offset, stride, beta, y.values, y.offset, y.stride, transpose)
+    val host = hostForCall(operation, a.rows, a.cols, 1, !a.isWholeBuffer)
+    prepareMatrixVector(this, alpha, a, transpose, x, beta, y, null, scratch) { av, ao, ald, values, offset, stride ->
+        if (host != null) {
+            host.cblasGemv(
+                alpha, av, ao, a.rows, a.cols, ald, transpose,
+                values, offset, x.size, stride, beta, y.values, y.offset, y.size, y.stride,
+            )
+        } else {
+            scheduleGemv(
+                alpha, av, ao, ald, a.rows, a.cols,
+                values, offset, stride, beta, y.values, y.offset, y.stride, transpose,
+            )
+        }
     }
 }
 
@@ -35,10 +44,19 @@ internal fun KoblasEngine.multiplySymmetricVector(
     lower: Boolean,
     scratch: Scratch?,
 ) {
-    val host = routedWholeCall(Symv, a.rows, a.cols, 1, !a.isWholeBuffer)
-    if (host != null) return host.symv(alpha, a, x, beta, y, lower, scratch)
-    prepareMatrixVector(this, alpha, a, false, x, beta, y, lower, scratch) { sa, values, offset, stride ->
-        scheduleSymv(alpha, sa, values, offset, stride, beta, y.values, y.offset, y.stride, lower)
+    val host = hostForCall(Symv, a.rows, a.cols, 1, !a.isWholeBuffer)
+    prepareMatrixVector(this, alpha, a, false, x, beta, y, lower, scratch) { av, ao, ald, values, offset, stride ->
+        if (host != null) {
+            host.cblasSymv(
+                alpha, av, ao, a.rows, a.cols, ald, symmetricStructure(lower),
+                values, offset, x.size, stride, beta, y.values, y.offset, y.size, y.stride,
+            )
+        } else {
+            scheduleSymv(
+                alpha, av, ao, ald, a.rows, values, offset, stride,
+                beta, y.values, y.offset, y.stride, lower,
+            )
+        }
     }
 }
 
@@ -49,13 +67,19 @@ internal fun KoblasEngine.updateDenseRank(
     a: DenseMatrix,
     scratch: Scratch?,
 ) {
-    val host = routedWholeCall(Ger, a.rows, a.cols, 1, !a.isWholeBuffer)
-    if (host != null) return host.ger(alpha, x, y, a, scratch)
+    val host = hostForCall(Ger, a.rows, a.cols, 1, !a.isWholeBuffer)
     prepareRankUpdate(alpha, x, y, a, "ger", scratch) { xv, xo, xs, yv, yo, ys ->
-        scheduleGer(
-            alpha, xv, xo, xs, yv, yo, ys,
-            a, a.offset, a.rows, a.cols,
-        )
+        if (host != null) {
+            host.cblasGer(
+                alpha, xv, xo, x.size, xs, yv, yo, y.size, ys,
+                a.values, a.offset, a.rows, a.cols, a.leadingDimension,
+            )
+        } else {
+            scheduleGer(
+                alpha, xv, xo, xs, yv, yo, ys,
+                a, a.offset, a.rows, a.cols,
+            )
+        }
     }
 }
 
@@ -66,10 +90,16 @@ internal fun KoblasEngine.updateSymmetricRank(
     lower: Boolean,
     scratch: Scratch?,
 ) {
-    val host = routedWholeCall(Syr, a.rows, a.rows, 1, !a.isWholeBuffer)
-    if (host != null) return host.syr(alpha, x, a, lower, scratch)
+    val host = hostForCall(Syr, a.rows, a.rows, 1, !a.isWholeBuffer)
     prepareRankUpdate(alpha, x, x, a, "syr", scratch) { values, offset, stride, _, _, _ ->
-        scheduleSyr(alpha, values, offset, stride, a, lower)
+        if (host != null) {
+            host.cblasSyr(
+                alpha, values, offset, x.size, stride,
+                a.values, a.offset, a.rows, a.cols, a.leadingDimension, symmetricStructure(lower),
+            )
+        } else {
+            scheduleSyr(alpha, values, offset, stride, a, lower)
+        }
     }
 }
 
@@ -81,10 +111,16 @@ internal fun KoblasEngine.updateSymmetricRankTwo(
     lower: Boolean,
     scratch: Scratch?,
 ) {
-    val host = routedWholeCall(Syr2, a.rows, a.rows, 1, !a.isWholeBuffer)
-    if (host != null) return host.syr2(alpha, x, y, a, lower, scratch)
+    val host = hostForCall(Syr2, a.rows, a.rows, 1, !a.isWholeBuffer)
     prepareRankUpdate(alpha, x, y, a, "syr2", scratch) { xv, xo, xs, yv, yo, ys ->
-        scheduleSyr2(alpha, xv, xo, xs, yv, yo, ys, a, lower)
+        if (host != null) {
+            host.cblasSyr2(
+                alpha, xv, xo, x.size, xs, yv, yo, y.size, ys,
+                a.values, a.offset, a.rows, a.cols, a.leadingDimension, symmetricStructure(lower),
+            )
+        } else {
+            scheduleSyr2(alpha, xv, xo, xs, yv, yo, ys, a, lower)
+        }
     }
 }
 
@@ -103,20 +139,17 @@ internal fun KoblasEngine.applyTriangularVector(
         transpose -> TrmvTransposed
         else -> Trmv
     }
-    val host = routedWholeCall(operation, a.rows, a.rows, 1, !a.isWholeBuffer)
-    if (host != null) {
-        if (solve) {
-            host.trsv(a, x, lower, transpose, unitDiag, scratch)
+    val host = hostForCall(operation, a.rows, a.rows, 1, !a.isWholeBuffer)
+    prepareTriangularVector(a, x, lower, unitDiag, if (solve) "trsv" else "trmv", scratch) { values, offset, lda ->
+        if (host != null) {
+            host.cblasTriangularVector(
+                if (solve) Trsv else Trmv, values, offset, a.rows, a.cols, lda,
+                triangle(lower, unitDiag), transpose, x.values, x.offset, x.size, x.stride,
+            )
+        } else if (solve) {
+            scheduleTrsv(values, offset, lda, a.rows, x.values, x.offset, x.stride, lower, transpose, unitDiag)
         } else {
-            host.trmv(a, x, lower, transpose, unitDiag, scratch)
-        }
-        return
-    }
-    prepareTriangularVector(a, x, lower, unitDiag, if (solve) "trsv" else "trmv", scratch) { sa ->
-        if (solve) {
-            scheduleTrsv(sa, x.values, x.offset, x.stride, lower, transpose, unitDiag)
-        } else {
-            scheduleTrmv(sa, x.values, x.offset, x.stride, lower, transpose, unitDiag)
+            scheduleTrmv(values, offset, lda, a.rows, x.values, x.offset, x.stride, lower, transpose, unitDiag)
         }
     }
 }

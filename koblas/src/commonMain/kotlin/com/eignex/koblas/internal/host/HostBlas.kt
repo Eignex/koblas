@@ -14,320 +14,232 @@ import com.eignex.koblas.internal.storage.dense.*
  * A binding supplies the calls themselves, which receive operands already validated and free of overlap with
  * their destination. A routine the library does not export fails before any operand is touched.
  */
-internal abstract class HostBlas : KernelProvider {
-    protected abstract fun cblasGemv(
+internal interface HostBlas : KernelProvider {
+    fun cblasGemv(
         alpha: Double,
-        a: DenseMatrix,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
         transposeA: Boolean,
-        x: DenseVector,
+        x: DoubleArray,
+        xOffset: Int,
+        xSize: Int,
+        xStride: Int,
         beta: Double,
-        y: DenseVector,
+        y: DoubleArray,
+        yOffset: Int,
+        ySize: Int,
+        yStride: Int,
     )
 
-    protected abstract fun cblasSymv(
+    fun cblasSymv(
         alpha: Double,
-        a: DenseMatrix,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
         structure: MatrixStructure,
-        x: DenseVector,
+        x: DoubleArray,
+        xOffset: Int,
+        xSize: Int,
+        xStride: Int,
         beta: Double,
-        y: DenseVector,
+        y: DoubleArray,
+        yOffset: Int,
+        ySize: Int,
+        yStride: Int,
     )
 
-    protected abstract fun cblasGer(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix)
-
-    protected abstract fun cblasSyr(alpha: Double, x: DenseVector, a: DenseMatrix, structure: MatrixStructure)
-
-    protected abstract fun cblasSyr2(
+    fun cblasGer(
         alpha: Double,
-        x: DenseVector,
-        y: DenseVector,
-        a: DenseMatrix,
+        x: DoubleArray,
+        xOffset: Int,
+        xSize: Int,
+        xStride: Int,
+        y: DoubleArray,
+        yOffset: Int,
+        ySize: Int,
+        yStride: Int,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
+    )
+
+    fun cblasSyr(
+        alpha: Double,
+        x: DoubleArray,
+        xOffset: Int,
+        xSize: Int,
+        xStride: Int,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
+        structure: MatrixStructure,
+    )
+
+    fun cblasSyr2(
+        alpha: Double,
+        x: DoubleArray,
+        xOffset: Int,
+        xSize: Int,
+        xStride: Int,
+        y: DoubleArray,
+        yOffset: Int,
+        ySize: Int,
+        yStride: Int,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
         structure: MatrixStructure,
     )
 
     /** `cblas_dtrsv` or `cblas_dtrmv`, as [operation] names, which share one signature. */
-    protected abstract fun cblasTriangularVector(
+    fun cblasTriangularVector(
         operation: EngineImplementation,
-        a: DenseMatrix,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
         structure: MatrixStructure,
         transposeA: Boolean,
-        x: DenseVector,
+        x: DoubleArray,
+        xOffset: Int,
+        xSize: Int,
+        xStride: Int,
     )
 
-    protected abstract fun cblasGemm(
+    fun cblasGemm(
         alpha: Double,
-        a: DenseMatrix,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: DoubleArray,
+        bOffset: Int,
+        bRows: Int,
+        bColumns: Int,
+        bLeadingDimension: Int,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DoubleArray,
+        cOffset: Int,
+        cRows: Int,
+        cColumns: Int,
+        cLeadingDimension: Int,
     )
 
-    protected abstract fun cblasGemmt(
+    fun cblasGemmt(
         alpha: Double,
-        a: DenseMatrix,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: DoubleArray,
+        bOffset: Int,
+        bRows: Int,
+        bColumns: Int,
+        bLeadingDimension: Int,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DoubleArray,
+        cOffset: Int,
+        cRows: Int,
+        cColumns: Int,
+        cLeadingDimension: Int,
         structure: MatrixStructure,
     )
 
-    protected abstract fun cblasSymm(
+    fun cblasSymm(
         alpha: Double,
-        a: DenseMatrix,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
         structure: MatrixStructure,
-        b: DenseMatrix,
+        b: DoubleArray,
+        bOffset: Int,
+        bRows: Int,
+        bColumns: Int,
+        bLeadingDimension: Int,
         beta: Double,
-        c: DenseMatrix,
+        c: DoubleArray,
+        cOffset: Int,
+        cRows: Int,
+        cColumns: Int,
+        cLeadingDimension: Int,
         rightSide: Boolean,
     )
 
-    protected abstract fun cblasSyrk(
+    fun cblasSyrk(
         alpha: Double,
-        a: DenseMatrix,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
         transposeA: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DoubleArray,
+        cOffset: Int,
+        cRows: Int,
+        cColumns: Int,
+        cLeadingDimension: Int,
         structure: MatrixStructure,
     )
 
-    protected abstract fun cblasSyr2k(
+    fun cblasSyr2k(
         alpha: Double,
-        a: DenseMatrix,
-        b: DenseMatrix,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
+        b: DoubleArray,
+        bOffset: Int,
+        bRows: Int,
+        bColumns: Int,
+        bLeadingDimension: Int,
         transposeA: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DoubleArray,
+        cOffset: Int,
+        cRows: Int,
+        cColumns: Int,
+        cLeadingDimension: Int,
         structure: MatrixStructure,
     )
 
     /** `cblas_dtrsm` or `cblas_dtrmm`, as [operation] names, which share one signature. */
-    protected abstract fun cblasTriangularMatrix(
+    fun cblasTriangularMatrix(
         operation: EngineImplementation,
         alpha: Double,
-        a: DenseMatrix,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
         structure: MatrixStructure,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: DoubleArray,
+        bOffset: Int,
+        bRows: Int,
+        bColumns: Int,
+        bLeadingDimension: Int,
         rightSide: Boolean,
     )
-
-    private fun requireExport(operation: EngineImplementation) {
-        if (operation !in implementations) {
-            throw UnsupportedOperationException("${operation.entryPoint} is not exported by $name")
-        }
-    }
-
-    override fun gemv(
-        alpha: Double,
-        a: DenseMatrix,
-        x: DenseVector,
-        beta: Double,
-        y: DenseVector,
-        transpose: Boolean,
-        scratch: Scratch?,
-    ) {
-        requireExport(EngineImplementation.Gemv)
-        prepareMatrixVector(this, alpha, a, transpose, x, beta, y, null, scratch) { sa, sx ->
-            cblasGemv(alpha, sa, transpose, sx, beta, y)
-        }
-    }
-
-    override fun symv(
-        alpha: Double,
-        a: DenseMatrix,
-        x: DenseVector,
-        beta: Double,
-        y: DenseVector,
-        lower: Boolean,
-        scratch: Scratch?,
-    ) {
-        requireExport(EngineImplementation.Symv)
-        prepareMatrixVector(this, alpha, a, false, x, beta, y, lower, scratch) { sa, sx ->
-            cblasSymv(alpha, sa, symmetricStructure(lower), sx, beta, y)
-        }
-    }
-
-    override fun ger(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix, scratch: Scratch?) {
-        requireExport(EngineImplementation.Ger)
-        prepareRankUpdate(alpha, x, y, a, "ger", scratch) { sx, sy -> cblasGer(alpha, sx, sy, a) }
-    }
-
-    override fun syr(alpha: Double, x: DenseVector, a: DenseMatrix, lower: Boolean, scratch: Scratch?) {
-        requireExport(EngineImplementation.Syr)
-        prepareRankUpdate(alpha, x, x, a, "syr", scratch) { sx, _ -> cblasSyr(alpha, sx, a, symmetricStructure(lower)) }
-    }
-
-    override fun syr2(
-        alpha: Double,
-        x: DenseVector,
-        y: DenseVector,
-        a: DenseMatrix,
-        lower: Boolean,
-        scratch: Scratch?,
-    ) {
-        requireExport(EngineImplementation.Syr2)
-        prepareRankUpdate(
-            alpha,
-            x,
-            y,
-            a,
-            "syr2",
-            scratch,
-        ) { sx, sy -> cblasSyr2(alpha, sx, sy, a, symmetricStructure(lower)) }
-    }
-
-    override fun trsv(
-        a: DenseMatrix,
-        x: DenseVector,
-        lower: Boolean,
-        transpose: Boolean,
-        unitDiag: Boolean,
-        scratch: Scratch?,
-    ) {
-        requireExport(EngineImplementation.Trsv)
-        prepareTriangularVector(a, x, lower, unitDiag, "trsv", scratch) { sa ->
-            cblasTriangularVector(EngineImplementation.Trsv, sa, triangle(lower, unitDiag), transpose, x)
-        }
-    }
-
-    override fun trmv(
-        a: DenseMatrix,
-        x: DenseVector,
-        lower: Boolean,
-        transpose: Boolean,
-        unitDiag: Boolean,
-        scratch: Scratch?,
-    ) {
-        requireExport(EngineImplementation.Trmv)
-        prepareTriangularVector(a, x, lower, unitDiag, "trmv", scratch) { sa ->
-            cblasTriangularVector(EngineImplementation.Trmv, sa, triangle(lower, unitDiag), transpose, x)
-        }
-    }
-
-    override fun gemm(
-        alpha: Double,
-        a: DenseMatrix,
-        transposeA: Boolean,
-        b: DenseMatrix,
-        transposeB: Boolean,
-        beta: Double,
-        c: DenseMatrix,
-        scratch: Scratch?,
-    ) {
-        requireExport(EngineImplementation.Gemm)
-        requireGemmOperands(a, transposeA, b, transposeB, c)
-        val depth = if (transposeA) a.rows else a.cols
-        prepareProduct(alpha, a, b, beta, c, depth, null, null, null, scratch) { sa, sb ->
-            cblasGemm(alpha, sa, transposeA, sb, transposeB, beta, c)
-        }
-    }
-
-    override fun gemmt(
-        alpha: Double,
-        a: DenseMatrix,
-        transposeA: Boolean,
-        b: DenseMatrix,
-        transposeB: Boolean,
-        beta: Double,
-        c: DenseMatrix,
-        lower: Boolean,
-        scratch: Scratch?,
-    ) {
-        requireExport(EngineImplementation.Gemmt)
-        requireGemmtOperands(a, transposeA, b, transposeB, c)
-        val depth = if (transposeA) a.rows else a.cols
-        prepareProduct(alpha, a, b, beta, c, depth, lower, null, null, scratch) { sa, sb ->
-            cblasGemmt(alpha, sa, transposeA, sb, transposeB, beta, c, symmetricStructure(lower))
-        }
-    }
-
-    override fun symm(
-        alpha: Double,
-        a: DenseMatrix,
-        b: DenseMatrix,
-        beta: Double,
-        c: DenseMatrix,
-        lower: Boolean,
-        right: Boolean,
-        scratch: Scratch?,
-    ) {
-        requireExport(EngineImplementation.Symm)
-        requireSymmOperands(a, b, c, right)
-        // One operand serving both sides needs a full snapshot, since the second reads the triangle the first skips.
-        val aTriangle = if (sameRegion(a, b)) null else lower
-        prepareProduct(alpha, a, b, beta, c, a.rows, null, aTriangle, this, scratch) { sa, sb ->
-            cblasSymm(alpha, sa, symmetricStructure(lower), sb, beta, c, right)
-        }
-    }
-
-    override fun syrk(
-        alpha: Double,
-        a: DenseMatrix,
-        transpose: Boolean,
-        beta: Double,
-        c: DenseMatrix,
-        lower: Boolean,
-        scratch: Scratch?,
-    ) {
-        requireExport(EngineImplementation.Syrk)
-        requireSyrkOperands(a, transpose, c)
-        val depth = if (transpose) a.rows else a.cols
-        prepareProduct(alpha, a, a, beta, c, depth, lower, null, null, scratch) { sa, _ ->
-            cblasSyrk(alpha, sa, transpose, beta, c, symmetricStructure(lower))
-        }
-    }
-
-    override fun syr2k(
-        alpha: Double,
-        a: DenseMatrix,
-        b: DenseMatrix,
-        transpose: Boolean,
-        beta: Double,
-        c: DenseMatrix,
-        lower: Boolean,
-        scratch: Scratch?,
-    ) {
-        requireExport(EngineImplementation.Syr2k)
-        requireSyr2kOperands(a, b, transpose, c)
-        val depth = if (transpose) a.rows else a.cols
-        prepareProduct(alpha, a, b, beta, c, depth, lower, null, null, scratch) { sa, sb ->
-            cblasSyr2k(alpha, sa, sb, transpose, beta, c, symmetricStructure(lower))
-        }
-    }
-
-    override fun trsm(
-        a: DenseMatrix,
-        b: DenseMatrix,
-        lower: Boolean,
-        transpose: Boolean,
-        unitDiag: Boolean,
-        right: Boolean,
-        alpha: Double,
-        scratch: Scratch?,
-    ) {
-        requireExport(EngineImplementation.Trsm)
-        prepareTriangularMatrix(a, b, lower, unitDiag, right, alpha, "trsm", scratch) { sa ->
-            cblasTriangularMatrix(EngineImplementation.Trsm, alpha, sa, triangle(lower, unitDiag), transpose, b, right)
-        }
-    }
-
-    override fun trmm(
-        a: DenseMatrix,
-        b: DenseMatrix,
-        lower: Boolean,
-        transpose: Boolean,
-        unitDiag: Boolean,
-        right: Boolean,
-        alpha: Double,
-        scratch: Scratch?,
-    ) {
-        requireExport(EngineImplementation.Trmm)
-        prepareTriangularMatrix(a, b, lower, unitDiag, right, alpha, "trmm", scratch) { sa ->
-            cblasTriangularMatrix(EngineImplementation.Trmm, alpha, sa, triangle(lower, unitDiag), transpose, b, right)
-        }
-    }
 }

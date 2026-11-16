@@ -1,6 +1,7 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.*
+import com.eignex.koblas.internal.engine.asEngine
 import com.eignex.koblas.internal.kernels.*
 import kotlin.test.*
 
@@ -29,7 +30,7 @@ class SparseIndexedTest {
         }
         val case = Cases.parse("spdot-raw+65+sparse-uniform+density=0.25").single()
 
-        assertFailsWith<IllegalStateException> { sparseIndexedWork(case, broken) }
+        assertFailsWith<IllegalStateException> { sparseIndexedWork(case, broken.asEngine()) }
     }
 
     @Test
@@ -44,7 +45,7 @@ class SparseIndexedTest {
         }
         val case = Cases.parse("spgather+65+sparse-uniform+density=0.25").single()
 
-        assertFailsWith<IllegalStateException> { sparseIndexedWork(case, broken) }
+        assertFailsWith<IllegalStateException> { sparseIndexedWork(case, broken.asEngine()) }
     }
 
     @Test
@@ -59,6 +60,6 @@ class SparseIndexedTest {
         }
         val case = Cases.parse("spgather-zero+65+sparse-uniform+density=0.25").single()
 
-        assertFailsWith<IllegalStateException> { sparseIndexedWork(case, broken) }
+        assertFailsWith<IllegalStateException> { sparseIndexedWork(case, broken.asEngine()) }
     }
 }

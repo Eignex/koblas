@@ -23,7 +23,7 @@ class RunnerTest {
                 return KoblasEngine.scalar.kernels.dot(a, aOff, b, bOff, len, aStride, bStride)
             }
         }
-        val engine = BuiltinEngine("threshold", KernelSet(vectors = leaf))
+        val engine = BuiltinEngine("threshold", KernelSet(vectors = leaf)).asEngine()
         for ((id, expected) in listOf("dot+63+uniform" to "portable", "dot+64+uniform" to leaf.id,
             "dot+64+uniform+stride=2" to "portable")) {
             calls = 0
@@ -164,7 +164,7 @@ class RunnerTest {
                 override val threadEvidence = evidence
                 override val implementations = setOf(EngineImplementation.Dot)
             }
-            val engine = BuiltinEngine("selected", host = source)
+            val engine = BuiltinEngine("selected", host = source).asEngine()
 
             val identity = engineIdentity("native-default", engine)
 

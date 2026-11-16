@@ -3,6 +3,7 @@ package com.eignex.koblas.internal.engine
 import com.eignex.koblas.*
 import com.eignex.koblas.EngineImplementation.*
 import com.eignex.koblas.internal.kernels.KernelProvider
+import com.eignex.koblas.internal.kernels.scalar.ScalarEngine
 import kotlin.test.*
 
 class EngineTuningTest {
@@ -53,7 +54,7 @@ class EngineTuningTest {
 
         val engine = standardEngine(EngineRuntime.Jvm, host = platform) { error("Unexpected host lookup") }
 
-        assertSame(KoblasEngine.scalar, engine)
+        assertSame(ScalarEngine, engine)
     }
 
     @Test
@@ -62,7 +63,7 @@ class EngineTuningTest {
             error("Unexpected host lookup")
         }
 
-        assertSame(KoblasEngine.scalar, engine)
+        assertSame(ScalarEngine, engine)
     }
 
     @Test
@@ -80,7 +81,7 @@ class EngineTuningTest {
 
         assertEquals(listOf(Vendor.OneMkl), opened)
         assertNull(product)
-        assertEquals(KoblasEngine.scalar.name, shortDot)
+        assertEquals(ScalarEngine.name, shortDot)
         assertEquals(Vendor.OneMkl.vendorName, longDot)
     }
 
@@ -108,10 +109,10 @@ class EngineTuningTest {
             } as BuiltinEngine
 
             for (length in listOf(4095, 4096, 65536, 65537)) {
-                val expected = if (length in 4096..65536) host else KoblasEngine.scalar
+                val expected = if (length in 4096..65536) host else ScalarEngine
 
                 assertSame(expected, engine.vectorProvider(Asum, length, true))
-                assertSame(KoblasEngine.scalar, engine.vectorProvider(Asum, length, false))
+                assertSame(ScalarEngine, engine.vectorProvider(Asum, length, false))
             }
         }
     }
@@ -123,7 +124,7 @@ class EngineTuningTest {
         val engine = standardEngine(EngineRuntime.Jvm, host = platform, owned = null) { host } as BuiltinEngine
 
         for (length in listOf(4096, 8192, 32768, 65536)) {
-            assertSame(KoblasEngine.scalar, engine.vectorProvider(Iamax, length, true))
+            assertSame(ScalarEngine, engine.vectorProvider(Iamax, length, true))
         }
     }
 

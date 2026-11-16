@@ -44,7 +44,7 @@ internal fun shrinkingRankUpdateWork(case: BenchCase, engine: KoblasEngine): Cas
             for (step in fixture.x.indices) {
                 val start = step + 1
                 val extent = n - start
-                engine.kernels.ger(
+                engine.ger(
                     -1.0, fixture.x[step], fixture.y[step], fixture.matrix,
                     start, start, extent, extent, start, start,
                 )

@@ -184,10 +184,10 @@ internal object SimdDenseAllocationCheck {
      */
     private fun checkHostComposition(engine: KoblasEngine) {
         val portable = engineWithKernels(
-            engine,
-            engine,
-            engine,
-            engine,
+            engine.kernels,
+            engine.kernels,
+            engine.kernels,
+            engine.kernels,
         )
         val composed = engineWithHost(
             portable,
@@ -540,7 +540,7 @@ internal object SimdDenseAllocationCheck {
         val tinyY = DoubleArray(6) { (6 - it) / 16.0 }
         assertAllocationFree("windowed ger shrinking batch") {
             for (start in 1..5) {
-                engine.kernels.ger(-1.0, tinyX, tinyY, tiny, start, start, 6 - start, 6 - start, start, start)
+                engine.ger(-1.0, tinyX, tinyY, tiny, start, start, 6 - start, 6 - start, start, start)
             }
             tiny.values.last()
         }

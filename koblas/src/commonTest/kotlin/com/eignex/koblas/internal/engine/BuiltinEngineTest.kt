@@ -58,7 +58,7 @@ class BuiltinEngineTest {
             val expected = copy(c)
             ReferenceBlas.gemm(0.875, copy(a), false, copy(b), false, -0.25, expected)
 
-            blas.gemm(0.875, a, false, b, false, -0.25, c, scratch = Scratch())
+            blas.asEngine().gemm(0.875, a, false, b, false, -0.25, c, scratch = Scratch())
 
             for (j in 0 until order) {
                 for (i in 0 until order) {
@@ -129,7 +129,7 @@ class BuiltinEngineTest {
         val x = DoubleArray(6) { if (it == 0) 0.0 else it.toDouble() }
         ReferenceBlas.ger(-1.0, x, x, expected)
 
-        blas.kernels.ger(-1.0, x, x, a, 1, 1, 5, 5, 1, 1)
+        blas.ger(-1.0, x, x, a, 1, 1, 5, 5, 1, 1)
 
         assertContentEquals(expected.values, a.values)
         assertEquals(emptyList(), recorder.calls)
@@ -337,7 +337,13 @@ class BuiltinEngineTest {
         )
         assertEquals(expected.size, recorder.calls.size)
         for ((call, operands) in recorder.calls.zip(expected)) {
-            for ((actual, view) in call.matrices.zip(operands)) assertSame(view, actual, "${call.operation}")
+            for ((actual, view) in call.matrices.zip(operands)) {
+                assertSame(view.values, actual.values, "${call.operation}")
+                assertEquals(view.offset, actual.offset)
+                assertEquals(view.leadingDimension, actual.leadingDimension)
+                assertEquals(view.rows, actual.rows)
+                assertEquals(view.cols, actual.cols)
+            }
         }
         assertEquals(0, workspace.idleLengths(), "a disjoint borrowed call borrowed scratch")
     }
@@ -359,7 +365,7 @@ class BuiltinEngineTest {
         val call = recorder.calls.single()
         assertNotSame(parent.values, call.matrices[0].values)
         for (i in entries.indices) assertContentEquals(entries[i], call.matrices[0].toArray()[i])
-        assertSame(c, call.matrices[1])
+        assertSame(c.values, call.matrices[1].values)
     }
 
     private companion object {
@@ -375,42 +381,123 @@ class BuiltinEngineTest {
 private class ReferenceProductBlas : RecordingBlas() {
     override fun cblasGemm(
         alpha: Double,
-        a: DenseMatrix,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: DoubleArray,
+        bOffset: Int,
+        bRows: Int,
+        bColumns: Int,
+        bLeadingDimension: Int,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrix,
-    ) = ReferenceBlas.gemm(alpha, a, transposeA, b, transposeB, beta, c)
+        c: DoubleArray,
+        cOffset: Int,
+        cRows: Int,
+        cColumns: Int,
+        cLeadingDimension: Int,
+    ) = ReferenceBlas.gemm(
+        alpha,
+        DenseMatrix.wrap(aRows, aColumns, a, aOffset, aLeadingDimension),
+        transposeA,
+        DenseMatrix.wrap(bRows, bColumns, b, bOffset, bLeadingDimension),
+        transposeB,
+        beta,
+        DenseMatrix.wrap(cRows, cColumns, c, cOffset, cLeadingDimension),
+    )
 
     override fun cblasGemmt(
         alpha: Double,
-        a: DenseMatrix,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: DoubleArray,
+        bOffset: Int,
+        bRows: Int,
+        bColumns: Int,
+        bLeadingDimension: Int,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DoubleArray,
+        cOffset: Int,
+        cRows: Int,
+        cColumns: Int,
+        cLeadingDimension: Int,
         structure: MatrixStructure,
-    ) = ReferenceBlas.gemmt(alpha, a, transposeA, b, transposeB, beta, c, structure == MatrixStructure.SymmetricLower)
+    ) = ReferenceBlas.gemmt(
+        alpha,
+        DenseMatrix.wrap(aRows, aColumns, a, aOffset, aLeadingDimension),
+        transposeA,
+        DenseMatrix.wrap(bRows, bColumns, b, bOffset, bLeadingDimension),
+        transposeB,
+        beta,
+        DenseMatrix.wrap(cRows, cColumns, c, cOffset, cLeadingDimension),
+        structure == MatrixStructure.SymmetricLower,
+    )
 
     override fun cblasSymm(
         alpha: Double,
-        a: DenseMatrix,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
         structure: MatrixStructure,
-        b: DenseMatrix,
+        b: DoubleArray,
+        bOffset: Int,
+        bRows: Int,
+        bColumns: Int,
+        bLeadingDimension: Int,
         beta: Double,
-        c: DenseMatrix,
+        c: DoubleArray,
+        cOffset: Int,
+        cRows: Int,
+        cColumns: Int,
+        cLeadingDimension: Int,
         rightSide: Boolean,
-    ) = ReferenceBlas.symm(alpha, a, b, beta, c, structure == MatrixStructure.SymmetricLower, rightSide)
+    ) = ReferenceBlas.symm(
+        alpha,
+        DenseMatrix.wrap(aRows, aColumns, a, aOffset, aLeadingDimension),
+        DenseMatrix.wrap(bRows, bColumns, b, bOffset, bLeadingDimension),
+        beta,
+        DenseMatrix.wrap(cRows, cColumns, c, cOffset, cLeadingDimension),
+        structure == MatrixStructure.SymmetricLower,
+        rightSide,
+    )
 
     override fun cblasSyr2k(
         alpha: Double,
-        a: DenseMatrix,
-        b: DenseMatrix,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
+        b: DoubleArray,
+        bOffset: Int,
+        bRows: Int,
+        bColumns: Int,
+        bLeadingDimension: Int,
         transposeA: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DoubleArray,
+        cOffset: Int,
+        cRows: Int,
+        cColumns: Int,
+        cLeadingDimension: Int,
         structure: MatrixStructure,
-    ) = ReferenceBlas.syr2k(alpha, a, b, transposeA, beta, c, structure == MatrixStructure.SymmetricLower)
+    ) = ReferenceBlas.syr2k(
+        alpha,
+        DenseMatrix.wrap(aRows, aColumns, a, aOffset, aLeadingDimension),
+        DenseMatrix.wrap(bRows, bColumns, b, bOffset, bLeadingDimension),
+        transposeA,
+        beta,
+        DenseMatrix.wrap(cRows, cColumns, c, cOffset, cLeadingDimension),
+        structure == MatrixStructure.SymmetricLower,
+    )
 }

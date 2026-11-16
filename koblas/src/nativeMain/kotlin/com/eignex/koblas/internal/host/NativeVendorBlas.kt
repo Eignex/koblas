@@ -63,7 +63,7 @@ internal class NativeVendorBlas private constructor(
     override val vendor: Vendor,
     override val candidate: String,
     private val library: NativeLibrary,
-) : HostBlas(),
+) : HostBlas,
     AdmissionCalls {
     override val name: String get() = "${vendor.vendorName.lowercase()}"
 
@@ -322,19 +322,29 @@ internal class NativeVendorBlas private constructor(
 
     override fun cblasGemv(
         alpha: Double,
-        a: DenseMatrix,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
         transposeA: Boolean,
-        x: DenseVector,
+        x: DoubleArray,
+        xOffset: Int,
+        xSize: Int,
+        xStride: Int,
         beta: Double,
-        y: DenseVector,
+        y: DoubleArray,
+        yOffset: Int,
+        ySize: Int,
+        yStride: Int,
     ) {
         withPins { pins ->
-            val pa = pins.stage(a)
-            val px = pins.stage(x)
-            val py = pins.stage(y)
+            val pa = pins.stageMatrix(a, aOffset, aRows, aColumns, aLeadingDimension)
+            val px = pins.stageVector(x, xOffset, xSize, xStride)
+            val py = pins.stageVector(y, yOffset, ySize, yStride)
             val fn = symbol(EngineImplementation.Gemv).reinterpret<GemvFn>()
             fn(
-                Cblas.COL_MAJOR, transposeFor(transposeA), a.rows, a.cols, alpha,
+                Cblas.COL_MAJOR, transposeFor(transposeA), aRows, aColumns, alpha,
                 pa.pointer, pa.leadingDimension, px.pointer, px.increment, beta, py.pointer, py.increment,
             )
         }
@@ -342,46 +352,83 @@ internal class NativeVendorBlas private constructor(
 
     override fun cblasSymv(
         alpha: Double,
-        a: DenseMatrix,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
         structure: MatrixStructure,
-        x: DenseVector,
+        x: DoubleArray,
+        xOffset: Int,
+        xSize: Int,
+        xStride: Int,
         beta: Double,
-        y: DenseVector,
+        y: DoubleArray,
+        yOffset: Int,
+        ySize: Int,
+        yStride: Int,
     ) {
         withPins { pins ->
-            val pa = pins.stage(a)
-            val px = pins.stage(x)
-            val py = pins.stage(y)
+            val pa = pins.stageMatrix(a, aOffset, aRows, aColumns, aLeadingDimension)
+            val px = pins.stageVector(x, xOffset, xSize, xStride)
+            val py = pins.stageVector(y, yOffset, ySize, yStride)
             val fn = symbol(EngineImplementation.Symv).reinterpret<SymvFn>()
             fn(
-                Cblas.COL_MAJOR, uploFor(structure), a.rows, alpha,
+                Cblas.COL_MAJOR, uploFor(structure), aRows, alpha,
                 pa.pointer, pa.leadingDimension, px.pointer, px.increment, beta, py.pointer, py.increment,
             )
         }
     }
 
-    override fun cblasGer(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix) {
+    override fun cblasGer(
+        alpha: Double,
+        x: DoubleArray,
+        xOffset: Int,
+        xSize: Int,
+        xStride: Int,
+        y: DoubleArray,
+        yOffset: Int,
+        ySize: Int,
+        yStride: Int,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
+    ) {
         withPins { pins ->
-            val pa = pins.stage(a)
-            val px = pins.stage(x)
-            val py = pins.stage(y)
+            val pa = pins.stageMatrix(a, aOffset, aRows, aColumns, aLeadingDimension)
+            val px = pins.stageVector(x, xOffset, xSize, xStride)
+            val py = pins.stageVector(y, yOffset, ySize, yStride)
             val fn = symbol(EngineImplementation.Ger).reinterpret<GerFn>()
             fn(
-                Cblas.COL_MAJOR, a.rows, a.cols, alpha,
+                Cblas.COL_MAJOR, aRows, aColumns, alpha,
                 px.pointer, px.increment, py.pointer, py.increment, pa.pointer, pa.leadingDimension,
             )
         }
     }
 
-    override fun cblasSyr(alpha: Double, x: DenseVector, a: DenseMatrix, structure: MatrixStructure) {
+    override fun cblasSyr(
+        alpha: Double,
+        x: DoubleArray,
+        xOffset: Int,
+        xSize: Int,
+        xStride: Int,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
+        structure: MatrixStructure,
+    ) {
         withPins { pins ->
-            val pa = pins.stage(a)
-            val px = pins.stage(x)
+            val pa = pins.stageMatrix(a, aOffset, aRows, aColumns, aLeadingDimension)
+            val px = pins.stageVector(x, xOffset, xSize, xStride)
             val fn = symbol(EngineImplementation.Syr).reinterpret<SyrFn>()
             fn(
                 Cblas.COL_MAJOR,
                 uploFor(structure),
-                a.rows,
+                aRows,
                 alpha,
                 px.pointer,
                 px.increment,
@@ -391,14 +438,30 @@ internal class NativeVendorBlas private constructor(
         }
     }
 
-    override fun cblasSyr2(alpha: Double, x: DenseVector, y: DenseVector, a: DenseMatrix, structure: MatrixStructure) {
+    override fun cblasSyr2(
+        alpha: Double,
+        x: DoubleArray,
+        xOffset: Int,
+        xSize: Int,
+        xStride: Int,
+        y: DoubleArray,
+        yOffset: Int,
+        ySize: Int,
+        yStride: Int,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
+        structure: MatrixStructure,
+    ) {
         withPins { pins ->
-            val pa = pins.stage(a)
-            val px = pins.stage(x)
-            val py = pins.stage(y)
+            val pa = pins.stageMatrix(a, aOffset, aRows, aColumns, aLeadingDimension)
+            val px = pins.stageVector(x, xOffset, xSize, xStride)
+            val py = pins.stageVector(y, yOffset, ySize, yStride)
             val fn = symbol(EngineImplementation.Syr2).reinterpret<GerFn>()
             fn(
-                Cblas.COL_MAJOR, uploFor(structure), a.rows, alpha,
+                Cblas.COL_MAJOR, uploFor(structure), aRows, alpha,
                 px.pointer, px.increment, py.pointer, py.increment, pa.pointer, pa.leadingDimension,
             )
         }
@@ -406,18 +469,25 @@ internal class NativeVendorBlas private constructor(
 
     override fun cblasTriangularVector(
         operation: EngineImplementation,
-        a: DenseMatrix,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
         structure: MatrixStructure,
         transposeA: Boolean,
-        x: DenseVector,
+        x: DoubleArray,
+        xOffset: Int,
+        xSize: Int,
+        xStride: Int,
     ) {
         withPins { pins ->
-            val pa = pins.stage(a)
-            val px = pins.stage(x)
+            val pa = pins.stageMatrix(a, aOffset, aRows, aColumns, aLeadingDimension)
+            val px = pins.stageVector(x, xOffset, xSize, xStride)
             val fn = symbol(operation).reinterpret<TriangularVectorFn>()
             fn(
                 Cblas.COL_MAJOR, uploFor(structure), transposeFor(transposeA), diagFor(structure),
-                a.rows, pa.pointer, pa.leadingDimension, px.pointer, px.increment,
+                aRows, pa.pointer, pa.leadingDimension, px.pointer, px.increment,
             )
         }
     }
@@ -426,22 +496,34 @@ internal class NativeVendorBlas private constructor(
 
     override fun cblasGemm(
         alpha: Double,
-        a: DenseMatrix,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: DoubleArray,
+        bOffset: Int,
+        bRows: Int,
+        bColumns: Int,
+        bLeadingDimension: Int,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DoubleArray,
+        cOffset: Int,
+        cRows: Int,
+        cColumns: Int,
+        cLeadingDimension: Int,
     ) {
-        val depth = if (transposeA) a.rows else a.cols
+        val depth = if (transposeA) aRows else aColumns
         withPins { pins ->
-            val pa = pins.stage(a)
-            val pb = pins.stage(b)
-            val pc = pins.stage(c)
+            val pa = pins.stageMatrix(a, aOffset, aRows, aColumns, aLeadingDimension)
+            val pb = pins.stageMatrix(b, bOffset, bRows, bColumns, bLeadingDimension)
+            val pc = pins.stageMatrix(c, cOffset, cRows, cColumns, cLeadingDimension)
             val fn = symbol(EngineImplementation.Gemm).reinterpret<GemmFn>()
             fn(
                 Cblas.COL_MAJOR, transposeFor(transposeA), transposeFor(transposeB),
-                c.rows, c.cols, depth, alpha,
+                cRows, cColumns, depth, alpha,
                 pa.pointer, pa.leadingDimension, pb.pointer, pb.leadingDimension, beta,
                 pc.pointer, pc.leadingDimension,
             )
@@ -450,20 +532,32 @@ internal class NativeVendorBlas private constructor(
 
     override fun cblasSymm(
         alpha: Double,
-        a: DenseMatrix,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
         structure: MatrixStructure,
-        b: DenseMatrix,
+        b: DoubleArray,
+        bOffset: Int,
+        bRows: Int,
+        bColumns: Int,
+        bLeadingDimension: Int,
         beta: Double,
-        c: DenseMatrix,
+        c: DoubleArray,
+        cOffset: Int,
+        cRows: Int,
+        cColumns: Int,
+        cLeadingDimension: Int,
         rightSide: Boolean,
     ) {
         withPins { pins ->
-            val pa = pins.stage(a)
-            val pb = pins.stage(b)
-            val pc = pins.stage(c)
+            val pa = pins.stageMatrix(a, aOffset, aRows, aColumns, aLeadingDimension)
+            val pb = pins.stageMatrix(b, bOffset, bRows, bColumns, bLeadingDimension)
+            val pc = pins.stageMatrix(c, cOffset, cRows, cColumns, cLeadingDimension)
             val fn = symbol(EngineImplementation.Symm).reinterpret<SymmFn>()
             fn(
-                Cblas.COL_MAJOR, sideFor(rightSide), uploFor(structure), c.rows, c.cols, alpha,
+                Cblas.COL_MAJOR, sideFor(rightSide), uploFor(structure), cRows, cColumns, alpha,
                 pa.pointer, pa.leadingDimension, pb.pointer, pb.leadingDimension, beta,
                 pc.pointer, pc.leadingDimension,
             )
@@ -472,20 +566,28 @@ internal class NativeVendorBlas private constructor(
 
     override fun cblasSyrk(
         alpha: Double,
-        a: DenseMatrix,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
         transposeA: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DoubleArray,
+        cOffset: Int,
+        cRows: Int,
+        cColumns: Int,
+        cLeadingDimension: Int,
         structure: MatrixStructure,
     ) {
-        val depth = if (transposeA) a.rows else a.cols
+        val depth = if (transposeA) aRows else aColumns
         withPins { pins ->
-            val pa = pins.stage(a)
-            val pc = pins.stage(c)
+            val pa = pins.stageMatrix(a, aOffset, aRows, aColumns, aLeadingDimension)
+            val pc = pins.stageMatrix(c, cOffset, cRows, cColumns, cLeadingDimension)
             val fn = symbol(EngineImplementation.Syrk).reinterpret<SyrkFn>()
             fn(
                 Cblas.COL_MAJOR, uploFor(structure), transposeFor(transposeA),
-                c.rows, depth, alpha, pa.pointer, pa.leadingDimension, beta,
+                cRows, depth, alpha, pa.pointer, pa.leadingDimension, beta,
                 pc.pointer, pc.leadingDimension,
             )
         }
@@ -493,22 +595,34 @@ internal class NativeVendorBlas private constructor(
 
     override fun cblasSyr2k(
         alpha: Double,
-        a: DenseMatrix,
-        b: DenseMatrix,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
+        b: DoubleArray,
+        bOffset: Int,
+        bRows: Int,
+        bColumns: Int,
+        bLeadingDimension: Int,
         transposeA: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DoubleArray,
+        cOffset: Int,
+        cRows: Int,
+        cColumns: Int,
+        cLeadingDimension: Int,
         structure: MatrixStructure,
     ) {
-        val depth = if (transposeA) a.rows else a.cols
+        val depth = if (transposeA) aRows else aColumns
         withPins { pins ->
-            val pa = pins.stage(a)
-            val pb = pins.stage(b)
-            val pc = pins.stage(c)
+            val pa = pins.stageMatrix(a, aOffset, aRows, aColumns, aLeadingDimension)
+            val pb = pins.stageMatrix(b, bOffset, bRows, bColumns, bLeadingDimension)
+            val pc = pins.stageMatrix(c, cOffset, cRows, cColumns, cLeadingDimension)
             val fn = symbol(EngineImplementation.Syr2k).reinterpret<SymmFn>()
             fn(
                 Cblas.COL_MAJOR, uploFor(structure), transposeFor(transposeA),
-                c.rows, depth, alpha, pa.pointer, pa.leadingDimension,
+                cRows, depth, alpha, pa.pointer, pa.leadingDimension,
                 pb.pointer, pb.leadingDimension, beta, pc.pointer, pc.leadingDimension,
             )
         }
@@ -517,19 +631,27 @@ internal class NativeVendorBlas private constructor(
     override fun cblasTriangularMatrix(
         operation: EngineImplementation,
         alpha: Double,
-        a: DenseMatrix,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
         structure: MatrixStructure,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: DoubleArray,
+        bOffset: Int,
+        bRows: Int,
+        bColumns: Int,
+        bLeadingDimension: Int,
         rightSide: Boolean,
     ) {
         withPins { pins ->
-            val pa = pins.stage(a)
-            val pb = pins.stage(b)
+            val pa = pins.stageMatrix(a, aOffset, aRows, aColumns, aLeadingDimension)
+            val pb = pins.stageMatrix(b, bOffset, bRows, bColumns, bLeadingDimension)
             val fn = symbol(operation).reinterpret<TriangularMatrixFn>()
             fn(
                 Cblas.COL_MAJOR, sideFor(rightSide), uploFor(structure),
-                transposeFor(transposeA), diagFor(structure), b.rows, b.cols, alpha,
+                transposeFor(transposeA), diagFor(structure), bRows, bColumns, alpha,
                 pa.pointer, pa.leadingDimension, pb.pointer, pb.leadingDimension,
             )
         }
@@ -538,23 +660,35 @@ internal class NativeVendorBlas private constructor(
     /** Calls only this library's exported `cblas_dgemmt`. */
     override fun cblasGemmt(
         alpha: Double,
-        a: DenseMatrix,
+        a: DoubleArray,
+        aOffset: Int,
+        aRows: Int,
+        aColumns: Int,
+        aLeadingDimension: Int,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: DoubleArray,
+        bOffset: Int,
+        bRows: Int,
+        bColumns: Int,
+        bLeadingDimension: Int,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: DoubleArray,
+        cOffset: Int,
+        cRows: Int,
+        cColumns: Int,
+        cLeadingDimension: Int,
         structure: MatrixStructure,
     ) {
-        val depth = if (transposeA) a.rows else a.cols
+        val depth = if (transposeA) aRows else aColumns
         withPins { pins ->
-            val pa = pins.stage(a)
-            val pb = pins.stage(b)
-            val pc = pins.stage(c)
+            val pa = pins.stageMatrix(a, aOffset, aRows, aColumns, aLeadingDimension)
+            val pb = pins.stageMatrix(b, bOffset, bRows, bColumns, bLeadingDimension)
+            val pc = pins.stageMatrix(c, cOffset, cRows, cColumns, cLeadingDimension)
             val fn = symbol(EngineImplementation.Gemmt).reinterpret<GemmFn>()
             fn(
                 Cblas.COL_MAJOR, uploFor(structure), transposeFor(transposeA),
-                transposeFor(transposeB), c.rows, depth, alpha,
+                transposeFor(transposeB), cRows, depth, alpha,
                 pa.pointer, pa.leadingDimension, pb.pointer, pb.leadingDimension, beta,
                 pc.pointer, pc.leadingDimension,
             )

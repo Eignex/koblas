@@ -27,6 +27,7 @@ internal object AliasStagingAllocationCheck {
                 vector[0]
             }
         }
+        checkMatrixAliases(engine)
         val first = DenseVector.wrap(matrix.values, order - 1, order, -1)
         val second = DenseVector.wrap(matrix.values, order, order)
         val separate = DenseVector.wrap(DoubleArray(order) { 1.0 })
@@ -58,6 +59,44 @@ internal object AliasStagingAllocationCheck {
                     1, 1, order - 1, order - 1, scratch,
                 )
                 matrix.values[order + 1]
+            }
+        }
+    }
+
+    private fun checkMatrixAliases(engine: KoblasEngine) {
+        val a = DenseMatrix.wrap(9, 9, DoubleArray(13 * 12 + 5), 2, 13)
+        val destination = DenseVector.wrap(a.values, a.offset + 8, 9, -1)
+        val source = DenseVector.wrap(DoubleArray(9) { 1.0 })
+        val scratch = Scratch()
+        for (transpose in booleanArrayOf(false, true)) {
+            assertAllocationFree("gemv aliased matrix transpose=$transpose") {
+                a.values.fill(0.01)
+                engine.gemv(0.5, a, source, 0.25, destination, transpose, scratch)
+                destination[0]
+            }
+        }
+        for (lower in booleanArrayOf(false, true)) {
+            assertAllocationFree("symv aliased matrix lower=$lower") {
+                a.values.fill(0.01)
+                engine.symv(0.5, a, source, 0.25, destination, lower, scratch)
+                destination[0]
+            }
+            for (transpose in booleanArrayOf(false, true)) {
+                for (unit in booleanArrayOf(false, true)) {
+                    for (solve in booleanArrayOf(false, true)) {
+                        val name = "triangular alias lower=$lower transpose=$transpose unit=$unit solve=$solve"
+                        assertAllocationFree(name) {
+                            a.values.fill(0.01)
+                            for (i in 0 until a.rows) a[i, i] = 4.0
+                            if (solve) {
+                                engine.trsv(a, destination, lower, transpose, unit, scratch)
+                            } else {
+                                engine.trmv(a, destination, lower, transpose, unit, scratch)
+                            }
+                            destination[0]
+                        }
+                    }
+                }
             }
         }
     }

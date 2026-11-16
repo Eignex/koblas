@@ -13,10 +13,7 @@ import com.eignex.koblas.internal.storage.dense.*
  * and snapshots overlapping inputs. Nonoverlapping vector views retain their addressing until the kernel.
  */
 
-/**
- * `y = alpha · op(A) · x + beta · y`, for `gemv` and, from one [lower] triangle, `symv`. [body] receives the
- * stable matrix and the stable `x` window.
- */
+/** Shared GEMV/SYMV preparation supplies stable primitive matrix and vector windows to either backend. */
 internal inline fun prepareMatrixVector(
     vectors: KoblasEngine,
     alpha: Double,
@@ -27,25 +24,7 @@ internal inline fun prepareMatrixVector(
     y: DenseVector,
     lower: Boolean?,
     arrays: Scratch?,
-    body: (DenseMatrix, DenseVector) -> Unit,
-) {
-    prepareMatrixVector(vectors, alpha, a, transpose, x, beta, y, lower, arrays) { sa, values, offset, stride ->
-        body(sa, x.typedWindow(values, offset, stride))
-    }
-}
-
-/** Primitive counterpart for schedules that do not need a typed vector around the snapshot. */
-internal inline fun prepareMatrixVector(
-    vectors: KoblasEngine,
-    alpha: Double,
-    a: DenseMatrix,
-    transpose: Boolean,
-    x: DenseVector,
-    beta: Double,
-    y: DenseVector,
-    lower: Boolean?,
-    arrays: Scratch?,
-    body: (DenseMatrix, DoubleArray, Int, Int) -> Unit,
+    body: (DoubleArray, Int, Int, DoubleArray, Int, Int) -> Unit,
 ) {
     val rows = if (transpose) a.cols else a.rows
     val depth = if (transpose) a.rows else a.cols
@@ -59,34 +38,14 @@ internal inline fun prepareMatrixVector(
         applyBeta(vectors, y.values, y.offset, rows, beta, y.stride)
         return
     }
-    stagedRegionAgainst(arrays, a, y, lower = lower) { sa ->
+    stagedRegionAgainst(arrays, a, y, lower = lower) { av, ao, ald ->
         stagedWindow(arrays, x.values, x.offset, x.size, x.stride, x.overlaps(y)) { values, offset, stride ->
-            body(sa, values, offset, stride)
+            body(av, ao, ald, values, offset, stride)
         }
     }
 }
 
-/**
- * `A = A + alpha · x · yᵀ` and its symmetric forms, with `x` spanning `A`'s rows and `y` its columns. [body]
- * receives the stable windows; identical windows share one snapshot.
- */
-internal inline fun prepareRankUpdate(
-    alpha: Double,
-    x: DenseVector,
-    y: DenseVector,
-    a: DenseMatrix,
-    what: String,
-    arrays: Scratch?,
-    body: (DenseVector, DenseVector) -> Unit,
-) {
-    prepareRankUpdate(alpha, x, y, a, what, arrays) { xv, xo, xs, yv, yo, ys ->
-        val sx = x.typedWindow(xv, xo, xs)
-        val sy = if (sameVectorMapping(x, y)) sx else y.typedWindow(yv, yo, ys)
-        body(sx, sy)
-    }
-}
-
-/** Primitive snapshots shared by the portable GER, SYR and SYR2 schedules. */
+/** Shared GER/SYR/SYR2 preparation snapshots identical vector mappings once. */
 internal inline fun prepareRankUpdate(
     alpha: Double,
     x: DenseVector,
@@ -121,38 +80,14 @@ internal inline fun prepareTriangularVector(
     unitDiag: Boolean,
     what: String,
     arrays: Scratch?,
-    body: (DenseMatrix) -> Unit,
+    body: (DoubleArray, Int, Int) -> Unit,
 ) {
     requireTriangularVectorOperands(a, x.size, what)
     if (a.rows == 0) return
     stagedRegionAgainst(arrays, a, x, lower = lower, unitDiag = unitDiag, block = body)
 }
 
-/**
- * A product into [c] over [depth] shared entries. A zero [alpha] or depth scales [c], or its [selected]
- * triangle, without reading an operand. [aTriangle] limits [a]'s snapshot to the triangle the routine reads.
- */
-internal inline fun prepareProduct(
-    alpha: Double,
-    a: DenseMatrix,
-    b: DenseMatrix,
-    beta: Double,
-    c: DenseMatrix,
-    depth: Int,
-    selected: Boolean?,
-    aTriangle: Boolean?,
-    vectors: KoblasEngine?,
-    arrays: Scratch?,
-    body: (DenseMatrix, DenseMatrix) -> Unit,
-) {
-    prepareProduct(alpha, a, b, beta, c, depth, selected, aTriangle, vectors, arrays) { av, ao, ald, bv, bo, bld ->
-        val sa = a.typedRegion(av, ao, ald)
-        val sb = if (av !== a.values && sameRegion(a, b)) sa else b.typedRegion(bv, bo, bld)
-        body(sa, sb)
-    }
-}
-
-/** Primitive matrix snapshots for owned product schedules; identical regions share one loan. */
+/** Products settle no-read multipliers before lending snapshots; identical regions share one loan. */
 internal inline fun prepareProduct(
     alpha: Double,
     a: DenseMatrix,
@@ -181,27 +116,7 @@ internal inline fun prepareProduct(
     }
 }
 
-/**
- * Stage triangular coefficients before scaling right-hand sides by alpha:
- * aliased destination writes must not change coefficients still needed for substitution.
- */
-internal inline fun prepareTriangularMatrix(
-    a: DenseMatrix,
-    b: DenseMatrix,
-    lower: Boolean,
-    unitDiag: Boolean,
-    right: Boolean,
-    alpha: Double,
-    what: String,
-    arrays: Scratch?,
-    body: (DenseMatrix) -> Unit,
-) {
-    prepareTriangularMatrix(a, b, lower, unitDiag, right, alpha, what, arrays) { values, offset, leadingDimension ->
-        body(a.typedRegion(values, offset, leadingDimension))
-    }
-}
-
-/** A triangle snapshot reaches owned substitution/product schedules as a primitive matrix window. */
+/** Stage triangular coefficients before scaling aliased right-hand sides can change them. */
 internal inline fun prepareTriangularMatrix(
     a: DenseMatrix,
     b: DenseMatrix,

@@ -278,33 +278,22 @@ class StagingTest {
     }
 
     @Test
-    fun `typed product preparation preserves unstaged operands`() {
+    fun `product preparation preserves unstaged addressing`() {
         val a = paddedRegion(3, 3)
         val b = paddedRegion(3, 3)
         val c = DenseMatrix.zero(3)
         val scratch = Scratch()
 
-        prepareProduct(1.0, a, b, 0.0, c, 3, null, null, null, scratch) { sa, sb ->
-            assertSame(a, sa)
-            assertSame(b, sb)
+        prepareProduct(1.0, a, b, 0.0, c, 3, null, null, null, scratch) { av, ao, ald, bv, bo, bld ->
+            assertSame(a.values, av)
+            assertEquals(a.offset, ao)
+            assertEquals(a.leadingDimension, ald)
+            assertSame(b.values, bv)
+            assertEquals(b.offset, bo)
+            assertEquals(b.leadingDimension, bld)
         }
 
         assertEquals(0, scratch.idleLengths())
-    }
-
-    @Test
-    fun `typed product preparation shares a snapshot for identical regions`() {
-        val a = paddedRegion(3, 3)
-        val expected = contiguousCopy(a).values
-        val scratch = Scratch()
-
-        prepareProduct(1.0, a, a.view(), 0.0, a, 3, null, null, null, scratch) { sa, sb ->
-            a.values.fill(-1.0)
-            assertSame(sa, sb)
-            assertContentEquals(expected, sa.values)
-        }
-
-        assertEquals(1, scratch.available(9))
     }
 
     @Test
@@ -444,7 +433,7 @@ class StagingTest {
     }
 
     @Test
-    fun `typed rank preparation shares a snapshot for equal mappings`() {
+    fun `rank preparation shares a snapshot for equal mappings`() {
         val values = DoubleArray(16) { it.toDouble() }
         val a = DenseMatrix.wrap(4, 4, values)
         val x = DenseVector.wrap(values, 3, 4, -1)
@@ -452,10 +441,14 @@ class StagingTest {
         val expected = x.toDoubleArray()
         val scratch = Scratch()
 
-        prepareRankUpdate(0.5, x, y, a, "ger", scratch) { sx, sy ->
+        prepareRankUpdate(0.5, x, y, a, "ger", scratch) { xv, xo, xs, yv, yo, ys ->
             values.fill(-1.0)
-            assertSame(sx, sy)
-            assertContentEquals(expected, sx.toDoubleArray())
+            assertSame(xv, yv)
+            assertEquals(0, xo)
+            assertEquals(xo, yo)
+            assertEquals(1, xs)
+            assertEquals(xs, ys)
+            assertContentEquals(expected, xv)
         }
 
         assertEquals(1, scratch.available(4))

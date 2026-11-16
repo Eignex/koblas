@@ -28,8 +28,8 @@ internal fun sparseIndexedWork(case: BenchCase, engine: KoblasEngine): CaseWork 
             "spdot-raw" -> BenchmarkOperation { kernels.dot(indices, 0, sparse.values, 0, count, destination) }
             "spdot-sparse" -> BenchmarkOperation { kernels.dot(sparse.indices, 0, sparse.values, 0, count,
                 sparseY.indices, 0, sparseY.values, 0, sparseY.nnz) }
-            "spnrm2" -> BenchmarkOperation { kernels.normVector(sparse) }
-            "spasum" -> BenchmarkOperation { kernels.absoluteSumVector(sparse) }
+            "spnrm2" -> BenchmarkOperation { selected.normVector(sparse) }
+            "spasum" -> BenchmarkOperation { selected.absoluteSumVector(sparse) }
             "spaxpy" -> BenchmarkOperation {
                 initialDense.copyInto(destination)
                 kernels.axpy(sparse.indices, 0, sparse.values, 0, count, 0.875, destination)

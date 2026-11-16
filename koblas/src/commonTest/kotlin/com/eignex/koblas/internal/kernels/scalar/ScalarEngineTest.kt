@@ -32,12 +32,12 @@ class ScalarEngineTest {
                             when (operation) {
                                 Gemm -> {
                                     ReferenceBlas.gemm(alpha, a, transpose, b, !transpose, -0.5, e)
-                                    ScalarEngine.gemm(alpha, input, transpose, b, !transpose, -0.5, c)
+                                    KoblasEngine.scalar.gemm(alpha, input, transpose, b, !transpose, -0.5, c)
                                 }
 
                                 Gemmt -> {
                                     ReferenceBlas.gemmt(alpha, a, transpose, b, !transpose, -0.5, e, lower)
-                                    ScalarEngine.gemmt(
+                                    KoblasEngine.scalar.gemmt(
                                         alpha,
                                         input,
                                         transpose,
@@ -51,27 +51,27 @@ class ScalarEngineTest {
 
                                 Symm -> {
                                     ReferenceBlas.symm(alpha, a, b, -0.5, e, lower, right)
-                                    ScalarEngine.symm(alpha, input, b, -0.5, c, lower, right)
+                                    KoblasEngine.scalar.symm(alpha, input, b, -0.5, c, lower, right)
                                 }
 
                                 Syrk -> {
                                     ReferenceBlas.syrk(alpha, a, transpose, -0.5, e, lower)
-                                    ScalarEngine.syrk(alpha, input, transpose, -0.5, c, lower)
+                                    KoblasEngine.scalar.syrk(alpha, input, transpose, -0.5, c, lower)
                                 }
 
                                 Syr2k -> {
                                     ReferenceBlas.syr2k(alpha, a, b, transpose, -0.5, e, lower)
-                                    ScalarEngine.syr2k(alpha, input, b, transpose, -0.5, c, lower)
+                                    KoblasEngine.scalar.syr2k(alpha, input, b, transpose, -0.5, c, lower)
                                 }
 
                                 Trmm -> {
                                     ReferenceBlas.trmm(a, e, lower, transpose, right = right, alpha = alpha)
-                                    ScalarEngine.trmm(input, c, lower, transpose, right = right, alpha = alpha)
+                                    KoblasEngine.scalar.trmm(input, c, lower, transpose, right = right, alpha = alpha)
                                 }
 
                                 Trsm -> {
                                     ReferenceBlas.trsm(a, e, lower, transpose, right = right, alpha = alpha)
-                                    ScalarEngine.trsm(input, c, lower, transpose, right = right, alpha = alpha)
+                                    KoblasEngine.scalar.trsm(input, c, lower, transpose, right = right, alpha = alpha)
                                 }
 
                                 else -> error("Unexpected operation $operation")
@@ -102,22 +102,22 @@ class ScalarEngineTest {
                     when (operation) {
                         Gemv -> {
                             ReferenceBlas.gemv(0.75, a, x.values, -0.5, expected, transpose)
-                            ScalarEngine.gemv(0.75, a, x, -0.5, actual, transpose = transpose)
+                            KoblasEngine.scalar.gemv(0.75, a, x, -0.5, actual, transpose = transpose)
                         }
 
                         Symv -> {
                             ReferenceBlas.symv(0.75, a, x.values, -0.5, expected, lower)
-                            ScalarEngine.symv(0.75, a, x, -0.5, actual, lower = lower)
+                            KoblasEngine.scalar.symv(0.75, a, x, -0.5, actual, lower = lower)
                         }
 
                         Trsv -> {
                             ReferenceBlas.trsv(a, expected, lower, transpose)
-                            ScalarEngine.trsv(a, actual, lower = lower, transpose = transpose)
+                            KoblasEngine.scalar.trsv(a, actual, lower = lower, transpose = transpose)
                         }
 
                         Trmv -> {
                             ReferenceBlas.trmv(a, expected, lower, transpose)
-                            ScalarEngine.trmv(a, actual, lower = lower, transpose = transpose)
+                            KoblasEngine.scalar.trmv(a, actual, lower = lower, transpose = transpose)
                         }
 
                         else -> error("Unexpected operation $operation")
@@ -131,17 +131,17 @@ class ScalarEngineTest {
                 when (operation) {
                     Ger -> {
                         ReferenceBlas.ger(0.75, x.values, y.values, expected)
-                        ScalarEngine.ger(0.75, x, y, actual)
+                        KoblasEngine.scalar.ger(0.75, x, y, actual)
                     }
 
                     Syr -> {
                         ReferenceBlas.syr(0.75, x, expected, lower)
-                        ScalarEngine.syr(0.75, x, actual, lower = lower)
+                        KoblasEngine.scalar.syr(0.75, x, actual, lower = lower)
                     }
 
                     Syr2 -> {
                         ReferenceBlas.syr2(0.75, x, y, expected, lower)
-                        ScalarEngine.syr2(0.75, x, y, actual, lower = lower)
+                        KoblasEngine.scalar.syr2(0.75, x, y, actual, lower = lower)
                     }
 
                     else -> error("Unexpected operation $operation")
