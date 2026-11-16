@@ -14,7 +14,7 @@ plugins {
     kotlin("plugin.serialization")
 }
 
-val utilPin = "0.0.1-ci.43879527918.1-20261116.135058-1"
+val utilPin = "0.0.1-ci.43959188060.1-20261116.212204-1"
 
 val fullTargets = providers.gradleProperty("targets.full").isPresent
 
