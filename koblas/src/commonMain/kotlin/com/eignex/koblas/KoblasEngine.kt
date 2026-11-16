@@ -469,7 +469,7 @@ public interface KoblasEngine {
         right: Boolean = false,
         alpha: Double = 1.0,
         scratch: Scratch? = null,
-    ): Unit = solveDenseTriangularMatrix(a, b, lower, transpose, unitDiag, right, alpha, scratch)
+    ): Unit = applyDenseTriangularMatrix(a, b, lower, transpose, unitDiag, right, alpha, true, scratch)
 
     /** `B = alpha · op(T) · B`, or `B = alpha · B · op(T)` when [right] (BLAS `dtrmm`), the counterpart of [trsm]. */
     public fun trmm(
@@ -481,7 +481,7 @@ public interface KoblasEngine {
         right: Boolean = false,
         alpha: Double = 1.0,
         scratch: Scratch? = null,
-    ): Unit = multiplyDenseTriangularMatrix(a, b, lower, transpose, unitDiag, right, alpha, scratch)
+    ): Unit = applyDenseTriangularMatrix(a, b, lower, transpose, unitDiag, right, alpha, false, scratch)
 
     // Sparse matrix operations over validated CSC storage.
 
