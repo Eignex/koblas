@@ -178,8 +178,10 @@ internal fun KoblasEngine.updateRank(
 }
 
 /** Scales selected entries, never reading a zero-scaled destination or visiting its padding. */
-internal fun scaleRegion(a: DenseMatrix, beta: Double, lower: Boolean? = null, vectors: KoblasEngine? = null) =
+internal fun scaleRegion(a: DenseMatrix, beta: Double, lower: Boolean? = null, vectors: KoblasEngine? = null) {
+    if (beta == 1.0 || a.rows == 0 || a.cols == 0) return
     scaleRegion(a.values, a.offset, a.rows, a.cols, a.leadingDimension, beta, lower, vectors?.kernels)
+}
 
 /** Scales a primitive destination window after its descriptor was unwrapped at entry. */
 internal fun scaleRegion(
@@ -212,8 +214,17 @@ internal fun scaleRegion(
 }
 
 /** `v = beta * v` over the [len] entries from [off], honoring the `beta == 0` overwrite convention. */
-internal fun applyBeta(k: KoblasEngine, v: DoubleArray, off: Int, len: Int, beta: Double, stride: Int = 1) =
-    applyBeta(k.kernels, v, off, len, beta, stride)
+internal fun applyBeta(k: KoblasEngine, v: DoubleArray, off: Int, len: Int, beta: Double, stride: Int = 1) {
+    when {
+        beta == 0.0 -> if (stride == 1) {
+            v.fill(0.0, off, off + len)
+        } else {
+            for (i in 0 until len) v[off + i * stride] = 0.0
+        }
+
+        beta != 1.0 -> k.kernels.scale(v, off, beta, len, stride)
+    }
+}
 
 /** Primitive scaling preserves the selected backend without passing the public adapter into schedules. */
 internal fun applyBeta(k: KernelProvider, v: DoubleArray, off: Int, len: Int, beta: Double, stride: Int = 1) {
