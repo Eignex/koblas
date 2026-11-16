@@ -29,7 +29,7 @@ public final class BenchmarkCallbacks {
         "java/lang/Short", "java/lang/Byte", "java/lang/Character", "java/lang/Boolean"
     );
     private record Method(String owner, String name, String type) {}
-    private record LambdaTarget(Method method, boolean boxedResult) {}
+    private record LambdaTarget(Method method, boolean boxedAdaptation, boolean virtual) {}
 
     private BenchmarkCallbacks() {}
 
@@ -38,6 +38,7 @@ public final class BenchmarkCallbacks {
         var methods = new HashMap<Method, MethodModel>();
         var roots = new HashSet<Method>();
         var callbacks = new HashMap<Method, Set<LambdaTarget>>();
+        var virtualReferences = new HashSet<Method>();
         var failures = new ArrayList<String>();
         for (var bytes : classes.values()) {
             var model = ClassFile.of().parse(bytes);
@@ -55,6 +56,7 @@ public final class BenchmarkCallbacks {
                 for (var item : method.code().get()) {
                     if (!(item instanceof InvokeDynamicInstruction factory)) continue;
                     var targets = lambdaTargets(factory);
+                    for (var target : targets) if (target.virtual()) virtualReferences.add(target.method());
                     String descriptor = factory.typeSymbol().returnType().descriptorString();
                     if (!descriptor.startsWith("L")) continue;
                     String callback = descriptor.substring(1, descriptor.length() - 1);
@@ -88,6 +90,12 @@ public final class BenchmarkCallbacks {
             var key = pending.removeFirst();
             if (!visited.add(key)) continue;
             var method = methods.get(key);
+            if (!key.owner().startsWith(BENCH) || virtualReferences.contains(key)) {
+                follow(key, callbacks.getOrDefault(key, Set.of()), pending::addLast, failures);
+                for (String target : dispatch.computeIfAbsent(key.owner(), type -> subtypes(models, type))) {
+                    if (target.startsWith(BENCH)) pending.addLast(new Method(target, key.name(), key.type()));
+                }
+            }
             if (method == null) {
                 // A receiver can implement an interface with a body inherited from a non-implementing superclass.
                 var model = models.get(key.owner());
@@ -137,13 +145,24 @@ public final class BenchmarkCallbacks {
         for (var argument : factory.bootstrapArgs()) {
             if (!(argument instanceof DirectMethodHandleDesc target)
                     || !target.lookupDescriptor().startsWith("(")) continue;
-            ClassDesc produced = target.invocationType().returnType();
+            var invocation = target.invocationType();
+            ClassDesc produced = invocation.returnType();
             boolean boxed = !result.descriptorString().equals("V") && !produced.descriptorString().equals("V")
                 && result.isPrimitive() != produced.isPrimitive();
+            int captures = factory.typeSymbol().parameterCount();
+            for (int parameter = 0; parameter < signature.parameterCount(); parameter++) {
+                int argumentIndex = captures + parameter;
+                if (argumentIndex < invocation.parameterCount()) {
+                    boxed |= signature.parameterType(parameter).isPrimitive()
+                        != invocation.parameterType(argumentIndex).isPrimitive();
+                }
+            }
             String descriptor = target.owner().descriptorString();
             String owner = descriptor.substring(1, descriptor.length() - 1);
             boxed |= boxedCall(owner, target.methodName(), MethodTypeDesc.ofDescriptor(target.lookupDescriptor()));
-            targets.add(new LambdaTarget(new Method(owner, target.methodName(), target.lookupDescriptor()), boxed));
+            boolean virtual = target.kind() == DirectMethodHandleDesc.Kind.VIRTUAL
+                || target.kind() == DirectMethodHandleDesc.Kind.INTERFACE_VIRTUAL;
+            targets.add(new LambdaTarget(new Method(owner, target.methodName(), target.lookupDescriptor()), boxed, virtual));
         }
         return targets;
     }
@@ -158,9 +177,9 @@ public final class BenchmarkCallbacks {
     private static void follow(Method caller, Iterable<LambdaTarget> targets, Consumer<Method> pending,
             List<String> failures) {
         for (var target : targets) {
-            if (target.boxedResult()) failures.add(caller + " adapts a boxed callback result from " + target.method());
-            // External numerical bodies stay outside the harness check, even when reached through a method reference.
-            if (target.method().owner().startsWith(BENCH)) pending.accept(target.method());
+            if (target.boxedAdaptation()) failures.add(caller + " adapts a boxed callback boundary through " + target.method());
+            // External signatures still resolve packaged callback bodies; external numerical bytecode is not loaded.
+            pending.accept(target.method());
         }
     }
 

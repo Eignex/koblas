@@ -181,6 +181,97 @@ public class BenchmarkCallbacksTest {
         assertTrue(BenchmarkCallbacks.violations(classes).isEmpty());
     }
 
+    @Test
+    void primitiveCallbackArgumentsCannotHideBoxingInMethodReferenceAdaptation() {
+        ClassDesc operator = ClassDesc.of("java.util.function.DoubleUnaryOperator");
+        var classes = fixture(NUMERIC, code -> code
+            .invokedynamic(factory(operator, "applyAsDouble", FIXTURE, "boxedArgument",
+                MethodTypeDesc.of(CD_double, BOX), MethodTypeDesc.of(CD_double, CD_double),
+                MethodTypeDesc.of(operator)))
+            .dconst_1().invokeinterface(operator, "applyAsDouble", MethodTypeDesc.of(CD_double, CD_double))
+            .dreturn(), false);
+        assertTrue(BenchmarkCallbacks.violations(classes).stream().anyMatch(message -> message.contains("adapts a boxed")));
+    }
+
+    @Test
+    void capturedPrimitiveArgumentsDoNotCountAsBoxing() {
+        ClassDesc operator = ClassDesc.of("java.util.function.DoubleUnaryOperator");
+        var classes = fixture(NUMERIC, code -> code.dconst_1()
+            .invokedynamic(factory(operator, "applyAsDouble", FIXTURE, "capturedArgument",
+                MethodTypeDesc.of(CD_double, CD_double, CD_double), MethodTypeDesc.of(CD_double, CD_double),
+                MethodTypeDesc.of(operator, CD_double)))
+            .dconst_1().invokeinterface(operator, "applyAsDouble", MethodTypeDesc.of(CD_double, CD_double))
+            .dreturn(), false);
+        assertTrue(BenchmarkCallbacks.violations(classes).isEmpty());
+    }
+
+    @Test
+    void jdkSamMethodReferencesCannotHideNestedBoxing() {
+        for (boolean classBased : new boolean[] {false, true}) {
+            assertTrue(BenchmarkCallbacks.violations(referencedSupplier(classBased, true)).stream()
+                .anyMatch(message -> message.contains("Function0.invoke")));
+        }
+    }
+
+    @Test
+    void primitiveJdkSamMethodReferencesAreAllowed() {
+        for (boolean classBased : new boolean[] {false, true}) {
+            assertTrue(BenchmarkCallbacks.violations(referencedSupplier(classBased, false)).isEmpty());
+        }
+    }
+
+    @Test
+    void harnessInterfaceMethodReferencesCheckImplementations() {
+        for (boolean boxed : new boolean[] {false, true}) {
+            var classes = referencedSupplier(true, boxed);
+            ClassDesc harness = ClassDesc.of("com.eignex.koblas.bench.HarnessSupplier");
+            classes.put("HarnessSupplier", CLASS_FILE.build(harness, builder -> builder
+                .withFlags(ClassFile.ACC_PUBLIC | ClassFile.ACC_INTERFACE | ClassFile.ACC_ABSTRACT)
+                .withMethod("getAsDouble", NUMERIC, ClassFile.ACC_PUBLIC | ClassFile.ACC_ABSTRACT, method -> {})));
+            classes.put("NestedSupplier", CLASS_FILE.build(NESTED, builder -> builder
+                .withInterfaceSymbols(harness)
+                .withMethodBody("getAsDouble", NUMERIC, ClassFile.ACC_PUBLIC, code -> {
+                    if (boxed) code.invokestatic(FIXTURE, "helper", NUMERIC);
+                    else code.dconst_1();
+                    code.dreturn();
+                })));
+            ClassDesc reference = ClassDesc.of("com.eignex.koblas.bench.SupplierReference");
+            classes.put("SupplierReference", CLASS_FILE.build(reference, builder -> builder
+                .withMethodBody("factory", MethodTypeDesc.of(OPERATION), ClassFile.ACC_PUBLIC | ClassFile.ACC_STATIC,
+                    code -> code.aconst_null().invokedynamic(factory(OPERATION, "invoke", harness, "getAsDouble",
+                        NUMERIC, NUMERIC, MethodTypeDesc.of(OPERATION, harness),
+                        java.lang.constant.DirectMethodHandleDesc.Kind.INTERFACE_VIRTUAL)).areturn())));
+            assertEquals(boxed, BenchmarkCallbacks.violations(classes).stream()
+                .anyMatch(message -> message.contains("Function0.invoke")));
+        }
+    }
+
+    private static Map<String, byte[]> referencedSupplier(boolean classBased, boolean boxed) {
+        var classes = nestedSupplier(NUMERIC, code -> {
+            if (boxed) code.invokestatic(FIXTURE, "helper", NUMERIC);
+            else code.dconst_1();
+            code.dreturn();
+        }, classBased);
+        if (!classBased) {
+            ClassDesc setup = ClassDesc.of("com.eignex.koblas.bench.SupplierSetup");
+            classes.put("SupplierSetup", CLASS_FILE.build(setup, builder -> builder
+                .withMethodBody("factory", MethodTypeDesc.of(SUPPLIER), ClassFile.ACC_PUBLIC | ClassFile.ACC_STATIC,
+                    code -> code.invokedynamic(factory(SUPPLIER, "getAsDouble", NESTED, "run", NUMERIC)).areturn())));
+        }
+        ClassDesc reference = ClassDesc.of("com.eignex.koblas.bench.SupplierReference");
+        classes.put("SupplierReference", CLASS_FILE.build(reference, builder -> builder
+            .withMethodBody("factory", MethodTypeDesc.of(OPERATION), ClassFile.ACC_PUBLIC | ClassFile.ACC_STATIC,
+                code -> code.aconst_null().invokedynamic(factory(OPERATION, "invoke", SUPPLIER, "getAsDouble",
+                    NUMERIC, NUMERIC, MethodTypeDesc.of(OPERATION, SUPPLIER),
+                    java.lang.constant.DirectMethodHandleDesc.Kind.INTERFACE_VIRTUAL)).areturn())));
+        // The only timed entry is the method reference, not a direct invokeinterface instruction.
+        classes.put("CallbackFixture", CLASS_FILE.build(FIXTURE, builder -> builder
+            .withMethodBody("helper", NUMERIC, ClassFile.ACC_PUBLIC | ClassFile.ACC_STATIC,
+                code -> code.aconst_null().invokeinterface(FUNCTION, "invoke", MethodTypeDesc.of(CD_Object))
+                    .checkcast(NUMBER).invokevirtual(NUMBER, "doubleValue", NUMERIC).dreturn())));
+        return classes;
+    }
+
     private static Map<String, byte[]> storedSupplier(boolean timed) {
         var classes = fixture(NUMERIC, code -> {
             if (timed) code.aconst_null().invokeinterface(SUPPLIER, "getAsDouble", NUMERIC);
@@ -264,6 +355,12 @@ public class BenchmarkCallbacksTest {
 
     private static DynamicCallSiteDesc factory(ClassDesc callback, String name, ClassDesc owner,
             String target, MethodTypeDesc signature, MethodTypeDesc sam, MethodTypeDesc site) {
+        return factory(callback, name, owner, target, signature, sam, site, STATIC);
+    }
+
+    private static DynamicCallSiteDesc factory(ClassDesc callback, String name, ClassDesc owner,
+            String target, MethodTypeDesc signature, MethodTypeDesc sam, MethodTypeDesc site,
+            java.lang.constant.DirectMethodHandleDesc.Kind kind) {
         ClassDesc lookup = ClassDesc.of("java.lang.invoke.MethodHandles$Lookup");
         ClassDesc type = ClassDesc.of("java.lang.invoke.MethodType");
         ClassDesc handle = ClassDesc.of("java.lang.invoke.MethodHandle");
@@ -271,6 +368,6 @@ public class BenchmarkCallbacksTest {
             "metafactory", MethodTypeDesc.of(ClassDesc.of("java.lang.invoke.CallSite"),
                 lookup, CD_String, type, type, handle, type));
         return DynamicCallSiteDesc.of(bootstrap, name, site, sam,
-            MethodHandleDesc.ofMethod(STATIC, owner, target, signature), sam);
+            MethodHandleDesc.ofMethod(kind, owner, target, signature), sam);
     }
 }
