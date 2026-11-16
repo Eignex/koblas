@@ -34,7 +34,7 @@ repositories {
         filter { includeModule("com.eignex", "lab-bench") }
     }
 }
-val labBenchVersion = providers.gradleProperty("labBenchVersion").getOrElse("0.1.0")
+val labBenchVersion = providers.gradleProperty("labBenchVersion").getOrElse("0.1.1")
 
 kotlin {
     compilerOptions {
